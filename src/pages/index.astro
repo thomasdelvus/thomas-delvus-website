@@ -3,6 +3,11 @@ import BaseHead from '../components/BaseHead.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
+
+const heroImage = "/images/CrossKeysInn.jpg";
+const watchersImage = "/images/pompeii.jpg";
+const saffrondaleMap = "/images/MapOfSaffrondale.jpg";
+const anglethMap = "/images/MapOfAngleth.jpg";
 ---
 
 <!doctype html>
@@ -12,39 +17,457 @@ import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
 	</head>
 	<body>
 		<Header />
-		<main>
-			<h1>🧑‍🚀 Thomas</h1>
-			<p>
-				Welcome to the official <a href="https://astro.build/">Astro</a> blog starter template. This
-				template serves as a lightweight, minimally-styled starting point for anyone looking to build
-				a personal website, blog, or portfolio with Astro.
-			</p>
-			<p>
-				This template comes with a few integrations already configured in your
-				<code>astro.config.mjs</code> file. You can customize your setup with
-				<a href="https://astro.build/integrations">Astro Integrations</a> to add tools like Tailwind,
-				React, or Vue to your project.
-			</p>
-			<p>Here are a few ideas on how to get started with the template:</p>
-			<ul>
-				<li>Edit this page in <code>src/pages/index.astro</code></li>
-				<li>Edit the site header items in <code>src/components/Header.astro</code></li>
-				<li>Add your name to the footer in <code>src/components/Footer.astro</code></li>
-				<li>Check out the included blog posts in <code>src/content/blog/</code></li>
-				<li>Customize the blog post page layout in <code>src/layouts/BlogPost.astro</code></li>
-			</ul>
-			<p>
-				Have fun! If you get stuck, remember to <a href="https://docs.astro.build/"
-					>read the docs
-				</a> or <a href="https://astro.build/chat">join us on Discord</a> to ask questions.
-			</p>
-			<p>
-				Looking for a blog template with a bit more personality? Check out <a
-					href="https://github.com/Charca/astro-blog-template"
-					>astro-blog-template
-				</a> by <a href="https://twitter.com/Charca">Maxi Ferreira</a>.
-			</p>
+
+		<main class="page">
+			<!-- HERO -->
+			<section class="hero">
+				<div class="hero__media" aria-hidden="true">
+					<img
+						src={heroImage}
+						alt="The Cross Keys Inn — a rustic landmark in Saffrondale"
+						loading="eager"
+					/>
+					<div class="hero__veil"></div>
+				</div>
+
+				<div class="hero__content">
+					<p class="kicker">THOMAS DELVUS</p>
+					<h1 class="title">Worlds, stories, and narrative systems</h1>
+					<p class="lede">
+						I build fiction like machinery: hidden gears, elegant constraints, and a touch of
+						moonlit wonder. This is the workshop—part myth, part lab—where stories become
+						places you can actually step into.
+					</p>
+
+					<div class="ctaRow">
+						<a class="btn" href="/about">Enter the workshop</a>
+						<a class="btn btn--ghost" href="/blog">Read the latest</a>
+					</div>
+
+					<p class="smallprint">
+						Some artifacts are meant to be seen. Some are meant to be used.
+					</p>
+				</div>
+			</section>
+
+			<!-- ABOUT -->
+			<section class="section section--split" aria-labelledby="about-title">
+				<div class="card">
+					<h2 id="about-title">About Thomas Delvus</h2>
+					<p>
+						Thomas Delvus is the name I use when I’m mapping the borderlands—where imagination
+						meets structure, and ideas become repeatable systems.
+					</p>
+					<p>
+						Right now, three threads are being braided into one tapestry: <span class="em">The Watchers</span>,
+						a modern myth of hidden powers and reclaimed truth; <span class="em">Saffrondale</span>,
+						an AI-assisted tabletop world built to feel alive; and a series of AI-generated
+						podcasts—science, finance, and strange signal—from notebooks that refuse to stay quiet.
+					</p>
+					<p class="note">
+						This site is where the public-facing artifacts live: writings, maps, episodes, and the
+						occasional doorway.
+					</p>
+				</div>
+
+				<div class="mediaCard">
+					<img
+						src={watchersImage}
+						alt="A classical scene of gods amid smoke and ash — an echo of Pompeii"
+						loading="lazy"
+					/>
+					<div class="mediaCard__caption">
+						<span class="chip">The Watchers</span>
+						<span class="chip chip--muted">myth • aftermath • consequence</span>
+					</div>
+				</div>
+			</section>
+
+			<!-- PROJECTS -->
+			<section class="section" aria-labelledby="projects-title">
+				<header class="sectionHeader">
+					<h2 id="projects-title">Current Projects</h2>
+					<p class="sub">
+						Three pillars. One workshop. Each feeding the others—story, game, signal.
+					</p>
+				</header>
+
+				<div class="grid">
+					<article class="tile">
+						<h3>The Watchers</h3>
+						<p>
+							A modern myth—told as novel, comic, or animated series—where ancient powers hide
+							in plain sight, and the cost of progress is finally collected.
+						</p>
+						<div class="tile__meta">
+							<span class="tag">fiction</span>
+							<span class="tag">mystery</span>
+							<span class="tag">serialized</span>
+						</div>
+						<a class="tile__link" href="/blog">Read progress →</a>
+					</article>
+
+					<article class="tile">
+						<h3>Saffrondale</h3>
+						<p>
+							A ChatGPT-powered Dungeon Master experience with canonical, player-facing artifacts—
+							maps, locations, and rules that stay consistent across sessions.
+						</p>
+						<div class="tile__meta">
+							<span class="tag">D&amp;D</span>
+							<span class="tag">AI DM</span>
+							<span class="tag">worldbuilding</span>
+						</div>
+						<a class="tile__link" href="/blog">See sessions →</a>
+					</article>
+
+					<article class="tile">
+						<h3>AI Podcasts</h3>
+						<p>
+							Notebook-style briefings on science, finance, and whatever else shows up at 3am
+							with receipts. Calm voice. Sharp edges. Useful signal.
+						</p>
+						<div class="tile__meta">
+							<span class="tag">audio</span>
+							<span class="tag">research</span>
+							<span class="tag">insight</span>
+						</div>
+						<a class="tile__link" href="/blog">Listen / read →</a>
+					</article>
+				</div>
+			</section>
+
+			<!-- MAPS / ARTIFACTS -->
+			<section class="section section--artifacts" aria-labelledby="artifacts-title">
+				<header class="sectionHeader">
+					<h2 id="artifacts-title">Canonical Maps</h2>
+					<p class="sub">
+						Player-facing artifacts for Saffrondale. These exact files are also hosted here so GPTs
+						can reference them reliably.
+					</p>
+				</header>
+
+				<div class="artifactGrid">
+					<a class="artifact" href={saffrondaleMap} target="_blank" rel="noopener">
+						<img src={saffrondaleMap} alt="Map of Saffrondale (Town)" loading="lazy" />
+						<div class="artifact__label">
+							<span class="artifact__title">Map of Saffrondale</span>
+							<span class="artifact__meta">Town • canonical</span>
+						</div>
+					</a>
+
+					<a class="artifact" href={anglethMap} target="_blank" rel="noopener">
+						<img src={anglethMap} alt="Map of the Region of Angleth" loading="lazy" />
+						<div class="artifact__label">
+							<span class="artifact__title">Map of Angleth</span>
+							<span class="artifact__meta">Region • canonical</span>
+						</div>
+					</a>
+				</div>
+
+				<div class="callout">
+					<p>
+						Direct links:
+						<a href={saffrondaleMap} target="_blank" rel="noopener">/images/MapOfSaffrondale.jpg</a>
+						<span class="dot">•</span>
+						<a href={anglethMap} target="_blank" rel="noopener">/images/MapOfAngleth.jpg</a>
+					</p>
+				</div>
+			</section>
+
+			<!-- CONTACT -->
+			<section class="section section--contact" aria-labelledby="contact-title">
+				<div class="card card--dark">
+					<h2 id="contact-title">Contact</h2>
+					<p>
+						If you’re reaching out about collaboration, adaptation, or the strange intersection of
+						lore and tooling, email is best.
+					</p>
+					<p class="contactRow">
+						<span class="label">Email</span>
+						<a class="contact" href="mailto:thomas@delvus.net">thomas@delvus.net</a>
+					</p>
+					<p class="contactRow">
+						<span class="label">Location</span>
+						<span class="contact">Earth</span>
+					</p>
+				</div>
+			</section>
 		</main>
+
 		<Footer />
+
+		<style>
+			:global(html) { scroll-behavior: smooth; }
+			:global(body) {
+				margin: 0;
+				color: #161616;
+				background: #f3f2ef;
+			}
+			:global(a) { color: inherit; }
+
+			.page {
+				max-width: 1100px;
+				margin: 0 auto;
+				padding: 0 20px 60px;
+			}
+
+			.hero {
+				position: relative;
+				margin: 26px 0 36px;
+				border-radius: 22px;
+				overflow: hidden;
+				min-height: 520px;
+				display: grid;
+				align-items: end;
+				box-shadow: 0 18px 60px rgba(0,0,0,.12);
+			}
+			.hero__media {
+				position: absolute;
+				inset: 0;
+			}
+			.hero__media img {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+				transform: scale(1.02);
+				filter: contrast(1.02) saturate(1.02);
+			}
+			.hero__veil {
+				position: absolute;
+				inset: 0;
+				background:
+					radial-gradient(1200px 700px at 20% 35%, rgba(0,0,0,.10), transparent 60%),
+					linear-gradient(to top, rgba(0,0,0,.62), rgba(0,0,0,.10));
+			}
+			.hero__content {
+				position: relative;
+				padding: 44px 38px;
+				max-width: 720px;
+				color: #f6f4ef;
+			}
+			.kicker {
+				letter-spacing: .18em;
+				font-size: 12px;
+				opacity: .85;
+				margin: 0 0 10px;
+			}
+			.title {
+				margin: 0 0 12px;
+				font-size: clamp(34px, 4vw, 54px);
+				line-height: 1.04;
+				letter-spacing: -0.02em;
+			}
+			.lede {
+				margin: 0 0 22px;
+				font-size: 17px;
+				line-height: 1.6;
+				opacity: .95;
+			}
+			.smallprint {
+				margin: 16px 0 0;
+				font-size: 12px;
+				opacity: .78;
+			}
+
+			.ctaRow {
+				display: flex;
+				gap: 12px;
+				flex-wrap: wrap;
+				margin-top: 8px;
+			}
+			.btn {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				padding: 12px 16px;
+				border-radius: 999px;
+				text-decoration: none;
+				background: rgba(245,243,239,.92);
+				color: #141414;
+				font-weight: 600;
+				border: 1px solid rgba(255,255,255,.40);
+				backdrop-filter: blur(8px);
+			}
+			.btn:hover { transform: translateY(-1px); }
+			.btn--ghost {
+				background: rgba(15,15,15,.25);
+				color: #f6f4ef;
+				border: 1px solid rgba(255,255,255,.35);
+			}
+
+			.section {
+				margin: 38px 0;
+			}
+			.sectionHeader h2 {
+				margin: 0;
+				font-size: 28px;
+				letter-spacing: -0.01em;
+			}
+			.sub {
+				margin: 8px 0 0;
+				color: rgba(0,0,0,.70);
+				line-height: 1.6;
+				max-width: 760px;
+			}
+
+			.section--split {
+				display: grid;
+				grid-template-columns: 1.1fr .9fr;
+				gap: 18px;
+				align-items: stretch;
+			}
+
+			.card {
+				background: #ffffff;
+				border-radius: 18px;
+				padding: 22px 22px;
+				box-shadow: 0 10px 30px rgba(0,0,0,.07);
+				border: 1px solid rgba(0,0,0,.06);
+			}
+			.card h2 { margin: 0 0 10px; }
+			.card p { margin: 10px 0; line-height: 1.65; color: rgba(0,0,0,.78); }
+			.note { color: rgba(0,0,0,.68); }
+			.em { font-style: italic; }
+
+			.mediaCard {
+				background: #0f0f10;
+				border-radius: 18px;
+				overflow: hidden;
+				box-shadow: 0 10px 30px rgba(0,0,0,.12);
+				border: 1px solid rgba(0,0,0,.12);
+				display: grid;
+				grid-template-rows: 1fr auto;
+				min-height: 320px;
+			}
+			.mediaCard img {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+				display: block;
+			}
+			.mediaCard__caption {
+				display: flex;
+				gap: 10px;
+				padding: 14px 14px;
+				align-items: center;
+				flex-wrap: wrap;
+				background: linear-gradient(to top, rgba(0,0,0,.75), rgba(0,0,0,.55));
+				color: rgba(246,244,239,.92);
+			}
+			.chip {
+				font-size: 12px;
+				padding: 6px 10px;
+				border-radius: 999px;
+				background: rgba(255,255,255,.14);
+				border: 1px solid rgba(255,255,255,.18);
+			}
+			.chip--muted { opacity: .85; }
+
+			.grid {
+				display: grid;
+				grid-template-columns: repeat(3, 1fr);
+				gap: 14px;
+				margin-top: 14px;
+			}
+			.tile {
+				background: #fff;
+				border-radius: 18px;
+				padding: 18px 18px 16px;
+				border: 1px solid rgba(0,0,0,.06);
+				box-shadow: 0 10px 30px rgba(0,0,0,.06);
+			}
+			.tile h3 { margin: 0 0 8px; font-size: 18px; }
+			.tile p { margin: 0 0 12px; color: rgba(0,0,0,.75); line-height: 1.6; }
+			.tile__meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+			.tag {
+				font-size: 11px;
+				padding: 5px 9px;
+				border-radius: 999px;
+				background: rgba(0,0,0,.06);
+				color: rgba(0,0,0,.72);
+			}
+			.tile__link {
+				text-decoration: none;
+				font-weight: 700;
+			}
+			.tile__link:hover { text-decoration: underline; }
+
+			.section--artifacts .callout {
+				margin-top: 12px;
+				padding: 12px 14px;
+				background: rgba(255,255,255,.7);
+				border: 1px solid rgba(0,0,0,.06);
+				border-radius: 14px;
+				color: rgba(0,0,0,.70);
+			}
+			.dot { margin: 0 8px; opacity: .55; }
+
+			.artifactGrid {
+				margin-top: 14px;
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 14px;
+			}
+			.artifact {
+				display: grid;
+				text-decoration: none;
+				background: #fff;
+				border-radius: 18px;
+				overflow: hidden;
+				border: 1px solid rgba(0,0,0,.06);
+				box-shadow: 0 10px 30px rgba(0,0,0,.06);
+			}
+			.artifact img {
+				width: 100%;
+				height: 260px;
+				object-fit: cover;
+				display: block;
+			}
+			.artifact__label {
+				padding: 12px 14px 14px;
+			}
+			.artifact__title {
+				display: block;
+				font-weight: 800;
+			}
+			.artifact__meta {
+				display: block;
+				margin-top: 4px;
+				color: rgba(0,0,0,.66);
+				font-size: 12px;
+			}
+
+			.section--contact {
+				display: grid;
+				place-items: center;
+				margin-top: 44px;
+			}
+			.card--dark {
+				width: 100%;
+				background: #171717;
+				color: #f6f4ef;
+				border: 1px solid rgba(255,255,255,.10);
+			}
+			.card--dark p { color: rgba(246,244,239,.82); }
+			.contactRow {
+				display: grid;
+				grid-template-columns: 90px 1fr;
+				gap: 10px;
+				align-items: baseline;
+				margin: 10px 0;
+			}
+			.label { opacity: .70; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+			.contact { font-weight: 700; text-decoration: none; }
+			.card--dark .contact:hover { text-decoration: underline; }
+
+			@media (max-width: 920px) {
+				.section--split { grid-template-columns: 1fr; }
+				.grid { grid-template-columns: 1fr; }
+				.artifactGrid { grid-template-columns: 1fr; }
+				.hero { min-height: 520px; }
+				.hero__content { padding: 34px 22px; }
+			}
+		</style>
 	</body>
 </html>
