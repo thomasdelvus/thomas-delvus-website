@@ -308,12 +308,17 @@ const angwythMap = "/images/MapOfAngwyth.jpg";
 				max-width: 760px;
 			}
 
-			.section--split {
-				display: grid;
-				grid-template-columns: 1.1fr .9fr;
-				gap: 18px;
-				align-items: stretch;
-			}
+.section--split {
+  display: grid;
+  grid-template-columns: 1fr;  /* stack */
+  gap: 18px;
+}
+
+.mediaCard {
+  max-width: 720px;   /* optional: keep it tasteful */
+  justify-self: start; /* or center */
+}
+
 
 			.card {
 				background: #ffffff;
