@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Delvus Battlemat – Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #111;
+      color: #eee;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 1.4rem;
+    }
+    pre {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      padding: 12px;
+      overflow: auto;
+      max-height: 70vh;
+      font-size: 0.9rem;
+    }
+    .error {
+      color: #ff6b6b;
+      font-weight: 600;
+    }
+    .ok {
+      color: #7CFC98;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Delvus Battlemat – API Test</h1>
+
+<div id="status">Loading…</div>
+<pre id="output"></pre>
+
+<script>
+  async function main() {
+    const statusEl = document.getElementById('status');
+    const outputEl = document.getElementById('output');
+
+    // Extract battle_id from /play/<battle_id>
+    const parts = location.pathname.split('/').filter(Boolean);
+    const battleId = (parts[0] === 'play' && parts[1]) ? parts[1] : null;
+
+    if (!battleId) {
+      statusEl.innerHTML = '<span class="error">No battle_id found in URL.</span>';
+      return;
+    }
+
+    statusEl.textContent = `Loading battle ${battleId}…`;
+
+    try {
+      const res = await fetch(`/api/v1/battles/${encodeURIComponent(battleId)}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        throw new Error(`API returned ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      statusEl.innerHTML = `<span class="ok">Loaded battle ${battleId} successfully.</span>`;
+      outputEl.textContent = JSON.stringify(data, null, 2);
+
+      // For later:
+      // const scene = JSON.parse(data.state_json);
+
+    } catch (err) {
+      statusEl.innerHTML = '<span class="error">Failed to load battle.</span>';
+      outputEl.textContent = String(err);
+      console.error(err);
+    }
+  }
+
+  main();
+</script>
+
+</body>
+</html>
