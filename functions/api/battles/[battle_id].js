@@ -1,27 +1,32 @@
-export async function onRequest(context) {
-  const { params, env, request } = context;
+export async function onRequestGet(context) {
+  const { params, env } = context;
   const battleId = params.battle_id;
 
-  // URL of your existing authenticated Worker API
+  // sanity check
+  if (!battleId) {
+    return new Response(JSON.stringify({ error: "Missing battle_id" }), {
+      status: 400,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  // your upstream Worker API
   const upstream = `https://game-api.abbacasa-031.workers.dev/battles/${encodeURIComponent(battleId)}`;
 
   const res = await fetch(upstream, {
-    method: "GET",
     headers: {
       "Accept": "application/json",
       "Authorization": `Bearer ${env.GAME_API_TOKEN}`,
     },
   });
 
-  // Pass through status + body
   const body = await res.text();
 
   return new Response(body, {
     status: res.status,
     headers: {
-      "Content-Type": "application/json",
-      // CORS not needed since this is same-origin
-      "Cache-Control": "no-store",
+      "content-type": res.headers.get("content-type") || "application/json",
+      "cache-control": "no-store",
     },
   });
 }
