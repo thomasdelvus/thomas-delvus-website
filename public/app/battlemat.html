@@ -124,6 +124,7 @@ BATTLEMAT ENGINE
     .legend-swatch.window { background: #cfe6f6; }
     .legend-swatch.table { background: #b07a3f; border-radius: 50%; }
     .legend-swatch.difficult { background: rgba(120,120,120,0.08); }
+
     /* Hex-shaped legend swatch (matches battlemat hexes) */
     .legend-swatch.hex {
       position: relative;
@@ -140,8 +141,6 @@ BATTLEMAT ENGINE
       border: none;
     }
 
-    /* Border for clipped hex swatch: draw a slightly larger hex behind */
-    /* Border for clipped hex swatch: draw a slightly larger hex behind */
     /* Border for clipped hex swatch: subtle outline behind */
     .legend-swatch.hex::before {
       content: "";
@@ -152,6 +151,7 @@ BATTLEMAT ENGINE
       transform: scale(1.12);
       z-index: -1;
     }
+
     .legend-swatch.pc { background: rgba(80,160,220,0.95); border-radius: 50%; }
     .legend-swatch.en { background: rgba(220,120,80,0.95); border-radius: 50%; }
 
@@ -210,11 +210,23 @@ BATTLEMAT ENGINE
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
+
+    /* Small inline diagnostics */
+    .diag {
+      margin-top: 6px;
+      padding: 8px 10px;
+      border: 1px solid rgba(0,0,0,0.10);
+      background: rgba(0,0,0,0.03);
+      font-size: 0.85rem;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+    .diag .bad { color: #b00020; font-weight: 650; }
+    .diag .ok { color: #0b6b0b; font-weight: 650; }
   </style>
 </head>
 <body>
   <header>Hex Battlemat</header>
-<!-- Canvas active: preparing API URL wiring -->
 
   <main>
     <div class="layout">
@@ -225,6 +237,9 @@ BATTLEMAT ENGINE
           <h3>Initiative &amp; Status</h3>
           <div class="subtle" id="roundLine">Round —</div>
         </div>
+
+        <!-- URL/API diagnostics (helps debug /play/<id> routing) -->
+        <div class="diag" id="diagBox" aria-label="Diagnostics" style="display:none"></div>
 
         <div class="status-wrap">
           <table aria-label="Combatants">
@@ -300,8 +315,133 @@ BATTLEMAT ENGINE
 
   <script>
     // =====================================================================
+    // DB / API WIRING (safe, minimal) — reads /play/<battle_id> and loads state
+    // =====================================================================
+
+    // IMPORTANT:
+    // - Cloudflare _redirects rewrites /play/* -> /app/battlemat.html, but the browser URL stays /play/<id>.
+    // - Therefore, battle_id must be parsed from window.location.pathname.
+
+    function getBattleIdFromUrl() {
+      // Primary: /play/<battle_id>
+      const m = window.location.pathname.match(/^\/play\/([^\/?#]+)/i);
+      if (m) return decodeURIComponent(m[1]);
+
+      // Fallback: ?battle_id=27 (handy for local debugging)
+      const u = new URL(window.location.href);
+      return u.searchParams.get('battle_id');
+    }
+
+    // Set this to your Worker/API base. If your API is on the same origin, leave as ''.
+    // Examples:
+    //   const API_BASE = '';
+    //   const API_BASE = 'https://api.delvus.net';
+    const API_BASE = '';
+
+    // Adjust to your actual endpoint path.
+    // Common patterns:
+    //   /api/battles/<id>
+    //   /battle/<id>
+    //   /battles/<id>
+    function battleStateUrl(battleId) {
+      return `${API_BASE}/battle/${encodeURIComponent(battleId)}`;
+    }
+
+    // Lightweight diagnostics UI (so you can see instantly what the page thinks)
+    function setDiag(html) {
+      const box = document.getElementById('diagBox');
+      if (!box) return;
+      box.style.display = 'block';
+      box.innerHTML = html;
+    }
+
+    async function tryLoadSceneFromApi() {
+      const battleId = getBattleIdFromUrl();
+
+      // Show what we parsed, always (super helpful during bring-up)
+      const url = battleId ? battleStateUrl(battleId) : '(no battle_id)';
+      setDiag(
+        `URL Path: <code>${escapeHtml(window.location.pathname)}</code><br>` +
+        `battle_id: <span class="${battleId ? 'ok' : 'bad'}">${escapeHtml(String(battleId || 'NONE'))}</span><br>` +
+        `Fetch: <code>${escapeHtml(url)}</code>`
+      );
+
+      if (!battleId) {
+        // Keep default embedded SCENE
+        const roundLine = document.getElementById('roundLine');
+        if (roundLine) roundLine.textContent = 'No battle_id in URL';
+        return false;
+      }
+
+      const endpoint = battleStateUrl(battleId);
+      try {
+        const res = await fetch(endpoint, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          cache: 'no-store'
+        });
+
+        if (!res.ok) {
+          setDiag(
+            `URL Path: <code>${escapeHtml(window.location.pathname)}</code><br>` +
+            `battle_id: <span class="ok">${escapeHtml(String(battleId))}</span><br>` +
+            `Fetch: <code>${escapeHtml(endpoint)}</code><br>` +
+            `<span class="bad">HTTP ${res.status}: ${escapeHtml(res.statusText || 'Error')}</span>`
+          );
+          return false;
+        }
+
+        const data = await res.json();
+
+        // Expect either:
+        //  - { state_json: "{...}" }
+        //  - { state: { ... } }
+        //  - { ...sceneObject }
+        let sceneObj = null;
+        if (data && typeof data.state_json === 'string') {
+          sceneObj = JSON.parse(data.state_json);
+        } else if (data && typeof data.state === 'object') {
+          sceneObj = data.state;
+        } else if (data && typeof data === 'object') {
+          // If your API returns the scene directly
+          sceneObj = data;
+        }
+
+        if (!sceneObj || typeof sceneObj !== 'object') {
+          setDiag(
+            `URL Path: <code>${escapeHtml(window.location.pathname)}</code><br>` +
+            `battle_id: <span class="ok">${escapeHtml(String(battleId))}</span><br>` +
+            `Fetch: <code>${escapeHtml(endpoint)}</code><br>` +
+            `<span class="bad">API response did not contain a usable scene.</span>`
+          );
+          return false;
+        }
+
+        // Overwrite the embedded SCENE JSON with the loaded one (single source of truth)
+        const sceneTag = document.getElementById('scene-json');
+        if (sceneTag) sceneTag.textContent = JSON.stringify(sceneObj, null, 2);
+
+        setDiag(
+          `URL Path: <code>${escapeHtml(window.location.pathname)}</code><br>` +
+          `battle_id: <span class="ok">${escapeHtml(String(battleId))}</span><br>` +
+          `Fetch: <code>${escapeHtml(endpoint)}</code><br>` +
+          `<span class="ok">Loaded state from API.</span>`
+        );
+
+        return true;
+      } catch (e) {
+        setDiag(
+          `URL Path: <code>${escapeHtml(window.location.pathname)}</code><br>` +
+          `battle_id: <span class="ok">${escapeHtml(String(battleId))}</span><br>` +
+          `Fetch: <code>${escapeHtml(endpoint)}</code><br>` +
+          `<span class="bad">Fetch/parse error: ${escapeHtml(e && e.message ? e.message : String(e))}</span>`
+        );
+        return false;
+      }
+    }
+
+    // =====================================================================
     // ENGINE (do not edit during play)
-    // Sections are intentionally bannered so future GPT edits stay scoped.
     // =====================================================================
 
     // Scene loader state (prevents blank-mat failures from bad edits)
@@ -327,10 +467,6 @@ BATTLEMAT ENGINE
         return (LAST_GOOD_SCENE || {});
       }
     }
-// =====================================================================
-    // ENGINE (do not edit during play)
-    // Sections are intentionally bannered so future GPT edits stay scoped.
-    // =====================================================================
 
     // ====== GRID CONFIG ======
     const cols = 17;        // A..Q
@@ -554,9 +690,6 @@ BATTLEMAT ENGINE
     }
 
     // ====== ROOM GEOMETRY (RECT WALLS) ======
-    // Visual wall logic (v1): draw a thick rectangle around a room.
-    // Important: the top & bottom edges are shifted by 1/4 hex height so the wall band
-    // sits in the "notches" and looks square-ish on a flat-top hex grid.
     function getRoomGeom(room) {
       const c = Array.isArray(room.corners) ? room.corners : null;
       if (!c || c.length !== 4) return null;
@@ -567,8 +700,8 @@ BATTLEMAT ENGINE
       const pBL = labelToPixel(c[3]);
       if (!pTL || !pTR || !pBR || !pBL) return null;
 
-      const hexH = SQRT3 * size;      // point-to-point height
-      const yInset = hexH * CONFIG.room.yInsetFrac;     // your "about 1/4 hex" observation
+      const hexH = SQRT3 * size;
+      const yInset = hexH * CONFIG.room.yInsetFrac;
 
       return {
         id: String(room.id || ''),
@@ -581,9 +714,6 @@ BATTLEMAT ENGINE
       };
     }
 
-    // Visual wall logic (v1): draw a thick rectangle around a room.
-    // Important: the top & bottom edges are shifted by 1/4 hex height so the wall band
-    // sits in the "notches" and looks square-ish on a flat-top hex grid.
     function drawRooms() {
       const rooms = Array.isArray(SCENE_NORM?.rooms) ? SCENE_NORM.rooms : [];
       if (!rooms.length || !ROOM_GEOMS) return;
@@ -593,7 +723,7 @@ BATTLEMAT ENGINE
         if (!g) continue;
 
         ctx.save();
-        ctx.globalAlpha = 1.0; // walls opaque
+        ctx.globalAlpha = 1.0;
         ctx.strokeStyle = g.color;
         ctx.lineWidth = g.thickness;
         ctx.lineJoin = 'miter';
@@ -612,13 +742,6 @@ BATTLEMAT ENGINE
     }
 
     // ====== BLOCKING / RULES EXPORTS ======
-    // --- Blocking logic (v1) ---
-    // Computes a set of hex labels that are considered blocked for movement.
-    // Rules:
-    // - Room wall perimeters are blocked
-    // - Any OPEN door/window removes its hex from blocked (creates a passable gap)
-    // - Living actors block their occupied hex
-    // - Objects with blocks:true block their occupied hexes
     function roomPerimeterLabels(room) {
       const c = Array.isArray(room.corners) ? room.corners : null;
       if (!c || c.length !== 4) return new Set();
@@ -630,22 +753,18 @@ BATTLEMAT ENGINE
 
       const out = new Set();
 
-      // Top edge: TL -> TR
       const qStartT = Math.min(tl.q, tr.q);
       const qEndT   = Math.max(tl.q, tr.q);
       for (let q = qStartT; q <= qEndT; q++) out.add(labelFor(q, tl.r));
 
-      // Bottom edge: BL -> BR
       const qStartB = Math.min(bl.q, br.q);
       const qEndB   = Math.max(bl.q, br.q);
       for (let q = qStartB; q <= qEndB; q++) out.add(labelFor(q, bl.r));
 
-      // Left edge: BL -> TL
       const rStartL = Math.min(bl.r, tl.r);
       const rEndL   = Math.max(bl.r, tl.r);
       for (let r = rStartL; r <= rEndL; r++) out.add(labelFor(tl.q, r));
 
-      // Right edge: BR -> TR
       const rStartR = Math.min(br.r, tr.r);
       const rEndR   = Math.max(br.r, tr.r);
       for (let r = rStartR; r <= rEndR; r++) out.add(labelFor(tr.q, r));
@@ -656,13 +775,11 @@ BATTLEMAT ENGINE
     function computeBlockedHexes() {
       const blocked = new Set();
 
-      // 1) Walls: perimeter of each room rectangle in hex-label space
       for (const room of (SCENE_NORM?.rooms || [])) {
         const perim = roomPerimeterLabels(room);
         for (const lab of perim) blocked.add(lab);
       }
 
-      // 2) Open doors/windows: carve out gaps
       for (const o of (SCENE_NORM?.openings || [])) {
         const kind = String(o.kind || 'door').toLowerCase();
         if (kind !== 'door' && kind !== 'window') continue;
@@ -673,7 +790,6 @@ BATTLEMAT ENGINE
         }
       }
 
-      // 3) Living actors block their hex
       for (const a of (SCENE_NORM?.actors || [])) {
         const hp = Number(a.hp ?? 0);
         const effects = Array.isArray(a.effects) ? a.effects : [];
@@ -683,7 +799,6 @@ BATTLEMAT ENGINE
         if (lab) blocked.add(lab);
       }
 
-      // 4) Blocking objects
       for (const o of (SCENE_NORM?.objects || [])) {
         if (!o || !o.blocks) continue;
         const cells = Array.isArray(o.cells) ? o.cells : [];
@@ -693,15 +808,12 @@ BATTLEMAT ENGINE
       return blocked;
     }
 
-    // Expose for GPT/rules checks
     function refreshBlocked() {
-      const b = computeBlockedHexes();
-      return b;
+      return computeBlockedHexes();
     }
 
     // ====== OBJECTS (TABLES/OBSTACLES) ======
     function objectCentroidPx(cells) {
-      // Deterministic visual center: average of the pixel centers of occupied hexes.
       let sx = 0, sy = 0, n = 0;
       for (const lab of (cells || [])) {
         const p = labelToPixel(lab);
@@ -713,7 +825,6 @@ BATTLEMAT ENGINE
     }
 
     function objectBoundsPx(cells) {
-      // Bounding box around the pixel centers of occupied hexes.
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       let n = 0;
       for (const lab of (cells || [])) {
@@ -754,14 +865,11 @@ BATTLEMAT ENGINE
           ? String(obj.label).trim().slice(0, 3)
           : kind.slice(0, 1).toUpperCase();
 
-        // Visual defaults (can be overridden per object)
         const fill = obj.color
           ? String(obj.color)
           : (blocks ? 'rgba(0,0,0,0.20)' : 'rgba(0,0,0,0.10)');
 
-        // 1) Footprint shading (authoritative cells)
-        // For shaped blockers, skip hex shading so the top communicates blocking.
-        // (Difficult terrain still uses per-hex shading + glyphs.)
+        // Per-hex shading (difficult terrain + generic objects)
         if (kind !== 'table' && kind !== 'rect' && kind !== 'sarcophagus') {
           for (let i = 0; i < cells.length; i++) {
             const lab = String(cells[i]).trim().toUpperCase();
@@ -774,14 +882,10 @@ BATTLEMAT ENGINE
             ctx.fillStyle = fill;
             ctx.fill();
 
-            // Outline for readability
             ctx.lineWidth = 1;
             ctx.strokeStyle = 'rgba(0,0,0,0.18)';
             ctx.stroke();
 
-            // Glyphs:
-            // - Difficult terrain: mark EVERY cell with "~" for instant readability
-            // - Other objects: mark only the first cell
             if (kind === 'difficult' || i === 0) {
               ctx.font = 'bold 12px ui-monospace, system-ui, sans-serif';
               ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -794,29 +898,21 @@ BATTLEMAT ENGINE
           }
         }
 
-        // 2) Shape rendering (cosmetic): round tables
-        // Tables are rendered as a circle centered on the centroid of their occupied cells.
         if (kind === 'table') {
           const c = objectCentroidPx(cells);
           if (!c) continue;
-
-          // Radius tuned for readability: looks good for 1–4 hex footprints.
-          // Render radius: 1.25 hex radius (visual only)
           const radius = size * 1.25;
 
           ctx.save();
           ctx.beginPath();
           ctx.arc(c.x, c.y, radius, 0, Math.PI * 2);
-          // Match table color to door wood for a consistent palette
           ctx.fillStyle = '#b07a3f';
           ctx.fill();
 
           ctx.lineWidth = 2;
-      // Thin black outline for all tokens (PC & Enemy, live or dead)
-      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-      ctx.stroke();
+          ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+          ctx.stroke();
 
-          // Label on the table itself (defaults to "T")
           const tLabel = (obj.label != null && String(obj.label).trim()) ? String(obj.label).trim().slice(0, 3) : 'T';
           ctx.font = 'bold 14px ui-monospace, system-ui, sans-serif';
           ctx.fillStyle = 'rgba(0,0,0,0.85)';
@@ -827,14 +923,11 @@ BATTLEMAT ENGINE
           ctx.restore();
         }
 
-        // 3) Shape rendering (cosmetic): rectangular blockers (benches, sarcophagi, crates)
-        // Draw a rounded rectangle around the occupied-cell bounds, centered by their centroid.
         if (kind === 'rect' || kind === 'sarcophagus') {
           const c = objectCentroidPx(cells);
           const b = objectBoundsPx(cells);
           if (!c || !b) continue;
 
-          // Expand bounds to cover the touched hexes (visual only)
           const padX = size * 0.85;
           const padY = size * 0.55;
           const w = (b.maxX - b.minX) + padX * 2;
@@ -886,7 +979,6 @@ BATTLEMAT ENGINE
         const atPx = labelToPixel(o.at);
         if (!atPx) continue;
 
-        // Anchor to the actual wall centerline so we don't need column parity hacks.
         let x = atPx.x;
         let y = atPx.y;
         if (wall === 'N') y = g.topY;
@@ -895,50 +987,34 @@ BATTLEMAT ENGINE
         else if (wall === 'W') x = g.leftX;
         else continue;
 
-        // Door/window marker geometry
-        // - thicknessAcross: match wall thickness
-        // - spanAlong: match one-hex step along that wall direction
         const thicknessAcross = Number(o.thicknessAcross ?? Math.max(CONFIG.opening.minAcross, g.thickness * CONFIG.opening.acrossMul));
         const spanAlong = (wall === 'N' || wall === 'S')
-          ? Number(o.spanAlong ?? (CONFIG.opening.spanNSMul * size))      // one hex step along a north/south wall
-          : Number(o.spanAlong ?? (CONFIG.opening.spanEWMul * SQRT3 * size));   // one hex step along an east/west wall
+          ? Number(o.spanAlong ?? (CONFIG.opening.spanNSMul * size))
+          : Number(o.spanAlong ?? (CONFIG.opening.spanEWMul * SQRT3 * size));
 
         const rectW = (wall === 'N' || wall === 'S') ? spanAlong : thicknessAcross;
         const rectH = (wall === 'N' || wall === 'S') ? thicknessAcross : spanAlong;
 
-        // Draw a wall-aligned rectangular opening marker.
         ctx.save();
         ctx.translate(x, y);
 
-        // door/window fill
-        // - closed door: warm wood + "D"
-        // - open door: true white gap (no outline)
-        // - closed window: light blue + "W"
-        // - open window: very light gray (still visible)
         const isDoor = (kind === 'door');
         const isWindow = (kind === 'window');
         const isOpen = (state === 'open');
 
-        // For open doors OR open windows: draw a visual gap
         if (isOpen) {
           if (isWindow) {
-            // Open window: very light gray (wall still exists visually)
             ctx.fillStyle = '#eeeeee';
             ctx.strokeStyle = '#eeeeee';
             ctx.lineWidth = 1;
           } else {
-            // Open door: true white gap
             ctx.fillStyle = '#ffffff';
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 0;
           }
         } else {
-          // Closed openings
-          if (isDoor) {
-            ctx.fillStyle = '#b07a3f'; // closed door: warm wood
-          } else {
-            ctx.fillStyle = '#cfe6f6'; // closed window: light blue
-          }
+          if (isDoor) ctx.fillStyle = '#b07a3f';
+          else ctx.fillStyle = '#cfe6f6';
           ctx.strokeStyle = 'rgba(0,0,0,0.6)';
           ctx.lineWidth = 2;
         }
@@ -948,11 +1024,8 @@ BATTLEMAT ENGINE
         ctx.fill();
         ctx.stroke();
 
-        // tiny glyph
         ctx.font = 'bold 12px ui-monospace, system-ui, sans-serif';
-        // Slightly larger glyph looks better inside rectangles
         if (Math.max(rectW, rectH) >= 55) ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
-        // Glyph: show label only when CLOSED
         if (!isOpen) {
           ctx.fillStyle = 'rgba(0,0,0,0.55)';
           ctx.textAlign = 'center';
@@ -967,7 +1040,6 @@ BATTLEMAT ENGINE
     function drawToken(q, r, label, side, dead) {
       const { x, y } = qrToPixel(q, r);
 
-      // Fill by side (match status panel) — dead overrides
       let fill = 'rgba(160,160,160,0.95)';
       if (dead) fill = 'rgba(140,140,140,0.85)';
       else if (side === 'PC') fill = 'rgba(80,160,220,0.95)';
@@ -979,7 +1051,6 @@ BATTLEMAT ENGINE
       ctx.fill();
 
       ctx.lineWidth = 0.75;
-      // Thin black outline for all tokens (PC & Enemy, alive or dead)
       ctx.strokeStyle = 'rgba(0,0,0,0.85)';
       ctx.stroke();
 
@@ -991,8 +1062,6 @@ BATTLEMAT ENGINE
     }
 
     function drawHexOverlay() {
-      // Re-stroke hex outlines on top of walls/openings for readability.
-      // (We intentionally do NOT redraw labels here.)
       for (let q = 0; q < cols; q++) {
         for (let r = 0; r < rows; r++) {
           const { x, y } = qrToPixel(q, r);
@@ -1005,26 +1074,12 @@ BATTLEMAT ENGINE
       }
     }
 
-    // ====== RENDER PIPELINE ======
-    // Stage order matters:
-    // 1) base hex fill + base grid
-    // 2) cache ROOM_GEOMS
-    // 3) rooms/walls
-    // 4) openings
-    // 5) objects
-    // 6) grid overlay
-    // 6) labels
-    // 7) blocked set export
-    // 8) actors
-    // 10) status panel
     function drawGrid() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // mat background
       ctx.fillStyle = '#d7d7d7';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // hexes (no labels here; labels are drawn once at the end)
       for (let q = 0; q < cols; q++) {
         for (let r = 0; r < rows; r++) {
           const { x, y } = qrToPixel(q, r);
@@ -1039,32 +1094,22 @@ BATTLEMAT ENGINE
           ctx.stroke();
         }
       }
-      // Load SCENE safely from JSON tag (invalid JSON will keep last-good scene)
-      SCENE = loadSceneFromJsonTag();
 
-      // Normalize/validate SCENE once per draw
+      SCENE = loadSceneFromJsonTag();
       SCENE_NORM = normalizeScene();
 
-      // Cache room geometry ONCE per draw
       ROOM_GEOMS = new Map();
       for (const room of (SCENE_NORM?.rooms || [])) {
         const g = getRoomGeom(room);
         if (g && g.id) ROOM_GEOMS.set(g.id, g);
       }
 
-      // rooms/walls (visual only, v1)
       drawRooms();
-      // doors/windows (visual only, v1)
       drawOpenings();
-
-      // objects (tables/obstacles)
       drawObjects();
-
-      // hex outlines on top of walls/openings (preview: bring grid to the front)
       drawHexOverlay();
 
-      // Labels: draw ONCE, last, shifted slightly downward within each hex
-      const LABEL_DY = size * CONFIG.labels.dyFrac; // lower within each hex (helps readability under walls/tokens)
+      const LABEL_DY = size * CONFIG.labels.dyFrac;
       ctx.font = '13px "Times New Roman", Georgia, "Century Schoolbook", "Book Antiqua", serif';
       ctx.fillStyle = `rgba(180,150,90,${CONFIG.labels.fillAlpha})`;
       ctx.textAlign = 'center';
@@ -1076,10 +1121,8 @@ BATTLEMAT ENGINE
         }
       }
 
-      // refresh blocked set each draw
       refreshBlocked();
 
-      // actors
       for (const a of (SCENE_NORM?.actors || [])) {
         const pos = parseLabel(a.at);
         if (!pos) continue;
@@ -1090,7 +1133,6 @@ BATTLEMAT ENGINE
       renderStatus();
     }
 
-    // ====== STATUS PANEL ======
     function renderStatus() {
       const tbody = document.getElementById('statusBody');
       const roundLine = document.getElementById('roundLine');
@@ -1138,7 +1180,6 @@ BATTLEMAT ENGINE
       }
     }
 
-    // ====== UTILS ======
     function escapeHtml(s) {
       return s
         .replaceAll('&', '&amp;')
@@ -1164,7 +1205,13 @@ BATTLEMAT ENGINE
       }
     }
 
-    safeDrawGrid();
+    // Boot:
+    // 1) Try to load the scene from API (based on /play/<id>)
+    // 2) Then draw.
+    (async () => {
+      await tryLoadSceneFromApi();
+      safeDrawGrid();
+    })();
   </script>
 </body>
 </html>
