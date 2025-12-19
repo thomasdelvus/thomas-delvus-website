@@ -1,7 +1,7 @@
 export const prerender = false;
 
 // GET /api/battles/:battle_id
-export async function GET({ params }) {
+export async function GET({ params, locals }) {
   const battleId = params.battle_id;
 
   if (!battleId) {
@@ -13,13 +13,13 @@ export async function GET({ params }) {
 
   const upstream = `https://game-api.abbacasa-031.workers.dev/battles/${encodeURIComponent(battleId)}`;
 
-  // In Astro on Cloudflare, env vars are available as import.meta.env.*
+  // Cloudflare Pages (Astro) runtime env:
   const token =
-    import.meta.env.PLACEHOLDER_SECRET ||
-    import.meta.env.PUBLIC_PLACEHOLDER_SECRET; // (fallback, but ideally NOT public)
+    locals?.runtime?.env?.GAME_API_TOKEN ||
+    import.meta.env.GAME_API_TOKEN; // fallback depending on adapter/version
 
   if (!token) {
-    return new Response(JSON.stringify({ error: "Server missing PLACEHOLDER_SECRET" }), {
+    return new Response(JSON.stringify({ error: "Server missing GAME_API_TOKEN" }), {
       status: 500,
       headers: { "content-type": "application/json" },
     });
