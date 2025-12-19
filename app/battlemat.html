@@ -1,91 +1,1218 @@
+<!--
+BATTLEMAT ENGINE
+
+- Copy this entire file into Canvas verbatim before combat.
+- During play, edit ONLY the SCENE block between:
+  "EDIT ONLY THIS BLOCK: SCENE" and "END SCENE"
+- Never rewrite, refactor, shorten, or regenerate the engine.
+-->
+
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Delvus Battlemat – Test</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hex Battlemat</title>
   <style>
     body {
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: #111;
-      color: #eee;
       margin: 0;
-      padding: 20px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: #f3f3f3;
+      color: #111;
     }
-    h1 {
-      margin-top: 0;
-      font-size: 1.4rem;
+
+    header {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(0,0,0,0.12);
+      background: #fff;
+      font-weight: 650;
     }
-    pre {
-      background: #1e1e1e;
-      border: 1px solid #333;
+
+    main {
       padding: 12px;
+      overflow: hidden; /* clip right side on small windows; never scale the mat */
+    }
+
+    .layout {
+      width: max-content;
+      display: grid;
+      grid-template-columns: 940px 340px;
+      gap: 12px;
+      align-items: stretch;
+      margin: 0 auto;
+    }
+
+    canvas {
+      width: 940px;
+      height: 750px;
+      background: #d7d7d7;
+      border: 1px solid rgba(0,0,0,0.12);
+    }
+
+    aside {
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.12);
+      padding: 10px;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 10px;
+    }
+
+    .panel-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .panel-title h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 650;
+    }
+
+    .subtle {
+      opacity: 0.7;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    .status-wrap {
       overflow: auto;
-      max-height: 70vh;
+      border: 1px solid rgba(0,0,0,0.10);
+    }
+
+    .legend {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(0,0,0,0.12);
       font-size: 0.9rem;
     }
-    .error {
-      color: #ff6b6b;
-      font-weight: 600;
+
+    .legend-title {
+      font-weight: 650;
+      margin-bottom: 6px;
     }
-    .ok {
-      color: #7CFC98;
-      font-weight: 600;
+
+    .legend-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 10px;
     }
+
+    .legend-swatch {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      margin-right: 6px;
+      border-radius: 3px;
+      vertical-align: middle;
+      border: 1px solid rgba(0,0,0,0.6);
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(0,0,0,0.85);
+      line-height: 1;
+    }
+
+    .legend-swatch.door { background: #b07a3f; }
+    .legend-swatch.window { background: #cfe6f6; }
+    .legend-swatch.table { background: #b07a3f; border-radius: 50%; }
+    .legend-swatch.difficult { background: rgba(120,120,120,0.08); }
+
+    /* Hex-shaped legend swatch (matches battlemat hexes) */
+    .legend-swatch.hex {
+      position: relative;
+      z-index: 0;
+      border-radius: 0;
+      clip-path: polygon(
+        25% 6%,
+        75% 6%,
+        100% 50%,
+        75% 94%,
+        25% 94%,
+        0% 50%
+      );
+      border: none;
+    }
+
+    /* Border for clipped hex swatch: subtle outline behind */
+    .legend-swatch.hex::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      clip-path: inherit;
+      transform: scale(1.12);
+      z-index: -1;
+    }
+
+    .legend-swatch.pc { background: rgba(80,160,220,0.95); border-radius: 50%; }
+    .legend-swatch.en { background: rgba(220,120,80,0.95); border-radius: 50%; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #f6f6f6;
+      text-align: left;
+      font-weight: 650;
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(0,0,0,0.10);
+    }
+
+    tbody td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(0,0,0,0.08);
+      vertical-align: top;
+    }
+
+    .chip {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin: 2px 6px 0 0;
+      border: 1px solid rgba(0,0,0,0.12);
+      background: #f2f2f2;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+
+    .side-pc  { border-left: 4px solid rgba(80, 160, 220, 0.85); }
+    .side-en  { border-left: 4px solid rgba(220, 120, 80, 0.85); }
+    .side-npc { border-left: 4px solid rgba(160, 160, 160, 0.85); }
+
+    /* Dead actors: desaturate row and side bar */
+    tr.dead {
+      background: rgba(0,0,0,0.04);
+      color: rgba(0,0,0,0.55);
+    }
+    tr.dead .subtle {
+      opacity: 0.5;
+    }
+    tr.dead.side-pc,
+    tr.dead.side-en,
+    tr.dead.side-npc {
+      border-left-color: rgba(120,120,120,0.85);
+    }
+
+    .hp {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    /* Small inline diagnostics */
+    .diag {
+      margin-top: 6px;
+      padding: 8px 10px;
+      border: 1px solid rgba(0,0,0,0.10);
+      background: rgba(0,0,0,0.03);
+      font-size: 0.85rem;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+    .diag .bad { color: #b00020; font-weight: 650; }
+    .diag .ok { color: #0b6b0b; font-weight: 650; }
   </style>
 </head>
 <body>
+  <header>Hex Battlemat</header>
 
-<h1>Delvus Battlemat – API Test</h1>
+  <main>
+    <div class="layout">
+      <canvas id="mat" width="940" height="750" aria-label="Hex battlemat"></canvas>
 
-<div id="status">Loading…</div>
-<pre id="output"></pre>
+      <aside aria-label="Combat status panel">
+        <div class="panel-title">
+          <h3>Initiative &amp; Status</h3>
+          <div class="subtle" id="roundLine">Round —</div>
+        </div>
 
-<script>
-  async function main() {
-    const statusEl = document.getElementById('status');
-    const outputEl = document.getElementById('output');
+        <!-- URL/API diagnostics (helps debug /play/<id> routing) -->
+        <div class="diag" id="diagBox" aria-label="Diagnostics" style="display:none"></div>
 
-    // Extract battle_id from /play/<battle_id>
-    const parts = location.pathname.split('/').filter(Boolean);
-    const battleId = (parts[0] === 'play' && parts[1]) ? parts[1] : null;
+        <div class="status-wrap">
+          <table aria-label="Combatants">
+            <thead>
+              <tr>
+                <th style="width: 52%">Actor</th>
+                <th style="width: 18%">Init</th>
+                <th style="width: 30%">HP</th>
+              </tr>
+            </thead>
+            <tbody id="statusBody"></tbody>
+          </table>
+        </div>
 
-    if (!battleId) {
-      statusEl.innerHTML = '<span class="error">No battle_id found in URL.</span>';
-      return;
+        <!-- Legend / Key -->
+        <div class="legend" aria-label="Map legend">
+          <div class="legend-title">Key</div>
+          <ul class="legend-list">
+            <li><span class="legend-swatch door">D</span> Door</li>
+            <li><span class="legend-swatch window">W</span> Window</li>
+            <li><span class="legend-swatch table">T</span> Table <span class="subtle">(blocks)</span></li>
+            <li><span class="legend-swatch difficult hex">~</span> Difficult terrain</li>
+            <li><span class="legend-swatch pc">A</span> Player</li>
+            <li><span class="legend-swatch en">W</span> Enemy</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- ===================== EDIT ONLY THIS BLOCK: SCENE JSON =====================
+     - Edit ONLY the JSON inside this tag.
+     - Keep it VALID JSON (double quotes, no trailing commas, no comments).
+     - If JSON is invalid, the engine will keep showing the last valid scene and print an error.
+     ===================== END SCENE JSON =================================== -->
+  <script type="application/json" id="scene-json">
+{
+  "round": 1,
+  "rooms": [
+    {
+      "id": "room1",
+      "corners": ["D11", "N11", "N1", "D1"],
+      "thickness": 30,
+      "color": "#555"
+    }
+  ],
+  "openings": [
+    {"id": "win_s_1", "kind": "window", "room": "room1", "wall": "S", "at": "F1", "state": "closed"},
+    {"id": "win_s_2", "kind": "window", "room": "room1", "wall": "S", "at": "H1", "state": "closed"},
+    {"id": "win_s_3", "kind": "window", "room": "room1", "wall": "S", "at": "J1", "state": "closed"},
+    {"id": "win_s_4", "kind": "window", "room": "room1", "wall": "S", "at": "L1", "state": "closed"},
+
+    {"id": "door_e_1", "kind": "door", "room": "room1", "wall": "E", "at": "N6", "state": "closed"},
+    {"id": "door_e_2", "kind": "door", "room": "room1", "wall": "E", "at": "N5", "state": "closed"}
+  ],
+  "objects": [
+    {"id": "table1", "kind": "table", "cells": ["I4", "I5", "J5"], "blocks": true, "label": "T"},
+    {"id": "sarc1", "kind": "sarcophagus", "cells": ["J8", "K8", "L8"], "blocks": true, "label": "S"},
+    {"id": "difficult_1", "kind": "difficult", "cells": ["G2", "H3", "I3"], "blocks": false, "label": "~", "color": "rgba(120,120,120,0.18)"}
+  ],
+  "actors": [
+    {"id": "lich", "name": "Lich", "side": "EN", "init": 15, "hp": 135, "maxHp": 135, "effects": [], "at": "F9", "label": "L"},
+    {"id": "wraith1", "name": "Wraith", "side": "EN", "init": 12, "hp": 67, "maxHp": 67, "effects": [], "at": "H7", "label": "W1"},
+    {"id": "wraith2", "name": "Wraith", "side": "EN", "init": 11, "hp": 0, "maxHp": 67, "effects": [], "at": "K9", "label": "W2"},
+    {"id": "wraith3", "name": "Wraith", "side": "EN", "init": 10, "hp": 67, "maxHp": 67, "effects": [], "at": "E6", "label": "W3"},
+
+    {"id": "pc1", "name": "Aelar", "side": "PC", "init": 14, "hp": 42, "maxHp": 42, "effects": [], "at": "K2", "label": "A"},
+    {"id": "pc2", "name": "Brunna", "side": "PC", "init": 13, "hp": 55, "maxHp": 55, "effects": [], "at": "L3", "label": "B"},
+    {"id": "pc3", "name": "Caelin", "side": "PC", "init": 12, "hp": 38, "maxHp": 38, "effects": [], "at": "M3", "label": "C"}
+  ]
+}
+  </script>
+
+  <script>
+    // =====================================================================
+    // DB / API WIRING (safe, minimal) — reads /play/<battle_id> and loads state
+    // =====================================================================
+
+    // IMPORTANT:
+    // - Cloudflare _redirects rewrites /play/* -> /app/battlemat.html, but the browser URL stays /play/<id>.
+    // - Therefore, battle_id must be parsed from window.location.pathname.
+
+    function getBattleIdFromUrl() {
+      // Primary: /play/<battle_id>
+      const m = window.location.pathname.match(/^\/play\/([^\/?#]+)/i);
+      if (m) return decodeURIComponent(m[1]);
+
+      // Fallback: ?battle_id=27 (handy for local debugging)
+      const u = new URL(window.location.href);
+      return u.searchParams.get('battle_id');
     }
 
-    statusEl.textContent = `Loading battle ${battleId}…`;
+    // Set this to your Worker/API base. If your API is on the same origin, leave as ''.
+    // For your OpenAPI spec, the server is:
+    //   https://game-api.abbacasa-031.workers.dev
+    const API_BASE = 'https://game-api.abbacasa-031.workers.dev';
 
-    try {
-      const res = await fetch(`/api/v1/battles/${encodeURIComponent(battleId)}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        }
-      });
+    // Adjust to your actual endpoint path.
+    // Common patterns:
+    //   /api/battles/<id>
+    //   /battle/<id>
+    //   /battles/<id>
+    function battleStateUrl(battleId) {
+      // OpenAPI: GET /battles/{battle_id}
+      return `${API_BASE}/battles/${encodeURIComponent(battleId)}`;
+    }/battle/${encodeURIComponent(battleId)}`;
+    }
 
-      if (!res.ok) {
-        throw new Error(`API returned ${res.status}`);
+    // Lightweight diagnostics UI (so you can see instantly what the page thinks)
+    function setDiag(html) {
+      const box = document.getElementById('diagBox');
+      if (!box) return;
+      box.style.display = 'block';
+      box.innerHTML = html;
+    }
+
+    async function tryLoadSceneFromApi() {
+      const battleId = getBattleIdFromUrl();
+
+      // Show what we parsed, always (super helpful during bring-up)
+      const url = battleId ? battleStateUrl(battleId) : '(no battle_id)';
+      setDiag(
+        `URL Path: <code>${escapeHtml(window.location.pathname)}</code><br>` +
+        `battle_id: <span class="${battleId ? 'ok' : 'bad'}">${escapeHtml(String(battleId || 'NONE'))}</span><br>` +
+        `Fetch: <code>${escapeHtml(url)}</code>`
+      );
+
+      if (!battleId) {
+        // Keep default embedded SCENE
+        const roundLine = document.getElementById('roundLine');
+        if (roundLine) roundLine.textContent = 'No battle_id in URL';
+        return false;
       }
 
-      const data = await res.json();
+      const endpoint = battleStateUrl(battleId);
+      try {
+        const res = await fetch(endpoint, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          cache: 'no-store'
+        });
 
-      statusEl.innerHTML = `<span class="ok">Loaded battle ${battleId} successfully.</span>`;
-      outputEl.textContent = JSON.stringify(data, null, 2);
+        if (!res.ok) {
+          setDiag(
+            `URL Path: <code>${escapeHtml(window.location.pathname)}</code><br>` +
+            `battle_id: <span class="ok">${escapeHtml(String(battleId))}</span><br>` +
+            `Fetch: <code>${escapeHtml(endpoint)}</code><br>` +
+            `<span class="bad">HTTP ${res.status}: ${escapeHtml(res.statusText || 'Error')}</span>`
+          );
+          return false;
+        }
 
-      // For later:
-      // const scene = JSON.parse(data.state_json);
+        const data = await res.json();
 
-    } catch (err) {
-      statusEl.innerHTML = '<span class="error">Failed to load battle.</span>';
-      outputEl.textContent = String(err);
-      console.error(err);
+        // Expect either:
+        //  - { state_json: "{...}" }
+        //  - { state: { ... } }
+        //  - { ...sceneObject }
+        let sceneObj = null;
+        if (data && typeof data.state_json === 'string') {
+          sceneObj = JSON.parse(data.state_json);
+        } else if (data && typeof data.state === 'object') {
+          sceneObj = data.state;
+        } else if (data && typeof data === 'object') {
+          // If your API returns the scene directly
+          sceneObj = data;
+        }
+
+        if (!sceneObj || typeof sceneObj !== 'object') {
+          setDiag(
+            `URL Path: <code>${escapeHtml(window.location.pathname)}</code><br>` +
+            `battle_id: <span class="ok">${escapeHtml(String(battleId))}</span><br>` +
+            `Fetch: <code>${escapeHtml(endpoint)}</code><br>` +
+            `<span class="bad">API response did not contain a usable scene.</span>`
+          );
+          return false;
+        }
+
+        // Overwrite the embedded SCENE JSON with the loaded one (single source of truth)
+        const sceneTag = document.getElementById('scene-json');
+        if (sceneTag) sceneTag.textContent = JSON.stringify(sceneObj, null, 2);
+
+        setDiag(
+          `URL Path: <code>${escapeHtml(window.location.pathname)}</code><br>` +
+          `battle_id: <span class="ok">${escapeHtml(String(battleId))}</span><br>` +
+          `Fetch: <code>${escapeHtml(endpoint)}</code><br>` +
+          `<span class="ok">Loaded state from API.</span>`
+        );
+
+        return true;
+      } catch (e) {
+        setDiag(
+          `URL Path: <code>${escapeHtml(window.location.pathname)}</code><br>` +
+          `battle_id: <span class="ok">${escapeHtml(String(battleId))}</span><br>` +
+          `Fetch: <code>${escapeHtml(endpoint)}</code><br>` +
+          `<span class="bad">Fetch/parse error: ${escapeHtml(e && e.message ? e.message : String(e))}</span>`
+        );
+        return false;
+      }
     }
-  }
 
-  main();
-</script>
+    // =====================================================================
+    // ENGINE (do not edit during play)
+    // =====================================================================
 
+    // Scene loader state (prevents blank-mat failures from bad edits)
+    let SCENE = {};
+    let LAST_GOOD_SCENE = null;
+    let SCENE_PARSE_ERROR = null;
+
+    function loadSceneFromJsonTag() {
+      const el = document.getElementById('scene-json');
+      const raw = el ? String(el.textContent || '').trim() : '';
+      if (!raw) {
+        SCENE_PARSE_ERROR = 'SCENE JSON is empty.';
+        return (LAST_GOOD_SCENE || {});
+      }
+      try {
+        const obj = JSON.parse(raw);
+        LAST_GOOD_SCENE = obj;
+        SCENE_PARSE_ERROR = null;
+        return obj;
+      } catch (e) {
+        SCENE_PARSE_ERROR = `SCENE JSON parse error: ${e && e.message ? e.message : String(e)}`;
+        try { console.error('[Battlemat] ' + SCENE_PARSE_ERROR); } catch (_) {}
+        return (LAST_GOOD_SCENE || {});
+      }
+    }
+
+    // ====== GRID CONFIG ======
+    const cols = 17;        // A..Q
+    const rows = 11;        // 1..11
+    const size = 34.5;      // hex radius (center -> corner)
+    const margin = 55;
+
+    const canvas = document.getElementById('mat');
+    const ctx = canvas.getContext('2d');
+    const SQRT3 = Math.sqrt(3);
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    // Cached room geometry for a single draw pass
+    let ROOM_GEOMS = null;
+
+    // Normalized, validated scene snapshot for a single draw pass
+    let SCENE_NORM = null;
+
+    // ====== CONFIG (tweakable constants) ======
+    // Centralized "magic numbers" so visual tuning is safe and obvious.
+    const CONFIG = {
+      room: {
+        yInsetFrac: 0.25,      // fraction of hex height to inset top/bottom wall band
+      },
+      labels: {
+        dyFrac: 0.70,          // vertical offset inside each hex
+        fillAlpha: 0.35,       // opacity for grid labels
+      },
+      opening: {
+        minAcross: 18,         // minimum thickness across the wall
+        acrossMul: 1.05,       // scale relative to wall thickness
+        spanNSMul: 1.5,        // span along N/S walls in hex radii
+        spanEWMul: 1.0,        // span along E/W walls in (SQRT3 * size)
+      },
+      grid: {
+        baseStrokeW: 1.2,
+        baseStrokeA: 0.07,
+        overlayStrokeW: 1.1,
+        overlayStrokeA: 0.04,
+      }
+    };
+
+    // ====== COORDINATE SYSTEM & GRID MATH ======
+    // r=0 is the bottom. Alternate column offset so A/C/E align; B/D/F align.
+    function qrToPixel(q, r) {
+      const drawR = (rows - 1 - r);
+      const columnOffset = (q % 2 === 0) ? 0 : 0.5;
+      const x = size * (3/2) * q;
+      const y = size * SQRT3 * (drawR + columnOffset);
+      return { x: x + margin, y: y + margin };
+    }
+
+    function hexCorners(cx, cy) {
+      const pts = [];
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 180) * (60 * i);
+        pts.push({ x: cx + size * Math.cos(a), y: cy + size * Math.sin(a) });
+      }
+      return pts;
+    }
+
+    function drawHexPath(pts) {
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.closePath();
+    }
+
+    function labelFor(q, r) {
+      return `${letters[q]}${r + 1}`;
+    }
+
+    function parseLabel(label) {
+      const m = String(label).trim().toUpperCase().match(/^([A-Z])([0-9]{1,2})$/);
+      if (!m) return null;
+      const q = letters.indexOf(m[1]);
+      const r = Number(m[2]) - 1;
+      if (q < 0 || q >= cols) return null;
+      if (r < 0 || r >= rows) return null;
+      return { q, r };
+    }
+
+    function labelToPixel(label) {
+      const pos = parseLabel(label);
+      if (!pos) return null;
+      return qrToPixel(pos.q, pos.r);
+    }
+
+    function normalizeScene() {
+      const src = (typeof SCENE === 'object' && SCENE) ? SCENE : {};
+
+      const warn = (msg, obj) => {
+        try { console.warn(`[Battlemat] ${msg}`, obj ?? ''); } catch (_) {}
+      };
+
+      // ---- Rooms ----
+      const roomsIn = Array.isArray(src.rooms) ? src.rooms : [];
+      const roomsOut = [];
+      const roomIds = new Set();
+      for (let i = 0; i < roomsIn.length; i++) {
+        const r = roomsIn[i] || {};
+        const corners = Array.isArray(r.corners) ? r.corners : null;
+        if (!corners || corners.length !== 4) {
+          warn(`Room skipped: corners must be 4 labels`, r);
+          continue;
+        }
+        if (corners.map(parseLabel).some(p => !p)) {
+          warn(`Room skipped: invalid corner label(s)`, r);
+          continue;
+        }
+        let id = String(r.id || '').trim();
+        if (!id) id = `room_${i + 1}`;
+        if (roomIds.has(id)) {
+          warn(`Room id duplicated; making unique: ${id}`, r);
+          let k = 2;
+          while (roomIds.has(`${id}_${k}`)) k++;
+          id = `${id}_${k}`;
+        }
+        roomIds.add(id);
+        roomsOut.push({
+          id,
+          corners: corners.map(c => String(c).trim().toUpperCase()),
+          thickness: Number(r.thickness ?? 18),
+          color: String(r.color || '#555')
+        });
+      }
+
+      // ---- Openings ----
+      const openingsIn = Array.isArray(src.openings) ? src.openings : [];
+      const openingsOut = [];
+      for (let i = 0; i < openingsIn.length; i++) {
+        const o = openingsIn[i] || {};
+        const kind = String(o.kind || 'door').toLowerCase();
+        if (kind !== 'door' && kind !== 'window') {
+          warn(`Opening skipped: kind must be door/window`, o);
+          continue;
+        }
+        const room = String(o.room || '').trim();
+        if (!room || !roomIds.has(room)) {
+          warn(`Opening skipped: unknown room id '${room}'`, o);
+          continue;
+        }
+        const wall = String(o.wall || '').trim().toUpperCase();
+        if (!['N','S','E','W'].includes(wall)) {
+          warn(`Opening skipped: wall must be N/S/E/W`, o);
+          continue;
+        }
+        const at = String(o.at || '').trim().toUpperCase();
+        if (!parseLabel(at)) {
+          warn(`Opening skipped: invalid at label`, o);
+          continue;
+        }
+        const state = String((o.state ?? 'closed')).toLowerCase();
+        openingsOut.push({
+          ...o,
+          kind,
+          room,
+          wall,
+          at,
+          state
+        });
+      }
+
+      // ---- Objects ----
+      const objectsIn = Array.isArray(src.objects) ? src.objects : [];
+      const objectsOut = [];
+      for (let i = 0; i < objectsIn.length; i++) {
+        const o = objectsIn[i] || {};
+        const kind = String(o.kind || 'object').toLowerCase();
+        const blocks = Boolean(o.blocks ?? false);
+
+        let cells = [];
+        if (Array.isArray(o.cells) && o.cells.length) {
+          cells = o.cells.map(c => String(c).trim().toUpperCase()).filter(Boolean);
+        } else if (o.at) {
+          cells = [String(o.at).trim().toUpperCase()];
+        }
+
+        // Validate cells
+        cells = cells.filter(lab => !!parseLabel(lab));
+        if (!cells.length) {
+          warn('Object skipped: missing/invalid at/cells', o);
+          continue;
+        }
+
+        objectsOut.push({
+          ...o,
+          kind,
+          blocks,
+          cells,
+          label: (o.label != null) ? String(o.label) : null,
+          color: (o.color != null) ? String(o.color) : null
+        });
+      }
+
+      // ---- Actors ----
+      const actorsIn = Array.isArray(src.actors) ? src.actors : [];
+      const actorsOut = [];
+      for (let i = 0; i < actorsIn.length; i++) {
+        const a = actorsIn[i] || {};
+        const at = String(a.at || '').trim().toUpperCase();
+        if (!parseLabel(at)) {
+          warn(`Actor skipped: invalid at label`, a);
+          continue;
+        }
+        const side = String(a.side || 'NPC').toUpperCase();
+        actorsOut.push({
+          ...a,
+          at,
+          side: (side === 'PC' || side === 'EN') ? side : 'NPC'
+        });
+      }
+
+      return {
+        round: Number(src.round ?? 1),
+        rooms: roomsOut,
+        openings: openingsOut,
+        objects: objectsOut,
+        actors: actorsOut
+      };
+    }
+
+    // ====== ROOM GEOMETRY (RECT WALLS) ======
+    function getRoomGeom(room) {
+      const c = Array.isArray(room.corners) ? room.corners : null;
+      if (!c || c.length !== 4) return null;
+
+      const pTL = labelToPixel(c[0]);
+      const pTR = labelToPixel(c[1]);
+      const pBR = labelToPixel(c[2]);
+      const pBL = labelToPixel(c[3]);
+      if (!pTL || !pTR || !pBR || !pBL) return null;
+
+      const hexH = SQRT3 * size;
+      const yInset = hexH * CONFIG.room.yInsetFrac;
+
+      return {
+        id: String(room.id || ''),
+        leftX:  pTL.x,
+        rightX: pTR.x,
+        topY:   pTL.y + yInset,
+        botY:   pBL.y - yInset,
+        thickness: Number(room.thickness ?? 18),
+        color: String(room.color || 'rgba(0,0,0,0.88)')
+      };
+    }
+
+    function drawRooms() {
+      const rooms = Array.isArray(SCENE_NORM?.rooms) ? SCENE_NORM.rooms : [];
+      if (!rooms.length || !ROOM_GEOMS) return;
+
+      for (const room of rooms) {
+        const g = ROOM_GEOMS.get(String(room.id || ''));
+        if (!g) continue;
+
+        ctx.save();
+        ctx.globalAlpha = 1.0;
+        ctx.strokeStyle = g.color;
+        ctx.lineWidth = g.thickness;
+        ctx.lineJoin = 'miter';
+        ctx.lineCap = 'butt';
+
+        ctx.beginPath();
+        ctx.moveTo(g.leftX,  g.topY);
+        ctx.lineTo(g.rightX, g.topY);
+        ctx.lineTo(g.rightX, g.botY);
+        ctx.lineTo(g.leftX,  g.botY);
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    }
+
+    // ====== BLOCKING / RULES EXPORTS ======
+    function roomPerimeterLabels(room) {
+      const c = Array.isArray(room.corners) ? room.corners : null;
+      if (!c || c.length !== 4) return new Set();
+      const tl = parseLabel(c[0]);
+      const tr = parseLabel(c[1]);
+      const br = parseLabel(c[2]);
+      const bl = parseLabel(c[3]);
+      if (!tl || !tr || !br || !bl) return new Set();
+
+      const out = new Set();
+
+      const qStartT = Math.min(tl.q, tr.q);
+      const qEndT   = Math.max(tl.q, tr.q);
+      for (let q = qStartT; q <= qEndT; q++) out.add(labelFor(q, tl.r));
+
+      const qStartB = Math.min(bl.q, br.q);
+      const qEndB   = Math.max(bl.q, br.q);
+      for (let q = qStartB; q <= qEndB; q++) out.add(labelFor(q, bl.r));
+
+      const rStartL = Math.min(bl.r, tl.r);
+      const rEndL   = Math.max(bl.r, tl.r);
+      for (let r = rStartL; r <= rEndL; r++) out.add(labelFor(tl.q, r));
+
+      const rStartR = Math.min(br.r, tr.r);
+      const rEndR   = Math.max(br.r, tr.r);
+      for (let r = rStartR; r <= rEndR; r++) out.add(labelFor(tr.q, r));
+
+      return out;
+    }
+
+    function computeBlockedHexes() {
+      const blocked = new Set();
+
+      for (const room of (SCENE_NORM?.rooms || [])) {
+        const perim = roomPerimeterLabels(room);
+        for (const lab of perim) blocked.add(lab);
+      }
+
+      for (const o of (SCENE_NORM?.openings || [])) {
+        const kind = String(o.kind || 'door').toLowerCase();
+        if (kind !== 'door' && kind !== 'window') continue;
+        const state = String(o.state ?? 'closed').toLowerCase();
+        if (state === 'open') {
+          const lab = String(o.at || '').trim().toUpperCase();
+          if (lab) blocked.delete(lab);
+        }
+      }
+
+      for (const a of (SCENE_NORM?.actors || [])) {
+        const hp = Number(a.hp ?? 0);
+        const effects = Array.isArray(a.effects) ? a.effects : [];
+        const isDead = hp <= 0 || effects.includes('dead') || effects.includes('down');
+        if (isDead) continue;
+        const lab = String(a.at || '').trim().toUpperCase();
+        if (lab) blocked.add(lab);
+      }
+
+      for (const o of (SCENE_NORM?.objects || [])) {
+        if (!o || !o.blocks) continue;
+        const cells = Array.isArray(o.cells) ? o.cells : [];
+        for (const lab of cells) blocked.add(String(lab).trim().toUpperCase());
+      }
+
+      return blocked;
+    }
+
+    function refreshBlocked() {
+      return computeBlockedHexes();
+    }
+
+    // ====== OBJECTS (TABLES/OBSTACLES) ======
+    function objectCentroidPx(cells) {
+      let sx = 0, sy = 0, n = 0;
+      for (const lab of (cells || [])) {
+        const p = labelToPixel(lab);
+        if (!p) continue;
+        sx += p.x; sy += p.y; n++;
+      }
+      if (!n) return null;
+      return { x: sx / n, y: sy / n };
+    }
+
+    function objectBoundsPx(cells) {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      let n = 0;
+      for (const lab of (cells || [])) {
+        const p = labelToPixel(lab);
+        if (!p) continue;
+        minX = Math.min(minX, p.x);
+        minY = Math.min(minY, p.y);
+        maxX = Math.max(maxX, p.x);
+        maxY = Math.max(maxY, p.y);
+        n++;
+      }
+      if (!n) return null;
+      return { minX, minY, maxX, maxY };
+    }
+
+    function roundRectPath(x, y, w, h, r) {
+      const rr = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+      ctx.beginPath();
+      ctx.moveTo(x + rr, y);
+      ctx.arcTo(x + w, y, x + w, y + h, rr);
+      ctx.arcTo(x + w, y + h, x, y + h, rr);
+      ctx.arcTo(x, y + h, x, y, rr);
+      ctx.arcTo(x, y, x + w, y, rr);
+      ctx.closePath();
+    }
+
+    function drawObjects() {
+      const objs = Array.isArray(SCENE_NORM?.objects) ? SCENE_NORM.objects : [];
+      if (!objs.length) return;
+
+      for (const obj of objs) {
+        const cells = Array.isArray(obj.cells) ? obj.cells : [];
+        if (!cells.length) continue;
+
+        const blocks = Boolean(obj.blocks);
+        const kind = String(obj.kind || 'object').toLowerCase();
+        const glyph = (obj.label != null && String(obj.label).trim())
+          ? String(obj.label).trim().slice(0, 3)
+          : kind.slice(0, 1).toUpperCase();
+
+        const fill = obj.color
+          ? String(obj.color)
+          : (blocks ? 'rgba(0,0,0,0.20)' : 'rgba(0,0,0,0.10)');
+
+        // Per-hex shading (difficult terrain + generic objects)
+        if (kind !== 'table' && kind !== 'rect' && kind !== 'sarcophagus') {
+          for (let i = 0; i < cells.length; i++) {
+            const lab = String(cells[i]).trim().toUpperCase();
+            const p = labelToPixel(lab);
+            if (!p) continue;
+
+            const pts = hexCorners(p.x, p.y);
+            drawHexPath(pts);
+            ctx.save();
+            ctx.fillStyle = fill;
+            ctx.fill();
+
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+            ctx.stroke();
+
+            if (kind === 'difficult' || i === 0) {
+              ctx.font = 'bold 12px ui-monospace, system-ui, sans-serif';
+              ctx.fillStyle = 'rgba(0,0,0,0.55)';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(glyph, p.x, p.y);
+            }
+
+            ctx.restore();
+          }
+        }
+
+        if (kind === 'table') {
+          const c = objectCentroidPx(cells);
+          if (!c) continue;
+          const radius = size * 1.25;
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, radius, 0, Math.PI * 2);
+          ctx.fillStyle = '#b07a3f';
+          ctx.fill();
+
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+          ctx.stroke();
+
+          const tLabel = (obj.label != null && String(obj.label).trim()) ? String(obj.label).trim().slice(0, 3) : 'T';
+          ctx.font = 'bold 14px ui-monospace, system-ui, sans-serif';
+          ctx.fillStyle = 'rgba(0,0,0,0.85)';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(tLabel, c.x, c.y);
+
+          ctx.restore();
+        }
+
+        if (kind === 'rect' || kind === 'sarcophagus') {
+          const c = objectCentroidPx(cells);
+          const b = objectBoundsPx(cells);
+          if (!c || !b) continue;
+
+          const padX = size * 0.85;
+          const padY = size * 0.55;
+          const w = (b.maxX - b.minX) + padX * 2;
+          const h = (b.maxY - b.minY) + padY * 2;
+
+          const rot = Number(obj.rot ?? 0);
+          const radius = Math.max(6, Math.min(size * 0.35, Math.min(w, h) * 0.25));
+          const fillRect = obj.color ? String(obj.color) : '#b07a3f';
+          const outline = 'rgba(0,0,0,0.85)';
+          const labelRect = (obj.label != null && String(obj.label).trim()) ? String(obj.label).trim().slice(0, 3) : (kind === 'sarcophagus' ? 'S' : 'R');
+
+          ctx.save();
+          ctx.translate(c.x, c.y);
+          if (rot) ctx.rotate((Math.PI / 180) * rot);
+
+          roundRectPath(-w/2, -h/2, w, h, radius);
+          ctx.fillStyle = fillRect;
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = outline;
+          ctx.stroke();
+
+          ctx.font = 'bold 14px ui-monospace, system-ui, sans-serif';
+          ctx.fillStyle = 'rgba(0,0,0,0.85)';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(labelRect, 0, 0);
+
+          ctx.restore();
+        }
+      }
+    }
+
+    // ====== OPENINGS (DOORS/WINDOWS) ======
+    function drawOpenings() {
+      const openings = Array.isArray(SCENE_NORM?.openings) ? SCENE_NORM.openings : [];
+      if (!openings.length || !ROOM_GEOMS) return;
+
+      for (const o of openings) {
+        const kind = String(o.kind || 'door').toLowerCase();
+        if (kind !== 'door' && kind !== 'window') continue;
+
+        const state = String(o.state ?? 'closed').toLowerCase();
+
+        const g = ROOM_GEOMS.get(String(o.room || ''));
+        if (!g) continue;
+
+        const wall = String(o.wall || '').toUpperCase();
+        const atPx = labelToPixel(o.at);
+        if (!atPx) continue;
+
+        let x = atPx.x;
+        let y = atPx.y;
+        if (wall === 'N') y = g.topY;
+        else if (wall === 'S') y = g.botY;
+        else if (wall === 'E') x = g.rightX;
+        else if (wall === 'W') x = g.leftX;
+        else continue;
+
+        const thicknessAcross = Number(o.thicknessAcross ?? Math.max(CONFIG.opening.minAcross, g.thickness * CONFIG.opening.acrossMul));
+        const spanAlong = (wall === 'N' || wall === 'S')
+          ? Number(o.spanAlong ?? (CONFIG.opening.spanNSMul * size))
+          : Number(o.spanAlong ?? (CONFIG.opening.spanEWMul * SQRT3 * size));
+
+        const rectW = (wall === 'N' || wall === 'S') ? spanAlong : thicknessAcross;
+        const rectH = (wall === 'N' || wall === 'S') ? thicknessAcross : spanAlong;
+
+        ctx.save();
+        ctx.translate(x, y);
+
+        const isDoor = (kind === 'door');
+        const isWindow = (kind === 'window');
+        const isOpen = (state === 'open');
+
+        if (isOpen) {
+          if (isWindow) {
+            ctx.fillStyle = '#eeeeee';
+            ctx.strokeStyle = '#eeeeee';
+            ctx.lineWidth = 1;
+          } else {
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 0;
+          }
+        } else {
+          if (isDoor) ctx.fillStyle = '#b07a3f';
+          else ctx.fillStyle = '#cfe6f6';
+          ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+          ctx.lineWidth = 2;
+        }
+
+        ctx.beginPath();
+        ctx.rect(-rectW/2, -rectH/2, rectW, rectH);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = 'bold 12px ui-monospace, system-ui, sans-serif';
+        if (Math.max(rectW, rectH) >= 55) ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
+        if (!isOpen) {
+          ctx.fillStyle = 'rgba(0,0,0,0.55)';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(isWindow ? 'W' : 'D', 0, 0);
+        }
+
+        ctx.restore();
+      }
+    }
+
+    function drawToken(q, r, label, side, dead) {
+      const { x, y } = qrToPixel(q, r);
+
+      let fill = 'rgba(160,160,160,0.95)';
+      if (dead) fill = 'rgba(140,140,140,0.85)';
+      else if (side === 'PC') fill = 'rgba(80,160,220,0.95)';
+      else if (side === 'EN') fill = 'rgba(220,120,80,0.95)';
+
+      ctx.beginPath();
+      ctx.arc(x, y, size * 0.40, 0, Math.PI * 2);
+      ctx.fillStyle = fill;
+      ctx.fill();
+
+      ctx.lineWidth = 0.75;
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.stroke();
+
+      ctx.font = 'bold 14px ui-monospace, system-ui, sans-serif';
+      ctx.fillStyle = dead ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.72)';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, x, y);
+    }
+
+    function drawHexOverlay() {
+      for (let q = 0; q < cols; q++) {
+        for (let r = 0; r < rows; r++) {
+          const { x, y } = qrToPixel(q, r);
+          const pts = hexCorners(x, y);
+          drawHexPath(pts);
+          ctx.lineWidth = CONFIG.grid.overlayStrokeW;
+          ctx.strokeStyle = `rgba(0,0,0,${CONFIG.grid.overlayStrokeA})`;
+          ctx.stroke();
+        }
+      }
+    }
+
+    function drawGrid() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#d7d7d7';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (let q = 0; q < cols; q++) {
+        for (let r = 0; r < rows; r++) {
+          const { x, y } = qrToPixel(q, r);
+          const pts = hexCorners(x, y);
+
+          drawHexPath(pts);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+
+          ctx.lineWidth = CONFIG.grid.baseStrokeW;
+          ctx.strokeStyle = `rgba(0,0,0,${CONFIG.grid.baseStrokeA})`;
+          ctx.stroke();
+        }
+      }
+
+      SCENE = loadSceneFromJsonTag();
+      SCENE_NORM = normalizeScene();
+
+      ROOM_GEOMS = new Map();
+      for (const room of (SCENE_NORM?.rooms || [])) {
+        const g = getRoomGeom(room);
+        if (g && g.id) ROOM_GEOMS.set(g.id, g);
+      }
+
+      drawRooms();
+      drawOpenings();
+      drawObjects();
+      drawHexOverlay();
+
+      const LABEL_DY = size * CONFIG.labels.dyFrac;
+      ctx.font = '13px "Times New Roman", Georgia, "Century Schoolbook", "Book Antiqua", serif';
+      ctx.fillStyle = `rgba(180,150,90,${CONFIG.labels.fillAlpha})`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let q = 0; q < cols; q++) {
+        for (let r = 0; r < rows; r++) {
+          const { x, y } = qrToPixel(q, r);
+          ctx.fillText(labelFor(q, r), x, y + LABEL_DY);
+        }
+      }
+
+      refreshBlocked();
+
+      for (const a of (SCENE_NORM?.actors || [])) {
+        const pos = parseLabel(a.at);
+        if (!pos) continue;
+        const isDead = Number(a.hp ?? 0) <= 0 || (Array.isArray(a.effects) && (a.effects.includes('dead') || a.effects.includes('down')));
+        drawToken(pos.q, pos.r, a.label || a.name?.slice(0, 1) || '?', a.side, isDead);
+      }
+
+      renderStatus();
+    }
+
+    function renderStatus() {
+      const tbody = document.getElementById('statusBody');
+      const roundLine = document.getElementById('roundLine');
+      if (!tbody || !roundLine) return;
+
+      if (SCENE_PARSE_ERROR) roundLine.textContent = 'SCENE JSON ERROR';
+      else roundLine.textContent = `Round ${SCENE_NORM?.round ?? '—'}`;
+
+      const actors = Array.isArray(SCENE_NORM?.actors) ? SCENE_NORM.actors.slice() : [];
+      actors.sort((a, b) => {
+        const ai = Number(a.init ?? 0);
+        const bi = Number(b.init ?? 0);
+        if (bi !== ai) return bi - ai;
+        return String(a.name ?? a.id).localeCompare(String(b.name ?? b.id));
+      });
+
+      tbody.innerHTML = '';
+      for (const a of actors) {
+        const tr = document.createElement('tr');
+        const hpVal = Number(a.hp ?? 0);
+        const effectsArr = Array.isArray(a.effects) ? a.effects : [];
+        const isDead = hpVal <= 0 || effectsArr.includes('dead') || effectsArr.includes('down');
+
+        const side = String(a.side || 'NPC').toUpperCase();
+        tr.className = (side === 'PC' ? 'side-pc' : (side === 'EN' ? 'side-en' : 'side-npc')) + (isDead ? ' dead' : '');
+
+        const effects = Array.isArray(a.effects) ? a.effects : [];
+        const effectsHtml = effects.length
+          ? effects.map(e => `<span class="chip">${escapeHtml(String(e))}</span>`).join('')
+          : '';
+
+        tr.innerHTML = `
+          <td>
+            <div style="display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;">
+              <span style="font-weight:650;">${escapeHtml(a.name ?? a.id ?? 'Actor')}</span>
+              <span class="subtle">${escapeHtml(a.at ?? '')}</span>
+            </div>
+            ${effectsHtml ? `<div style="margin-top:4px;">${effectsHtml}</div>` : ''}
+          </td>
+          <td class="hp">${escapeHtml(String(a.init ?? 0))}</td>
+          <td class="hp">${escapeHtml(String(a.hp ?? '—'))} / ${escapeHtml(String(a.maxHp ?? '—'))}</td>
+        `;
+
+        tbody.appendChild(tr);
+      }
+    }
+
+    function escapeHtml(s) {
+      return s
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function safeDrawGrid() {
+      try {
+        drawGrid();
+      } catch (e) {
+        console.error('[Battlemat] drawGrid failed:', e);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#d7d7d7';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.font = '14px ui-monospace, system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText('Battlemat render error (see console).', 14, 14);
+      }
+    }
+
+    // Boot:
+    // 1) Try to load the scene from API (based on /play/<id>)
+    // 2) Then draw.
+    (async () => {
+      await tryLoadSceneFromApi();
+      safeDrawGrid();
+    })();
+  </script>
 </body>
 </html>
