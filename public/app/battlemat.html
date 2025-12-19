@@ -333,10 +333,9 @@ BATTLEMAT ENGINE
     }
 
     // Set this to your Worker/API base. If your API is on the same origin, leave as ''.
-    // Examples:
-    //   const API_BASE = '';
-    //   const API_BASE = 'https://api.delvus.net';
-    const API_BASE = '';
+    // For your OpenAPI spec, the server is:
+    //   https://game-api.abbacasa-031.workers.dev
+    const API_BASE = 'https://game-api.abbacasa-031.workers.dev';
 
     // Adjust to your actual endpoint path.
     // Common patterns:
@@ -344,7 +343,9 @@ BATTLEMAT ENGINE
     //   /battle/<id>
     //   /battles/<id>
     function battleStateUrl(battleId) {
-      return `${API_BASE}/battle/${encodeURIComponent(battleId)}`;
+      // OpenAPI: GET /battles/{battle_id}
+      return `${API_BASE}/battles/${encodeURIComponent(battleId)}`;
+    }/battle/${encodeURIComponent(battleId)}`;
     }
 
     // Lightweight diagnostics UI (so you can see instantly what the page thinks)
