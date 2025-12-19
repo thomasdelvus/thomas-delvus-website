@@ -15,11 +15,11 @@ export async function GET({ params }) {
 
   // In Astro on Cloudflare, env vars are available as import.meta.env.*
   const token =
-    import.meta.env.GAME_API_TOKEN ||
-    import.meta.env.PUBLIC_GAME_API_TOKEN; // (fallback, but ideally NOT public)
+    import.meta.env.PLACEHOLDER_SECRET ||
+    import.meta.env.PUBLIC_PLACEHOLDER_SECRET; // (fallback, but ideally NOT public)
 
   if (!token) {
-    return new Response(JSON.stringify({ error: "Server missing GAME_API_TOKEN" }), {
+    return new Response(JSON.stringify({ error: "Server missing PLACEHOLDER_SECRET" }), {
       status: 500,
       headers: { "content-type": "application/json" },
     });
