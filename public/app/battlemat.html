@@ -335,16 +335,58 @@ BATTLEMAT ENGINE
     // Set this to your Worker/API base. If your API is on the same origin, leave as ''.
     // For your OpenAPI spec, the server is:
     //   https://game-api.abbacasa-031.workers.dev
-   const API_BASE = ''; // same origin
+    const API_BASE = ''; // same origin
 
     // Adjust to your actual endpoint path.
     // Common patterns:
     //   /api/battles/<id>
     //   /battle/<id>
     //   /battles/<id>
-	function battleStateUrl(battleId) {
-  	return `${API_BASE}/api/battles/${encodeURIComponent(battleId)}`;
-	}
+    function battleStateUrl(battleId) {
+      return `${API_BASE}/api/battles/${encodeURIComponent(battleId)}`;
+    }
+
+    // Save current scene to API (server-side proxy adds Authorization)
+    async function saveSceneToApi(battleId, sceneObj) {
+      if (!battleId) {
+        throw new Error('saveSceneToApi called without battleId');
+      }
+
+      const endpoint = battleStateUrl(battleId);
+
+      const res = await fetch(endpoint, {
+        method: 'PUT', // (or POST/PATCH if you choose, but match your Astro route)
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+        body: JSON.stringify({
+          // send scene object; server will stringify to state_json if needed
+          state_json: sceneObj
+        })
+      });
+
+      const text = await res.text();
+      if (!res.ok) {
+        throw new Error(`Save failed: HTTP ${res.status} ${res.statusText || ''} :: ${text}`);
+      }
+
+      // Try to parse JSON response (but don’t crash if it isn’t JSON)
+      try { return JSON.parse(text); } catch { return { ok: true, raw: text }; }
+    }
+
+    // Validate that an object "looks like" a battlemat SCENE
+    // (prevents false "Loaded state" messages when API returns non-scene JSON)
+    function looksLikeScene(obj) {
+      if (!obj || typeof obj !== 'object') return false;
+      return (
+        Array.isArray(obj.rooms) ||
+        Array.isArray(obj.actors) ||
+        Array.isArray(obj.objects) ||
+        Array.isArray(obj.openings)
+      );
+    }
 
     // Lightweight diagnostics UI (so you can see instantly what the page thinks)
     function setDiag(html) {
@@ -406,12 +448,12 @@ BATTLEMAT ENGINE
           sceneObj = data;
         }
 
-        if (!sceneObj || typeof sceneObj !== 'object') {
+        if (!looksLikeScene(sceneObj)) {
           setDiag(
             `URL Path: <code>${escapeHtml(window.location.pathname)}</code><br>` +
             `battle_id: <span class="ok">${escapeHtml(String(battleId))}</span><br>` +
             `Fetch: <code>${escapeHtml(endpoint)}</code><br>` +
-            `<span class="bad">API response did not contain a usable scene.</span>`
+            `<span class="bad">API returned JSON but it does not look like a SCENE (missing rooms/actors/objects/openings). Using embedded default.</span>`
           );
           return false;
         }
@@ -438,6 +480,7 @@ BATTLEMAT ENGINE
         return false;
       }
     }
+
 
     // =====================================================================
     // ENGINE (do not edit during play)
