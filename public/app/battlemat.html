@@ -388,13 +388,18 @@ BATTLEMAT ENGINE
       );
     }
 
+    const DEBUG_DIAG = false;
+
+
     // Lightweight diagnostics UI (so you can see instantly what the page thinks)
     function setDiag(html) {
+      if (!DEBUG_DIAG) return;
       const box = document.getElementById('diagBox');
       if (!box) return;
       box.style.display = 'block';
       box.innerHTML = html;
     }
+
 
     async function tryLoadSceneFromApi() {
       const battleId = getBattleIdFromUrl();
