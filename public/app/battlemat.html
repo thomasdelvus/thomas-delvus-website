@@ -556,6 +556,194 @@ BATTLEMAT ENGINE
       }
     };
 
+    // =====================================================================
+    // SPRITES (Option 2 foundation)
+    // - Deterministic: scene state chooses *what*, renderer chooses *how*
+    // - Safe: if an asset is missing or not loaded, we fall back to vector drawing
+    // =====================================================================
+
+    // Host your sprite PNGs/SVGs under your site, e.g. /public/assets/sprites/
+    // Example paths used below:
+    //   /assets/sprites/table_round.png
+    //   /assets/sprites/pillar_stone.png
+    //   /assets/sprites/token_pc.png
+    const SPRITE_BASE = '/assets/sprites';
+
+    // Per-sprite draw parameters.
+    // - wHex/hHex: approximate size in “hex units” (1 hex wide ≈ 2*size px; 1 hex tall ≈ SQRT3*size px)
+    // - ax/ay: anchor in sprite space (0..1). ax=0.5, ay=0.5 means centered; ay>0.5 feels grounded.
+    // - shadow: whether to draw a simple soft shadow ellipse.
+    const SPRITE_DEFS = {
+      // Objects
+      'table':        { url: `${SPRITE_BASE}/table_round.png`,    wHex: 1.8, hHex: 1.8, ax: 0.5, ay: 0.52, shadow: true },
+      'table.round':  { url: `${SPRITE_BASE}/table_round.png`,    wHex: 1.8, hHex: 1.8, ax: 0.5, ay: 0.52, shadow: true },
+      'table.rect':   { url: `${SPRITE_BASE}/table_rect.png`,     wHex: 2.2, hHex: 1.6, ax: 0.5, ay: 0.55, shadow: true },
+      'sarcophagus':  { url: `${SPRITE_BASE}/sarcophagus.png`,    wHex: 2.4, hHex: 1.4, ax: 0.5, ay: 0.58, shadow: true },
+      'pillar':       { url: `${SPRITE_BASE}/pillar_stone.png`,   wHex: 1.2, hHex: 1.2, ax: 0.5, ay: 0.60, shadow: true },
+      'rect':         { url: `${SPRITE_BASE}/crate_rect.png`,     wHex: 2.0, hHex: 1.4, ax: 0.5, ay: 0.58, shadow: true },
+
+      // Tokens
+      'token.pc':     { url: `${SPRITE_BASE}/token_pc.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'token.en':     { url: `${SPRITE_BASE}/token_enemy.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true }
+    };
+
+    const SPRITE_CACHE = new Map();      // url -> HTMLImageElement
+    const SPRITE_PROMISES = new Map();   // url -> Promise<HTMLImageElement>
+
+    function spriteDefForKey(key) {
+      if (!key) return null;
+      const k = String(key).trim().toLowerCase();
+      return SPRITE_DEFS[k] || null;
+    }
+
+    function spriteKeyForObject(obj) {
+      // Prefer explicit override: obj.sprite = "table_round_oak" etc.
+      // Then fall back to kind.
+      const s = obj && obj.sprite ? String(obj.sprite).trim().toLowerCase() : '';
+      if (s && SPRITE_DEFS[s]) return s;
+      const k = obj && obj.kind ? String(obj.kind).trim().toLowerCase() : '';
+      // Allow hierarchical kinds: table.round -> try exact then base "table"
+      if (k && SPRITE_DEFS[k]) return k;
+      if (k && k.includes('.')) {
+        const base = k.split('.')[0];
+        if (SPRITE_DEFS[base]) return base;
+      }
+      if (k && SPRITE_DEFS[k]) return k;
+      return null;
+    }
+
+    function spriteKeyForActor(actor) {
+      const s = actor && actor.sprite ? String(actor.sprite).trim().toLowerCase() : '';
+      if (s && SPRITE_DEFS[s]) return s;
+      const side = String(actor?.side || 'NPC').toUpperCase();
+      if (side === 'PC') return 'token.pc';
+      if (side === 'EN') return 'token.en';
+      return 'token.npc';
+    }
+
+    function ensureImage(url) {
+      const u = String(url || '').trim();
+      if (!u) return Promise.reject(new Error('Missing sprite url'));
+      if (SPRITE_CACHE.has(u)) {
+        const img = SPRITE_CACHE.get(u);
+        if (img && img.complete) return Promise.resolve(img);
+      }
+      if (SPRITE_PROMISES.has(u)) return SPRITE_PROMISES.get(u);
+
+      const p = new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => { SPRITE_CACHE.set(u, img); resolve(img); };
+        img.onerror = () => reject(new Error('Failed to load sprite: ' + u));
+        img.src = u;
+      });
+
+      SPRITE_PROMISES.set(u, p);
+      return p;
+    }
+
+    function isSpriteReady(key) {
+      const def = spriteDefForKey(key);
+      if (!def) return false;
+      const img = SPRITE_CACHE.get(def.url);
+      return !!(img && img.complete);
+    }
+
+    async function preloadSceneSprites(sceneNorm) {
+      const urls = new Set();
+
+      // Objects
+      for (const o of (sceneNorm?.objects || [])) {
+        const key = spriteKeyForObject(o);
+        const def = spriteDefForKey(key);
+        if (def?.url) urls.add(def.url);
+      }
+
+      // Actors
+      for (const a of (sceneNorm?.actors || [])) {
+        const key = spriteKeyForActor(a);
+        const def = spriteDefForKey(key);
+        if (def?.url) urls.add(def.url);
+      }
+
+      const promises = Array.from(urls).map(u => ensureImage(u).catch(() => null));
+      await Promise.allSettled(promises);
+    }
+
+    // Kick off async sprite loading and schedule a redraw when done.
+    let LAST_SPRITE_KEYSET = '';
+    let SPRITE_REDRAW_SCHEDULED = false;
+
+    function requiredSpriteKeyset(sceneNorm) {
+      const keys = [];
+      for (const o of (sceneNorm?.objects || [])) {
+        const k = spriteKeyForObject(o);
+        if (k) keys.push('o:' + k);
+      }
+      for (const a of (sceneNorm?.actors || [])) {
+        const k = spriteKeyForActor(a);
+        if (k) keys.push('a:' + k);
+      }
+      keys.sort();
+      return keys.join('|');
+    }
+
+    function requestSpritePreload(sceneNorm) {
+      const ks = requiredSpriteKeyset(sceneNorm);
+      if (!ks || ks === LAST_SPRITE_KEYSET) return;
+      LAST_SPRITE_KEYSET = ks;
+
+      preloadSceneSprites(sceneNorm).then(() => {
+        if (SPRITE_REDRAW_SCHEDULED) return;
+        SPRITE_REDRAW_SCHEDULED = true;
+        requestAnimationFrame(() => {
+          SPRITE_REDRAW_SCHEDULED = false;
+          safeDrawGrid();
+        });
+      });
+    }
+
+    function hexWidthPx() { return 2 * size; }
+    function hexHeightPx() { return SQRT3 * size; }
+
+    function drawSoftShadow(x, y, w, h, alpha) {
+      const a = (alpha == null) ? 0.18 : alpha;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.fillStyle = 'rgba(0,0,0,1)';
+      ctx.beginPath();
+      ctx.ellipse(x, y, w * 0.42, h * 0.22, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawSpriteAt(key, x, y, rotDeg, scaleMul, alphaMul) {
+      const def = spriteDefForKey(key);
+      if (!def) return false;
+      const img = SPRITE_CACHE.get(def.url);
+      if (!img || !img.complete) return false;
+
+      const w = (def.wHex ?? 1) * hexWidthPx() * (scaleMul ?? 1);
+      const h = (def.hHex ?? 1) * hexHeightPx() * (scaleMul ?? 1);
+      const ax = (def.ax ?? 0.5);
+      const ay = (def.ay ?? 0.5);
+
+      // Optional soft shadow (behind sprite)
+      if (def.shadow) {
+        // Place shadow slightly “below” the anchor to feel grounded
+        drawSoftShadow(x + 2, y + (h * 0.12), w, h, 0.16);
+      }
+
+      ctx.save();
+      ctx.globalAlpha = (alphaMul == null) ? 1 : alphaMul;
+      ctx.translate(x, y);
+      if (rotDeg) ctx.rotate((Math.PI / 180) * rotDeg);
+      ctx.drawImage(img, -w * ax, -h * ay, w, h);
+      ctx.restore();
+
+      return true;
+    }
+
     // ====== COORDINATE SYSTEM & GRID MATH ======
     // r=0 is the bottom. Alternate column offset so A/C/E align; B/D/F align.
     function qrToPixel(q, r) {
@@ -917,7 +1105,7 @@ BATTLEMAT ENGINE
           : (blocks ? 'rgba(0,0,0,0.20)' : 'rgba(0,0,0,0.10)');
 
         // Per-hex shading (difficult terrain + generic objects)
-        if (kind !== 'table' && kind !== 'rect' && kind !== 'sarcophagus') {
+        if (kind !== 'table' && kind !== 'rect' && kind !== 'sarcophagus' && kind !== 'pillar') {
           for (let i = 0; i < cells.length; i++) {
             const lab = String(cells[i]).trim().toUpperCase();
             const p = labelToPixel(lab);
@@ -943,8 +1131,36 @@ BATTLEMAT ENGINE
 
             ctx.restore();
           }
+          continue;
         }
 
+        // Sprite-first draw for supported object kinds.
+        // If sprite isn’t ready, fall back to the existing vector drawing.
+        const spriteKey = spriteKeyForObject(obj);
+        const rot = Number(obj.rot ?? 0);
+
+        if (spriteKey && isSpriteReady(spriteKey)) {
+          const c = objectCentroidPx(cells);
+          if (c) {
+            // A little downward bias makes props feel seated on the floor
+            const yBias = size * 0.10;
+            drawSpriteAt(spriteKey, c.x, c.y + yBias, rot, 1, 1);
+
+            // Optional label overlay (helpful while you’re still testing assets)
+            if (obj.label != null && String(obj.label).trim()) {
+              ctx.save();
+              ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
+              ctx.fillStyle = 'rgba(0,0,0,0.55)';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(String(obj.label).trim().slice(0, 3), c.x, c.y);
+              ctx.restore();
+            }
+            continue;
+          }
+        }
+
+        // ---- Vector fallbacks (existing behavior) ----
         if (kind === 'table') {
           const c = objectCentroidPx(cells);
           if (!c) continue;
@@ -1003,6 +1219,21 @@ BATTLEMAT ENGINE
           ctx.textBaseline = 'middle';
           ctx.fillText(labelRect, 0, 0);
 
+          ctx.restore();
+        }
+
+        if (kind === 'pillar') {
+          // Simple vector fallback for pillar
+          const c = objectCentroidPx(cells);
+          if (!c) continue;
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, size * 0.60, 0, Math.PI * 2);
+          ctx.fillStyle = obj.color ? String(obj.color) : 'rgba(0,0,0,0.20)';
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = 'rgba(0,0,0,0.70)';
+          ctx.stroke();
           ctx.restore();
         }
       }
@@ -1084,9 +1315,30 @@ BATTLEMAT ENGINE
       }
     }
 
-    function drawToken(q, r, label, side, dead) {
+    function drawToken(q, r, label, side, dead, actorObj) {
       const { x, y } = qrToPixel(q, r);
 
+      // Sprite-first tokens.
+      // If the sprite isn’t ready yet, fall back to the existing circle token.
+      const tokenKey = actorObj ? spriteKeyForActor(actorObj) : ((side === 'PC') ? 'token.pc' : (side === 'EN' ? 'token.en' : 'token.npc'));
+      const alpha = dead ? 0.55 : 1.0;
+
+      if (tokenKey && isSpriteReady(tokenKey)) {
+        // Slight y-bias + shadow makes tokens feel “on” the floor.
+        drawSpriteAt(tokenKey, x, y + (size * 0.10), 0, 1, alpha);
+
+        // Optional label overlay for clarity
+        ctx.save();
+        ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
+        ctx.fillStyle = dead ? 'rgba(0,0,0,0.28)' : 'rgba(0,0,0,0.60)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, x, y);
+        ctx.restore();
+        return;
+      }
+
+      // ---- Vector fallback (existing behavior) ----
       let fill = 'rgba(160,160,160,0.95)';
       if (dead) fill = 'rgba(140,140,140,0.85)';
       else if (side === 'PC') fill = 'rgba(80,160,220,0.95)';
@@ -1145,6 +1397,10 @@ BATTLEMAT ENGINE
       SCENE = loadSceneFromJsonTag();
       SCENE_NORM = normalizeScene();
 
+      // Start loading any needed sprites in the background, then redraw when ready.
+      // (First render uses vector fallbacks; second render swaps in sprites.)
+      requestSpritePreload(SCENE_NORM);
+
       ROOM_GEOMS = new Map();
       for (const room of (SCENE_NORM?.rooms || [])) {
         const g = getRoomGeom(room);
@@ -1174,7 +1430,7 @@ BATTLEMAT ENGINE
         const pos = parseLabel(a.at);
         if (!pos) continue;
         const isDead = Number(a.hp ?? 0) <= 0 || (Array.isArray(a.effects) && (a.effects.includes('dead') || a.effects.includes('down')));
-        drawToken(pos.q, pos.r, a.label || a.name?.slice(0, 1) || '?', a.side, isDead);
+        drawToken(pos.q, pos.r, a.label || a.name?.slice(0, 1) || '?', a.side, isDead, a);
       }
 
       renderStatus();
