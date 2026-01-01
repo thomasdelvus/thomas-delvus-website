@@ -147,6 +147,22 @@ BATTLEMAT ENGINE v3.44
     .refresh-btn:active { background: rgba(0,0,0,0.06); }
     .refresh-btn:focus { outline: 2px solid rgba(0,0,0,0.25); outline-offset: 2px; }
 
+    .toggle-btn {
+      appearance: none;
+      border: 1px solid rgba(0,0,0,0.18);
+      background: #fff;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 0.86rem;
+      font-weight: 650;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .toggle-btn:hover { background: rgba(0,0,0,0.03); }
+    .toggle-btn:active { background: rgba(0,0,0,0.06); }
+    .toggle-btn:focus { outline: 2px solid rgba(0,0,0,0.25); outline-offset: 2px; }
+
     .status-wrap {
       overflow: auto;
       border: 1px solid rgba(0,0,0,0.10);
@@ -233,7 +249,6 @@ BATTLEMAT ENGINE v3.44
     .diag .bad { color: #b00020; font-weight: 650; }
     .diag .ok  { color: #0b6b0b; font-weight: 650; }
 
-
     /* Narration grows to fill remaining space */
     #paneNarration {
       flex: 1 1 auto;
@@ -319,6 +334,7 @@ BATTLEMAT ENGINE v3.44
         <section class="keybar" aria-label="Map key">
           <div class="keybar-title">
             <strong>Key</strong>
+            <button id="textureToggleBtn" class="toggle-btn" type="button" title="Toggle textures">Textures: Off</button>
           </div>
           <ul class="keybar-list">
             <li><span class="legend-swatch door">D</span> Door</li>
@@ -387,7 +403,9 @@ BATTLEMAT ENGINE v3.44
       "id": "room1",
       "corners": ["D11", "N11", "N1", "D1"],
       "thickness": 30,
-      "color": "#555"
+      "color": "#555",
+      "floor": { "kind": "stone" },
+      "wall": { "kind": "brick" }
     }
   ],
   "openings": [
@@ -552,16 +570,6 @@ BATTLEMAT ENGINE v3.44
 
     // =====================================================================
     // AUTO-REFRESH (multi-step)
-    // - 5s (FAST), 15s, 30s, 60s, Off
-    // - Downshift:
-    //     FAST→15s after 60s idle
-    //     15s→30s after 3m idle
-    //     30s→60s after 5m idle
-    //     60s→Off after 10m idle
-    // - Upshift:
-    //     if a change is detected and we are not FAST, snap back to FAST
-    // - Button:
-    //     any press = snap to FAST (5s)
     // =====================================================================
 
     const RefreshMode = { FAST: 'fast', S15: '15s', S30: '30s', S60: '60s', OFF: 'off' };
@@ -637,7 +645,6 @@ BATTLEMAT ENGINE v3.44
 
     function applyScene(sceneObj) {
       // Capture where actors *were* before we swap in the new scene.
-      // This lets us draw a faint trail between commits (derived, not exact pathfinding).
       try {
         if (SCENE_NORM?.actors?.length) {
           PENDING_PREV_POS = captureActorPositions(SCENE_NORM);
@@ -751,7 +758,6 @@ BATTLEMAT ENGINE v3.44
     let SCENE_PARSE_ERROR = null;
 
     // ====== MOVEMENT TRAILS (lightweight, derived) ======
-    // Purpose: show where actors *came from* between commits, even if we don’t know the exact hex-by-hex path.
     const TRAIL_TTL_MS = 90_000;     // keep recent trails (ms)
     const TRAIL_MAX_SEGMENTS = 24;  // per-actor cap
     let PENDING_PREV_POS = null;    // Map(actorId -> { at, side }) captured just before applyScene()
@@ -939,6 +945,295 @@ BATTLEMAT ENGINE v3.44
         overlayStrokeA: 0.04,
       }
     };
+
+    // =====================================================================
+    // TEXTURES (floors + walls)
+    // =====================================================================
+
+    const TEX = {
+      enabled: false,
+      patterns: new Map(), // kind -> CanvasPattern
+      tiles: new Map(),    // kind -> HTMLCanvasElement
+    };
+
+    function readTexturePref() {
+      try {
+        const v = (localStorage.getItem('battlemat:textures:enabled') || '').trim();
+        return v === '1' || v.toLowerCase() === 'true' || v.toLowerCase() === 'on';
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function writeTexturePref(on) {
+      try { localStorage.setItem('battlemat:textures:enabled', on ? '1' : '0'); } catch (_) {}
+    }
+
+    function setTextureUi() {
+      const btn = document.getElementById('textureToggleBtn');
+      if (!btn) return;
+      btn.textContent = TEX.enabled ? 'Textures: On' : 'Textures: Off';
+      btn.title = TEX.enabled ? 'Turn textures off' : 'Turn textures on';
+    }
+
+    function toggleTextures() {
+      TEX.enabled = !TEX.enabled;
+      writeTexturePref(TEX.enabled);
+      setTextureUi();
+      safeDrawGrid();
+    }
+
+    document.getElementById('textureToggleBtn')?.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      toggleTextures();
+    });
+
+    // Small deterministic PRNG for “natural” texture variation (seeded by kind)
+    function seededRng(seedStr) {
+      let h = 2166136261;
+      const s = String(seedStr || 'seed');
+      for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      let state = h >>> 0;
+      return function rand() {
+        state = (Math.imul(1664525, state) + 1013904223) >>> 0;
+        return state / 4294967296;
+      };
+    }
+
+    function offscreenTile(w, h) {
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      return c;
+    }
+
+    function makeWoodTile() {
+      const c = offscreenTile(220, 220);
+      const g = c.getContext('2d');
+      const rand = seededRng('wood');
+
+      g.fillStyle = '#c9b08a';
+      g.fillRect(0, 0, c.width, c.height);
+
+      const plankW = 28;
+      for (let x = 0; x < c.width + plankW; x += plankW) {
+        const tone = 0.92 + rand() * 0.12;
+        g.fillStyle = `rgba(140, 95, 55, ${0.12 + rand() * 0.10})`;
+        g.fillRect(x, 0, plankW, c.height);
+
+        g.strokeStyle = `rgba(60, 35, 20, ${0.10 + rand() * 0.10})`;
+        g.lineWidth = 1;
+        for (let i = 0; i < 6; i++) {
+          const y = rand() * c.height;
+          g.beginPath();
+          g.moveTo(x + 2, y);
+          g.bezierCurveTo(x + plankW * 0.35, y + (rand() - 0.5) * 18, x + plankW * 0.65, y + (rand() - 0.5) * 18, x + plankW - 2, y);
+          g.stroke();
+        }
+
+        g.strokeStyle = 'rgba(0,0,0,0.10)';
+        g.beginPath();
+        g.moveTo(x + plankW, 0);
+        g.lineTo(x + plankW, c.height);
+        g.stroke();
+
+        g.fillStyle = `rgba(255,255,255,${0.03 * tone})`;
+        g.fillRect(x + 1, 0, 2, c.height);
+      }
+
+      for (let k = 0; k < 14; k++) {
+        const x = rand() * c.width;
+        const y = rand() * c.height;
+        const r = 3 + rand() * 7;
+        g.strokeStyle = 'rgba(50, 25, 10, 0.18)';
+        g.lineWidth = 1;
+        g.beginPath();
+        g.ellipse(x, y, r * 1.2, r, rand() * Math.PI, 0, Math.PI * 2);
+        g.stroke();
+      }
+
+      return c;
+    }
+
+    function makeStoneTile() {
+      const c = offscreenTile(240, 240);
+      const g = c.getContext('2d');
+      const rand = seededRng('stone');
+
+      g.fillStyle = '#b6b6b6';
+      g.fillRect(0, 0, c.width, c.height);
+
+      const cell = 48;
+      for (let y = 0; y < c.height + cell; y += cell) {
+        for (let x = 0; x < c.width + cell; x += cell) {
+          const jitterX = (rand() - 0.5) * 6;
+          const jitterY = (rand() - 0.5) * 6;
+          const w = cell + (rand() - 0.5) * 14;
+          const h = cell + (rand() - 0.5) * 14;
+
+          g.fillStyle = `rgba(140,140,140,${0.08 + rand() * 0.10})`;
+          g.fillRect(x + jitterX, y + jitterY, w, h);
+
+          g.strokeStyle = 'rgba(0,0,0,0.10)';
+          g.lineWidth = 1;
+          g.strokeRect(x + jitterX, y + jitterY, w, h);
+        }
+      }
+
+      for (let i = 0; i < 600; i++) {
+        const x = rand() * c.width;
+        const y = rand() * c.height;
+        const a = 0.03 + rand() * 0.06;
+        g.fillStyle = `rgba(0,0,0,${a})`;
+        g.fillRect(x, y, 1, 1);
+      }
+
+      return c;
+    }
+
+    function makeBrickTile() {
+      const c = offscreenTile(240, 160);
+      const g = c.getContext('2d');
+      const rand = seededRng('brick');
+
+      g.fillStyle = '#c9c3b8';
+      g.fillRect(0, 0, c.width, c.height);
+
+      const brickW = 46;
+      const brickH = 22;
+      const mortar = 3;
+
+      for (let row = 0; row < 8; row++) {
+        const y = row * (brickH + mortar);
+        const offset = (row % 2 === 0) ? 0 : Math.floor(brickW / 2);
+        for (let x0 = -offset; x0 < c.width + brickW; x0 += (brickW + mortar)) {
+          const r = 120 + Math.floor(rand() * 35);
+          const gg = 60 + Math.floor(rand() * 25);
+          const b = 40 + Math.floor(rand() * 20);
+          g.fillStyle = `rgb(${r},${gg},${b})`;
+          g.fillRect(x0 + mortar, y + mortar, brickW, brickH);
+
+          g.fillStyle = 'rgba(255,255,255,0.06)';
+          g.fillRect(x0 + mortar + 1, y + mortar + 1, brickW - 2, 2);
+          g.fillStyle = 'rgba(0,0,0,0.05)';
+          g.fillRect(x0 + mortar + 1, y + mortar + brickH - 2, brickW - 2, 2);
+
+          g.strokeStyle = 'rgba(0,0,0,0.12)';
+          g.lineWidth = 1;
+          g.strokeRect(x0 + mortar, y + mortar, brickW, brickH);
+        }
+      }
+
+      for (let i = 0; i < 180; i++) {
+        const x = rand() * c.width;
+        const y = rand() * c.height;
+        g.fillStyle = 'rgba(0,0,0,0.05)';
+        g.fillRect(x, y, 1, 1);
+      }
+
+      return c;
+    }
+
+    function textureTileFor(kind) {
+      const k = String(kind || '').trim().toLowerCase();
+      if (TEX.tiles.has(k)) return TEX.tiles.get(k);
+
+      let tile;
+      if (k === 'wood' || k === 'planks' || k === 'timber' || k === 'floor.wood') tile = makeWoodTile();
+      else if (k === 'brick' || k === 'bricks' || k === 'wall.brick') tile = makeBrickTile();
+      else if (k === 'stone' || k === 'slab' || k === 'slabs' || k === 'tile' || k === 'tiles') tile = makeStoneTile();
+      else tile = makeStoneTile();
+
+      TEX.tiles.set(k, tile);
+      return tile;
+    }
+
+    function texturePatternFor(kind) {
+      const k = String(kind || '').trim().toLowerCase();
+      if (TEX.patterns.has(k)) return TEX.patterns.get(k);
+
+      const tile = textureTileFor(k);
+      const pat = ctx.createPattern(tile, 'repeat');
+      TEX.patterns.set(k, pat);
+      return pat;
+    }
+
+    function floorKindForRoom(room) {
+      const k = room?.floor?.kind ?? room?.floorKind ?? room?.floor_kind ?? '';
+      const s = String(k || '').trim().toLowerCase();
+      return s || 'stone';
+    }
+
+    function wallKindForRoom(room) {
+      const k = room?.wall?.kind ?? room?.wallKind ?? room?.wall_kind ?? '';
+      const s = String(k || '').trim().toLowerCase();
+      return s || 'brick';
+    }
+
+    function drawTexturedRoom(room, g) {
+      const t = Math.max(1, Number(g.thickness || 18));
+      const half = t / 2;
+
+      const outer = {
+        x: g.leftX - half,
+        y: g.topY - half,
+        w: (g.rightX - g.leftX) + t,
+        h: (g.botY - g.topY) + t,
+      };
+
+      const inner = {
+        x: g.leftX + half,
+        y: g.topY + half,
+        w: (g.rightX - g.leftX) - t,
+        h: (g.botY - g.topY) - t,
+      };
+
+      // 1) Floor
+      const fk = floorKindForRoom(room);
+      const fpat = texturePatternFor(fk);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(inner.x, inner.y, inner.w, inner.h);
+      ctx.clip();
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = fpat;
+      ctx.fillRect(inner.x - 2000, inner.y - 2000, inner.w + 4000, inner.h + 4000);
+
+      // subtle vignette
+      ctx.globalAlpha = 0.10;
+      const grad = ctx.createLinearGradient(inner.x, inner.y, inner.x, inner.y + inner.h);
+      grad.addColorStop(0, 'rgba(0,0,0,0.00)');
+      grad.addColorStop(1, 'rgba(0,0,0,0.40)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(inner.x, inner.y, inner.w, inner.h);
+      ctx.restore();
+
+      // 2) Walls ring
+      const wk = wallKindForRoom(room);
+      const wpat = texturePatternFor(wk);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(outer.x, outer.y, outer.w, outer.h);
+      ctx.rect(inner.x, inner.y, inner.w, inner.h);
+      // even-odd clip (with fallback)
+      try { ctx.clip('evenodd'); } catch { ctx.clip(); }
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = wpat;
+      ctx.fillRect(outer.x - 2000, outer.y - 2000, outer.w + 4000, outer.h + 4000);
+      ctx.restore();
+
+      // 3) Edge definition
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(inner.x, inner.y, inner.w, inner.h);
+      ctx.globalAlpha = 0.35;
+      ctx.strokeRect(outer.x, outer.y, outer.w, outer.h);
+      ctx.restore();
+    }
 
     // =====================================================================
     // SPRITES (Option 2 foundation)
@@ -1176,7 +1471,6 @@ BATTLEMAT ENGINE v3.44
       if (typeof v === 'string') return v;
       if (typeof v !== 'object') return String(v);
 
-      // Friendly formatter for the common “action object” shape (but still resilient).
       try {
         const actor = v.actorName || v.actor || v.actor_id || v.actorId || '';
         const from = v.from || '';
@@ -1241,11 +1535,25 @@ BATTLEMAT ENGINE v3.44
           id = `${id}_${k}`;
         }
         roomIds.add(id);
+
+        const floorKind = String(r.floorKind ?? r.floor_kind ?? '').trim();
+        const wallKind = String(r.wallKind ?? r.wall_kind ?? '').trim();
+
+        let floor = null;
+        if (r.floor && typeof r.floor === 'object') floor = r.floor;
+        else if (floorKind) floor = { kind: floorKind };
+
+        let wall = null;
+        if (r.wall && typeof r.wall === 'object') wall = r.wall;
+        else if (wallKind) wall = { kind: wallKind };
+
         roomsOut.push({
           id,
           corners: corners.map(c => String(c).trim().toUpperCase()),
           thickness: Number(r.thickness ?? 18),
-          color: String(r.color || '#555')
+          color: String(r.color || '#555'),
+          floor,
+          wall
         });
       }
 
@@ -1320,7 +1628,6 @@ BATTLEMAT ENGINE v3.44
         actorsOut.push({ ...a, at, side: (side === 'PC' || side === 'EN') ? side : 'NPC' });
       }
 
-      // POI (annotations) — preserved, but only 'arrow' is rendered today.
       const poiIn = Array.isArray(src.poi) ? src.poi : [];
       const poiOut = [];
       const poiIds = new Set();
@@ -1392,7 +1699,6 @@ BATTLEMAT ENGINE v3.44
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
-      // Outline
       ctx.globalAlpha = 0.35;
       ctx.beginPath();
       ctx.moveTo(sx, sy);
@@ -1401,7 +1707,6 @@ BATTLEMAT ENGINE v3.44
       ctx.lineWidth = Math.max(3, Number(width || 4) + 2);
       ctx.stroke();
 
-      // Main
       ctx.globalAlpha = 1;
       ctx.beginPath();
       ctx.moveTo(sx, sy);
@@ -1410,7 +1715,6 @@ BATTLEMAT ENGINE v3.44
       ctx.lineWidth = Math.max(2, Number(width || 4));
       ctx.stroke();
 
-      // Arrow head
       const headLen = Math.max(10, size * 0.45);
       const headW = headLen * 0.75;
       const angle = Math.atan2(ey - sy, ex - sx);
@@ -1589,6 +1893,11 @@ BATTLEMAT ENGINE v3.44
       for (const room of rooms) {
         const g = ROOM_GEOMS.get(String(room.id || ''));
         if (!g) continue;
+
+        if (TEX.enabled) {
+          drawTexturedRoom(room, g);
+          continue;
+        }
 
         ctx.save();
         ctx.globalAlpha = 1.0;
@@ -1959,7 +2268,6 @@ BATTLEMAT ENGINE v3.44
       drawObjects();
       drawHexOverlay();
 
-      // Movement trails (derived from last scene → current scene)
       updateTrailsFromPending();
       drawMoveTrails();
 
@@ -2043,17 +2351,12 @@ BATTLEMAT ENGINE v3.44
       const curTrim = cur.trim();
       const last = String(NOTES.lastSceneNarration || '').trim();
 
-      // If user has typed their own notes (dirty) and it doesn't match the last scene narration, don't overwrite.
       if (NOTES.dirty && curTrim !== last) return;
-
-      // If the user is actively typing, never overwrite.
       if (document.activeElement === narr && curTrim !== last) return;
 
-      // Only replace if empty OR still equal to the last scene narration.
       if (!curTrim || curTrim === last) {
         narr.value = sceneText;
         NOTES.lastSceneNarration = sceneText;
-        // do NOT mark dirty (this is scene-provided)
       }
     }
 
@@ -2065,7 +2368,6 @@ BATTLEMAT ENGINE v3.44
       if (SCENE_PARSE_ERROR) roundLine.textContent = 'SCENE JSON ERROR';
       else roundLine.textContent = `Round ${SCENE_NORM?.round ?? '—'}`;
 
-      // Last action (single line). Put emoji/icons directly in the string, e.g. "🎲 16 ⚔️ 7".
       const actionLine = document.getElementById('actionLine');
       const la = String(SCENE_NORM?.lastAction || '').trim();
       if (actionLine) {
@@ -2078,7 +2380,6 @@ BATTLEMAT ENGINE v3.44
         }
       }
 
-      // Keep narration box in sync with DB narration unless the user has typed local notes.
       syncNarrationFromScene();
 
       const actors = Array.isArray(SCENE_NORM?.actors) ? SCENE_NORM.actors.slice() : [];
@@ -2159,17 +2460,27 @@ BATTLEMAT ENGINE v3.44
         console.assert(S60_TO_OFF_IDLE_MS === 600000, '60→Off idle should be 10m');
 
         // lastAction + narration + effects robustness
-        console.assert(coerceLastAction({ a: 1 }).includes('"a"') || coerceLastAction({ a: 1 }).includes('a'), 'coerceLastAction should stringify objects');
-        console.assert(coerceNarration({ n: 1 }).includes('"n"') || coerceNarration({ n: 1 }).includes('n'), 'coerceNarration should stringify objects');
+        console.assert(coerceLastAction({ a: 1 }).includes('a'), 'coerceLastAction should stringify objects');
+        console.assert(coerceNarration({ n: 1 }).includes('n'), 'coerceNarration should stringify objects');
         console.assert(effectLabel({ name: 'Poisoned' }) === 'Poisoned', 'effectLabel should prefer name');
         console.assert(effectLabel({ label: 'Stunned' }) === 'Stunned', 'effectLabel should prefer label');
         console.assert(effectLabel(7) === '7', 'effectLabel should stringify primitives');
+
+        // textures should be callable
+        console.assert(typeof texturePatternFor === 'function', 'texturePatternFor should exist');
+        console.assert(!!texturePatternFor('stone'), 'texturePatternFor(stone) should return a pattern');
+        console.assert(typeof drawTexturedRoom === 'function', 'drawTexturedRoom should exist');
       } catch (_) {}
     }
 
     // Boot
     (async () => {
       await tryLoadSceneFromApi();
+
+      // Textures toggle (persisted) — set before first render so the first frame matches UI state.
+      TEX.enabled = readTexturePref();
+      setTextureUi();
+
       safeDrawGrid();
 
       const bid = getBattleIdFromUrl();
@@ -2185,7 +2496,6 @@ BATTLEMAT ENGINE v3.44
           if (versionKey) REFRESH.lastVersionKey = versionKey;
         } catch (_) {}
 
-        // Restore persisted preference (Auto/Off) per battle_id.
         let restore = RefreshMode.S60;
         let autoPref = 'auto';
         try {
