@@ -1,6 +1,6 @@
 
 <!--
-BATTLEMAT ENGINE v3.40
+BATTLEMAT ENGINE v3.38
 
 - Copy this entire file into Canvas verbatim before combat.
 - During play, edit ONLY the SCENE block between:
@@ -630,10 +630,6 @@ BATTLEMAT ENGINE v3.40
     }
 
     function applyScene(sceneObj) {
-      // This is called only when the API reports a changed scene (version/updated_at moved).
-      // We use it as the “commit counter” for update-based trail expiry.
-      SCENE_UPDATE_SEQ++;
-
       // Capture where actors *were* before we swap in the new scene.
       // This lets us draw a faint trail between commits (derived, not exact pathfinding).
       try {
@@ -721,17 +717,8 @@ BATTLEMAT ENGINE v3.40
     // ====== MOVEMENT TRAILS (lightweight, derived) ======
     // Purpose: show where actors *came from* between commits, even if we don’t know the exact path yet.
     // Later, a pathfinding API can supply step-by-step paths; this is a visual “good enough” now.
-    // Trails expire primarily by *scene updates* (commits), not by wall-clock time.
-    // This makes them useful during fast action without turning the board into spaghetti.
-    let SCENE_UPDATE_SEQ = 0;          // increments each time we apply a changed scene from the API
-    const TRAIL_HOLD_UPDATES = 3;      // stay at full strength for this many updates
-    const TRAIL_FADE_UPDATES = 2;      // then fade out over this many updates
-    const TRAIL_MAX_AGE_UPDATES = TRAIL_HOLD_UPDATES + TRAIL_FADE_UPDATES;
-
-    // Safety net: also drop trails after this much wall-clock time (e.g., if the board sits idle).
-    const TRAIL_TTL_MS = 180_000;      // 3 minutes
-
-    const TRAIL_MAX_SEGMENTS = 24;     // per-actor cap
+    const TRAIL_TTL_MS = 90_000;     // keep recent trails (ms)
+    const TRAIL_MAX_SEGMENTS = 24;  // per-actor cap
     let PENDING_PREV_POS = null;    // Map(actorId -> { at, side }) captured just before applyScene()
     const MOVE_TRAILS = new Map();  // actorId -> Array<{ from, to, ts, side }>
 
@@ -749,17 +736,10 @@ BATTLEMAT ENGINE v3.40
     function pruneTrails(now) {
       const t = Number(now || Date.now());
       for (const [id, segs] of MOVE_TRAILS.entries()) {
-        const kept = (segs || []).filter(s => {
-          const ageMs = t - (s.ts || 0);
-          const ageU = SCENE_UPDATE_SEQ - (s.seq || 0);
-          if (ageMs > TRAIL_TTL_MS) return false;
-          if (ageU > TRAIL_MAX_AGE_UPDATES) return false;
-          return true;
-        });
+        const kept = (segs || []).filter(s => (t - (s.ts || 0)) <= TRAIL_TTL_MS);
         if (!kept.length) MOVE_TRAILS.delete(id);
         else MOVE_TRAILS.set(id, kept.slice(-TRAIL_MAX_SEGMENTS));
       }
-    }
     }
 
     function updateTrailsFromPending() {
@@ -783,7 +763,7 @@ BATTLEMAT ENGINE v3.40
         const to = curAt;
         if (!from || !to || from === to) continue;
 
-        const seg = { from, to, ts: now, side: curSide || p.side || 'NPC', seq: SCENE_UPDATE_SEQ };
+        const seg = { from, to, ts: now, side: curSide || p.side || 'NPC' };
         const list = MOVE_TRAILS.get(id) || [];
         list.push(seg);
         MOVE_TRAILS.set(id, list.slice(-TRAIL_MAX_SEGMENTS));
@@ -794,9 +774,9 @@ BATTLEMAT ENGINE v3.40
 
     function sideTrailStyle(side) {
       const s = String(side || 'NPC').toUpperCase();
-      if (s === 'PC') return { stroke: 'rgba(80,160,220,0.55)', fill: 'rgba(80,160,220,0.42)' };
-      if (s === 'EN') return { stroke: 'rgba(220,120,80,0.55)', fill: 'rgba(220,120,80,0.42)' };
-      return { stroke: 'rgba(120,120,120,0.50)', fill: 'rgba(120,120,120,0.34)' };
+      if (s === 'PC') return { stroke: 'rgba(80,160,220,0.30)', fill: 'rgba(80,160,220,0.22)' };
+      if (s === 'EN') return { stroke: 'rgba(220,120,80,0.30)', fill: 'rgba(220,120,80,0.22)' };
+      return { stroke: 'rgba(120,120,120,0.28)', fill: 'rgba(120,120,120,0.18)' };
     }
 
     function drawArrowHead(x1, y1, x2, y2, sizePx) {
@@ -850,46 +830,27 @@ BATTLEMAT ENGINE v3.40
           if (!p1 || !p2) continue;
 
           const style = sideTrailStyle(s.side);
-          const ageMs = Math.max(0, now - (s.ts || now));
-          const ageU = Math.max(0, SCENE_UPDATE_SEQ - (s.seq || 0));
+          const age = Math.max(0, now - (s.ts || now));
+          const fade = Math.max(0, 1 - (age / TRAIL_TTL_MS));
 
-          // Update-based fade: hold for a few commits, then fade out over a few commits.
-          let fadeU = 1;
-          if (ageU <= TRAIL_HOLD_UPDATES) fadeU = 1;
-          else if (ageU <= TRAIL_MAX_AGE_UPDATES) fadeU = 1 - ((ageU - TRAIL_HOLD_UPDATES) / Math.max(1, TRAIL_FADE_UPDATES));
-          else fadeU = 0;
-
-          // Also respect wall-clock TTL as a safety net.
-          const fadeT = Math.max(0, 1 - (ageMs / TRAIL_TTL_MS));
-          const fade = Math.min(fadeU, fadeT);
-
-          // A readable trail: a soft solid stroke + a dashed “footstep lane”.
-          ctx.globalAlpha = 0.35 * fade;
+          // Dotted “footsteps” feel + a faint connecting stroke.
+          ctx.globalAlpha = 0.9 * fade;
           ctx.strokeStyle = style.stroke;
-          ctx.lineWidth = 5;
-          ctx.setLineDash([]);
-          ctx.beginPath();
-          ctx.moveTo(p1.x, p1.y);
-          ctx.lineTo(p2.x, p2.y);
-          ctx.stroke();
-
-          ctx.globalAlpha = 0.85 * fade;
-          ctx.strokeStyle = style.stroke;
-          ctx.lineWidth = 3;
-          ctx.setLineDash([10, 12]);
-          ctx.beginPath();
-          ctx.moveTo(p1.x, p1.y);
-          ctx.lineTo(p2.x, p2.y);
-          ctx.stroke();
-
-          ctx.setLineDash([]);
           ctx.fillStyle = style.fill;
-          ctx.globalAlpha = 0.95 * fade;
-          drawFootsteps(p1.x, p1.y, p2.x, p2.y, 3.0, size * 0.78);
+          ctx.lineWidth = 2;
 
-          ctx.fillStyle = style.stroke;
-          ctx.globalAlpha = 0.75 * fade;
-          drawArrowHead(p1.x, p1.y, p2.x, p2.y, 11);
+          ctx.setLineDash([6, 8]);
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+
+          ctx.setLineDash([]);
+          drawFootsteps(p1.x, p1.y, p2.x, p2.y, 2.2, size * 0.70);
+
+          // Arrow head at the destination for quick “direction” readability.
+          ctx.globalAlpha = 0.65 * fade;
+          drawArrowHead(p1.x, p1.y, p2.x, p2.y, 9);
         }
       }
 
@@ -1812,6 +1773,10 @@ BATTLEMAT ENGINE v3.40
       drawObjects();
       drawHexOverlay();
 
+      // Movement trails (derived from last scene → current scene)
+      updateTrailsFromPending();
+      drawMoveTrails();
+
       const LABEL_DY = size * CONFIG.labels.dyFrac;
       ctx.font = '13px "Times New Roman", Georgia, "Century Schoolbook", "Book Antiqua", serif';
       ctx.fillStyle = `rgba(180,150,90,${CONFIG.labels.fillAlpha})`;
@@ -1823,10 +1788,6 @@ BATTLEMAT ENGINE v3.40
           ctx.fillText(labelFor(q, r), x, y + LABEL_DY);
         }
       }
-
-      // Movement trails (derived from last scene → current scene)
-      updateTrailsFromPending();
-      drawMoveTrails();
 
       refreshBlocked();
 
