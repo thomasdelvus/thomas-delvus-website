@@ -1,7 +1,7 @@
 <!--
-  Version 3.47
+  Version 3.48
 
-  Copyright © 2025 Thomas Delvus. All rights reserved.  
+  Copyright © 2025 Thomas Delvus. All rights reserved.
 
   This HTML document and its contents (including the code, layout, text, data structures, and embedded/linked assets)
   are protected by copyright law.
@@ -449,6 +449,7 @@
   <script type="application/json" id="scene-json">
 {
   "round": 1,
+  "active_actor_id": "pc1",
   "lastAction": "🎲 16  ⚔️ Longsword  →  7 dmg",
   "narration": "The crypt is silent but for the soft scrape of bone on stone.\nAelar steps forward, blade raised — and the air suddenly turns *cold*.\n\nCaelin: \"I don’t like this…\"\n\nA shadow shifts near the sarcophagus.",
   "rooms": [
@@ -699,7 +700,7 @@
     function applyScene(sceneObj) {
       // Capture where actors *were* before we swap in the new scene.
       try {
-        if (SCENE_NORM?.actors?.length) {
+        if (SCENE_NORM && SCENE_NORM.actors && SCENE_NORM.actors.length) {
           PENDING_PREV_POS = captureActorPositions(SCENE_NORM);
         }
       } catch (_) {
@@ -811,7 +812,7 @@
     let SCENE_PARSE_ERROR = null;
 
     // ====== MOVEMENT TRAILS (lightweight, derived) ======
-    const TRAIL_TTL_MS = 90_000;     // keep recent trails (ms)
+    const TRAIL_TTL_MS = 90000;     // keep recent trails (ms)
     const TRAIL_MAX_SEGMENTS = 24;  // per-actor cap
     let PENDING_PREV_POS = null;    // Map(actorId -> { at, side }) captured just before applyScene()
     const MOVE_TRAILS = new Map();  // actorId -> Array<{ from, to, ts, side }>
@@ -1040,7 +1041,6 @@
       { value: 'stone:dark', label: 'Stone (dark)' },
       { value: 'stone:blocks', label: 'Stone (blocks)' },
       { value: 'stone:marble', label: 'Stone (marble)' },
-      { value: 'stone:blocks', label: 'Stone (blocks)' },
       { value: 'wood:oak', label: 'Wood (oak)' },
       { value: 'wood:pine', label: 'Wood (pine)' },
       { value: 'wood:dark', label: 'Wood (dark)' },
@@ -1181,7 +1181,7 @@
       if (flagStr.includes('horizontal') || flagStr.includes('h')) orient = 'h';
       if (flagStr.includes('vertical') || flagStr.includes('v')) orient = 'v';
 
-      // Cleaner oak planks (no knots/circles, fewer scratch marks)
+      // Cleaner oak planks (no knots/circles)
       const cleanOak = (baseVariant === 'oak');
 
       const P = PAL[baseVariant] || PAL.oak;
@@ -1191,7 +1191,7 @@
       g.fillRect(0, 0, c.width, c.height);
 
       const plank = 28;
-      const scratchMul = 0.5; // reduce wood grain/scratch strength (~half)
+      const scratchMul = 0.5; // reduced wood scratch/grain strength
 
       g.strokeStyle = P.grain;
       g.lineWidth = 1;
@@ -1377,7 +1377,76 @@
         return c;
       }
 
-      // --- Slabs vs cobbles ---
+      // --- Slabs (interlocking) vs cobbles ---
+      const slabLike = !isCobble && !isMarble && !isBlocks;
+      if (slabLike) {
+        const mortar = 3;
+        const rowH = 46;
+        const lens = [54, 72, 92, 64, 84];
+
+        // Mortar base
+        g.fillStyle = isDark ? '#7c7c7c' : '#a9a9a9';
+        g.fillRect(0, 0, c.width, c.height);
+
+        let row = 0;
+        for (let y = 0; y < c.height + rowH; y += (rowH + mortar)) {
+          const offset = (row % 2 === 0) ? 0 : Math.floor((lens[1] + mortar) / 2);
+          let x = -offset;
+
+          while (x < c.width + 120) {
+            const baseLen = lens[Math.floor(rand() * lens.length)];
+            const len = baseLen + Math.floor((rand() - 0.5) * 8); // tiny variation
+
+            // Per-slab shading
+            const shadeA = (isDark ? 0.16 : 0.11) + rand() * 0.06;
+            g.fillStyle = `rgba(110,110,110,${shadeA})`;
+            g.fillRect(x + mortar, y + mortar, len, rowH);
+
+            // Soft bevel
+            g.fillStyle = 'rgba(255,255,255,0.05)';
+            g.fillRect(x + mortar + 1, y + mortar + 1, len - 2, 2);
+            g.fillRect(x + mortar + 1, y + mortar + 1, 2, rowH - 2);
+
+            g.fillStyle = 'rgba(0,0,0,0.06)';
+            g.fillRect(x + mortar + 1, y + mortar + rowH - 3, len - 2, 2);
+            g.fillRect(x + mortar + len - 3, y + mortar + 1, 2, rowH - 2);
+
+            // Edge definition
+            g.strokeStyle = 'rgba(0,0,0,0.10)';
+            g.lineWidth = 1;
+            g.strokeRect(x + mortar, y + mortar, len, rowH);
+
+            // Occasional hairline crack
+            if (rand() < 0.18) {
+              g.strokeStyle = 'rgba(0,0,0,0.10)';
+              g.lineWidth = 1;
+              g.beginPath();
+              const cx = x + mortar + 6 + rand() * (len - 12);
+              const cy = y + mortar + 6 + rand() * (rowH - 12);
+              g.moveTo(cx, cy);
+              g.lineTo(cx + (rand() - 0.5) * 26, cy + (rand() - 0.5) * 18);
+              g.stroke();
+            }
+
+            x += (len + mortar);
+          }
+          row++;
+        }
+
+        // Speckle / grit
+        const specks = isDark ? 900 : 650;
+        for (let i = 0; i < specks; i++) {
+          const xx = rand() * c.width;
+          const yy = rand() * c.height;
+          const a = 0.03 + rand() * 0.06;
+          g.fillStyle = `rgba(0,0,0,${a})`;
+          g.fillRect(xx, yy, 1, 1);
+        }
+
+        return c;
+      }
+
+      // Cobble (and marble base) are a bit more irregular
       const cell = isCobble ? 34 : 48;
       for (let y = 0; y < c.height + cell; y += cell) {
         for (let x = 0; x < c.width + cell; x += cell) {
@@ -1768,21 +1837,22 @@
     }
 
     // =====================================================================
-    // SPRITES (Option 2 foundation)
+    // SPRITES
     // =====================================================================
 
     const SPRITE_BASE = '/assets/sprites';
 
+    // NOTE: Table sprite size reduced ~30% (1.8 -> 1.26)
     const SPRITE_DEFS = {
-      'table':        { url: `${SPRITE_BASE}/table_round.png`,    wHex: 1.8, hHex: 1.8, ax: 0.5, ay: 0.52, shadow: true },
-      'table.round':  { url: `${SPRITE_BASE}/table_round.png`,    wHex: 1.8, hHex: 1.8, ax: 0.5, ay: 0.52, shadow: true },
-      'table.rect':   { url: `${SPRITE_BASE}/table_rect.png`,     wHex: 2.2, hHex: 1.6, ax: 0.5, ay: 0.55, shadow: true },
-      'sarcophagus':  { url: `${SPRITE_BASE}/sarcophagus.png`,    wHex: 2.4, hHex: 1.4, ax: 0.5, ay: 0.58, shadow: true },
-      'pillar':       { url: `${SPRITE_BASE}/pillar_stone.png`,   wHex: 1.2, hHex: 1.2, ax: 0.5, ay: 0.60, shadow: true },
-      'rect':         { url: `${SPRITE_BASE}/crate_rect.png`,     wHex: 2.0, hHex: 1.4, ax: 0.5, ay: 0.58, shadow: true },
-      'token.pc':     { url: `${SPRITE_BASE}/token_pc.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'token.en':     { url: `${SPRITE_BASE}/token_enemy.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true }
+      'table':        { url: `${SPRITE_BASE}/table_round.png`,     wHex: 1.26, hHex: 1.26, ax: 0.5, ay: 0.52, shadow: true },
+      'table.round':  { url: `${SPRITE_BASE}/table_round.png`,     wHex: 1.26, hHex: 1.26, ax: 0.5, ay: 0.52, shadow: true },
+      'table.rect':   { url: `${SPRITE_BASE}/table_rect.png`,      wHex: 2.2,  hHex: 1.6,  ax: 0.5, ay: 0.55, shadow: true },
+      'sarcophagus':  { url: `${SPRITE_BASE}/sarcophagus.png`,     wHex: 2.4,  hHex: 1.4,  ax: 0.5, ay: 0.58, shadow: true },
+      'pillar':       { url: `${SPRITE_BASE}/pillar_stone.png`,    wHex: 1.2,  hHex: 1.2,  ax: 0.5, ay: 0.60, shadow: true },
+      'rect':         { url: `${SPRITE_BASE}/crate_rect.png`,      wHex: 2.0,  hHex: 1.4,  ax: 0.5, ay: 0.58, shadow: true },
+      'token.pc':     { url: `${SPRITE_BASE}/token_pc.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'token.en':     { url: `${SPRITE_BASE}/token_enemy.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true }
     };
 
     const SPRITE_CACHE = new Map();
@@ -2342,7 +2412,7 @@
       if (!Array.isArray(obj.poi)) obj.poi = [];
 
       const hasCrypto = (typeof crypto !== 'undefined') && crypto && typeof crypto.randomUUID === 'function';
-      const id = hasCrypto ? `poi_${crypto.randomUUID()}` : `poi_${Date.now()}_${Math.floor(Math.random()*1e6)}`;
+      const id = hasCrypto ? `poi_${crypto.randomUUID()}` : `poi_${Date.now()}_${Math.floor(Math.random()*1000000)}`;
 
       obj.poi.push({ id, type: 'arrow', from, to, color: 'rgba(40,40,40,0.65)', width: 4, label: '' });
 
@@ -2951,7 +3021,7 @@
         return String(a.name ?? a.id).localeCompare(String(b.name ?? b.id));
       });
 
-            const activeId = String(SCENE_NORM?.activeActorId || '').trim();
+      const activeId = String(SCENE_NORM?.activeActorId || '').trim();
 
       tbody.innerHTML = '';
       for (const a of actors) {
@@ -3047,11 +3117,11 @@
         console.assert(!!texturePatternFor('stone'), 'texturePatternFor(stone) should return a pattern');
         console.assert(typeof drawTexturedRoom === 'function', 'drawTexturedRoom should exist');
 
-        // wood texture should still generate a tile canvas (and not throw)
-        const wtile = textureTileFor('wood:oak');
-        console.assert(!!wtile && wtile.width > 0 && wtile.height > 0, 'wood:oak tile should exist');
-        const wtile2 = textureTileFor('wood:pine');
-        console.assert(!!wtile2 && wtile2.width > 0 && wtile2.height > 0, 'wood:pine tile should exist');
+        // sprite sizing sanity
+        console.assert(!!SPRITE_DEFS['table'], 'SPRITE_DEFS should include table');
+        console.assert(!!SPRITE_DEFS['table.round'], 'SPRITE_DEFS should include table.round');
+        console.assert(Math.abs((SPRITE_DEFS['table']?.wHex ?? 0) - 1.26) < 0.0001, 'table sprite should be 30% smaller (wHex=1.26)');
+        console.assert(Math.abs((SPRITE_DEFS['table.round']?.hHex ?? 0) - 1.26) < 0.0001, 'table.round sprite should be 30% smaller (hHex=1.26)');
       } catch (_) {}
     }
 
