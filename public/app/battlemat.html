@@ -1,3 +1,4 @@
+
 <!--
 BATTLEMAT ENGINE v3.35
 
@@ -260,7 +261,7 @@ BATTLEMAT ENGINE v3.35
           <h3>Initiative &amp; Status</h3>
           <div style="display:flex; align-items:center; gap:10px;">
             <div class="subtle" id="roundLine">Round —</div>
-            <button id="refreshModeBtn" class="refresh-btn" type="button" title="Cycle refresh: 60s → 2s → Off">Refresh: 60s</button>
+            <button id="refreshModeBtn" class="refresh-btn" type="button" title="Cycle refresh: 60s → 2s → Off → 2s">Refresh: 60s</button>
             <div id="refreshInfo" class="refresh-info">Idle: —</div>
           </div>
         </div>
@@ -526,6 +527,9 @@ BATTLEMAT ENGINE v3.35
     const FAST_TO_SLOW_IDLE_MS = 30000;
     const SLOW_TO_OFF_IDLE_MS = 300000;
 
+    // Hide the idle counter in the UI (useful for debugging, noisy in play)
+    const SHOW_IDLE_TIMER = false;
+
     const REFRESH = {
       mode: RefreshMode.SLOW,
       timer: null,
@@ -541,11 +545,17 @@ BATTLEMAT ENGINE v3.35
         btn.textContent = (REFRESH.mode === RefreshMode.FAST) ? 'Refresh: 2s'
           : (REFRESH.mode === RefreshMode.SLOW) ? 'Refresh: 60s'
           : 'Refresh: Off';
-        btn.title = 'Cycle refresh: 60s → 2s → Off';
+        btn.title = 'Cycle refresh: 60s → 2s → Off → 2s';
       }
       if (info) {
-        const idleSec = Math.max(0, Math.floor((Date.now() - (REFRESH.lastChangeAt || Date.now())) / 1000));
-        info.textContent = `Idle: ${idleSec}s`;
+        if (!SHOW_IDLE_TIMER) {
+          info.textContent = '';
+          info.style.display = 'none';
+        } else {
+          info.style.display = '';
+          const idleSec = Math.max(0, Math.floor((Date.now() - (REFRESH.lastChangeAt || Date.now())) / 1000));
+          info.textContent = `Idle: ${idleSec}s`;
+        }
       }
     }
 
@@ -557,10 +567,10 @@ BATTLEMAT ENGINE v3.35
     }
 
     function cycleRefreshMode() {
-      // Default cycle: 60s → 2s → Off → 60s
+      // Cycle: 60s → 2s → Off → 2s
       if (REFRESH.mode === RefreshMode.SLOW) return setRefreshMode(RefreshMode.FAST);
       if (REFRESH.mode === RefreshMode.FAST) return setRefreshMode(RefreshMode.OFF);
-      return setRefreshMode(RefreshMode.SLOW);
+      return setRefreshMode(RefreshMode.FAST);
     }
 
     function scheduleRefreshTick(immediate) {
@@ -1628,10 +1638,7 @@ BATTLEMAT ENGINE v3.35
         const side = String(a.side || 'NPC').toUpperCase();
         tr.className = (side === 'PC' ? 'side-pc' : (side === 'EN' ? 'side-en' : 'side-npc')) + (isDead ? ' dead' : '');
 
-        const effects = Array.isArray(a.effects) ? a.effects : [];
-        const effectsHtml = effects.length
-          ? effects.map(e => `<span class="chip">${escapeHtml(String(e))}</span>`).join('')
-          : '';
+        const effectsHtml = ''; // Effects hidden (avoid noisy rows / [object Object])
 
         tr.innerHTML = `
           <td>
