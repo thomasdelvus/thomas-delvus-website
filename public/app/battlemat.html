@@ -1,5 +1,7 @@
 <!--
-  Copyright © 2025 Thomas Delvus. All rights reserved.
+  Version 3.46
+
+  Copyright © 2025 Thomas Delvus. All rights reserved.  
 
   This HTML document and its contents (including the code, layout, text, data structures, and embedded/linked assets)
   are protected by copyright law.
@@ -238,6 +240,20 @@
     tr.dead.side-en,
     tr.dead.side-npc {
       border-left-color: rgba(120,120,120,0.85);
+    }
+
+    /* Active turn highlight (Status table) */
+    tr.active-turn td {
+      border-top: 2px solid rgba(0,0,0,0.85);
+      border-bottom: 2px solid rgba(0,0,0,0.85);
+      background: rgba(0,0,0,0.03);
+    }
+    tr.active-turn td:first-child { border-left: 2px solid rgba(0,0,0,0.85); }
+    tr.active-turn td:last-child  { border-right: 2px solid rgba(0,0,0,0.85); }
+
+    tr.active-turn.dead td {
+      border-color: rgba(0,0,0,0.40);
+      background: rgba(0,0,0,0.02);
     }
 
     .hp {
@@ -1982,6 +1998,11 @@
       try { return JSON.stringify(v); } catch { return String(v); }
     }
 
+    function coerceActiveActorId(v) {
+      if (v == null) return '';
+      try { return String(v).trim(); } catch { return ''; }
+    }
+
     function coerceLastAction(v) {
       if (v == null) return '';
       if (typeof v === 'string') return v;
@@ -2187,6 +2208,7 @@
 
       return {
         round: Number(src.round ?? 1),
+        activeActorId: coerceActiveActorId(src.active_actor_id ?? src.activeActorId ?? src?.ui?.active_actor_id ?? src?.ui?.activeActorId),
         lastAction: coerceLastAction(src.lastAction ?? src.last_action ?? src.action),
         narration: coerceNarration(src.narration ?? src.notes ?? src.narrative),
         rooms: roomsOut,
@@ -2929,6 +2951,8 @@
         return String(a.name ?? a.id).localeCompare(String(b.name ?? b.id));
       });
 
+            const activeId = String(SCENE_NORM?.activeActorId || '').trim();
+
       tbody.innerHTML = '';
       for (const a of actors) {
         const tr = document.createElement('tr');
@@ -2937,7 +2961,11 @@
         const isDead = hpVal <= 0 || effectsArr.includes('dead') || effectsArr.includes('down');
 
         const side = String(a.side || 'NPC').toUpperCase();
-        tr.className = (side === 'PC' ? 'side-pc' : (side === 'EN' ? 'side-en' : 'side-npc')) + (isDead ? ' dead' : '');
+        const isActive = activeId && String(a.id || '').trim() === activeId;
+        tr.className =
+          (side === 'PC' ? 'side-pc' : (side === 'EN' ? 'side-en' : 'side-npc')) +
+          (isDead ? ' dead' : '') +
+          (isActive ? ' active-turn' : '');
 
         const effects = Array.isArray(a.effects) ? a.effects : [];
         const effectsHtml = effects.length
@@ -2947,7 +2975,7 @@
         tr.innerHTML = `
           <td>
             <div style="display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;">
-              <span style="font-weight:650;">${escapeHtml(a.name ?? a.id ?? 'Actor')}</span>
+              <span style="font-weight:650;">${escapeHtml((isActive ? '▶ ' : '') + (a.name ?? a.id ?? 'Actor'))}</span>
               <span class="subtle">${escapeHtml(a.at ?? '')}</span>
             </div>
             ${effectsHtml ? `<div style="margin-top:4px;">${effectsHtml}</div>` : ''}
@@ -2999,6 +3027,7 @@
         console.assert(S60_TO_OFF_IDLE_MS === 600000, '60→Off idle should be 10m');
 
         // lastAction + narration + effects robustness
+        console.assert(coerceActiveActorId(' pc1 ') === 'pc1', 'coerceActiveActorId should trim');
         console.assert(coerceLastAction({ a: 1 }).includes('a'), 'coerceLastAction should stringify objects');
         console.assert(coerceNarration({ n: 1 }).includes('n'), 'coerceNarration should stringify objects');
         console.assert(effectLabel({ name: 'Poisoned' }) === 'Poisoned', 'effectLabel should prefer name');
