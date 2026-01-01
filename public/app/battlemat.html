@@ -2803,11 +2803,7 @@
 
         ctx.save();
         ctx.translate(x, y);
-
         // (legacy rect rendering continues below)
-
-        const isWindow = (kind === 'window');
-        const isOpen = (state === 'open');
 
         if (isOpen) {
           if (isWindow) {
