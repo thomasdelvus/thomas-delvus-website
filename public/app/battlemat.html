@@ -1,6 +1,6 @@
 
 <!--
-BATTLEMAT ENGINE v3.35
+BATTLEMAT ENGINE v3.36
 
 - Copy this entire file into Canvas verbatim before combat.
 - During play, edit ONLY the SCENE block between:
@@ -261,7 +261,7 @@ BATTLEMAT ENGINE v3.35
           <h3>Initiative &amp; Status</h3>
           <div style="display:flex; align-items:center; gap:10px;">
             <div class="subtle" id="roundLine">Round —</div>
-            <button id="refreshModeBtn" class="refresh-btn" type="button" title="Cycle refresh: 60s → 2s → Off → 2s">Refresh: 60s</button>
+            <button id="refreshModeBtn" class="refresh-btn" type="button" title="Toggle refresh (Auto ladder ↔ Off)">Refresh: 60s</button>
             <div id="refreshInfo" class="refresh-info">Idle: —</div>
           </div>
         </div>
@@ -515,37 +515,57 @@ BATTLEMAT ENGINE v3.35
     }
 
     // =====================================================================
-    // AUTO-REFRESH (3-state)
-    // - 2s (FAST), 60s (SLOW), Off
-    // - Downshift: FAST→SLOW after 30s idle; SLOW→OFF after 5m idle
-    // - Upshift: if a change is detected while SLOW, switch to FAST
+    // AUTO-REFRESH (ladder)
+    // - Auto ladder by idle time since last detected change:
+    //     <30s  -> 2s
+    //     <90s  -> 15s
+    //     <3m   -> 30s
+    //     <5m   -> 60s
+    //     >=5m  -> Off
+    // - Button toggles: Auto ↔ Off
     // =====================================================================
 
-    const RefreshMode = { FAST: 'fast', SLOW: 'slow', OFF: 'off' };
-    const FAST_MS = 2000;
-    const SLOW_MS = 60000;
-    const FAST_TO_SLOW_IDLE_MS = 30000;
-    const SLOW_TO_OFF_IDLE_MS = 300000;
+    const RefreshMode = { AUTO: 'auto', OFF: 'off' };
+
+    // Ladder thresholds
+    const IDLE_2S_MS   = 30000;   // <30s
+    const IDLE_15S_MS  = 90000;   // <90s
+    const IDLE_30S_MS  = 180000;  // <3m
+    const IDLE_60S_MS  = 300000;  // <5m
+
+    function autoDelayFromIdle(idleMs) {
+      if (idleMs < IDLE_2S_MS)  return 2000;
+      if (idleMs < IDLE_15S_MS) return 15000;
+      if (idleMs < IDLE_30S_MS) return 30000;
+      if (idleMs < IDLE_60S_MS) return 60000;
+      return null; // Off
+    }
 
     // Hide the idle counter in the UI (useful for debugging, noisy in play)
     const SHOW_IDLE_TIMER = false;
 
     const REFRESH = {
-      mode: RefreshMode.SLOW,
+      mode: RefreshMode.AUTO,
       timer: null,
       battleId: null,
       lastVersionKey: null,
       lastChangeAt: Date.now(),
+      nextDelayOverrideMs: null,
     };
 
     function setRefreshUI() {
       const btn = document.getElementById('refreshModeBtn');
       const info = document.getElementById('refreshInfo');
       if (btn) {
-        btn.textContent = (REFRESH.mode === RefreshMode.FAST) ? 'Refresh: 2s'
-          : (REFRESH.mode === RefreshMode.SLOW) ? 'Refresh: 60s'
-          : 'Refresh: Off';
-        btn.title = 'Cycle refresh: 60s → 2s → Off → 2s';
+        if (REFRESH.mode === RefreshMode.OFF) {
+          btn.textContent = 'Refresh: Off';
+        } else {
+          const idleMs = Date.now() - (REFRESH.lastChangeAt || Date.now());
+          const d = (REFRESH.nextDelayOverrideMs != null) ? REFRESH.nextDelayOverrideMs : autoDelayFromIdle(idleMs);
+          const secs = d == null ? 0 : Math.round(d / 1000);
+          btn.textContent = `Refresh: ${secs}s`;
+        }
+        btn.title = 'Toggle refresh (Auto ladder ↔ Off)';
       }
       if (info) {
         if (!SHOW_IDLE_TIMER) {
@@ -559,25 +579,53 @@ BATTLEMAT ENGINE v3.35
       }
     }
 
-    function setRefreshMode(mode) {
+    function setRefreshMode(mode, opts) {
       REFRESH.mode = mode;
       if (REFRESH.timer) { clearTimeout(REFRESH.timer); REFRESH.timer = null; }
+
+      // Optional one-shot override for the next tick delay.
+      const o = opts || {};
+      if (Object.prototype.hasOwnProperty.call(o, 'nextDelayOverrideMs')) {
+        REFRESH.nextDelayOverrideMs = o.nextDelayOverrideMs;
+      }
+
       setRefreshUI();
       scheduleRefreshTick(true);
     }
 
     function cycleRefreshMode() {
-      // Cycle: 60s → 2s → Off → 2s
-      if (REFRESH.mode === RefreshMode.SLOW) return setRefreshMode(RefreshMode.FAST);
-      if (REFRESH.mode === RefreshMode.FAST) return setRefreshMode(RefreshMode.OFF);
-      return setRefreshMode(RefreshMode.FAST);
+      // Toggle: Auto ↔ Off
+      if (REFRESH.mode === RefreshMode.OFF) {
+        // Wake immediately, and treat this moment as “active” so we start at 2s.
+        REFRESH.lastChangeAt = Date.now();
+        return setRefreshMode(RefreshMode.AUTO, { nextDelayOverrideMs: 0 });
+      }
+      return setRefreshMode(RefreshMode.OFF);
     }
 
     function scheduleRefreshTick(immediate) {
       if (REFRESH.timer) { clearTimeout(REFRESH.timer); REFRESH.timer = null; }
       if (!REFRESH.battleId) return;
       if (REFRESH.mode === RefreshMode.OFF) return;
-      const delay = immediate ? 0 : (REFRESH.mode === RefreshMode.FAST ? FAST_MS : SLOW_MS);
+
+      // One-shot override beats everything (used on boot + manual wake)
+      if (REFRESH.nextDelayOverrideMs != null) {
+        const d = REFRESH.nextDelayOverrideMs;
+        REFRESH.nextDelayOverrideMs = null;
+        const delay = immediate ? 0 : d;
+        REFRESH.timer = setTimeout(refreshTick, delay);
+        return;
+      }
+
+      const idleMs = Date.now() - (REFRESH.lastChangeAt || Date.now());
+      const d = autoDelayFromIdle(idleMs);
+      if (d == null) {
+        REFRESH.mode = RefreshMode.OFF;
+        setRefreshUI();
+        return;
+      }
+
+      const delay = immediate ? 0 : d;
       REFRESH.timer = setTimeout(refreshTick, delay);
     }
 
@@ -634,18 +682,9 @@ BATTLEMAT ENGINE v3.35
           if (versionKey) REFRESH.lastVersionKey = versionKey;
           REFRESH.lastChangeAt = Date.now();
 
-          // If we noticed an update while idling, snap back to FAST.
-          if (REFRESH.mode === RefreshMode.SLOW) {
-            REFRESH.mode = RefreshMode.FAST;
-          }
-
           applyScene(sceneObj);
         } else {
-          // No change → possibly downshift.
-          const idleMs = Date.now() - (REFRESH.lastChangeAt || Date.now());
-          if (REFRESH.mode === RefreshMode.FAST && idleMs > FAST_TO_SLOW_IDLE_MS) {
-            REFRESH.mode = RefreshMode.SLOW;
-          } else if (REFRESH.mode === RefreshMode.SLOW && idleMs > SLOW_TO_OFF_IDLE_MS) {
+          // No change → the ladder naturally slows down via scheduleRefreshTick(). else if (REFRESH.mode === RefreshMode.SLOW && idleMs > SLOW_TO_OFF_IDLE_MS) {
             REFRESH.mode = RefreshMode.OFF;
           }
         }
@@ -1701,8 +1740,8 @@ BATTLEMAT ENGINE v3.35
           if (versionKey) REFRESH.lastVersionKey = versionKey;
         } catch (_) {}
 
-        // Default to SLOW (60s). User can tap to FAST during battle.
-        setRefreshMode(RefreshMode.SLOW);
+        // Default to ~60s on load (cheap reads). Button can wake it to fast polling.
+        setRefreshMode(RefreshMode.AUTO, { nextDelayOverrideMs: 60000 });
       } else {
         // No battle id → no polling
         setRefreshMode(RefreshMode.OFF);
