@@ -1,5 +1,5 @@
 <!--
-BATTLEMAT ENGINE
+BATTLEMAT ENGINE v3.33
 
 - Copy this entire file into Canvas verbatim before combat.
 - During play, edit ONLY the SCENE block between:
@@ -75,6 +75,29 @@ BATTLEMAT ENGINE
     .subtle {
       opacity: 0.7;
       font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    .refresh-btn {
+      appearance: none;
+      border: 1px solid rgba(0,0,0,0.18);
+      background: #fff;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 0.86rem;
+      font-weight: 650;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .refresh-btn:hover { background: rgba(0,0,0,0.03); }
+    .refresh-btn:active { background: rgba(0,0,0,0.06); }
+    .refresh-btn:focus { outline: 2px solid rgba(0,0,0,0.25); outline-offset: 2px; }
+
+    .refresh-info {
+      opacity: 0.75;
+      font-size: 0.85rem;
+      font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
 
@@ -235,7 +258,11 @@ BATTLEMAT ENGINE
       <aside aria-label="Combat status panel">
         <div class="panel-title">
           <h3>Initiative &amp; Status</h3>
-          <div class="subtle" id="roundLine">Round —</div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="subtle" id="roundLine">Round —</div>
+            <button id="refreshModeBtn" class="refresh-btn" type="button" title="Cycle refresh: 60s → 2s → Off">Refresh: 60s</button>
+            <div id="refreshInfo" class="refresh-info">Idle: —</div>
+          </div>
         </div>
 
         <!-- URL/API diagnostics (helps debug /play/<id> routing) -->
@@ -485,6 +512,145 @@ BATTLEMAT ENGINE
         return false;
       }
     }
+
+    // =====================================================================
+    // AUTO-REFRESH (3-state)
+    // - 2s (FAST), 60s (SLOW), Off
+    // - Downshift: FAST→SLOW after 30s idle; SLOW→OFF after 5m idle
+    // - Upshift: if a change is detected while SLOW, switch to FAST
+    // =====================================================================
+
+    const RefreshMode = { FAST: 'fast', SLOW: 'slow', OFF: 'off' };
+    const FAST_MS = 2000;
+    const SLOW_MS = 60000;
+    const FAST_TO_SLOW_IDLE_MS = 30000;
+    const SLOW_TO_OFF_IDLE_MS = 300000;
+
+    const REFRESH = {
+      mode: RefreshMode.SLOW,
+      timer: null,
+      battleId: null,
+      lastVersionKey: null,
+      lastChangeAt: Date.now(),
+    };
+
+    function setRefreshUI() {
+      const btn = document.getElementById('refreshModeBtn');
+      const info = document.getElementById('refreshInfo');
+      if (btn) {
+        btn.textContent = (REFRESH.mode === RefreshMode.FAST) ? 'Refresh: 2s'
+          : (REFRESH.mode === RefreshMode.SLOW) ? 'Refresh: 60s'
+          : 'Refresh: Off';
+        btn.title = 'Cycle refresh: 60s → 2s → Off';
+      }
+      if (info) {
+        const idleSec = Math.max(0, Math.floor((Date.now() - (REFRESH.lastChangeAt || Date.now())) / 1000));
+        info.textContent = `Idle: ${idleSec}s`;
+      }
+    }
+
+    function setRefreshMode(mode) {
+      REFRESH.mode = mode;
+      if (REFRESH.timer) { clearTimeout(REFRESH.timer); REFRESH.timer = null; }
+      setRefreshUI();
+      scheduleRefreshTick(true);
+    }
+
+    function cycleRefreshMode() {
+      // Default cycle: 60s → 2s → Off → 60s
+      if (REFRESH.mode === RefreshMode.SLOW) return setRefreshMode(RefreshMode.FAST);
+      if (REFRESH.mode === RefreshMode.FAST) return setRefreshMode(RefreshMode.OFF);
+      return setRefreshMode(RefreshMode.SLOW);
+    }
+
+    function scheduleRefreshTick(immediate) {
+      if (REFRESH.timer) { clearTimeout(REFRESH.timer); REFRESH.timer = null; }
+      if (!REFRESH.battleId) return;
+      if (REFRESH.mode === RefreshMode.OFF) return;
+      const delay = immediate ? 0 : (REFRESH.mode === RefreshMode.FAST ? FAST_MS : SLOW_MS);
+      REFRESH.timer = setTimeout(refreshTick, delay);
+    }
+
+    function applyScene(sceneObj) {
+      const sceneTag = document.getElementById('scene-json');
+      if (sceneTag) sceneTag.textContent = JSON.stringify(sceneObj, null, 2);
+      safeDrawGrid();
+    }
+
+    async function fetchSceneAndVersionKey(battleId) {
+      const endpoint = battleStateUrl(battleId);
+      const res = await fetch(endpoint, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store'
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText || ''}`);
+      const data = await res.json();
+
+      let sceneObj = null;
+      if (data && typeof data.state_json === 'string') {
+        sceneObj = JSON.parse(data.state_json);
+      } else if (data && typeof data.state === 'object') {
+        sceneObj = data.state;
+      } else if (data && typeof data === 'object') {
+        sceneObj = data;
+      }
+
+      if (!looksLikeScene(sceneObj)) {
+        throw new Error('API JSON did not look like a SCENE');
+      }
+
+      // Prefer a stable version key from the API wrapper.
+      // If the API returns the scene directly without version/updated_at, we fall back to null,
+      // which means we’ll re-render each tick (still fine for FAST mode).
+      let versionKey = null;
+      if (data && (typeof data.version === 'number' || typeof data.version === 'string')) {
+        versionKey = `v:${String(data.version)}`;
+      } else if (data && (typeof data.updated_at === 'number' || typeof data.updated_at === 'string')) {
+        versionKey = `t:${String(data.updated_at)}`;
+      }
+
+      return { sceneObj, versionKey };
+    }
+
+    async function refreshTick() {
+      try {
+        if (!REFRESH.battleId || REFRESH.mode === RefreshMode.OFF) return;
+
+        const { sceneObj, versionKey } = await fetchSceneAndVersionKey(REFRESH.battleId);
+
+        const changed = (!versionKey) || (REFRESH.lastVersionKey !== versionKey);
+        if (changed) {
+          if (versionKey) REFRESH.lastVersionKey = versionKey;
+          REFRESH.lastChangeAt = Date.now();
+
+          // If we noticed an update while idling, snap back to FAST.
+          if (REFRESH.mode === RefreshMode.SLOW) {
+            REFRESH.mode = RefreshMode.FAST;
+          }
+
+          applyScene(sceneObj);
+        } else {
+          // No change → possibly downshift.
+          const idleMs = Date.now() - (REFRESH.lastChangeAt || Date.now());
+          if (REFRESH.mode === RefreshMode.FAST && idleMs > FAST_TO_SLOW_IDLE_MS) {
+            REFRESH.mode = RefreshMode.SLOW;
+          } else if (REFRESH.mode === RefreshMode.SLOW && idleMs > SLOW_TO_OFF_IDLE_MS) {
+            REFRESH.mode = RefreshMode.OFF;
+          }
+        }
+
+        setRefreshUI();
+        scheduleRefreshTick(false);
+      } catch (e) {
+        // Swallow transient errors and keep polling at the current cadence.
+        setRefreshUI();
+        scheduleRefreshTick(false);
+      }
+    }
+
+    // Wire up the button once.
+    document.getElementById('refreshModeBtn')?.addEventListener('click', cycleRefreshMode);
 
 
     // =====================================================================
@@ -1512,8 +1678,28 @@ BATTLEMAT ENGINE
     // 1) Try to load the scene from API (based on /play/<id>)
     // 2) Then draw.
     (async () => {
-      await tryLoadSceneFromApi();
+      // Initial load
+      const loaded = await tryLoadSceneFromApi();
       safeDrawGrid();
+
+      // Start refresh controller (only when we have a battleId)
+      REFRESH.battleId = getBattleIdFromUrl();
+      REFRESH.lastChangeAt = Date.now();
+
+      // If we successfully loaded from the API once, seed versionKey using a single fetch,
+      // so SLOW mode can detect changes cheaply.
+      if (REFRESH.battleId) {
+        try {
+          const { versionKey } = await fetchSceneAndVersionKey(REFRESH.battleId);
+          if (versionKey) REFRESH.lastVersionKey = versionKey;
+        } catch (_) {}
+
+        // Default to SLOW (60s). User can tap to FAST during battle.
+        setRefreshMode(RefreshMode.SLOW);
+      } else {
+        // No battle id → no polling
+        setRefreshMode(RefreshMode.OFF);
+      }
     })();
   </script>
 </body>
