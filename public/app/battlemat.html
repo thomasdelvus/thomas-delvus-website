@@ -163,6 +163,22 @@ BATTLEMAT ENGINE v3.45
     .toggle-btn:active { background: rgba(0,0,0,0.06); }
     .toggle-btn:focus { outline: 2px solid rgba(0,0,0,0.25); outline-offset: 2px; }
 
+    .tex-select {
+      appearance: none;
+      border: 1px solid rgba(0,0,0,0.18);
+      background: #fff;
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-size: 0.86rem;
+      font-weight: 650;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .tex-select:hover { background: rgba(0,0,0,0.03); }
+    .tex-select:active { background: rgba(0,0,0,0.06); }
+    .tex-select:focus { outline: 2px solid rgba(0,0,0,0.25); outline-offset: 2px; }
+
     .status-wrap {
       overflow: auto;
       border: 1px solid rgba(0,0,0,0.10);
@@ -334,7 +350,21 @@ BATTLEMAT ENGINE v3.45
         <section class="keybar" aria-label="Map key">
           <div class="keybar-title">
             <strong>Key</strong>
-            <button id="textureToggleBtn" class="toggle-btn" type="button" title="Toggle textures">Textures: Off</button>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+              <label class="subtle" style="display:flex; align-items:center; gap:6px;">
+                Floor
+                <select id="floorTexSel" class="tex-select" title="Preview floor texture">
+                  <!-- populated by JS -->
+                </select>
+              </label>
+              <label class="subtle" style="display:flex; align-items:center; gap:6px;">
+                Wall
+                <select id="wallTexSel" class="tex-select" title="Preview wall texture">
+                  <!-- populated by JS -->
+                </select>
+              </label>
+              <button id="textureToggleBtn" class="toggle-btn" type="button" title="Toggle textures">Textures: Off</button>
+            </div>
           </div>
           <ul class="keybar-list">
             <li><span class="legend-swatch door">D</span> Door</li>
@@ -954,6 +984,8 @@ BATTLEMAT ENGINE v3.45
       enabled: false,
       patterns: new Map(), // kind -> CanvasPattern
       tiles: new Map(),    // kind -> HTMLCanvasElement
+      overrideFloorKind: '__room__',
+      overrideWallKind: '__room__'
     };
 
     function readTexturePref() {
@@ -967,6 +999,91 @@ BATTLEMAT ENGINE v3.45
 
     function writeTexturePref(on) {
       try { localStorage.setItem('battlemat:textures:enabled', on ? '1' : '0'); } catch (_) {}
+    }
+
+    const TEX_OVERRIDE_ROOM = '__room__';
+
+    const FLOOR_PRESETS = [
+      { value: TEX_OVERRIDE_ROOM, label: 'Room setting' },
+      { value: 'stone', label: 'Stone (slab)' },
+      { value: 'stone:cobble', label: 'Stone (cobble)' },
+      { value: 'stone:dark', label: 'Stone (dark)' },
+      { value: 'stone:marble', label: 'Stone (marble)' },
+      { value: 'wood:oak', label: 'Wood (oak)' },
+      { value: 'wood:pine', label: 'Wood (pine)' },
+      { value: 'wood:dark', label: 'Wood (dark)' },
+      { value: 'wood:gray', label: 'Wood (gray)' },
+      { value: 'dirt:earth', label: 'Dirt (earth)' },
+      { value: 'dirt:sand', label: 'Dirt (sand)' },
+      { value: 'dirt:mud', label: 'Dirt (mud)' },
+      { value: 'grass', label: 'Grass' },
+      { value: 'carpet:red', label: 'Carpet (red)' },
+      { value: 'carpet:blue', label: 'Carpet (blue)' },
+      { value: 'carpet:green', label: 'Carpet (green)' },
+      { value: 'carpet:purple', label: 'Carpet (purple)' }
+    ];
+
+    const WALL_PRESETS = [
+      { value: TEX_OVERRIDE_ROOM, label: 'Room setting' },
+      { value: 'brick:red', label: 'Brick (red)' },
+      { value: 'brick:pale', label: 'Brick (pale)' },
+      { value: 'brick:soot', label: 'Brick (soot)' },
+      { value: 'stone', label: 'Stone (slab)' },
+      { value: 'stone:cobble', label: 'Stone (cobble)' },
+      { value: 'stone:dark', label: 'Stone (dark)' },
+      { value: 'wood:oak', label: 'Wood (oak)' },
+      { value: 'wood:dark', label: 'Wood (dark)' }
+    ];
+
+    function readTextureOverride(which) {
+      const key = which === 'wall' ? 'battlemat:textures:wallOverride' : 'battlemat:textures:floorOverride';
+      try {
+        const v = String(localStorage.getItem(key) || '').trim();
+        return v || TEX_OVERRIDE_ROOM;
+      } catch (_) {
+        return TEX_OVERRIDE_ROOM;
+      }
+    }
+
+    function writeTextureOverride(which, value) {
+      const key = which === 'wall' ? 'battlemat:textures:wallOverride' : 'battlemat:textures:floorOverride';
+      try { localStorage.setItem(key, String(value || TEX_OVERRIDE_ROOM)); } catch (_) {}
+    }
+
+    function populateSelect(sel, presets, selectedVal) {
+      sel.innerHTML = '';
+      for (const p of presets) {
+        const opt = document.createElement('option');
+        opt.value = p.value;
+        opt.textContent = p.label;
+        sel.appendChild(opt);
+      }
+      sel.value = selectedVal || TEX_OVERRIDE_ROOM;
+    }
+
+    function initTextureSelectors() {
+      const floorSel = document.getElementById('floorTexSel');
+      const wallSel = document.getElementById('wallTexSel');
+      if (!floorSel || !wallSel) return;
+
+      // Load persisted overrides
+      TEX.overrideFloorKind = readTextureOverride('floor');
+      TEX.overrideWallKind = readTextureOverride('wall');
+
+      populateSelect(floorSel, FLOOR_PRESETS, TEX.overrideFloorKind);
+      populateSelect(wallSel, WALL_PRESETS, TEX.overrideWallKind);
+
+      floorSel.addEventListener('change', () => {
+        TEX.overrideFloorKind = floorSel.value || TEX_OVERRIDE_ROOM;
+        writeTextureOverride('floor', TEX.overrideFloorKind);
+        safeDrawGrid();
+      });
+
+      wallSel.addEventListener('change', () => {
+        TEX.overrideWallKind = wallSel.value || TEX_OVERRIDE_ROOM;
+        writeTextureOverride('wall', TEX.overrideWallKind);
+        safeDrawGrid();
+      });
     }
 
     function setTextureUi() {
@@ -1400,12 +1517,16 @@ BATTLEMAT ENGINE v3.45
     }
 
     function floorKindForRoom(room) {
+      const ov = String(TEX.overrideFloorKind || '').trim();
+      if (ov && ov !== TEX_OVERRIDE_ROOM) return ov;
       const k = room?.floor?.kind ?? room?.floorKind ?? room?.floor_kind ?? '';
       const s = String(k || '').trim().toLowerCase();
       return s || 'stone';
     }
 
     function wallKindForRoom(room) {
+      const ov = String(TEX.overrideWallKind || '').trim();
+      if (ov && ov !== TEX_OVERRIDE_ROOM) return ov;
       const k = room?.wall?.kind ?? room?.wallKind ?? room?.wall_kind ?? '';
       const s = String(k || '').trim().toLowerCase();
       return s || 'brick';
@@ -2727,6 +2848,7 @@ BATTLEMAT ENGINE v3.45
       // Textures toggle (persisted) — set before first render so the first frame matches UI state.
       TEX.enabled = readTexturePref();
       setTextureUi();
+      initTextureSelectors();
 
       safeDrawGrid();
 
