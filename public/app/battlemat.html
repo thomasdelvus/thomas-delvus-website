@@ -1,6 +1,6 @@
 
 <!--
-BATTLEMAT ENGINE v3.36
+BATTLEMAT ENGINE v3.37
 
 - Copy this entire file into Canvas verbatim before combat.
 - During play, edit ONLY the SCENE block between:
@@ -517,24 +517,24 @@ BATTLEMAT ENGINE v3.36
     // =====================================================================
     // AUTO-REFRESH (ladder)
     // - Auto ladder by idle time since last detected change:
-    //     <30s  -> 2s
-    //     <90s  -> 15s
-    //     <3m   -> 30s
-    //     <5m   -> 60s
-    //     >=5m  -> Off
+    //     <60s  -> 5s
+    //     <3m   -> 15s
+    //     <5m   -> 30s
+    //     <10m  -> 60s
+    //     >=10m -> Off
     // - Button toggles: Auto ↔ Off
     // =====================================================================
 
     const RefreshMode = { AUTO: 'auto', OFF: 'off' };
 
     // Ladder thresholds
-    const IDLE_2S_MS   = 30000;   // <30s
-    const IDLE_15S_MS  = 90000;   // <90s
-    const IDLE_30S_MS  = 180000;  // <3m
-    const IDLE_60S_MS  = 300000;  // <5m
+    const IDLE_5S_MS    = 60000;   // <60s
+    const IDLE_15S_MS   = 180000;  // <3m
+    const IDLE_30S_MS   = 300000;  // <5m
+    const IDLE_60S_MS   = 600000;  // <10m
 
     function autoDelayFromIdle(idleMs) {
-      if (idleMs < IDLE_2S_MS)  return 2000;
+      if (idleMs < IDLE_5S_MS)  return 5000;
       if (idleMs < IDLE_15S_MS) return 15000;
       if (idleMs < IDLE_30S_MS) return 30000;
       if (idleMs < IDLE_60S_MS) return 60000;
