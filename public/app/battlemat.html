@@ -1,5 +1,5 @@
 <!--
-BATTLEMAT ENGINE v3.44
+BATTLEMAT ENGINE v3.45
 
 - Copy this entire file into Canvas verbatim before combat.
 - During play, edit ONLY the SCENE block between:
@@ -1009,40 +1009,58 @@ BATTLEMAT ENGINE v3.44
       return c;
     }
 
-    function makeWoodTile() {
+    function makeWoodTile(variant) {
       const c = offscreenTile(220, 220);
       const g = c.getContext('2d');
-      const rand = seededRng('wood');
+      const v = String(variant || '').trim().toLowerCase();
 
-      g.fillStyle = '#c9b08a';
+      // Palettes
+      const PAL = {
+        oak:   { bg: '#c9b08a', plank: 'rgba(140, 95, 55, 0.18)', grain: 'rgba(60, 35, 20, 0.16)' },
+        pine:  { bg: '#d7c59f', plank: 'rgba(155, 110, 65, 0.16)', grain: 'rgba(80, 50, 25, 0.14)' },
+        dark:  { bg: '#7f6a52', plank: 'rgba(50, 32, 18, 0.22)', grain: 'rgba(20, 12, 7, 0.20)' },
+        gray:  { bg: '#b7b1a9', plank: 'rgba(80, 75, 70, 0.14)', grain: 'rgba(35, 35, 35, 0.14)' },
+      };
+      const P = PAL[v] || PAL.oak;
+
+      const rand = seededRng('wood:' + (v || 'oak'));
+
+      g.fillStyle = P.bg;
       g.fillRect(0, 0, c.width, c.height);
 
       const plankW = 28;
       for (let x = 0; x < c.width + plankW; x += plankW) {
-        const tone = 0.92 + rand() * 0.12;
-        g.fillStyle = `rgba(140, 95, 55, ${0.12 + rand() * 0.10})`;
+        g.fillStyle = P.plank;
         g.fillRect(x, 0, plankW, c.height);
 
-        g.strokeStyle = `rgba(60, 35, 20, ${0.10 + rand() * 0.10})`;
+        // grain
+        g.strokeStyle = P.grain;
         g.lineWidth = 1;
         for (let i = 0; i < 6; i++) {
           const y = rand() * c.height;
           g.beginPath();
           g.moveTo(x + 2, y);
-          g.bezierCurveTo(x + plankW * 0.35, y + (rand() - 0.5) * 18, x + plankW * 0.65, y + (rand() - 0.5) * 18, x + plankW - 2, y);
+          g.bezierCurveTo(
+            x + plankW * 0.35, y + (rand() - 0.5) * 18,
+            x + plankW * 0.65, y + (rand() - 0.5) * 18,
+            x + plankW - 2, y
+          );
           g.stroke();
         }
 
+        // seams
         g.strokeStyle = 'rgba(0,0,0,0.10)';
         g.beginPath();
         g.moveTo(x + plankW, 0);
         g.lineTo(x + plankW, c.height);
         g.stroke();
 
-        g.fillStyle = `rgba(255,255,255,${0.03 * tone})`;
+        // highlight strip
+        g.fillStyle = 'rgba(255,255,255,0.03)';
         g.fillRect(x + 1, 0, 2, c.height);
       }
 
+      // knots
       for (let k = 0; k < 14; k++) {
         const x = rand() * c.width;
         const y = rand() * c.height;
@@ -1057,32 +1075,60 @@ BATTLEMAT ENGINE v3.44
       return c;
     }
 
-    function makeStoneTile() {
+    function makeStoneTile(variant) {
+      const v = String(variant || '').trim().toLowerCase();
+      const isCobble = (v === 'cobble' || v === 'cobblestone');
+      const isDark = (v === 'dark' || v === 'basalt');
+      const isMarble = (v === 'marble');
+
       const c = offscreenTile(240, 240);
       const g = c.getContext('2d');
-      const rand = seededRng('stone');
+      const rand = seededRng('stone:' + (v || 'slab'));
 
-      g.fillStyle = '#b6b6b6';
+      const base = isMarble ? '#d7d7d7' : (isDark ? '#8a8a8a' : '#b6b6b6');
+      g.fillStyle = base;
       g.fillRect(0, 0, c.width, c.height);
 
-      const cell = 48;
+      // Slabs vs cobbles
+      const cell = isCobble ? 34 : 48;
       for (let y = 0; y < c.height + cell; y += cell) {
         for (let x = 0; x < c.width + cell; x += cell) {
-          const jitterX = (rand() - 0.5) * 6;
-          const jitterY = (rand() - 0.5) * 6;
-          const w = cell + (rand() - 0.5) * 14;
-          const h = cell + (rand() - 0.5) * 14;
+          const jitterX = (rand() - 0.5) * (isCobble ? 10 : 6);
+          const jitterY = (rand() - 0.5) * (isCobble ? 10 : 6);
+          const w = cell + (rand() - 0.5) * (isCobble ? 18 : 14);
+          const h = cell + (rand() - 0.5) * (isCobble ? 18 : 14);
 
-          g.fillStyle = `rgba(140,140,140,${0.08 + rand() * 0.10})`;
+          const shade = isDark ? 0.16 : 0.12;
+          g.fillStyle = `rgba(110,110,110,${shade + rand() * 0.10})`;
           g.fillRect(x + jitterX, y + jitterY, w, h);
 
-          g.strokeStyle = 'rgba(0,0,0,0.10)';
+          g.strokeStyle = `rgba(0,0,0,${isCobble ? 0.14 : 0.10})`;
           g.lineWidth = 1;
           g.strokeRect(x + jitterX, y + jitterY, w, h);
         }
       }
 
-      for (let i = 0; i < 600; i++) {
+      // Marble veins
+      if (isMarble) {
+        g.strokeStyle = 'rgba(60,60,60,0.10)';
+        g.lineWidth = 2;
+        for (let i = 0; i < 6; i++) {
+          g.beginPath();
+          let x = rand() * c.width;
+          let y = rand() * c.height;
+          g.moveTo(x, y);
+          for (let k = 0; k < 6; k++) {
+            x += (rand() - 0.5) * 70;
+            y += (rand() - 0.5) * 40;
+            g.lineTo(x, y);
+          }
+          g.stroke();
+        }
+      }
+
+      // Speckle
+      const specks = isDark ? 900 : 600;
+      for (let i = 0; i < specks; i++) {
         const x = rand() * c.width;
         const y = rand() * c.height;
         const a = 0.03 + rand() * 0.06;
@@ -1093,12 +1139,21 @@ BATTLEMAT ENGINE v3.44
       return c;
     }
 
-    function makeBrickTile() {
+    function makeBrickTile(variant) {
+      const v = String(variant || '').trim().toLowerCase();
+      const rand = seededRng('brick:' + (v || 'red'));
+
       const c = offscreenTile(240, 160);
       const g = c.getContext('2d');
-      const rand = seededRng('brick');
 
-      g.fillStyle = '#c9c3b8';
+      const PAL = {
+        red:   { mortar: '#c9c3b8', lo: [120,60,40], hi: [165,95,70] },
+        pale:  { mortar: '#d6d2c9', lo: [130,110,95], hi: [170,150,130] },
+        soot:  { mortar: '#bfb8ad', lo: [85,55,45],  hi: [130,85,70] },
+      };
+      const P = PAL[v] || PAL.red;
+
+      g.fillStyle = P.mortar;
       g.fillRect(0, 0, c.width, c.height);
 
       const brickW = 46;
@@ -1109,12 +1164,13 @@ BATTLEMAT ENGINE v3.44
         const y = row * (brickH + mortar);
         const offset = (row % 2 === 0) ? 0 : Math.floor(brickW / 2);
         for (let x0 = -offset; x0 < c.width + brickW; x0 += (brickW + mortar)) {
-          const r = 120 + Math.floor(rand() * 35);
-          const gg = 60 + Math.floor(rand() * 25);
-          const b = 40 + Math.floor(rand() * 20);
+          const r = P.lo[0] + Math.floor(rand() * (P.hi[0] - P.lo[0]));
+          const gg = P.lo[1] + Math.floor(rand() * (P.hi[1] - P.lo[1]));
+          const b = P.lo[2] + Math.floor(rand() * (P.hi[2] - P.lo[2]));
           g.fillStyle = `rgb(${r},${gg},${b})`;
           g.fillRect(x0 + mortar, y + mortar, brickW, brickH);
 
+          // subtle bevel
           g.fillStyle = 'rgba(255,255,255,0.06)';
           g.fillRect(x0 + mortar + 1, y + mortar + 1, brickW - 2, 2);
           g.fillStyle = 'rgba(0,0,0,0.05)';
@@ -1126,6 +1182,7 @@ BATTLEMAT ENGINE v3.44
         }
       }
 
+      // grit
       for (let i = 0; i < 180; i++) {
         const x = rand() * c.width;
         const y = rand() * c.height;
@@ -1136,27 +1193,209 @@ BATTLEMAT ENGINE v3.44
       return c;
     }
 
+    function makeDirtTile(variant) {
+      const v = String(variant || '').trim().toLowerCase();
+      const rand = seededRng('dirt:' + (v || 'earth'));
+
+      const c = offscreenTile(240, 240);
+      const g = c.getContext('2d');
+
+      const PAL = {
+        earth: { bg: '#9b835e', dark: 'rgba(60,40,20,0.10)', light: 'rgba(255,255,255,0.06)' },
+        sand:  { bg: '#d2c18b', dark: 'rgba(120,95,55,0.08)', light: 'rgba(255,255,255,0.07)' },
+        mud:   { bg: '#6f5a42', dark: 'rgba(20,15,10,0.14)', light: 'rgba(255,255,255,0.04)' },
+      };
+      const P = PAL[v] || PAL.earth;
+
+      g.fillStyle = P.bg;
+      g.fillRect(0, 0, c.width, c.height);
+
+      // blotchy noise
+      for (let i = 0; i < 1200; i++) {
+        const x = rand() * c.width;
+        const y = rand() * c.height;
+        const r = 1 + rand() * 6;
+        g.fillStyle = (rand() < 0.6) ? P.dark : P.light;
+        g.beginPath();
+        g.arc(x, y, r, 0, Math.PI * 2);
+        g.fill();
+      }
+
+      // small pebbles
+      g.strokeStyle = 'rgba(0,0,0,0.10)';
+      g.lineWidth = 1;
+      for (let k = 0; k < 55; k++) {
+        const x = rand() * c.width;
+        const y = rand() * c.height;
+        const rx = 2 + rand() * 4;
+        const ry = 1 + rand() * 3;
+        g.fillStyle = 'rgba(255,255,255,0.08)';
+        g.beginPath();
+        g.ellipse(x, y, rx, ry, rand() * Math.PI, 0, Math.PI * 2);
+        g.fill();
+        g.beginPath();
+        g.ellipse(x, y, rx, ry, rand() * Math.PI, 0, Math.PI * 2);
+        g.stroke();
+      }
+
+      return c;
+    }
+
+    function makeGrassTile() {
+      const rand = seededRng('grass');
+      const c = offscreenTile(240, 240);
+      const g = c.getContext('2d');
+
+      g.fillStyle = '#8ea86c';
+      g.fillRect(0, 0, c.width, c.height);
+
+      // mottling
+      for (let i = 0; i < 1200; i++) {
+        const x = rand() * c.width;
+        const y = rand() * c.height;
+        const a = 0.03 + rand() * 0.06;
+        g.fillStyle = `rgba(0,0,0,${a})`;
+        g.fillRect(x, y, 1, 1);
+      }
+
+      // blades
+      g.strokeStyle = 'rgba(30,60,20,0.10)';
+      g.lineWidth = 1;
+      for (let k = 0; k < 220; k++) {
+        const x = rand() * c.width;
+        const y = rand() * c.height;
+        const len = 6 + rand() * 16;
+        const ang = (-Math.PI / 2) + (rand() - 0.5) * 0.9;
+        g.beginPath();
+        g.moveTo(x, y);
+        g.lineTo(x + Math.cos(ang) * len, y + Math.sin(ang) * len);
+        g.stroke();
+      }
+
+      return c;
+    }
+
+    function makeCarpetTile(variant) {
+      const v = String(variant || '').trim().toLowerCase();
+      const rand = seededRng('carpet:' + (v || 'red'));
+      const c = offscreenTile(240, 240);
+      const g = c.getContext('2d');
+
+      const PAL = {
+        red:   { bg: '#9d3a2f', stripe: 'rgba(255,255,255,0.10)', dark: 'rgba(0,0,0,0.12)' },
+        blue:  { bg: '#2f4f7a', stripe: 'rgba(255,255,255,0.10)', dark: 'rgba(0,0,0,0.12)' },
+        green: { bg: '#2f6b4a', stripe: 'rgba(255,255,255,0.10)', dark: 'rgba(0,0,0,0.12)' },
+        purple:{ bg: '#5b3a7a', stripe: 'rgba(255,255,255,0.10)', dark: 'rgba(0,0,0,0.12)' },
+      };
+      const P = PAL[v] || PAL.red;
+
+      g.fillStyle = P.bg;
+      g.fillRect(0, 0, c.width, c.height);
+
+      // woven noise
+      for (let i = 0; i < 2200; i++) {
+        const x = rand() * c.width;
+        const y = rand() * c.height;
+        const a = 0.02 + rand() * 0.05;
+        g.fillStyle = `rgba(255,255,255,${a})`;
+        g.fillRect(x, y, 1, 1);
+      }
+
+      // simple border + stripes
+      g.fillStyle = P.dark;
+      g.fillRect(0, 0, c.width, 10);
+      g.fillRect(0, c.height - 10, c.width, 10);
+      g.fillRect(0, 0, 10, c.height);
+      g.fillRect(c.width - 10, 0, 10, c.height);
+
+      g.fillStyle = P.stripe;
+      for (let y = 18; y < c.height; y += 28) {
+        g.fillRect(0, y, c.width, 2);
+      }
+
+      return c;
+    }
+
+    function normalizeTextureKind(kind) {
+      const raw = String(kind || '').trim().toLowerCase();
+      if (!raw) return { base: 'stone', variant: '', key: 'stone' };
+
+      let base = raw;
+      let variant = '';
+
+      // Prefer explicit variant via ':'  (e.g. "wood:oak")
+      if (raw.includes(':')) {
+        const parts = raw.split(':');
+        base = (parts[0] || raw).trim();
+        variant = parts.slice(1).join(':').trim();
+      } else if (raw.includes('.')) {
+        // Allow "stone.cobble" or "brick.soot" etc
+        const parts = raw.split('.');
+        const head = (parts[0] || raw).trim();
+        if (parts.length >= 2 && ['wood','stone','brick','dirt','grass','carpet','marble','cobble','cobblestone','planks','timber','slab','slabs','tile','tiles','sand','mud'].includes(head)) {
+          base = head;
+          variant = parts.slice(1).join('.').trim();
+        }
+      } else if (raw.includes('-')) {
+        const parts = raw.split('-');
+        const head = (parts[0] || raw).trim();
+        if (parts.length >= 2 && ['wood','stone','brick','dirt','carpet'].includes(head)) {
+          base = head;
+          variant = parts.slice(1).join('-').trim();
+        }
+      }
+
+      // Synonyms / convenience
+      const syn = {
+        planks: 'wood',
+        timber: 'wood',
+        slabs: 'stone',
+        slab: 'stone',
+        tiles: 'stone',
+        tile: 'stone',
+        bricks: 'brick',
+      };
+      base = syn[base] || base;
+
+      if (base === 'cobble' || base === 'cobblestone') { base = 'stone'; if (!variant) variant = 'cobble'; }
+      if (base === 'marble') { base = 'stone'; if (!variant) variant = 'marble'; }
+      if (base === 'sand') { base = 'dirt'; if (!variant) variant = 'sand'; }
+
+      // Clamp to supported bases (fallback to stone)
+      if (!['wood','stone','brick','dirt','grass','carpet'].includes(base)) {
+        base = 'stone';
+        variant = '';
+      }
+
+      const key = base + (variant ? ':' + variant : '');
+      return { base, variant, key };
+    }
+
     function textureTileFor(kind) {
-      const k = String(kind || '').trim().toLowerCase();
-      if (TEX.tiles.has(k)) return TEX.tiles.get(k);
+      const nk = normalizeTextureKind(kind);
+      const key = nk.key;
+      if (TEX.tiles.has(key)) return TEX.tiles.get(key);
 
       let tile;
-      if (k === 'wood' || k === 'planks' || k === 'timber' || k === 'floor.wood') tile = makeWoodTile();
-      else if (k === 'brick' || k === 'bricks' || k === 'wall.brick') tile = makeBrickTile();
-      else if (k === 'stone' || k === 'slab' || k === 'slabs' || k === 'tile' || k === 'tiles') tile = makeStoneTile();
-      else tile = makeStoneTile();
+      if (nk.base === 'wood') tile = makeWoodTile(nk.variant);
+      else if (nk.base === 'brick') tile = makeBrickTile(nk.variant);
+      else if (nk.base === 'dirt') tile = makeDirtTile(nk.variant);
+      else if (nk.base === 'grass') tile = makeGrassTile();
+      else if (nk.base === 'carpet') tile = makeCarpetTile(nk.variant);
+      else tile = makeStoneTile(nk.variant);
 
-      TEX.tiles.set(k, tile);
+      TEX.tiles.set(key, tile);
       return tile;
     }
 
     function texturePatternFor(kind) {
-      const k = String(kind || '').trim().toLowerCase();
-      if (TEX.patterns.has(k)) return TEX.patterns.get(k);
+      const nk = normalizeTextureKind(kind);
+      const key = nk.key;
+      if (TEX.patterns.has(key)) return TEX.patterns.get(key);
 
-      const tile = textureTileFor(k);
+      const tile = textureTileFor(key);
       const pat = ctx.createPattern(tile, 'repeat');
-      TEX.patterns.set(k, pat);
+      TEX.patterns.set(key, pat);
       return pat;
     }
 
@@ -2465,6 +2704,14 @@ BATTLEMAT ENGINE v3.44
         console.assert(effectLabel({ name: 'Poisoned' }) === 'Poisoned', 'effectLabel should prefer name');
         console.assert(effectLabel({ label: 'Stunned' }) === 'Stunned', 'effectLabel should prefer label');
         console.assert(effectLabel(7) === '7', 'effectLabel should stringify primitives');
+
+        // texture kind parsing
+        const n1 = normalizeTextureKind('wood:pine');
+        console.assert(n1.base === 'wood' && n1.variant === 'pine' && n1.key === 'wood:pine', 'normalizeTextureKind wood:pine');
+        const n2 = normalizeTextureKind('stone.cobble');
+        console.assert(n2.base === 'stone' && n2.variant === 'cobble' && n2.key === 'stone:cobble', 'normalizeTextureKind stone.cobble');
+        const n3 = normalizeTextureKind('cobblestone');
+        console.assert(n3.base === 'stone' && n3.variant === 'cobble', 'normalizeTextureKind cobblestone');
 
         // textures should be callable
         console.assert(typeof texturePatternFor === 'function', 'texturePatternFor should exist');
