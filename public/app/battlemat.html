@@ -1,6 +1,18 @@
 <!--
-BATTLEMAT ENGINE v3.45
+  Copyright © 2025 Thomas Delvus. All rights reserved.
+
+  This HTML document and its contents (including the code, layout, text, data structures, and embedded/linked assets)
+  are protected by copyright law.
+
+  Permission is granted to access and use this file for personal, non-commercial tabletop gameplay and reference.
+
+  You may NOT copy, reproduce, modify, translate, redistribute, publish, sell, sublicense, or incorporate this work
+  (in whole or in part) into any software product, service, website, platform, “system,” template library, dataset,
+  or AI/training workflow without prior written permission from the copyright holder.
+
+  Unauthorized use is prohibited.
 -->
+
 
 <!doctype html>
 <html lang="en">
@@ -956,7 +968,14 @@ BATTLEMAT ENGINE v3.45
 
     const CONFIG = {
       room: { yInsetFrac: 0.25 },
-      labels: { dyFrac: 0.70, fillAlpha: 0.35 },
+      labels: {
+        dyFrac: 0.70,
+        // Hex label readability tuning
+        inRoomColor: [0, 0, 0],
+        outRoomColor: [0, 0, 0],
+        inRoomAlpha: 0.22,
+        outRoomAlpha: 0.03
+      },
       opening: {
         minAcross: 18,
         acrossMul: 1.05,
@@ -1003,7 +1022,9 @@ BATTLEMAT ENGINE v3.45
       { value: 'stone', label: 'Stone (slab)' },
       { value: 'stone:cobble', label: 'Stone (cobble)' },
       { value: 'stone:dark', label: 'Stone (dark)' },
+      { value: 'stone:blocks', label: 'Stone (blocks)' },
       { value: 'stone:marble', label: 'Stone (marble)' },
+      { value: 'stone:blocks', label: 'Stone (blocks)' },
       { value: 'wood:oak', label: 'Wood (oak)' },
       { value: 'wood:pine', label: 'Wood (pine)' },
       { value: 'wood:dark', label: 'Wood (dark)' },
@@ -1135,16 +1156,16 @@ BATTLEMAT ENGINE v3.45
       };
 
       // Support variant flags like "wood:pine:horizontal" or "wood:oak:vertical".
-      // Default: oak = horizontal planks (Cross Keys vibe); others = vertical.
+      // Default: vertical planks (oak included); you can force orientation with :horizontal / :vertical.
       const baseVariant = vRaw.split(':')[0] || 'oak';
       const flags = vRaw.split(':').slice(1);
 
-      let orient = (baseVariant === 'oak') ? 'h' : 'v';
+      let orient = 'v';
       const flagStr = flags.join(':');
       if (flagStr.includes('horizontal') || flagStr.includes('h')) orient = 'h';
       if (flagStr.includes('vertical') || flagStr.includes('v')) orient = 'v';
 
-      // Cross Keys vibe: cleaner oak planks (no knots/circles, fewer scratches)
+      // Cleaner oak planks (no knots/circles, fewer scratch marks)
       const cleanOak = (baseVariant === 'oak');
 
       const P = PAL[baseVariant] || PAL.oak;
@@ -1154,16 +1175,22 @@ BATTLEMAT ENGINE v3.45
       g.fillRect(0, 0, c.width, c.height);
 
       const plank = 28;
+      const scratchMul = 0.5; // reduce wood grain/scratch strength (~half)
+
+      g.strokeStyle = P.grain;
+      g.lineWidth = 1;
 
       if (orient === 'h') {
         // HORIZONTAL planks (seams are horizontal; planks run left→right)
         for (let y = 0; y < c.height + plank; y += plank) {
           g.fillStyle = P.plank;
           g.fillRect(0, y, c.width, plank);
+
           // grain (left→right)
-          g.strokeStyle = P.grain;
-          g.lineWidth = 1;
-          const grainN = (typeof cleanOak !== 'undefined' && cleanOak) ? 2 : 6;
+          const a0 = g.globalAlpha;
+          g.globalAlpha = a0 * scratchMul;
+          const grainN = cleanOak ? 2 : 6;
+
           for (let i = 0; i < grainN; i++) {
             g.beginPath();
             g.moveTo(0, y + 2 + rand() * (plank - 4));
@@ -1175,16 +1202,18 @@ BATTLEMAT ENGINE v3.45
             g.stroke();
 
             // subtle short grain scratches (disabled for clean oak)
-            if (!(typeof cleanOak !== 'undefined' && cleanOak)) {
+            if (!cleanOak) {
               const x = rand() * c.width;
-              g.globalAlpha = 0.65;
+              g.globalAlpha = a0 * scratchMul * 0.65;
               g.beginPath();
               g.moveTo(x, y + 4 + rand() * (plank - 8));
               g.lineTo(x + 18 + rand() * 22, y + 4 + rand() * (plank - 8));
               g.stroke();
-              g.globalAlpha = 1;
+              g.globalAlpha = a0 * scratchMul;
             }
           }
+
+          g.globalAlpha = a0;
 
           // seams
           g.strokeStyle = 'rgba(0,0,0,0.10)';
@@ -1196,17 +1225,23 @@ BATTLEMAT ENGINE v3.45
           // highlight strip
           g.fillStyle = 'rgba(255,255,255,0.03)';
           g.fillRect(0, y + 1, c.width, 2);
+
+          // restore grain stroke
+          g.strokeStyle = P.grain;
+          g.lineWidth = 1;
         }
       } else {
-        // VERTICAL planks (original)
+        // VERTICAL planks
         for (let x = 0; x < c.width + plank; x += plank) {
           g.fillStyle = P.plank;
           g.fillRect(x, 0, plank, c.height);
 
-          // grain
-          g.strokeStyle = P.grain;
-          g.lineWidth = 1;
-          for (let i = 0; i < 6; i++) {
+          // grain (top→bottom)
+          const a0 = g.globalAlpha;
+          g.globalAlpha = a0 * scratchMul;
+
+          const grainN = cleanOak ? 3 : 6;
+          for (let i = 0; i < grainN; i++) {
             const y = rand() * c.height;
             g.beginPath();
             g.moveTo(x + 2, y);
@@ -1218,6 +1253,8 @@ BATTLEMAT ENGINE v3.45
             g.stroke();
           }
 
+          g.globalAlpha = a0;
+
           // seams
           g.strokeStyle = 'rgba(0,0,0,0.10)';
           g.beginPath();
@@ -1228,11 +1265,15 @@ BATTLEMAT ENGINE v3.45
           // highlight strip
           g.fillStyle = 'rgba(255,255,255,0.03)';
           g.fillRect(x + 1, 0, 2, c.height);
+
+          // restore grain stroke
+          g.strokeStyle = P.grain;
+          g.lineWidth = 1;
         }
       }
 
       // knots (disabled for clean oak to avoid repeating circle artifacts)
-      if (!(typeof cleanOak !== 'undefined' && cleanOak)) {
+      if (!cleanOak) {
         for (let k = 0; k < 14; k++) {
           const x = rand() * c.width;
           const y = rand() * c.height;
@@ -1253,8 +1294,10 @@ BATTLEMAT ENGINE v3.45
       const isCobble = (v === 'cobble' || v === 'cobblestone');
       const isDark = (v === 'dark' || v === 'basalt');
       const isMarble = (v === 'marble');
+      const isBlocks = (v === 'blocks' || v === 'block' || v.includes('ashlar') || v.includes('block'));
 
-      const c = offscreenTile(240, 240);
+      // Slightly larger tile for "blocks" to reduce obvious repetition.
+      const c = isBlocks ? offscreenTile(320, 320) : offscreenTile(240, 240);
       const g = c.getContext('2d');
       const rand = seededRng('stone:' + (v || 'slab'));
 
@@ -1262,20 +1305,77 @@ BATTLEMAT ENGINE v3.45
       g.fillStyle = base;
       g.fillRect(0, 0, c.width, c.height);
 
-      // Slabs vs cobbles
+      // --- Regular interlocking blocks (ashlar style) ---
+      if (isBlocks) {
+        const mortar = 3;
+        const rowH = 40; // block height
+        const lens = [54, 72, 92, 64, 84];
+
+        // Mortar base (slightly darker)
+        g.fillStyle = isDark ? '#7c7c7c' : '#a9a9a9';
+        g.fillRect(0, 0, c.width, c.height);
+
+        let row = 0;
+        for (let y = 0; y < c.height + rowH; y += (rowH + mortar)) {
+          const offset = (row % 2 === 0) ? 0 : Math.floor((lens[1] + mortar) / 2);
+          let x = -offset;
+
+          while (x < c.width + 120) {
+            const baseLen = lens[Math.floor(rand() * lens.length)];
+            const len = baseLen + Math.floor((rand() - 0.5) * 10); // tiny variation
+
+            // Per-block shading (subtle)
+            const shadeA = (isDark ? 0.18 : 0.12) + rand() * 0.08;
+            g.fillStyle = `rgba(110,110,110,${shadeA})`;
+            g.fillRect(x + mortar, y + mortar, len, rowH);
+
+            // Bevel: highlight top/left, shadow bottom/right
+            g.fillStyle = 'rgba(255,255,255,0.06)';
+            g.fillRect(x + mortar + 1, y + mortar + 1, len - 2, 2);
+            g.fillRect(x + mortar + 1, y + mortar + 1, 2, rowH - 2);
+
+            g.fillStyle = 'rgba(0,0,0,0.07)';
+            g.fillRect(x + mortar + 1, y + mortar + rowH - 3, len - 2, 2);
+            g.fillRect(x + mortar + len - 3, y + mortar + 1, 2, rowH - 2);
+
+            // Edge definition (very light)
+            g.strokeStyle = 'rgba(0,0,0,0.10)';
+            g.lineWidth = 1;
+            g.strokeRect(x + mortar, y + mortar, len, rowH);
+
+            x += (len + mortar);
+          }
+          row++;
+        }
+
+        // Speckle / grit
+        const specks = isDark ? 1100 : 850;
+        for (let i = 0; i < specks; i++) {
+          const xx = rand() * c.width;
+          const yy = rand() * c.height;
+          const a = 0.03 + rand() * 0.06;
+          g.fillStyle = `rgba(0,0,0,${a})`;
+          g.fillRect(xx, yy, 1, 1);
+        }
+
+        return c;
+      }
+
+      // --- Slabs vs cobbles ---
       const cell = isCobble ? 34 : 48;
       for (let y = 0; y < c.height + cell; y += cell) {
         for (let x = 0; x < c.width + cell; x += cell) {
-          const jitterX = (rand() - 0.5) * (isCobble ? 10 : 6);
-          const jitterY = (rand() - 0.5) * (isCobble ? 10 : 6);
-          const w = cell + (rand() - 0.5) * (isCobble ? 18 : 14);
-          const h = cell + (rand() - 0.5) * (isCobble ? 18 : 14);
+          // Make slabs a bit more regular (less jitter) than cobble.
+          const jitterX = (rand() - 0.5) * (isCobble ? 10 : 4);
+          const jitterY = (rand() - 0.5) * (isCobble ? 10 : 4);
+          const w = cell + (rand() - 0.5) * (isCobble ? 18 : 10);
+          const h = cell + (rand() - 0.5) * (isCobble ? 18 : 10);
 
           const shade = isDark ? 0.16 : 0.12;
           g.fillStyle = `rgba(110,110,110,${shade + rand() * 0.10})`;
           g.fillRect(x + jitterX, y + jitterY, w, h);
 
-          g.strokeStyle = `rgba(0,0,0,${isCobble ? 0.14 : 0.10})`;
+          g.strokeStyle = `rgba(0,0,0,${isCobble ? 0.14 : 0.09})`;
           g.lineWidth = 1;
           g.strokeRect(x + jitterX, y + jitterY, w, h);
         }
@@ -2691,12 +2791,35 @@ BATTLEMAT ENGINE v3.45
 
       const LABEL_DY = size * CONFIG.labels.dyFrac;
       ctx.font = '13px "Times New Roman", Georgia, "Century Schoolbook", "Book Antiqua", serif';
-      ctx.fillStyle = `rgba(180,150,90,${CONFIG.labels.fillAlpha})`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+
+      // Make labels pop inside rooms, fade away outside rooms.
+      const inAnyRoomInterior = (px, py) => {
+        if (!ROOM_GEOMS || !ROOM_GEOMS.size) return false;
+        for (const g of ROOM_GEOMS.values()) {
+          const half = Math.max(1, Number(g.thickness || 18) / 2);
+          const ix1 = g.leftX + half;
+          const ix2 = g.rightX - half;
+          const iy1 = g.topY + half;
+          const iy2 = g.botY - half;
+          if (px >= ix1 && px <= ix2 && py >= iy1 && py <= iy2) return true;
+        }
+        return false;
+      };
+
+      const inRGB = CONFIG.labels.inRoomColor || [245,245,245];
+      const outRGB = CONFIG.labels.outRoomColor || [255,255,255];
+      const inA = Number(CONFIG.labels.inRoomAlpha ?? 0.55);
+      const outA = Number(CONFIG.labels.outRoomAlpha ?? 0.06);
+
       for (let q = 0; q < cols; q++) {
         for (let r = 0; r < rows; r++) {
           const { x, y } = qrToPixel(q, r);
+          const inRoom = inAnyRoomInterior(x, y);
+          const rgb = inRoom ? inRGB : outRGB;
+          const a = inRoom ? inA : outA;
+          ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
           ctx.fillText(labelFor(q, r), x, y + LABEL_DY);
         }
       }
@@ -2895,9 +3018,11 @@ BATTLEMAT ENGINE v3.45
         console.assert(!!texturePatternFor('stone'), 'texturePatternFor(stone) should return a pattern');
         console.assert(typeof drawTexturedRoom === 'function', 'drawTexturedRoom should exist');
 
-        // wood texture should still generate a tile canvas
+        // wood texture should still generate a tile canvas (and not throw)
         const wtile = textureTileFor('wood:oak');
         console.assert(!!wtile && wtile.width > 0 && wtile.height > 0, 'wood:oak tile should exist');
+        const wtile2 = textureTileFor('wood:pine');
+        console.assert(!!wtile2 && wtile2.width > 0 && wtile2.height > 0, 'wood:pine tile should exist');
       } catch (_) {}
     }
 
