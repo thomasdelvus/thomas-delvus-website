@@ -30,7 +30,10 @@ BATTLEMAT ENGINE v3.41
 
     main {
       padding: 12px;
-      overflow: hidden; /* clip right side on small windows; never scale the mat */
+      display: flex;
+      justify-content: center;
+      overflow-x: auto;   /* center when possible; allow horizontal scroll on small windows */
+      overflow-y: hidden;
     }
 
     /* Two-column layout: battlemat + right stack */
@@ -38,6 +41,7 @@ BATTLEMAT ENGINE v3.41
       display: flex;
       gap: 12px;
       align-items: flex-start;
+      margin: 0 auto;
     }
 
     /* Left column stacks: battlemat + compact key bar */
@@ -603,8 +607,8 @@ BATTLEMAT ENGINE v3.41
       if (!btn) return;
       btn.textContent = modeLabel(REFRESH.mode);
       btn.title = (REFRESH.mode === RefreshMode.OFF)
-        ? 'Enable refresh (starts at 5s)'
-        : 'Disable refresh';
+        ? 'Enable refresh (5s)'
+        : 'Reset to 5s';
     }
 
     function setRefreshMode(mode) {
@@ -614,29 +618,16 @@ BATTLEMAT ENGINE v3.41
       scheduleRefreshTick(true);
     }
 
-    function toggleRefreshAuto() {
-      // Off → Auto (always start FAST/5s)
-      if (REFRESH.mode === RefreshMode.OFF) {
-        REFRESH.lastChangeAt = Date.now();
-        // If we have a battleId, remember that Auto is enabled for this battle.
-        try {
-          if (REFRESH.battleId) {
-            localStorage.setItem(`battlemat:refresh:auto:${REFRESH.battleId}`, 'auto');
-            localStorage.setItem(`battlemat:refresh:last:${REFRESH.battleId}`, RefreshMode.FAST);
-          }
-        } catch (_) {}
-        setRefreshMode(RefreshMode.FAST);
-        return;
-      }
-
-      // Auto → Off
+    function refreshButtonPressed() {
+      // Any press = “wake up” and go straight to FAST/5s.
+      REFRESH.lastChangeAt = Date.now();
       try {
         if (REFRESH.battleId) {
-          localStorage.setItem(`battlemat:refresh:last:${REFRESH.battleId}`, REFRESH.mode);
-          localStorage.setItem(`battlemat:refresh:auto:${REFRESH.battleId}`, 'off');
+          localStorage.setItem(`battlemat:refresh:auto:${REFRESH.battleId}`, 'auto');
+          localStorage.setItem(`battlemat:refresh:last:${REFRESH.battleId}`, RefreshMode.FAST);
         }
       } catch (_) {}
-      setRefreshMode(RefreshMode.OFF);
+      setRefreshMode(RefreshMode.FAST);
     }
 
     function scheduleRefreshTick(immediate) {
@@ -753,7 +744,7 @@ BATTLEMAT ENGINE v3.41
 
     document.getElementById('refreshModeBtn')?.addEventListener('click', (ev) => {
       ev.stopPropagation();
-      toggleRefreshAuto();
+      refreshButtonPressed();
     });
 
     // =====================================================================
