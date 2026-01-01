@@ -1,5 +1,5 @@
 <!--
-BATTLEMAT ENGINE v3.41
+BATTLEMAT ENGINE v3.42
 
 - Copy this entire file into Canvas verbatim before combat.
 - During play, edit ONLY the SCENE block between:
@@ -1154,6 +1154,27 @@ BATTLEMAT ENGINE v3.41
       return qrToPixel(pos.q, pos.r);
     }
 
+    function coerceLastAction(v) {
+      if (typeof v === 'string') return v;
+      if (v == null) return '';
+      const t = typeof v;
+      if (t === 'number' || t === 'boolean' || t === 'bigint') return String(v);
+      try { return JSON.stringify(v); } catch { return String(v); }
+    }
+
+    function effectLabel(e) {
+      if (typeof e === 'string') return e;
+      if (e == null) return '';
+      const t = typeof e;
+      if (t === 'number' || t === 'boolean' || t === 'bigint') return String(e);
+      if (t === 'object') {
+        const label = e.name ?? e.label ?? e.id ?? e.type;
+        if (label != null) return String(label);
+        try { return JSON.stringify(e); } catch { return '[effect]'; }
+      }
+      return String(e);
+    }
+
     function normalizeScene() {
       const src = (typeof SCENE === 'object' && SCENE) ? SCENE : {};
 
@@ -1307,7 +1328,7 @@ BATTLEMAT ENGINE v3.41
 
       return {
         round: Number(src.round ?? 1),
-        lastAction: String(src.lastAction ?? src.last_action ?? src.action ?? ''),
+        lastAction: coerceLastAction(src.lastAction ?? src.last_action ?? src.action),
         rooms: roomsOut,
         openings: openingsOut,
         objects: objectsOut,
@@ -1970,7 +1991,7 @@ BATTLEMAT ENGINE v3.41
 
         const effects = Array.isArray(a.effects) ? a.effects : [];
         const effectsHtml = effects.length
-          ? effects.map(e => `<span class="chip">${escapeHtml(String(e))}</span>`).join('')
+          ? effects.map(e => `<span class="chip">${escapeHtml(effectLabel(e))}</span>`).join('')
           : '';
 
         tr.innerHTML = `
@@ -2061,6 +2082,12 @@ BATTLEMAT ENGINE v3.41
         console.assert(S15_TO_30_IDLE_MS === 180000, '15→30 idle should be 3m');
         console.assert(S30_TO_60_IDLE_MS === 300000, '30→60 idle should be 5m');
         console.assert(S60_TO_OFF_IDLE_MS === 600000, '60→Off idle should be 10m');
+
+        // lastAction + effects robustness
+        console.assert(coerceLastAction({ a: 1 }).includes('"a"'), 'coerceLastAction should stringify objects');
+        console.assert(effectLabel({ name: 'Poisoned' }) === 'Poisoned', 'effectLabel should prefer name');
+        console.assert(effectLabel({ label: 'Stunned' }) === 'Stunned', 'effectLabel should prefer label');
+        console.assert(effectLabel(7) === '7', 'effectLabel should stringify primitives');
       } catch (_) {}
     }
 
