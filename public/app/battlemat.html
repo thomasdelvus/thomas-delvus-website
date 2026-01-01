@@ -1,5 +1,5 @@
 <!--
-BATTLEMAT ENGINE v3.42
+BATTLEMAT ENGINE v3.44
 
 - Copy this entire file into Canvas verbatim before combat.
 - During play, edit ONLY the SCENE block between:
@@ -381,6 +381,7 @@ BATTLEMAT ENGINE v3.42
 {
   "round": 1,
   "lastAction": "🎲 16  ⚔️ Longsword  →  7 dmg",
+  "narration": "The crypt is silent but for the soft scrape of bone on stone.\nAelar steps forward, blade raised — and the air suddenly turns *cold*.\n\nCaelin: \"I don’t like this…\"\n\nA shadow shifts near the sarcophagus.",
   "rooms": [
     {
       "id": "room1",
@@ -405,9 +406,9 @@ BATTLEMAT ENGINE v3.42
   ],
   "actors": [
     {"id": "lich", "name": "Lich", "side": "EN", "init": 15, "hp": 135, "maxHp": 135, "effects": [], "at": "F9", "label": "L"},
-    {"id": "wraith1", "name": "Wraith", "side": "EN", "init": 12, "hp": 67, "maxHp": 67, "effects": [], "at": "H7", "label": "W1"},
-    {"id": "wraith2", "name": "Wraith", "side": "EN", "init": 11, "hp": 0, "maxHp": 67, "effects": [], "at": "K9", "label": "W2"},
-    {"id": "wraith3", "name": "Wraith", "side": "EN", "init": 10, "hp": 67, "maxHp": 67, "effects": [], "at": "E6", "label": "W3"},
+    {"id": "wraith1", "name": "Wraith 1", "side": "EN", "init": 12, "hp": 67, "maxHp": 67, "effects": [], "at": "H7", "label": "W1"},
+    {"id": "wraith2", "name": "Wraith 2", "side": "EN", "init": 11, "hp": 0, "maxHp": 67, "effects": [], "at": "K9", "label": "W2"},
+    {"id": "wraith3", "name": "Wraith 3", "side": "EN", "init": 10, "hp": 67, "maxHp": 67, "effects": [], "at": "E6", "label": "W3"},
 
     {"id": "pc1", "name": "Aelar", "side": "PC", "init": 14, "hp": 42, "maxHp": 42, "effects": [], "at": "K2", "label": "A"},
     {"id": "pc2", "name": "Brunna", "side": "PC", "init": 13, "hp": 55, "maxHp": 55, "effects": [], "at": "L3", "label": "B"},
@@ -554,11 +555,13 @@ BATTLEMAT ENGINE v3.42
     // - 5s (FAST), 15s, 30s, 60s, Off
     // - Downshift:
     //     FAST→15s after 60s idle
-    //     15s→30s after 90s idle
-    //     30s→60s after 120s idle
-    //     60s→Off after 5m idle
+    //     15s→30s after 3m idle
+    //     30s→60s after 5m idle
+    //     60s→Off after 10m idle
     // - Upshift:
     //     if a change is detected and we are not FAST, snap back to FAST
+    // - Button:
+    //     any press = snap to FAST (5s)
     // =====================================================================
 
     const RefreshMode = { FAST: 'fast', S15: '15s', S30: '30s', S60: '60s', OFF: 'off' };
@@ -568,11 +571,6 @@ BATTLEMAT ENGINE v3.42
     const S30_MS = 30000;
     const S60_MS = 60000;
 
-    // Idle thresholds (match v3.38 ladder intent)
-    // FAST→15s after 60s idle
-    // 15s→30s after 3m idle
-    // 30s→60s after 5m idle
-    // 60s→Off after 10m idle
     const FAST_TO_15_IDLE_MS = 60000;
     const S15_TO_30_IDLE_MS = 180000;
     const S30_TO_60_IDLE_MS = 300000;
@@ -632,12 +630,9 @@ BATTLEMAT ENGINE v3.42
 
     function scheduleRefreshTick(immediate) {
       if (REFRESH.timer) { clearTimeout(REFRESH.timer); REFRESH.timer = null; }
-      // Allow ticking even when battleId is missing (Canvas preview / local-only mode).
       if (REFRESH.mode === RefreshMode.OFF) return;
-      if (REFRESH.mode === RefreshMode.OFF) return;
-
       const delay = immediate ? 0 : modeDelayMs(REFRESH.mode);
-      REFRESH.timer = setTimeout(refreshTick, delay);
+      REFRESH.timer = setTimeout(refreshTick, delay == null ? 0 : delay);
     }
 
     function applyScene(sceneObj) {
@@ -1154,13 +1149,7 @@ BATTLEMAT ENGINE v3.42
       return qrToPixel(pos.q, pos.r);
     }
 
-    function coerceLastAction(v) {
-      if (typeof v === 'string') return v;
-      if (v == null) return '';
-      const t = typeof v;
-      if (t === 'number' || t === 'boolean' || t === 'bigint') return String(v);
-      try { return JSON.stringify(v); } catch { return String(v); }
-    }
+    // ====== SCENE COERCION HELPERS ======
 
     function effectLabel(e) {
       if (typeof e === 'string') return e;
@@ -1173,6 +1162,53 @@ BATTLEMAT ENGINE v3.42
         try { return JSON.stringify(e); } catch { return '[effect]'; }
       }
       return String(e);
+    }
+
+    function coerceNarration(v) {
+      if (v == null) return '';
+      if (typeof v === 'string') return v;
+      if (Array.isArray(v)) return v.map(x => (x == null ? '' : String(x))).join('\n');
+      try { return JSON.stringify(v); } catch { return String(v); }
+    }
+
+    function coerceLastAction(v) {
+      if (v == null) return '';
+      if (typeof v === 'string') return v;
+      if (typeof v !== 'object') return String(v);
+
+      // Friendly formatter for the common “action object” shape (but still resilient).
+      try {
+        const actor = v.actorName || v.actor || v.actor_id || v.actorId || '';
+        const from = v.from || '';
+        const to = v.to || '';
+        const movePart = (from && to) ? `${from}→${to}` : (to ? `→${to}` : '');
+
+        const atk = v.attack || v.atk || null;
+        const dmg = v.damage || v.dmg || null;
+
+        const roll = (atk && (atk.total ?? atk.roll ?? atk.toHit ?? atk.hitRoll)) ?? (v.total ?? v.roll ?? null);
+        const weapon = (atk && (atk.name || atk.weapon)) || v.weapon || v.item || '';
+        const dmgVal = (dmg && (dmg.value ?? dmg.amount)) ?? v.damageValue ?? v.dmgValue ?? null;
+
+        const note = (typeof v.note === 'string' && v.note.trim()) ? v.note.trim() : '';
+
+        const bits = [];
+        if (actor) bits.push(String(actor));
+        if (movePart) bits.push(String(movePart));
+
+        const atkBits = [];
+        if (roll != null && roll !== '') atkBits.push(`🎲 ${roll}`);
+        if (weapon) atkBits.push(`⚔️ ${weapon}`);
+        if (dmgVal != null && dmgVal !== '') atkBits.push(`→ ${dmgVal} dmg`);
+        if (atkBits.length) bits.push(atkBits.join(' '));
+
+        if (note) bits.push(`— ${note}`);
+
+        const out = bits.join('  ');
+        if (out.trim()) return out;
+      } catch (_) {}
+
+      try { return JSON.stringify(v); } catch { return '[action]'; }
     }
 
     function normalizeScene() {
@@ -1329,6 +1365,7 @@ BATTLEMAT ENGINE v3.42
       return {
         round: Number(src.round ?? 1),
         lastAction: coerceLastAction(src.lastAction ?? src.last_action ?? src.action),
+        narration: coerceNarration(src.narration ?? src.notes ?? src.narrative),
         rooms: roomsOut,
         openings: openingsOut,
         objects: objectsOut,
@@ -1950,6 +1987,76 @@ BATTLEMAT ENGINE v3.42
       renderStatus();
     }
 
+    // Notes (Narration) persistence
+    const NOTES = {
+      battleId: null,
+      keyNarr: null,
+      debounce: null,
+      dirty: false,
+      lastSceneNarration: ''
+    };
+
+    function notesKey(base, battleId) {
+      return `battlemat:${base}:${battleId || 'local'}`;
+    }
+
+    function initNotesUi(battleId) {
+      NOTES.battleId = battleId || null;
+      NOTES.keyNarr = notesKey('narration', battleId);
+
+      const narr = document.getElementById('narrationBox');
+      const fallback = String(SCENE_NORM?.narration || '').trim();
+      NOTES.lastSceneNarration = fallback;
+
+      try {
+        const stored = localStorage.getItem(NOTES.keyNarr) || '';
+        if (narr) narr.value = stored || fallback;
+        NOTES.dirty = !!stored;
+      } catch (_) {
+        if (narr) narr.value = fallback;
+        NOTES.dirty = false;
+      }
+
+      const save = () => {
+        try {
+          if (narr) localStorage.setItem(NOTES.keyNarr, narr.value || '');
+        } catch (_) {}
+      };
+
+      const onInput = () => {
+        NOTES.dirty = true;
+        if (NOTES.debounce) clearTimeout(NOTES.debounce);
+        NOTES.debounce = setTimeout(save, 200);
+      };
+
+      narr?.addEventListener('input', onInput);
+    }
+
+    function syncNarrationFromScene() {
+      const narr = document.getElementById('narrationBox');
+      if (!narr) return;
+
+      const sceneText = String(SCENE_NORM?.narration || '').trim();
+      if (!sceneText) return;
+
+      const cur = String(narr.value || '');
+      const curTrim = cur.trim();
+      const last = String(NOTES.lastSceneNarration || '').trim();
+
+      // If user has typed their own notes (dirty) and it doesn't match the last scene narration, don't overwrite.
+      if (NOTES.dirty && curTrim !== last) return;
+
+      // If the user is actively typing, never overwrite.
+      if (document.activeElement === narr && curTrim !== last) return;
+
+      // Only replace if empty OR still equal to the last scene narration.
+      if (!curTrim || curTrim === last) {
+        narr.value = sceneText;
+        NOTES.lastSceneNarration = sceneText;
+        // do NOT mark dirty (this is scene-provided)
+      }
+    }
+
     function renderStatus() {
       const tbody = document.getElementById('statusBody');
       const roundLine = document.getElementById('roundLine');
@@ -1970,6 +2077,9 @@ BATTLEMAT ENGINE v3.42
           actionLine.textContent = '';
         }
       }
+
+      // Keep narration box in sync with DB narration unless the user has typed local notes.
+      syncNarrationFromScene();
 
       const actors = Array.isArray(SCENE_NORM?.actors) ? SCENE_NORM.actors.slice() : [];
       actors.sort((a, b) => {
@@ -2035,41 +2145,6 @@ BATTLEMAT ENGINE v3.42
       }
     }
 
-    // Notes (Narration) persistence
-    const NOTES = {
-      battleId: null,
-      keyNarr: null,
-      debounce: null,
-    };
-
-    function notesKey(base, battleId) {
-      return `battlemat:${base}:${battleId || 'local'}`;
-    }
-
-    function initNotesUi(battleId) {
-      NOTES.battleId = battleId || null;
-      NOTES.keyNarr = notesKey('narration', battleId);
-
-      const narr = document.getElementById('narrationBox');
-
-      try {
-        if (narr) narr.value = localStorage.getItem(NOTES.keyNarr) || '';
-      } catch (_) {}
-
-      const save = () => {
-        try {
-          if (narr) localStorage.setItem(NOTES.keyNarr, narr.value || '');
-        } catch (_) {}
-      };
-
-      const onInput = () => {
-        if (NOTES.debounce) clearTimeout(NOTES.debounce);
-        NOTES.debounce = setTimeout(save, 200);
-      };
-
-      narr?.addEventListener('input', onInput);
-    }
-
     // Minimal self-tests (safe in production; they only log if something is off)
     function runSelfTests() {
       try {
@@ -2083,8 +2158,9 @@ BATTLEMAT ENGINE v3.42
         console.assert(S30_TO_60_IDLE_MS === 300000, '30→60 idle should be 5m');
         console.assert(S60_TO_OFF_IDLE_MS === 600000, '60→Off idle should be 10m');
 
-        // lastAction + effects robustness
-        console.assert(coerceLastAction({ a: 1 }).includes('"a"'), 'coerceLastAction should stringify objects');
+        // lastAction + narration + effects robustness
+        console.assert(coerceLastAction({ a: 1 }).includes('"a"') || coerceLastAction({ a: 1 }).includes('a'), 'coerceLastAction should stringify objects');
+        console.assert(coerceNarration({ n: 1 }).includes('"n"') || coerceNarration({ n: 1 }).includes('n'), 'coerceNarration should stringify objects');
         console.assert(effectLabel({ name: 'Poisoned' }) === 'Poisoned', 'effectLabel should prefer name');
         console.assert(effectLabel({ label: 'Stunned' }) === 'Stunned', 'effectLabel should prefer label');
         console.assert(effectLabel(7) === '7', 'effectLabel should stringify primitives');
