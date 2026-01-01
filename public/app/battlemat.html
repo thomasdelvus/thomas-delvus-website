@@ -1853,7 +1853,9 @@
       'token.pc':     { url: `${SPRITE_BASE}/token_pc.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
       'token.en':     { url: `${SPRITE_BASE}/token_enemy.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
       'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'door':         { url: `${SPRITE_BASE}/door.png`,            wHex: 1.05, hHex: 0.38, ax: 0.5, ay: 0.5, shadow: false }
+      'door':         { url: `${SPRITE_BASE}/door.png`,            wHex: 1.05, hHex: 0.38, ax: 0.5, ay: 0.5, shadow: false },
+      'door.wood':    { url: `${SPRITE_BASE}/door_wood.png`,       wHex: 1.05, hHex: 0.38, ax: 0.5, ay: 0.5, shadow: false },
+      'door_wood':    { url: `${SPRITE_BASE}/door_wood.png`,       wHex: 1.05, hHex: 0.38, ax: 0.5, ay: 0.5, shadow: false }
     };
 
     const SPRITE_CACHE = new Map();
@@ -1932,8 +1934,10 @@
       // Openings (e.g., doors rendered as sprites)
       for (const op of (sceneNorm?.openings || [])) {
         const k = String(op?.kind || '').trim().toLowerCase();
-        if (k === 'door') {
-          const def = spriteDefForKey('door');
+        const base = k.split('.')[0];
+        if (base === 'door') {
+          const key = (SPRITE_DEFS[k] ? k : 'door');
+          const def = spriteDefForKey(key);
           if (def?.url) urls.add(def.url);
         }
       }
@@ -1957,7 +1961,8 @@
       }
       for (const op of (sceneNorm?.openings || [])) {
         const k = String(op?.kind || '').trim().toLowerCase();
-        if (k === 'door') keys.push('p:door');
+        const base = k.split('.')[0];
+        if (base === 'door') keys.push('p:' + (SPRITE_DEFS[k] ? k : 'door'));
       }
       keys.sort();
       return keys.join('|');
@@ -2213,9 +2218,10 @@
       const openingsOut = [];
       for (let i = 0; i < openingsIn.length; i++) {
         const o = openingsIn[i] || {};
-        const kind = String(o.kind || 'door').toLowerCase();
-        if (kind !== 'door' && kind !== 'window') {
-          warn(`Opening skipped: kind must be door/window`, o);
+        const kindRaw = String(o.kind || 'door').toLowerCase();
+        const kindBase = kindRaw.split('.')[0];
+        if (kindBase !== 'door' && kindBase !== 'window') {
+          warn(`Opening skipped: kind must be door/window (or door.* / window.*)`, o);
           continue;
         }
         const room = String(o.room || '').trim();
@@ -2234,7 +2240,7 @@
           continue;
         }
         const state = String((o.state ?? 'closed')).toLowerCase();
-        openingsOut.push({ ...o, kind, room, wall, at, state });
+        openingsOut.push({ ...o, kind: kindRaw, room, wall, at, state });
       }
 
       const objectsIn = Array.isArray(src.objects) ? src.objects : [];
@@ -2762,7 +2768,8 @@
 
       for (const o of openings) {
         const kind = String(o.kind || 'door').toLowerCase();
-        if (kind !== 'door' && kind !== 'window') continue;
+        const kindBase = kind.split('.')[0];
+        if (kindBase !== 'door' && kindBase !== 'window') continue;
 
         const state = String(o.state ?? 'closed').toLowerCase();
 
@@ -2781,16 +2788,19 @@
         else if (wall === 'W') x = g.leftX;
         else continue;
 
-        const isDoor = (kind === 'door');
-        const isWindow = (kind === 'window');
+        const isDoor = (kindBase === 'door');
+        const isWindow = (kindBase === 'window');
         const isOpen = (state === 'open');
 
         // Door sprite (closed doors only). Default rotation is based on wall (E/W => vertical).
-        if (isDoor && !isOpen && isSpriteReady('door')) {
-          const wallRot = (wall === 'E' || wall === 'W') ? 90 : 0;
-          const rot = entityRotDeg(o, wallRot);
-          drawSpriteAt('door', x, y, rot, 1, 1);
-          continue;
+        if (isDoor && !isOpen) {
+          const doorKey = (SPRITE_DEFS[kind] ? kind : 'door');
+          if (isSpriteReady(doorKey)) {
+            const wallRot = (wall === 'E' || wall === 'W') ? 90 : 0;
+            const rot = entityRotDeg(o, wallRot);
+            drawSpriteAt(doorKey, x, y, rot, 1, 1);
+            continue;
+          }
         }
 
         const thicknessAcross = Number(o.thicknessAcross ?? Math.max(CONFIG.opening.minAcross, g.thickness * CONFIG.opening.acrossMul));
