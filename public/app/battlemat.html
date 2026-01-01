@@ -1,6 +1,6 @@
 
 <!--
-BATTLEMAT ENGINE v3.37
+BATTLEMAT ENGINE v3.38
 
 - Copy this entire file into Canvas verbatim before combat.
 - During play, edit ONLY the SCENE block between:
@@ -630,6 +630,16 @@ BATTLEMAT ENGINE v3.37
     }
 
     function applyScene(sceneObj) {
+      // Capture where actors *were* before we swap in the new scene.
+      // This lets us draw a faint trail between commits (derived, not exact pathfinding).
+      try {
+        if (SCENE_NORM?.actors?.length) {
+          PENDING_PREV_POS = captureActorPositions(SCENE_NORM);
+        }
+      } catch (_) {
+        PENDING_PREV_POS = null;
+      }
+
       const sceneTag = document.getElementById('scene-json');
       if (sceneTag) sceneTag.textContent = JSON.stringify(sceneObj, null, 2);
       safeDrawGrid();
@@ -703,6 +713,149 @@ BATTLEMAT ENGINE v3.37
     let SCENE = {};
     let LAST_GOOD_SCENE = null;
     let SCENE_PARSE_ERROR = null;
+
+    // ====== MOVEMENT TRAILS (lightweight, derived) ======
+    // Purpose: show where actors *came from* between commits, even if we don’t know the exact path yet.
+    // Later, a pathfinding API can supply step-by-step paths; this is a visual “good enough” now.
+    const TRAIL_TTL_MS = 90_000;     // keep recent trails (ms)
+    const TRAIL_MAX_SEGMENTS = 24;  // per-actor cap
+    let PENDING_PREV_POS = null;    // Map(actorId -> { at, side }) captured just before applyScene()
+    const MOVE_TRAILS = new Map();  // actorId -> Array<{ from, to, ts, side }>
+
+    function captureActorPositions(sceneNorm) {
+      const m = new Map();
+      for (const a of (sceneNorm?.actors || [])) {
+        const id = String(a.id ?? '').trim();
+        const at = String(a.at ?? '').trim().toUpperCase();
+        if (!id || !at) continue;
+        m.set(id, { at, side: String(a.side || 'NPC').toUpperCase() });
+      }
+      return m;
+    }
+
+    function pruneTrails(now) {
+      const t = Number(now || Date.now());
+      for (const [id, segs] of MOVE_TRAILS.entries()) {
+        const kept = (segs || []).filter(s => (t - (s.ts || 0)) <= TRAIL_TTL_MS);
+        if (!kept.length) MOVE_TRAILS.delete(id);
+        else MOVE_TRAILS.set(id, kept.slice(-TRAIL_MAX_SEGMENTS));
+      }
+    }
+
+    function updateTrailsFromPending() {
+      if (!PENDING_PREV_POS) return;
+      const prev = PENDING_PREV_POS;
+      PENDING_PREV_POS = null;
+
+      const now = Date.now();
+      pruneTrails(now);
+
+      for (const a of (SCENE_NORM?.actors || [])) {
+        const id = String(a.id ?? '').trim();
+        if (!id) continue;
+
+        const curAt = String(a.at ?? '').trim().toUpperCase();
+        const curSide = String(a.side || 'NPC').toUpperCase();
+        const p = prev.get(id);
+        if (!p) continue;
+
+        const from = String(p.at || '').trim().toUpperCase();
+        const to = curAt;
+        if (!from || !to || from === to) continue;
+
+        const seg = { from, to, ts: now, side: curSide || p.side || 'NPC' };
+        const list = MOVE_TRAILS.get(id) || [];
+        list.push(seg);
+        MOVE_TRAILS.set(id, list.slice(-TRAIL_MAX_SEGMENTS));
+      }
+
+      pruneTrails(now);
+    }
+
+    function sideTrailStyle(side) {
+      const s = String(side || 'NPC').toUpperCase();
+      if (s === 'PC') return { stroke: 'rgba(80,160,220,0.30)', fill: 'rgba(80,160,220,0.22)' };
+      if (s === 'EN') return { stroke: 'rgba(220,120,80,0.30)', fill: 'rgba(220,120,80,0.22)' };
+      return { stroke: 'rgba(120,120,120,0.28)', fill: 'rgba(120,120,120,0.18)' };
+    }
+
+    function drawArrowHead(x1, y1, x2, y2, sizePx) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const ang = Math.atan2(dy, dx);
+      const s = Number(sizePx || 8);
+
+      ctx.save();
+      ctx.translate(x2, y2);
+      ctx.rotate(ang);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-s, -s * 0.55);
+      ctx.lineTo(-s,  s * 0.55);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawFootsteps(x1, y1, x2, y2, dotR, stepPx) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 1) return;
+      const step = Math.max(6, Number(stepPx || (size * 0.65)));
+      const n = Math.max(2, Math.floor(dist / step));
+
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const x = x1 + dx * t;
+        const y = y1 + dy * t;
+        ctx.beginPath();
+        ctx.arc(x, y, dotR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawMoveTrails() {
+      const now = Date.now();
+      pruneTrails(now);
+
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      for (const segs of MOVE_TRAILS.values()) {
+        for (const s of (segs || [])) {
+          const p1 = labelToPixel(s.from);
+          const p2 = labelToPixel(s.to);
+          if (!p1 || !p2) continue;
+
+          const style = sideTrailStyle(s.side);
+          const age = Math.max(0, now - (s.ts || now));
+          const fade = Math.max(0, 1 - (age / TRAIL_TTL_MS));
+
+          // Dotted “footsteps” feel + a faint connecting stroke.
+          ctx.globalAlpha = 0.9 * fade;
+          ctx.strokeStyle = style.stroke;
+          ctx.fillStyle = style.fill;
+          ctx.lineWidth = 2;
+
+          ctx.setLineDash([6, 8]);
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+
+          ctx.setLineDash([]);
+          drawFootsteps(p1.x, p1.y, p2.x, p2.y, 2.2, size * 0.70);
+
+          // Arrow head at the destination for quick “direction” readability.
+          ctx.globalAlpha = 0.65 * fade;
+          drawArrowHead(p1.x, p1.y, p2.x, p2.y, 9);
+        }
+      }
+
+      ctx.restore();
+    }
 
     function loadSceneFromJsonTag() {
       const el = document.getElementById('scene-json');
@@ -1619,6 +1772,10 @@ BATTLEMAT ENGINE v3.37
       drawOpenings();
       drawObjects();
       drawHexOverlay();
+
+      // Movement trails (derived from last scene → current scene)
+      updateTrailsFromPending();
+      drawMoveTrails();
 
       const LABEL_DY = size * CONFIG.labels.dyFrac;
       ctx.font = '13px "Times New Roman", Georgia, "Century Schoolbook", "Book Antiqua", serif';
