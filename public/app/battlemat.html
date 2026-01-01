@@ -1853,8 +1853,6 @@
       'token.pc':     { url: `${SPRITE_BASE}/token_pc.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
       'token.en':     { url: `${SPRITE_BASE}/token_enemy.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
       'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'door.h':       { url: `${SPRITE_BASE}/door_h.png`,          wHex: 1.05, hHex: 0.38, ax: 0.5, ay: 0.5, shadow: false },
-      'door.v':       { url: `${SPRITE_BASE}/door_v.png`,          wHex: 0.38, hHex: 1.05, ax: 0.5, ay: 0.5, shadow: false },
       'door':         { url: `${SPRITE_BASE}/door.png`,            wHex: 1.05, hHex: 0.38, ax: 0.5, ay: 0.5, shadow: false }
     };
 
@@ -1931,6 +1929,15 @@
         if (def?.url) urls.add(def.url);
       }
 
+      // Openings (e.g., doors rendered as sprites)
+      for (const op of (sceneNorm?.openings || [])) {
+        const k = String(op?.kind || '').trim().toLowerCase();
+        if (k === 'door') {
+          const def = spriteDefForKey('door');
+          if (def?.url) urls.add(def.url);
+        }
+      }
+
       const promises = Array.from(urls).map(u => ensureImage(u).catch(() => null));
       await Promise.allSettled(promises);
     }
@@ -1947,6 +1954,10 @@
       for (const a of (sceneNorm?.actors || [])) {
         const k = spriteKeyForActor(a);
         if (k) keys.push('a:' + k);
+      }
+      for (const op of (sceneNorm?.openings || [])) {
+        const k = String(op?.kind || '').trim().toLowerCase();
+        if (k === 'door') keys.push('p:door');
       }
       keys.sort();
       return keys.join('|');
@@ -2004,6 +2015,37 @@
       ctx.restore();
 
       return true;
+    }
+
+    // Rotation helper:
+    // - Supports: rot / rotation / rotDeg (degrees)
+    // - Supports: orientation: 'h'|'v'|'horizontal'|'vertical'
+    // - Returns snapped degrees (0/90/180/270) for clean pixel art rotation.
+    function entityRotDeg(ent, fallbackDeg) {
+      if (!ent || typeof ent !== 'object') return (fallbackDeg ?? 0);
+
+      // explicit degrees
+      let v = (ent.rot ?? ent.rotation ?? ent.rotDeg);
+      if (v != null && v !== '') {
+        const n = Number(v);
+        if (Number.isFinite(n)) {
+          // normalize to [0,360)
+          let d = ((n % 360) + 360) % 360;
+          // snap to nearest 90 to keep things crisp
+          const snapped = Math.round(d / 90) * 90;
+          d = ((snapped % 360) + 360) % 360;
+          return d;
+        }
+      }
+
+      // semantic orientation
+      const o = String(ent.orientation ?? ent.orient ?? ent.dir ?? '').trim().toLowerCase();
+      if (o) {
+        if (o === 'v' || o === 'vert' || o === 'vertical') return 90;
+        if (o === 'h' || o === 'horiz' || o === 'horizontal') return 0;
+      }
+
+      return (fallbackDeg ?? 0);
     }
 
     // ====== COORDINATE SYSTEM & GRID MATH ======
@@ -2616,7 +2658,7 @@
         }
 
         const spriteKey = spriteKeyForObject(obj);
-        const rot = Number(obj.rot ?? 0);
+        const rot = entityRotDeg(obj, 0);
 
         if (spriteKey && isSpriteReady(spriteKey)) {
           const c = objectCentroidPx(cells);
@@ -2739,6 +2781,18 @@
         else if (wall === 'W') x = g.leftX;
         else continue;
 
+        const isDoor = (kind === 'door');
+        const isWindow = (kind === 'window');
+        const isOpen = (state === 'open');
+
+        // Door sprite (closed doors only). Default rotation is based on wall (E/W => vertical).
+        if (isDoor && !isOpen && isSpriteReady('door')) {
+          const wallRot = (wall === 'E' || wall === 'W') ? 90 : 0;
+          const rot = entityRotDeg(o, wallRot);
+          drawSpriteAt('door', x, y, rot, 1, 1);
+          continue;
+        }
+
         const thicknessAcross = Number(o.thicknessAcross ?? Math.max(CONFIG.opening.minAcross, g.thickness * CONFIG.opening.acrossMul));
         const spanAlong = (wall === 'N' || wall === 'S')
           ? Number(o.spanAlong ?? (CONFIG.opening.spanNSMul * size))
@@ -2750,7 +2804,8 @@
         ctx.save();
         ctx.translate(x, y);
 
-        const isDoor = (kind === 'door');
+        // (legacy rect rendering continues below)
+
         const isWindow = (kind === 'window');
         const isOpen = (state === 'open');
 
@@ -2794,9 +2849,10 @@
 
       const tokenKey = actorObj ? spriteKeyForActor(actorObj) : ((side === 'PC') ? 'token.pc' : (side === 'EN' ? 'token.en' : 'token.npc'));
       const alpha = dead ? 0.55 : 1.0;
+      const rot = actorObj ? entityRotDeg(actorObj, 0) : 0;
 
       if (tokenKey && isSpriteReady(tokenKey)) {
-        drawSpriteAt(tokenKey, x, y + (size * 0.10), 0, 1, alpha);
+        drawSpriteAt(tokenKey, x, y + (size * 0.10), rot, 1, alpha);
 
         ctx.save();
         ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
