@@ -583,14 +583,14 @@ BATTLEMAT ENGINE v3.36
       REFRESH.mode = mode;
       if (REFRESH.timer) { clearTimeout(REFRESH.timer); REFRESH.timer = null; }
 
-      // Optional one-shot override for the next tick delay.
       const o = opts || {};
+      // Optional one-shot override for the next tick delay.
       if (Object.prototype.hasOwnProperty.call(o, 'nextDelayOverrideMs')) {
         REFRESH.nextDelayOverrideMs = o.nextDelayOverrideMs;
       }
 
       setRefreshUI();
-      scheduleRefreshTick(true);
+      scheduleRefreshTick(Boolean(o.immediate));
     }
 
     function cycleRefreshMode() {
@@ -598,9 +598,9 @@ BATTLEMAT ENGINE v3.36
       if (REFRESH.mode === RefreshMode.OFF) {
         // Wake immediately, and treat this moment as “active” so we start at 2s.
         REFRESH.lastChangeAt = Date.now();
-        return setRefreshMode(RefreshMode.AUTO, { nextDelayOverrideMs: 0 });
+        return setRefreshMode(RefreshMode.AUTO, { nextDelayOverrideMs: 0, immediate: true });
       }
-      return setRefreshMode(RefreshMode.OFF);
+      return setRefreshMode(RefreshMode.OFF, { immediate: false });
     }
 
     function scheduleRefreshTick(immediate) {
@@ -672,27 +672,20 @@ BATTLEMAT ENGINE v3.36
     }
 
     async function refreshTick() {
-      try {
-        if (!REFRESH.battleId || REFRESH.mode === RefreshMode.OFF) return;
+      if (!REFRESH.battleId || REFRESH.mode === RefreshMode.OFF) return;
 
+      try {
         const { sceneObj, versionKey } = await fetchSceneAndVersionKey(REFRESH.battleId);
 
         const changed = (!versionKey) || (REFRESH.lastVersionKey !== versionKey);
         if (changed) {
           if (versionKey) REFRESH.lastVersionKey = versionKey;
           REFRESH.lastChangeAt = Date.now();
-
           applyScene(sceneObj);
-        } else {
-          // No change → the ladder naturally slows down via scheduleRefreshTick(). else if (REFRESH.mode === RefreshMode.SLOW && idleMs > SLOW_TO_OFF_IDLE_MS) {
-            REFRESH.mode = RefreshMode.OFF;
-          }
         }
-
-        setRefreshUI();
-        scheduleRefreshTick(false);
-      } catch (e) {
-        // Swallow transient errors and keep polling at the current cadence.
+      } catch (_) {
+        // Swallow transient errors and keep polling.
+      } finally {
         setRefreshUI();
         scheduleRefreshTick(false);
       }
