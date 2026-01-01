@@ -1129,7 +1129,7 @@ BATTLEMAT ENGINE v3.45
     function makeWoodTile(variant) {
       const c = offscreenTile(220, 220);
       const g = c.getContext('2d');
-      const v = String(variant || '').trim().toLowerCase();
+      const vRaw = String(variant || '').trim().toLowerCase();
 
       // Palettes
       const PAL = {
@@ -1138,55 +1138,116 @@ BATTLEMAT ENGINE v3.45
         dark:  { bg: '#7f6a52', plank: 'rgba(50, 32, 18, 0.22)', grain: 'rgba(20, 12, 7, 0.20)' },
         gray:  { bg: '#b7b1a9', plank: 'rgba(80, 75, 70, 0.14)', grain: 'rgba(35, 35, 35, 0.14)' },
       };
-      const P = PAL[v] || PAL.oak;
 
-      const rand = seededRng('wood:' + (v || 'oak'));
+      // Support variant flags like "wood:pine:horizontal" or "wood:oak:vertical".
+      // Default: oak = horizontal planks (Cross Keys vibe); others = vertical.
+      const baseVariant = vRaw.split(':')[0] || 'oak';
+      const flags = vRaw.split(':').slice(1);
+
+      let orient = (baseVariant === 'oak') ? 'h' : 'v';
+      const flagStr = flags.join(':');
+      if (flagStr.includes('horizontal') || flagStr.includes('h')) orient = 'h';
+      if (flagStr.includes('vertical') || flagStr.includes('v')) orient = 'v';
+
+      // Cross Keys vibe: cleaner oak planks (no knots/circles, fewer scratches)
+      const cleanOak = (baseVariant === 'oak');
+
+      const P = PAL[baseVariant] || PAL.oak;
+      const rand = seededRng('wood:' + (vRaw || 'oak'));
 
       g.fillStyle = P.bg;
       g.fillRect(0, 0, c.width, c.height);
 
-      const plankW = 28;
-      for (let x = 0; x < c.width + plankW; x += plankW) {
-        g.fillStyle = P.plank;
-        g.fillRect(x, 0, plankW, c.height);
+      const plank = 28;
 
-        // grain
-        g.strokeStyle = P.grain;
-        g.lineWidth = 1;
-        for (let i = 0; i < 6; i++) {
-          const y = rand() * c.height;
+      if (orient === 'h') {
+        // HORIZONTAL planks (seams are horizontal; planks run left→right)
+        for (let y = 0; y < c.height + plank; y += plank) {
+          g.fillStyle = P.plank;
+          g.fillRect(0, y, c.width, plank);
+          // grain (left→right)
+          g.strokeStyle = P.grain;
+          g.lineWidth = 1;
+          const grainN = (typeof cleanOak !== 'undefined' && cleanOak) ? 2 : 6;
+          for (let i = 0; i < grainN; i++) {
+            g.beginPath();
+            g.moveTo(0, y + 2 + rand() * (plank - 4));
+            g.bezierCurveTo(
+              c.width * 0.35, y + (plank * 0.50) + (rand() - 0.5) * 10,
+              c.width * 0.65, y + (plank * 0.50) + (rand() - 0.5) * 10,
+              c.width, y + 2 + rand() * (plank - 4)
+            );
+            g.stroke();
+
+            // subtle short grain scratches (disabled for clean oak)
+            if (!(typeof cleanOak !== 'undefined' && cleanOak)) {
+              const x = rand() * c.width;
+              g.globalAlpha = 0.65;
+              g.beginPath();
+              g.moveTo(x, y + 4 + rand() * (plank - 8));
+              g.lineTo(x + 18 + rand() * 22, y + 4 + rand() * (plank - 8));
+              g.stroke();
+              g.globalAlpha = 1;
+            }
+          }
+
+          // seams
+          g.strokeStyle = 'rgba(0,0,0,0.10)';
           g.beginPath();
-          g.moveTo(x + 2, y);
-          g.bezierCurveTo(
-            x + plankW * 0.35, y + (rand() - 0.5) * 18,
-            x + plankW * 0.65, y + (rand() - 0.5) * 18,
-            x + plankW - 2, y
-          );
+          g.moveTo(0, y + plank);
+          g.lineTo(c.width, y + plank);
           g.stroke();
+
+          // highlight strip
+          g.fillStyle = 'rgba(255,255,255,0.03)';
+          g.fillRect(0, y + 1, c.width, 2);
         }
+      } else {
+        // VERTICAL planks (original)
+        for (let x = 0; x < c.width + plank; x += plank) {
+          g.fillStyle = P.plank;
+          g.fillRect(x, 0, plank, c.height);
 
-        // seams
-        g.strokeStyle = 'rgba(0,0,0,0.10)';
-        g.beginPath();
-        g.moveTo(x + plankW, 0);
-        g.lineTo(x + plankW, c.height);
-        g.stroke();
+          // grain
+          g.strokeStyle = P.grain;
+          g.lineWidth = 1;
+          for (let i = 0; i < 6; i++) {
+            const y = rand() * c.height;
+            g.beginPath();
+            g.moveTo(x + 2, y);
+            g.bezierCurveTo(
+              x + plank * 0.35, y + (rand() - 0.5) * 18,
+              x + plank * 0.65, y + (rand() - 0.5) * 18,
+              x + plank - 2, y
+            );
+            g.stroke();
+          }
 
-        // highlight strip
-        g.fillStyle = 'rgba(255,255,255,0.03)';
-        g.fillRect(x + 1, 0, 2, c.height);
+          // seams
+          g.strokeStyle = 'rgba(0,0,0,0.10)';
+          g.beginPath();
+          g.moveTo(x + plank, 0);
+          g.lineTo(x + plank, c.height);
+          g.stroke();
+
+          // highlight strip
+          g.fillStyle = 'rgba(255,255,255,0.03)';
+          g.fillRect(x + 1, 0, 2, c.height);
+        }
       }
 
-      // knots
-      for (let k = 0; k < 14; k++) {
-        const x = rand() * c.width;
-        const y = rand() * c.height;
-        const r = 3 + rand() * 7;
-        g.strokeStyle = 'rgba(50, 25, 10, 0.18)';
-        g.lineWidth = 1;
-        g.beginPath();
-        g.ellipse(x, y, r * 1.2, r, rand() * Math.PI, 0, Math.PI * 2);
-        g.stroke();
+      // knots (disabled for clean oak to avoid repeating circle artifacts)
+      if (!(typeof cleanOak !== 'undefined' && cleanOak)) {
+        for (let k = 0; k < 14; k++) {
+          const x = rand() * c.width;
+          const y = rand() * c.height;
+          const r = 3 + rand() * 7;
+          g.strokeStyle = 'rgba(50, 25, 10, 0.18)';
+          g.lineWidth = 1;
+          g.beginPath();
+          g.ellipse(x, y, r * 1.2, r, rand() * Math.PI, 0, Math.PI * 2);
+          g.stroke();
+        }
       }
 
       return c;
@@ -2838,6 +2899,10 @@ BATTLEMAT ENGINE v3.45
         console.assert(typeof texturePatternFor === 'function', 'texturePatternFor should exist');
         console.assert(!!texturePatternFor('stone'), 'texturePatternFor(stone) should return a pattern');
         console.assert(typeof drawTexturedRoom === 'function', 'drawTexturedRoom should exist');
+
+        // wood texture should still generate a tile canvas
+        const wtile = textureTileFor('wood:oak');
+        console.assert(!!wtile && wtile.width > 0 && wtile.height > 0, 'wood:oak tile should exist');
       } catch (_) {}
     }
 
