@@ -1,6 +1,5 @@
-
 <!--
-BATTLEMAT ENGINE v3.38
+BATTLEMAT ENGINE v3.41
 
 - Copy this entire file into Canvas verbatim before combat.
 - During play, edit ONLY the SCENE block between:
@@ -34,30 +33,78 @@ BATTLEMAT ENGINE v3.38
       overflow: hidden; /* clip right side on small windows; never scale the mat */
     }
 
+    /* Two-column layout: battlemat + right stack */
     .layout {
-      width: max-content;
-      display: grid;
-      grid-template-columns: 940px 340px;
+      display: flex;
       gap: 12px;
-      align-items: stretch;
-      margin: 0 auto;
+      align-items: flex-start;
     }
 
-    canvas {
-      width: 940px;
-      height: 750px;
-      background: #d7d7d7;
-      border: 1px solid rgba(0,0,0,0.12);
-    }
-
-    aside {
-      background: #fff;
-      border: 1px solid rgba(0,0,0,0.12);
-      padding: 10px;
-      overflow: hidden;
-      display: grid;
-      grid-template-rows: auto 1fr;
+    /* Left column stacks: battlemat + compact key bar */
+    .mat-col {
+      display: flex;
+      flex-direction: column;
       gap: 10px;
+      align-items: flex-start;
+      flex: 0 0 auto;
+    }
+
+    /* Right column: fixed height to match canvas; narration expands */
+    aside[aria-label="Right panels"] {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 750px; /* match canvas height */
+      width: 360px;
+      flex: 0 0 360px;
+      min-height: 0;
+    }
+
+    /* Compact key bar under the battlemat */
+    .keybar {
+      width: 100%;
+      box-sizing: border-box;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.10);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 0.88rem;
+    }
+
+    .keybar-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .keybar .legend-swatch {
+      width: 18px;
+      height: 18px;
+      font-size: 10px;
+      margin-right: 5px;
+    }
+
+    .keybar-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .keybar-list li { white-space: nowrap; }
+
+    /* Pane */
+    .pane {
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.10);
+      border-radius: 10px;
+      padding: 10px;
+      box-sizing: border-box;
+      min-height: 0;
     }
 
     .panel-title {
@@ -65,6 +112,7 @@ BATTLEMAT ENGINE v3.38
       justify-content: space-between;
       align-items: baseline;
       gap: 10px;
+      margin-bottom: 8px;
     }
 
     .panel-title h3 {
@@ -95,89 +143,11 @@ BATTLEMAT ENGINE v3.38
     .refresh-btn:active { background: rgba(0,0,0,0.06); }
     .refresh-btn:focus { outline: 2px solid rgba(0,0,0,0.25); outline-offset: 2px; }
 
-    .refresh-info {
-      opacity: 0.75;
-      font-size: 0.85rem;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
-
     .status-wrap {
       overflow: auto;
       border: 1px solid rgba(0,0,0,0.10);
+      border-radius: 10px;
     }
-
-    .legend {
-      margin-top: 10px;
-      padding-top: 8px;
-      border-top: 1px solid rgba(0,0,0,0.12);
-      font-size: 0.9rem;
-    }
-
-    .legend-title {
-      font-weight: 650;
-      margin-bottom: 6px;
-    }
-
-    .legend-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px 10px;
-    }
-
-    .legend-swatch {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 20px;
-      height: 20px;
-      margin-right: 6px;
-      border-radius: 3px;
-      vertical-align: middle;
-      border: 1px solid rgba(0,0,0,0.6);
-      font-size: 11px;
-      font-weight: 700;
-      color: rgba(0,0,0,0.85);
-      line-height: 1;
-    }
-
-    .legend-swatch.door { background: #b07a3f; }
-    .legend-swatch.window { background: #cfe6f6; }
-    .legend-swatch.table { background: #b07a3f; border-radius: 50%; }
-    .legend-swatch.difficult { background: rgba(120,120,120,0.08); }
-
-    /* Hex-shaped legend swatch (matches battlemat hexes) */
-    .legend-swatch.hex {
-      position: relative;
-      z-index: 0;
-      border-radius: 0;
-      clip-path: polygon(
-        25% 6%,
-        75% 6%,
-        100% 50%,
-        75% 94%,
-        25% 94%,
-        0% 50%
-      );
-      border: none;
-    }
-
-    /* Border for clipped hex swatch: subtle outline behind */
-    .legend-swatch.hex::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: rgba(0,0,0,0.45);
-      clip-path: inherit;
-      transform: scale(1.12);
-      z-index: -1;
-    }
-
-    .legend-swatch.pc { background: rgba(80,160,220,0.95); border-radius: 50%; }
-    .legend-swatch.en { background: rgba(220,120,80,0.95); border-radius: 50%; }
 
     table {
       width: 100%;
@@ -216,14 +186,11 @@ BATTLEMAT ENGINE v3.38
     .side-en  { border-left: 4px solid rgba(220, 120, 80, 0.85); }
     .side-npc { border-left: 4px solid rgba(160, 160, 160, 0.85); }
 
-    /* Dead actors: desaturate row and side bar */
     tr.dead {
       background: rgba(0,0,0,0.04);
       color: rgba(0,0,0,0.55);
     }
-    tr.dead .subtle {
-      opacity: 0.5;
-    }
+    tr.dead .subtle { opacity: 0.5; }
     tr.dead.side-pc,
     tr.dead.side-en,
     tr.dead.side-npc {
@@ -235,18 +202,105 @@ BATTLEMAT ENGINE v3.38
       white-space: nowrap;
     }
 
-    /* Small inline diagnostics */
+    /* Single-line “last action” (replaces Math panel) */
+    #actionLine {
+      margin-top: 10px;
+      padding: 8px 10px;
+      border: 1px solid rgba(0,0,0,0.10);
+      border-radius: 10px;
+      background: rgba(0,0,0,0.03);
+      font-size: 0.90rem;
+      font-weight: 650;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    /* Small inline diagnostics (optional) */
     .diag {
-      margin-top: 6px;
+      margin-top: 10px;
       padding: 8px 10px;
       border: 1px solid rgba(0,0,0,0.10);
       background: rgba(0,0,0,0.03);
       font-size: 0.85rem;
       line-height: 1.25;
       overflow-wrap: anywhere;
+      border-radius: 10px;
     }
     .diag .bad { color: #b00020; font-weight: 650; }
-    .diag .ok { color: #0b6b0b; font-weight: 650; }
+    .diag .ok  { color: #0b6b0b; font-weight: 650; }
+
+
+    /* Narration grows to fill remaining space */
+    #paneNarration {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    #paneNarration textarea {
+      flex: 1 1 auto;
+      min-height: 140px;
+      resize: none;
+    }
+
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      resize: vertical;
+      padding: 8px 10px;
+      border: 1px solid rgba(0,0,0,0.18);
+      border-radius: 8px;
+      background: #fff;
+      font: inherit;
+      line-height: 1.25;
+    }
+
+    textarea.mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    /* Legend swatches */
+    .legend-swatch {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      margin-right: 6px;
+      border-radius: 3px;
+      vertical-align: middle;
+      border: 1px solid rgba(0,0,0,0.6);
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(0,0,0,0.85);
+      line-height: 1;
+    }
+
+    .legend-swatch.door { background: #b07a3f; }
+    .legend-swatch.window { background: #cfe6f6; }
+    .legend-swatch.table { background: #b07a3f; border-radius: 50%; }
+
+    .legend-swatch.hex {
+      position: relative;
+      z-index: 0;
+      border-radius: 0;
+      clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
+      border: none;
+    }
+
+    .legend-swatch.hex::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      clip-path: inherit;
+      transform: scale(1.12);
+      z-index: -1;
+    }
+
+    .legend-swatch.pc { background: rgba(80,160,220,0.95); border-radius: 50%; }
+    .legend-swatch.en { background: rgba(220,120,80,0.95); border-radius: 50%; }
   </style>
 </head>
 <body>
@@ -254,46 +308,62 @@ BATTLEMAT ENGINE v3.38
 
   <main>
     <div class="layout">
-      <canvas id="mat" width="940" height="750" aria-label="Hex battlemat"></canvas>
+      <div class="mat-col">
+        <canvas id="mat" width="940" height="750" aria-label="Hex battlemat"></canvas>
 
-      <aside aria-label="Combat status panel">
-        <div class="panel-title">
-          <h3>Initiative &amp; Status</h3>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div class="subtle" id="roundLine">Round —</div>
-            <button id="refreshModeBtn" class="refresh-btn" type="button" title="Toggle refresh (Auto ladder ↔ Off)">Refresh: 60s</button>
-            <div id="refreshInfo" class="refresh-info">Idle: —</div>
+        <!-- Key / Legend (compact, bottom of battlemat) -->
+        <section class="keybar" aria-label="Map key">
+          <div class="keybar-title">
+            <strong>Key</strong>
           </div>
-        </div>
-
-        <!-- URL/API diagnostics (helps debug /play/<id> routing) -->
-        <div class="diag" id="diagBox" aria-label="Diagnostics" style="display:none"></div>
-
-        <div class="status-wrap">
-          <table aria-label="Combatants">
-            <thead>
-              <tr>
-                <th style="width: 52%">Actor</th>
-                <th style="width: 18%">Init</th>
-                <th style="width: 30%">HP</th>
-              </tr>
-            </thead>
-            <tbody id="statusBody"></tbody>
-          </table>
-        </div>
-
-        <!-- Legend / Key -->
-        <div class="legend" aria-label="Map legend">
-          <div class="legend-title">Key</div>
-          <ul class="legend-list">
+          <ul class="keybar-list">
             <li><span class="legend-swatch door">D</span> Door</li>
             <li><span class="legend-swatch window">W</span> Window</li>
             <li><span class="legend-swatch table">T</span> Table <span class="subtle">(blocks)</span></li>
-            <li><span class="legend-swatch difficult hex">~</span> Difficult terrain</li>
+            <li><span class="legend-swatch hex">~</span> Difficult</li>
             <li><span class="legend-swatch pc">A</span> Player</li>
             <li><span class="legend-swatch en">W</span> Enemy</li>
           </ul>
-        </div>
+        </section>
+      </div>
+
+      <aside aria-label="Right panels">
+        <!-- Status -->
+        <section class="pane" aria-label="Combat status panel">
+          <div class="panel-title">
+            <h3>Status</h3>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="subtle" id="roundLine">Round —</div>
+              <button id="refreshModeBtn" class="refresh-btn" type="button" title="Toggle refresh">Refresh</button>
+            </div>
+          </div>
+
+          <!-- URL/API diagnostics (helps debug /play/<id> routing). Set DEBUG_DIAG=true to show. -->
+          <div class="diag" id="diagBox" aria-label="Diagnostics" style="display:none"></div>
+
+          <div class="status-wrap" aria-label="Status table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Actor</th>
+                  <th>Init</th>
+                  <th>HP</th>
+                </tr>
+              </thead>
+              <tbody id="statusBody"></tbody>
+            </table>
+          </div>
+
+          <div id="actionLine" aria-label="Last action"></div>
+        </section>
+
+        <!-- Narration -->
+        <section class="pane" id="paneNarration" aria-label="Narration">
+          <div class="panel-title">
+            <h3>Narration</h3>
+          </div>
+          <textarea id="narrationBox" rows="7" placeholder="Scene beats, GM notes, what just happened…"></textarea>
+        </section>
       </aside>
     </div>
   </main>
@@ -306,6 +376,7 @@ BATTLEMAT ENGINE v3.38
   <script type="application/json" id="scene-json">
 {
   "round": 1,
+  "lastAction": "🎲 16  ⚔️ Longsword  →  7 dmg",
   "rooms": [
     {
       "id": "room1",
@@ -346,108 +417,78 @@ BATTLEMAT ENGINE v3.38
     // DB / API WIRING (safe, minimal) — reads /play/<battle_id> and loads state
     // =====================================================================
 
-    // IMPORTANT:
-    // - Cloudflare _redirects rewrites /play/* -> /app/battlemat.html, but the browser URL stays /play/<id>.
-    // - Therefore, battle_id must be parsed from window.location.pathname.
-
     function getBattleIdFromUrl() {
-      // Primary: /play/<battle_id>
       const m = window.location.pathname.match(/^\/play\/([^\/?#]+)/i);
       if (m) return decodeURIComponent(m[1]);
-
-      // Fallback: ?battle_id=27 (handy for local debugging)
       const u = new URL(window.location.href);
       return u.searchParams.get('battle_id');
     }
 
-    // Set this to your Worker/API base. If your API is on the same origin, leave as ''.
-    // For your OpenAPI spec, the server is:
-    //   https://game-api.abbacasa-031.workers.dev
     const API_BASE = ''; // same origin
 
-    // Adjust to your actual endpoint path.
-    // Common patterns:
-    //   /api/battles/<id>
-    //   /battle/<id>
-    //   /battles/<id>
     function battleStateUrl(battleId) {
       return `${API_BASE}/api/battles/${encodeURIComponent(battleId)}`;
     }
 
-    // Save current scene to API (server-side proxy adds Authorization)
     async function saveSceneToApi(battleId, sceneObj) {
-      if (!battleId) {
-        throw new Error('saveSceneToApi called without battleId');
-      }
+      if (!battleId) throw new Error('saveSceneToApi called without battleId');
 
       const endpoint = battleStateUrl(battleId);
-
       const res = await fetch(endpoint, {
-        method: 'PUT', // (or POST/PATCH if you choose, but match your Astro route)
+        method: 'PUT',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
         cache: 'no-store',
-        body: JSON.stringify({
-          // send scene object; server will stringify to state_json if needed
-          state_json: sceneObj
-        })
+        body: JSON.stringify({ state_json: sceneObj })
       });
 
       const text = await res.text();
-      if (!res.ok) {
-        throw new Error(`Save failed: HTTP ${res.status} ${res.statusText || ''} :: ${text}`);
-      }
-
-      // Try to parse JSON response (but don’t crash if it isn’t JSON)
+      if (!res.ok) throw new Error(`Save failed: HTTP ${res.status} ${res.statusText || ''} :: ${text}`);
       try { return JSON.parse(text); } catch { return { ok: true, raw: text }; }
     }
 
-    // Validate that an object "looks like" a battlemat SCENE
-    // (prevents false "Loaded state" messages when API returns non-scene JSON)
     function looksLikeScene(obj) {
       if (!obj || typeof obj !== 'object') return false;
       return (
         Array.isArray(obj.rooms) ||
         Array.isArray(obj.actors) ||
         Array.isArray(obj.objects) ||
-        Array.isArray(obj.openings)
+        Array.isArray(obj.openings) ||
+        Array.isArray(obj.poi)
       );
     }
 
+    // Optional diagnostics (hide by default)
     const DEBUG_DIAG = false;
-
-
-    // Lightweight diagnostics UI (so you can see instantly what the page thinks)
     function setDiag(html) {
-      if (!DEBUG_DIAG) return;
       const box = document.getElementById('diagBox');
       if (!box) return;
+      if (!DEBUG_DIAG) {
+        box.style.display = 'none';
+        box.innerHTML = '';
+        return;
+      }
       box.style.display = 'block';
       box.innerHTML = html;
     }
 
-
     async function tryLoadSceneFromApi() {
       const battleId = getBattleIdFromUrl();
+      const endpoint = battleId ? battleStateUrl(battleId) : '(no battle_id)';
 
-      // Show what we parsed, always (super helpful during bring-up)
-      const url = battleId ? battleStateUrl(battleId) : '(no battle_id)';
       setDiag(
         `URL Path: <code>${escapeHtml(window.location.pathname)}</code><br>` +
         `battle_id: <span class="${battleId ? 'ok' : 'bad'}">${escapeHtml(String(battleId || 'NONE'))}</span><br>` +
-        `Fetch: <code>${escapeHtml(url)}</code>`
+        `Fetch: <code>${escapeHtml(endpoint)}</code>`
       );
 
       if (!battleId) {
-        // Keep default embedded SCENE
         const roundLine = document.getElementById('roundLine');
         if (roundLine) roundLine.textContent = 'No battle_id in URL';
         return false;
       }
-
-      const endpoint = battleStateUrl(battleId);
       try {
         const res = await fetch(endpoint, {
           method: 'GET',
@@ -460,38 +501,28 @@ BATTLEMAT ENGINE v3.38
             `URL Path: <code>${escapeHtml(window.location.pathname)}</code><br>` +
             `battle_id: <span class="ok">${escapeHtml(String(battleId))}</span><br>` +
             `Fetch: <code>${escapeHtml(endpoint)}</code><br>` +
-            `<span class="bad">HTTP ${res.status}: ${escapeHtml(res.statusText || 'Error')}</span>`
+            `<span class="bad">HTTP ${escapeHtml(String(res.status))}: ${escapeHtml(res.statusText || 'Error')}</span>`
           );
           return false;
         }
 
         const data = await res.json();
 
-        // Expect either:
-        //  - { state_json: "{...}" }
-        //  - { state: { ... } }
-        //  - { ...sceneObject }
         let sceneObj = null;
-        if (data && typeof data.state_json === 'string') {
-          sceneObj = JSON.parse(data.state_json);
-        } else if (data && typeof data.state === 'object') {
-          sceneObj = data.state;
-        } else if (data && typeof data === 'object') {
-          // If your API returns the scene directly
-          sceneObj = data;
-        }
+        if (data && typeof data.state_json === 'string') sceneObj = JSON.parse(data.state_json);
+        else if (data && typeof data.state === 'object') sceneObj = data.state;
+        else if (data && typeof data === 'object') sceneObj = data;
 
         if (!looksLikeScene(sceneObj)) {
           setDiag(
             `URL Path: <code>${escapeHtml(window.location.pathname)}</code><br>` +
             `battle_id: <span class="ok">${escapeHtml(String(battleId))}</span><br>` +
             `Fetch: <code>${escapeHtml(endpoint)}</code><br>` +
-            `<span class="bad">API returned JSON but it does not look like a SCENE (missing rooms/actors/objects/openings). Using embedded default.</span>`
+            `<span class="bad">API returned JSON but it does not look like a SCENE. Using embedded default.</span>`
           );
           return false;
         }
 
-        // Overwrite the embedded SCENE JSON with the loaded one (single source of truth)
         const sceneTag = document.getElementById('scene-json');
         if (sceneTag) sceneTag.textContent = JSON.stringify(sceneObj, null, 2);
 
@@ -506,7 +537,7 @@ BATTLEMAT ENGINE v3.38
       } catch (e) {
         setDiag(
           `URL Path: <code>${escapeHtml(window.location.pathname)}</code><br>` +
-          `battle_id: <span class="ok">${escapeHtml(String(battleId))}</span><br>` +
+          `battle_id: <span class="ok">${escapeHtml(String(battleId || ''))}</span><br>` +
           `Fetch: <code>${escapeHtml(endpoint)}</code><br>` +
           `<span class="bad">Fetch/parse error: ${escapeHtml(e && e.message ? e.message : String(e))}</span>`
         );
@@ -515,117 +546,106 @@ BATTLEMAT ENGINE v3.38
     }
 
     // =====================================================================
-    // AUTO-REFRESH (ladder)
-    // - Auto ladder by idle time since last detected change:
-    //     <60s  -> 5s
-    //     <3m   -> 15s
-    //     <5m   -> 30s
-    //     <10m  -> 60s
-    //     >=10m -> Off
-    // - Button toggles: Auto ↔ Off
+    // AUTO-REFRESH (multi-step)
+    // - 5s (FAST), 15s, 30s, 60s, Off
+    // - Downshift:
+    //     FAST→15s after 60s idle
+    //     15s→30s after 90s idle
+    //     30s→60s after 120s idle
+    //     60s→Off after 5m idle
+    // - Upshift:
+    //     if a change is detected and we are not FAST, snap back to FAST
     // =====================================================================
 
-    const RefreshMode = { AUTO: 'auto', OFF: 'off' };
+    const RefreshMode = { FAST: 'fast', S15: '15s', S30: '30s', S60: '60s', OFF: 'off' };
 
-    // Ladder thresholds
-    const IDLE_5S_MS    = 60000;   // <60s
-    const IDLE_15S_MS   = 180000;  // <3m
-    const IDLE_30S_MS   = 300000;  // <5m
-    const IDLE_60S_MS   = 600000;  // <10m
+    const FAST_MS = 5000;
+    const S15_MS = 15000;
+    const S30_MS = 30000;
+    const S60_MS = 60000;
 
-    function autoDelayFromIdle(idleMs) {
-      if (idleMs < IDLE_5S_MS)  return 5000;
-      if (idleMs < IDLE_15S_MS) return 15000;
-      if (idleMs < IDLE_30S_MS) return 30000;
-      if (idleMs < IDLE_60S_MS) return 60000;
-      return null; // Off
-    }
-
-    // Hide the idle counter in the UI (useful for debugging, noisy in play)
-    const SHOW_IDLE_TIMER = false;
+    // Idle thresholds (match v3.38 ladder intent)
+    // FAST→15s after 60s idle
+    // 15s→30s after 3m idle
+    // 30s→60s after 5m idle
+    // 60s→Off after 10m idle
+    const FAST_TO_15_IDLE_MS = 60000;
+    const S15_TO_30_IDLE_MS = 180000;
+    const S30_TO_60_IDLE_MS = 300000;
+    const S60_TO_OFF_IDLE_MS = 600000;
 
     const REFRESH = {
-      mode: RefreshMode.AUTO,
+      mode: RefreshMode.S60,
       timer: null,
       battleId: null,
       lastVersionKey: null,
       lastChangeAt: Date.now(),
-      nextDelayOverrideMs: null,
     };
+
+    function modeLabel(mode) {
+      if (mode === RefreshMode.FAST) return 'Refresh: 5s';
+      if (mode === RefreshMode.S15) return 'Refresh: 15s';
+      if (mode === RefreshMode.S30) return 'Refresh: 30s';
+      if (mode === RefreshMode.S60) return 'Refresh: 60s';
+      return 'Refresh: Off';
+    }
+
+    function modeDelayMs(mode) {
+      if (mode === RefreshMode.FAST) return FAST_MS;
+      if (mode === RefreshMode.S15) return S15_MS;
+      if (mode === RefreshMode.S30) return S30_MS;
+      if (mode === RefreshMode.S60) return S60_MS;
+      return null;
+    }
 
     function setRefreshUI() {
       const btn = document.getElementById('refreshModeBtn');
-      const info = document.getElementById('refreshInfo');
-      if (btn) {
-        if (REFRESH.mode === RefreshMode.OFF) {
-          btn.textContent = 'Refresh: Off';
-        } else {
-          const idleMs = Date.now() - (REFRESH.lastChangeAt || Date.now());
-          const d = (REFRESH.nextDelayOverrideMs != null) ? REFRESH.nextDelayOverrideMs : autoDelayFromIdle(idleMs);
-          const secs = d == null ? 0 : Math.round(d / 1000);
-          btn.textContent = `Refresh: ${secs}s`;
-        }
-        btn.title = 'Toggle refresh (Auto ladder ↔ Off)';
-      }
-      if (info) {
-        if (!SHOW_IDLE_TIMER) {
-          info.textContent = '';
-          info.style.display = 'none';
-        } else {
-          info.style.display = '';
-          const idleSec = Math.max(0, Math.floor((Date.now() - (REFRESH.lastChangeAt || Date.now())) / 1000));
-          info.textContent = `Idle: ${idleSec}s`;
-        }
-      }
+      if (!btn) return;
+      btn.textContent = modeLabel(REFRESH.mode);
+      btn.title = (REFRESH.mode === RefreshMode.OFF)
+        ? 'Enable refresh (starts at 5s)'
+        : 'Disable refresh';
     }
 
-    function setRefreshMode(mode, opts) {
+    function setRefreshMode(mode) {
       REFRESH.mode = mode;
       if (REFRESH.timer) { clearTimeout(REFRESH.timer); REFRESH.timer = null; }
-
-      const o = opts || {};
-      // Optional one-shot override for the next tick delay.
-      if (Object.prototype.hasOwnProperty.call(o, 'nextDelayOverrideMs')) {
-        REFRESH.nextDelayOverrideMs = o.nextDelayOverrideMs;
-      }
-
       setRefreshUI();
-      scheduleRefreshTick(Boolean(o.immediate));
+      scheduleRefreshTick(true);
     }
 
-    function cycleRefreshMode() {
-      // Toggle: Auto ↔ Off
+    function toggleRefreshAuto() {
+      // Off → Auto (always start FAST/5s)
       if (REFRESH.mode === RefreshMode.OFF) {
-        // Wake immediately, and treat this moment as “active” so we start at 2s.
         REFRESH.lastChangeAt = Date.now();
-        return setRefreshMode(RefreshMode.AUTO, { nextDelayOverrideMs: 0, immediate: true });
+        // If we have a battleId, remember that Auto is enabled for this battle.
+        try {
+          if (REFRESH.battleId) {
+            localStorage.setItem(`battlemat:refresh:auto:${REFRESH.battleId}`, 'auto');
+            localStorage.setItem(`battlemat:refresh:last:${REFRESH.battleId}`, RefreshMode.FAST);
+          }
+        } catch (_) {}
+        setRefreshMode(RefreshMode.FAST);
+        return;
       }
-      return setRefreshMode(RefreshMode.OFF, { immediate: false });
+
+      // Auto → Off
+      try {
+        if (REFRESH.battleId) {
+          localStorage.setItem(`battlemat:refresh:last:${REFRESH.battleId}`, REFRESH.mode);
+          localStorage.setItem(`battlemat:refresh:auto:${REFRESH.battleId}`, 'off');
+        }
+      } catch (_) {}
+      setRefreshMode(RefreshMode.OFF);
     }
 
     function scheduleRefreshTick(immediate) {
       if (REFRESH.timer) { clearTimeout(REFRESH.timer); REFRESH.timer = null; }
-      if (!REFRESH.battleId) return;
+      // Allow ticking even when battleId is missing (Canvas preview / local-only mode).
+      if (REFRESH.mode === RefreshMode.OFF) return;
       if (REFRESH.mode === RefreshMode.OFF) return;
 
-      // One-shot override beats everything (used on boot + manual wake)
-      if (REFRESH.nextDelayOverrideMs != null) {
-        const d = REFRESH.nextDelayOverrideMs;
-        REFRESH.nextDelayOverrideMs = null;
-        const delay = immediate ? 0 : d;
-        REFRESH.timer = setTimeout(refreshTick, delay);
-        return;
-      }
-
-      const idleMs = Date.now() - (REFRESH.lastChangeAt || Date.now());
-      const d = autoDelayFromIdle(idleMs);
-      if (d == null) {
-        REFRESH.mode = RefreshMode.OFF;
-        setRefreshUI();
-        return;
-      }
-
-      const delay = immediate ? 0 : d;
+      const delay = immediate ? 0 : modeDelayMs(REFRESH.mode);
       REFRESH.timer = setTimeout(refreshTick, delay);
     }
 
@@ -656,21 +676,12 @@ BATTLEMAT ENGINE v3.38
       const data = await res.json();
 
       let sceneObj = null;
-      if (data && typeof data.state_json === 'string') {
-        sceneObj = JSON.parse(data.state_json);
-      } else if (data && typeof data.state === 'object') {
-        sceneObj = data.state;
-      } else if (data && typeof data === 'object') {
-        sceneObj = data;
-      }
+      if (data && typeof data.state_json === 'string') sceneObj = JSON.parse(data.state_json);
+      else if (data && typeof data.state === 'object') sceneObj = data.state;
+      else if (data && typeof data === 'object') sceneObj = data;
 
-      if (!looksLikeScene(sceneObj)) {
-        throw new Error('API JSON did not look like a SCENE');
-      }
+      if (!looksLikeScene(sceneObj)) throw new Error('API JSON did not look like a SCENE');
 
-      // Prefer a stable version key from the API wrapper.
-      // If the API returns the scene directly without version/updated_at, we fall back to null,
-      // which means we’ll re-render each tick (still fine for FAST mode).
       let versionKey = null;
       if (data && (typeof data.version === 'number' || typeof data.version === 'string')) {
         versionKey = `v:${String(data.version)}`;
@@ -682,41 +693,79 @@ BATTLEMAT ENGINE v3.38
     }
 
     async function refreshTick() {
-      if (!REFRESH.battleId || REFRESH.mode === RefreshMode.OFF) return;
-
       try {
+        if (REFRESH.mode === RefreshMode.OFF) return;
+
+        // If we don't have a battleId (e.g., Canvas preview), we still "tick" so
+        // the user can see the Auto/Off behavior and idle backoff.
+        if (!REFRESH.battleId) {
+          safeDrawGrid();
+          const idleMs = Date.now() - (REFRESH.lastChangeAt || Date.now());
+          if (REFRESH.mode === RefreshMode.FAST && idleMs > FAST_TO_15_IDLE_MS) {
+            REFRESH.mode = RefreshMode.S15;
+          } else if (REFRESH.mode === RefreshMode.S15 && idleMs > S15_TO_30_IDLE_MS) {
+            REFRESH.mode = RefreshMode.S30;
+          } else if (REFRESH.mode === RefreshMode.S30 && idleMs > S30_TO_60_IDLE_MS) {
+            REFRESH.mode = RefreshMode.S60;
+          } else if (REFRESH.mode === RefreshMode.S60 && idleMs > S60_TO_OFF_IDLE_MS) {
+            REFRESH.mode = RefreshMode.OFF;
+          }
+          setRefreshUI();
+          scheduleRefreshTick(false);
+          return;
+        }
+
         const { sceneObj, versionKey } = await fetchSceneAndVersionKey(REFRESH.battleId);
 
         const changed = (!versionKey) || (REFRESH.lastVersionKey !== versionKey);
         if (changed) {
           if (versionKey) REFRESH.lastVersionKey = versionKey;
           REFRESH.lastChangeAt = Date.now();
+
+          // Snap back to FAST if we detect activity
+          if (REFRESH.mode !== RefreshMode.FAST) {
+            REFRESH.mode = RefreshMode.FAST;
+          }
+
           applyScene(sceneObj);
+        } else {
+          const idleMs = Date.now() - (REFRESH.lastChangeAt || Date.now());
+
+          if (REFRESH.mode === RefreshMode.FAST && idleMs > FAST_TO_15_IDLE_MS) {
+            REFRESH.mode = RefreshMode.S15;
+          } else if (REFRESH.mode === RefreshMode.S15 && idleMs > S15_TO_30_IDLE_MS) {
+            REFRESH.mode = RefreshMode.S30;
+          } else if (REFRESH.mode === RefreshMode.S30 && idleMs > S30_TO_60_IDLE_MS) {
+            REFRESH.mode = RefreshMode.S60;
+          } else if (REFRESH.mode === RefreshMode.S60 && idleMs > S60_TO_OFF_IDLE_MS) {
+            REFRESH.mode = RefreshMode.OFF;
+          }
         }
-      } catch (_) {
+
+        setRefreshUI();
+        scheduleRefreshTick(false);
+      } catch {
         // Swallow transient errors and keep polling.
-      } finally {
         setRefreshUI();
         scheduleRefreshTick(false);
       }
     }
 
-    // Wire up the button once.
-    document.getElementById('refreshModeBtn')?.addEventListener('click', cycleRefreshMode);
-
+    document.getElementById('refreshModeBtn')?.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      toggleRefreshAuto();
+    });
 
     // =====================================================================
     // ENGINE (do not edit during play)
     // =====================================================================
 
-    // Scene loader state (prevents blank-mat failures from bad edits)
     let SCENE = {};
     let LAST_GOOD_SCENE = null;
     let SCENE_PARSE_ERROR = null;
 
     // ====== MOVEMENT TRAILS (lightweight, derived) ======
-    // Purpose: show where actors *came from* between commits, even if we don’t know the exact path yet.
-    // Later, a pathfinding API can supply step-by-step paths; this is a visual “good enough” now.
+    // Purpose: show where actors *came from* between commits, even if we don’t know the exact hex-by-hex path.
     const TRAIL_TTL_MS = 90_000;     // keep recent trails (ms)
     const TRAIL_MAX_SEGMENTS = 24;  // per-actor cap
     let PENDING_PREV_POS = null;    // Map(actorId -> { at, side }) captured just before applyScene()
@@ -833,7 +882,6 @@ BATTLEMAT ENGINE v3.38
           const age = Math.max(0, now - (s.ts || now));
           const fade = Math.max(0, 1 - (age / TRAIL_TTL_MS));
 
-          // Dotted “footsteps” feel + a faint connecting stroke.
           ctx.globalAlpha = 0.9 * fade;
           ctx.strokeStyle = style.stroke;
           ctx.fillStyle = style.fill;
@@ -848,7 +896,6 @@ BATTLEMAT ENGINE v3.38
           ctx.setLineDash([]);
           drawFootsteps(p1.x, p1.y, p2.x, p2.y, 2.2, size * 0.70);
 
-          // Arrow head at the destination for quick “direction” readability.
           ctx.globalAlpha = 0.65 * fade;
           drawArrowHead(p1.x, p1.y, p2.x, p2.y, 9);
         }
@@ -887,27 +934,17 @@ BATTLEMAT ENGINE v3.38
     const SQRT3 = Math.sqrt(3);
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-    // Cached room geometry for a single draw pass
     let ROOM_GEOMS = null;
-
-    // Normalized, validated scene snapshot for a single draw pass
     let SCENE_NORM = null;
 
-    // ====== CONFIG (tweakable constants) ======
-    // Centralized "magic numbers" so visual tuning is safe and obvious.
     const CONFIG = {
-      room: {
-        yInsetFrac: 0.25,      // fraction of hex height to inset top/bottom wall band
-      },
-      labels: {
-        dyFrac: 0.70,          // vertical offset inside each hex
-        fillAlpha: 0.35,       // opacity for grid labels
-      },
+      room: { yInsetFrac: 0.25 },
+      labels: { dyFrac: 0.70, fillAlpha: 0.35 },
       opening: {
-        minAcross: 18,         // minimum thickness across the wall
-        acrossMul: 1.05,       // scale relative to wall thickness
-        spanNSMul: 1.5,        // span along N/S walls in hex radii
-        spanEWMul: 1.0,        // span along E/W walls in (SQRT3 * size)
+        minAcross: 18,
+        acrossMul: 1.05,
+        spanNSMul: 1.5,
+        spanEWMul: 1.0,
       },
       grid: {
         baseStrokeW: 1.2,
@@ -919,38 +956,24 @@ BATTLEMAT ENGINE v3.38
 
     // =====================================================================
     // SPRITES (Option 2 foundation)
-    // - Deterministic: scene state chooses *what*, renderer chooses *how*
-    // - Safe: if an asset is missing or not loaded, we fall back to vector drawing
     // =====================================================================
 
-    // Host your sprite PNGs/SVGs under your site, e.g. /public/assets/sprites/
-    // Example paths used below:
-    //   /assets/sprites/table_round.png
-    //   /assets/sprites/pillar_stone.png
-    //   /assets/sprites/token_pc.png
     const SPRITE_BASE = '/assets/sprites';
 
-    // Per-sprite draw parameters.
-    // - wHex/hHex: approximate size in “hex units” (1 hex wide ≈ 2*size px; 1 hex tall ≈ SQRT3*size px)
-    // - ax/ay: anchor in sprite space (0..1). ax=0.5, ay=0.5 means centered; ay>0.5 feels grounded.
-    // - shadow: whether to draw a simple soft shadow ellipse.
     const SPRITE_DEFS = {
-      // Objects
       'table':        { url: `${SPRITE_BASE}/table_round.png`,    wHex: 1.8, hHex: 1.8, ax: 0.5, ay: 0.52, shadow: true },
       'table.round':  { url: `${SPRITE_BASE}/table_round.png`,    wHex: 1.8, hHex: 1.8, ax: 0.5, ay: 0.52, shadow: true },
       'table.rect':   { url: `${SPRITE_BASE}/table_rect.png`,     wHex: 2.2, hHex: 1.6, ax: 0.5, ay: 0.55, shadow: true },
       'sarcophagus':  { url: `${SPRITE_BASE}/sarcophagus.png`,    wHex: 2.4, hHex: 1.4, ax: 0.5, ay: 0.58, shadow: true },
       'pillar':       { url: `${SPRITE_BASE}/pillar_stone.png`,   wHex: 1.2, hHex: 1.2, ax: 0.5, ay: 0.60, shadow: true },
       'rect':         { url: `${SPRITE_BASE}/crate_rect.png`,     wHex: 2.0, hHex: 1.4, ax: 0.5, ay: 0.58, shadow: true },
-
-      // Tokens
       'token.pc':     { url: `${SPRITE_BASE}/token_pc.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
       'token.en':     { url: `${SPRITE_BASE}/token_enemy.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
       'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true }
     };
 
-    const SPRITE_CACHE = new Map();      // url -> HTMLImageElement
-    const SPRITE_PROMISES = new Map();   // url -> Promise<HTMLImageElement>
+    const SPRITE_CACHE = new Map();
+    const SPRITE_PROMISES = new Map();
 
     function spriteDefForKey(key) {
       if (!key) return null;
@@ -959,18 +982,15 @@ BATTLEMAT ENGINE v3.38
     }
 
     function spriteKeyForObject(obj) {
-      // Prefer explicit override: obj.sprite = "table_round_oak" etc.
-      // Then fall back to kind.
       const s = obj && obj.sprite ? String(obj.sprite).trim().toLowerCase() : '';
       if (s && SPRITE_DEFS[s]) return s;
+
       const k = obj && obj.kind ? String(obj.kind).trim().toLowerCase() : '';
-      // Allow hierarchical kinds: table.round -> try exact then base "table"
       if (k && SPRITE_DEFS[k]) return k;
       if (k && k.includes('.')) {
         const base = k.split('.')[0];
         if (SPRITE_DEFS[base]) return base;
       }
-      if (k && SPRITE_DEFS[k]) return k;
       return null;
     }
 
@@ -1013,14 +1033,12 @@ BATTLEMAT ENGINE v3.38
     async function preloadSceneSprites(sceneNorm) {
       const urls = new Set();
 
-      // Objects
       for (const o of (sceneNorm?.objects || [])) {
         const key = spriteKeyForObject(o);
         const def = spriteDefForKey(key);
         if (def?.url) urls.add(def.url);
       }
 
-      // Actors
       for (const a of (sceneNorm?.actors || [])) {
         const key = spriteKeyForActor(a);
         const def = spriteDefForKey(key);
@@ -1031,7 +1049,6 @@ BATTLEMAT ENGINE v3.38
       await Promise.allSettled(promises);
     }
 
-    // Kick off async sprite loading and schedule a redraw when done.
     let LAST_SPRITE_KEYSET = '';
     let SPRITE_REDRAW_SCHEDULED = false;
 
@@ -1089,9 +1106,7 @@ BATTLEMAT ENGINE v3.38
       const ax = (def.ax ?? 0.5);
       const ay = (def.ay ?? 0.5);
 
-      // Optional soft shadow (behind sprite)
       if (def.shadow) {
-        // Place shadow slightly “below” the anchor to feel grounded
         drawSoftShadow(x + 2, y + (h * 0.12), w, h, 0.16);
       }
 
@@ -1106,7 +1121,6 @@ BATTLEMAT ENGINE v3.38
     }
 
     // ====== COORDINATE SYSTEM & GRID MATH ======
-    // r=0 is the bottom. Alternate column offset so A/C/E align; B/D/F align.
     function qrToPixel(q, r) {
       const drawR = (rows - 1 - r);
       const columnOffset = (q % 2 === 0) ? 0 : 0.5;
@@ -1131,9 +1145,7 @@ BATTLEMAT ENGINE v3.38
       ctx.closePath();
     }
 
-    function labelFor(q, r) {
-      return `${letters[q]}${r + 1}`;
-    }
+    function labelFor(q, r) { return `${letters[q]}${r + 1}`; }
 
     function parseLabel(label) {
       const m = String(label).trim().toUpperCase().match(/^([A-Z])([0-9]{1,2})$/);
@@ -1158,7 +1170,6 @@ BATTLEMAT ENGINE v3.38
         try { console.warn(`[Battlemat] ${msg}`, obj ?? ''); } catch (_) {}
       };
 
-      // ---- Rooms ----
       const roomsIn = Array.isArray(src.rooms) ? src.rooms : [];
       const roomsOut = [];
       const roomIds = new Set();
@@ -1190,7 +1201,6 @@ BATTLEMAT ENGINE v3.38
         });
       }
 
-      // ---- Openings ----
       const openingsIn = Array.isArray(src.openings) ? src.openings : [];
       const openingsOut = [];
       for (let i = 0; i < openingsIn.length; i++) {
@@ -1216,17 +1226,9 @@ BATTLEMAT ENGINE v3.38
           continue;
         }
         const state = String((o.state ?? 'closed')).toLowerCase();
-        openingsOut.push({
-          ...o,
-          kind,
-          room,
-          wall,
-          at,
-          state
-        });
+        openingsOut.push({ ...o, kind, room, wall, at, state });
       }
 
-      // ---- Objects ----
       const objectsIn = Array.isArray(src.objects) ? src.objects : [];
       const objectsOut = [];
       for (let i = 0; i < objectsIn.length; i++) {
@@ -1241,7 +1243,6 @@ BATTLEMAT ENGINE v3.38
           cells = [String(o.at).trim().toUpperCase()];
         }
 
-        // Validate cells
         cells = cells.filter(lab => !!parseLabel(lab));
         if (!cells.length) {
           warn('Object skipped: missing/invalid at/cells', o);
@@ -1258,7 +1259,6 @@ BATTLEMAT ENGINE v3.38
         });
       }
 
-      // ---- Actors ----
       const actorsIn = Array.isArray(src.actors) ? src.actors : [];
       const actorsOut = [];
       for (let i = 0; i < actorsIn.length; i++) {
@@ -1269,21 +1269,244 @@ BATTLEMAT ENGINE v3.38
           continue;
         }
         const side = String(a.side || 'NPC').toUpperCase();
-        actorsOut.push({
-          ...a,
-          at,
-          side: (side === 'PC' || side === 'EN') ? side : 'NPC'
-        });
+        actorsOut.push({ ...a, at, side: (side === 'PC' || side === 'EN') ? side : 'NPC' });
+      }
+
+      // POI (annotations) — preserved, but only 'arrow' is rendered today.
+      const poiIn = Array.isArray(src.poi) ? src.poi : [];
+      const poiOut = [];
+      const poiIds = new Set();
+
+      for (let i = 0; i < poiIn.length; i++) {
+        const p = poiIn[i] || {};
+        const type = String(p.type || '').trim().toLowerCase();
+        if (!type) continue;
+
+        let id = String(p.id || '').trim();
+        if (!id) id = `poi_${i + 1}`;
+        if (poiIds.has(id)) {
+          let k = 2;
+          while (poiIds.has(`${id}_${k}`)) k++;
+          id = `${id}_${k}`;
+        }
+        poiIds.add(id);
+
+        if (type === 'arrow') {
+          const from = String(p.from || '').trim().toUpperCase();
+          const to = String(p.to || '').trim().toUpperCase();
+          if (!parseLabel(from) || !parseLabel(to)) {
+            warn('POI arrow skipped: invalid from/to', p);
+            continue;
+          }
+          poiOut.push({
+            ...p,
+            id,
+            type,
+            from,
+            to,
+            color: String(p.color || 'rgba(40,40,40,0.65)'),
+            width: Number(p.width ?? 4),
+            label: (p.label != null) ? String(p.label) : ''
+          });
+          continue;
+        }
+
+        poiOut.push({ ...p, id, type });
       }
 
       return {
         round: Number(src.round ?? 1),
+        lastAction: String(src.lastAction ?? src.last_action ?? src.action ?? ''),
         rooms: roomsOut,
         openings: openingsOut,
         objects: objectsOut,
-        actors: actorsOut
+        actors: actorsOut,
+        poi: poiOut
       };
     }
+
+    // ====== POI (Annotations) ======
+    function drawArrowPx(x1, y1, x2, y2, color, width, label) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len = Math.max(1, Math.hypot(dx, dy));
+      const ux = dx / len;
+      const uy = dy / len;
+
+      const inset = size * 0.55;
+      const sx = x1 + ux * inset;
+      const sy = y1 + uy * inset;
+      const ex = x2 - ux * inset;
+      const ey = y2 - uy * inset;
+
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      // Outline
+      ctx.globalAlpha = 0.35;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.strokeStyle = 'rgba(255,255,255,1)';
+      ctx.lineWidth = Math.max(3, Number(width || 4) + 2);
+      ctx.stroke();
+
+      // Main
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.strokeStyle = color || 'rgba(40,40,40,0.65)';
+      ctx.lineWidth = Math.max(2, Number(width || 4));
+      ctx.stroke();
+
+      // Arrow head
+      const headLen = Math.max(10, size * 0.45);
+      const headW = headLen * 0.75;
+      const angle = Math.atan2(ey - sy, ex - sx);
+
+      ctx.save();
+      ctx.translate(ex, ey);
+      ctx.rotate(angle);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-headLen, headW * 0.5);
+      ctx.lineTo(-headLen, -headW * 0.5);
+      ctx.closePath();
+      ctx.fillStyle = color || 'rgba(40,40,40,0.65)';
+      ctx.fill();
+      ctx.restore();
+
+      if (label) {
+        const mx = (sx + ex) / 2;
+        const my = (sy + ey) / 2;
+        const txt = String(label).slice(0, 20);
+        ctx.font = 'bold 12px ui-monospace, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillStyle = 'rgba(255,255,255,0.90)';
+        ctx.fillText(txt, mx, my - 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.fillText(txt, mx, my - 3);
+      }
+
+      ctx.restore();
+    }
+
+    const POI_DRAG = { active: false, from: null, to: null };
+
+    function drawPoi() {
+      const poi = Array.isArray(SCENE_NORM?.poi) ? SCENE_NORM.poi : [];
+      for (const p of poi) {
+        if (!p || String(p.type || '').toLowerCase() !== 'arrow') continue;
+        const a = labelToPixel(p.from);
+        const b = labelToPixel(p.to);
+        if (!a || !b) continue;
+        drawArrowPx(a.x, a.y, b.x, b.y, p.color, p.width, p.label);
+      }
+
+      if (POI_DRAG.active && POI_DRAG.from && POI_DRAG.to) {
+        const a = labelToPixel(POI_DRAG.from);
+        const b = labelToPixel(POI_DRAG.to);
+        if (a && b) drawArrowPx(a.x, a.y, b.x, b.y, 'rgba(40,40,40,0.40)', 3, '');
+      }
+    }
+
+    function nearestHexLabelFromPixel(px, py) {
+      let best = null;
+      let bestD = Infinity;
+      for (let q = 0; q < cols; q++) {
+        for (let r = 0; r < rows; r++) {
+          const p = qrToPixel(q, r);
+          const d = Math.hypot(px - p.x, py - p.y);
+          if (d < bestD) {
+            bestD = d;
+            best = labelFor(q, r);
+          }
+        }
+      }
+      if (bestD > size * 0.95) return null;
+      return best;
+    }
+
+    function canvasEventToLocalPx(ev) {
+      const rect = canvas.getBoundingClientRect();
+      const x = (ev.clientX - rect.left) * (canvas.width / rect.width);
+      const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
+      return { x, y };
+    }
+
+    function addArrowPoi(from, to) {
+      if (!from || !to || from === to) return;
+
+      const el = document.getElementById('scene-json');
+      const raw = el ? String(el.textContent || '').trim() : '';
+      if (!raw) return;
+
+      let obj;
+      try { obj = JSON.parse(raw); } catch { return; }
+      if (!obj || typeof obj !== 'object') return;
+
+      if (!Array.isArray(obj.poi)) obj.poi = [];
+
+      const hasCrypto = (typeof crypto !== 'undefined') && crypto && typeof crypto.randomUUID === 'function';
+      const id = hasCrypto ? `poi_${crypto.randomUUID()}` : `poi_${Date.now()}_${Math.floor(Math.random()*1e6)}`;
+
+      obj.poi.push({ id, type: 'arrow', from, to, color: 'rgba(40,40,40,0.65)', width: 4, label: '' });
+
+      el.textContent = JSON.stringify(obj, null, 2);
+      safeDrawGrid();
+
+      try {
+        const battleId = getBattleIdFromUrl();
+        if (battleId) saveSceneToApi(battleId, obj).catch(() => {});
+      } catch (_) {}
+    }
+
+    canvas.addEventListener('mousedown', (ev) => {
+      if (ev.button !== 0) return;
+      if (!ev.shiftKey) return;
+      const p = canvasEventToLocalPx(ev);
+      const lab = nearestHexLabelFromPixel(p.x, p.y);
+      if (!lab) return;
+      POI_DRAG.active = true;
+      POI_DRAG.from = lab;
+      POI_DRAG.to = lab;
+      safeDrawGrid();
+    });
+
+    canvas.addEventListener('mousemove', (ev) => {
+      if (!POI_DRAG.active) return;
+      const p = canvasEventToLocalPx(ev);
+      const lab = nearestHexLabelFromPixel(p.x, p.y);
+      if (!lab) return;
+      if (POI_DRAG.to !== lab) {
+        POI_DRAG.to = lab;
+        safeDrawGrid();
+      }
+    });
+
+    function endPoiDrag(commit) {
+      if (!POI_DRAG.active) return;
+      const from = POI_DRAG.from;
+      const to = POI_DRAG.to;
+      POI_DRAG.active = false;
+      POI_DRAG.from = null;
+      POI_DRAG.to = null;
+      if (commit) addArrowPoi(from, to);
+      else safeDrawGrid();
+    }
+
+    canvas.addEventListener('mouseup', () => {
+      if (!POI_DRAG.active) return;
+      endPoiDrag(true);
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      if (!POI_DRAG.active) return;
+      endPoiDrag(false);
+    });
 
     // ====== ROOM GEOMETRY (RECT WALLS) ======
     function getRoomGeom(room) {
@@ -1337,78 +1560,7 @@ BATTLEMAT ENGINE v3.38
       }
     }
 
-    // ====== BLOCKING / RULES EXPORTS ======
-    function roomPerimeterLabels(room) {
-      const c = Array.isArray(room.corners) ? room.corners : null;
-      if (!c || c.length !== 4) return new Set();
-      const tl = parseLabel(c[0]);
-      const tr = parseLabel(c[1]);
-      const br = parseLabel(c[2]);
-      const bl = parseLabel(c[3]);
-      if (!tl || !tr || !br || !bl) return new Set();
-
-      const out = new Set();
-
-      const qStartT = Math.min(tl.q, tr.q);
-      const qEndT   = Math.max(tl.q, tr.q);
-      for (let q = qStartT; q <= qEndT; q++) out.add(labelFor(q, tl.r));
-
-      const qStartB = Math.min(bl.q, br.q);
-      const qEndB   = Math.max(bl.q, br.q);
-      for (let q = qStartB; q <= qEndB; q++) out.add(labelFor(q, bl.r));
-
-      const rStartL = Math.min(bl.r, tl.r);
-      const rEndL   = Math.max(bl.r, tl.r);
-      for (let r = rStartL; r <= rEndL; r++) out.add(labelFor(tl.q, r));
-
-      const rStartR = Math.min(br.r, tr.r);
-      const rEndR   = Math.max(br.r, tr.r);
-      for (let r = rStartR; r <= rEndR; r++) out.add(labelFor(tr.q, r));
-
-      return out;
-    }
-
-    function computeBlockedHexes() {
-      const blocked = new Set();
-
-      for (const room of (SCENE_NORM?.rooms || [])) {
-        const perim = roomPerimeterLabels(room);
-        for (const lab of perim) blocked.add(lab);
-      }
-
-      for (const o of (SCENE_NORM?.openings || [])) {
-        const kind = String(o.kind || 'door').toLowerCase();
-        if (kind !== 'door' && kind !== 'window') continue;
-        const state = String(o.state ?? 'closed').toLowerCase();
-        if (state === 'open') {
-          const lab = String(o.at || '').trim().toUpperCase();
-          if (lab) blocked.delete(lab);
-        }
-      }
-
-      for (const a of (SCENE_NORM?.actors || [])) {
-        const hp = Number(a.hp ?? 0);
-        const effects = Array.isArray(a.effects) ? a.effects : [];
-        const isDead = hp <= 0 || effects.includes('dead') || effects.includes('down');
-        if (isDead) continue;
-        const lab = String(a.at || '').trim().toUpperCase();
-        if (lab) blocked.add(lab);
-      }
-
-      for (const o of (SCENE_NORM?.objects || [])) {
-        if (!o || !o.blocks) continue;
-        const cells = Array.isArray(o.cells) ? o.cells : [];
-        for (const lab of cells) blocked.add(String(lab).trim().toUpperCase());
-      }
-
-      return blocked;
-    }
-
-    function refreshBlocked() {
-      return computeBlockedHexes();
-    }
-
-    // ====== OBJECTS (TABLES/OBSTACLES) ======
+    // ====== OBJECTS ======
     function objectCentroidPx(cells) {
       let sx = 0, sy = 0, n = 0;
       for (const lab of (cells || [])) {
@@ -1465,7 +1617,6 @@ BATTLEMAT ENGINE v3.38
           ? String(obj.color)
           : (blocks ? 'rgba(0,0,0,0.20)' : 'rgba(0,0,0,0.10)');
 
-        // Per-hex shading (difficult terrain + generic objects)
         if (kind !== 'table' && kind !== 'rect' && kind !== 'sarcophagus' && kind !== 'pillar') {
           for (let i = 0; i < cells.length; i++) {
             const lab = String(cells[i]).trim().toUpperCase();
@@ -1495,19 +1646,15 @@ BATTLEMAT ENGINE v3.38
           continue;
         }
 
-        // Sprite-first draw for supported object kinds.
-        // If sprite isn’t ready, fall back to the existing vector drawing.
         const spriteKey = spriteKeyForObject(obj);
         const rot = Number(obj.rot ?? 0);
 
         if (spriteKey && isSpriteReady(spriteKey)) {
           const c = objectCentroidPx(cells);
           if (c) {
-            // A little downward bias makes props feel seated on the floor
             const yBias = size * 0.10;
             drawSpriteAt(spriteKey, c.x, c.y + yBias, rot, 1, 1);
 
-            // Optional label overlay (helpful while you’re still testing assets)
             if (obj.label != null && String(obj.label).trim()) {
               ctx.save();
               ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
@@ -1521,7 +1668,6 @@ BATTLEMAT ENGINE v3.38
           }
         }
 
-        // ---- Vector fallbacks (existing behavior) ----
         if (kind === 'table') {
           const c = objectCentroidPx(cells);
           if (!c) continue;
@@ -1557,7 +1703,6 @@ BATTLEMAT ENGINE v3.38
           const w = (b.maxX - b.minX) + padX * 2;
           const h = (b.maxY - b.minY) + padY * 2;
 
-          const rot = Number(obj.rot ?? 0);
           const radius = Math.max(6, Math.min(size * 0.35, Math.min(w, h) * 0.25));
           const fillRect = obj.color ? String(obj.color) : '#b07a3f';
           const outline = 'rgba(0,0,0,0.85)';
@@ -1584,7 +1729,6 @@ BATTLEMAT ENGINE v3.38
         }
 
         if (kind === 'pillar') {
-          // Simple vector fallback for pillar
           const c = objectCentroidPx(cells);
           if (!c) continue;
           ctx.save();
@@ -1679,16 +1823,12 @@ BATTLEMAT ENGINE v3.38
     function drawToken(q, r, label, side, dead, actorObj) {
       const { x, y } = qrToPixel(q, r);
 
-      // Sprite-first tokens.
-      // If the sprite isn’t ready yet, fall back to the existing circle token.
       const tokenKey = actorObj ? spriteKeyForActor(actorObj) : ((side === 'PC') ? 'token.pc' : (side === 'EN' ? 'token.en' : 'token.npc'));
       const alpha = dead ? 0.55 : 1.0;
 
       if (tokenKey && isSpriteReady(tokenKey)) {
-        // Slight y-bias + shadow makes tokens feel “on” the floor.
         drawSpriteAt(tokenKey, x, y + (size * 0.10), 0, 1, alpha);
 
-        // Optional label overlay for clarity
         ctx.save();
         ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
         ctx.fillStyle = dead ? 'rgba(0,0,0,0.28)' : 'rgba(0,0,0,0.60)';
@@ -1699,7 +1839,6 @@ BATTLEMAT ENGINE v3.38
         return;
       }
 
-      // ---- Vector fallback (existing behavior) ----
       let fill = 'rgba(160,160,160,0.95)';
       if (dead) fill = 'rgba(140,140,140,0.85)';
       else if (side === 'PC') fill = 'rgba(80,160,220,0.95)';
@@ -1758,8 +1897,6 @@ BATTLEMAT ENGINE v3.38
       SCENE = loadSceneFromJsonTag();
       SCENE_NORM = normalizeScene();
 
-      // Start loading any needed sprites in the background, then redraw when ready.
-      // (First render uses vector fallbacks; second render swaps in sprites.)
       requestSpritePreload(SCENE_NORM);
 
       ROOM_GEOMS = new Map();
@@ -1777,6 +1914,8 @@ BATTLEMAT ENGINE v3.38
       updateTrailsFromPending();
       drawMoveTrails();
 
+      drawPoi();
+
       const LABEL_DY = size * CONFIG.labels.dyFrac;
       ctx.font = '13px "Times New Roman", Georgia, "Century Schoolbook", "Book Antiqua", serif';
       ctx.fillStyle = `rgba(180,150,90,${CONFIG.labels.fillAlpha})`;
@@ -1788,8 +1927,6 @@ BATTLEMAT ENGINE v3.38
           ctx.fillText(labelFor(q, r), x, y + LABEL_DY);
         }
       }
-
-      refreshBlocked();
 
       for (const a of (SCENE_NORM?.actors || [])) {
         const pos = parseLabel(a.at);
@@ -1809,6 +1946,19 @@ BATTLEMAT ENGINE v3.38
       if (SCENE_PARSE_ERROR) roundLine.textContent = 'SCENE JSON ERROR';
       else roundLine.textContent = `Round ${SCENE_NORM?.round ?? '—'}`;
 
+      // Last action (single line). Put emoji/icons directly in the string, e.g. "🎲 16 ⚔️ 7".
+      const actionLine = document.getElementById('actionLine');
+      const la = String(SCENE_NORM?.lastAction || '').trim();
+      if (actionLine) {
+        if (la) {
+          actionLine.style.display = 'block';
+          actionLine.textContent = la;
+        } else {
+          actionLine.style.display = 'none';
+          actionLine.textContent = '';
+        }
+      }
+
       const actors = Array.isArray(SCENE_NORM?.actors) ? SCENE_NORM.actors.slice() : [];
       actors.sort((a, b) => {
         const ai = Number(a.init ?? 0);
@@ -1827,7 +1977,10 @@ BATTLEMAT ENGINE v3.38
         const side = String(a.side || 'NPC').toUpperCase();
         tr.className = (side === 'PC' ? 'side-pc' : (side === 'EN' ? 'side-en' : 'side-npc')) + (isDead ? ' dead' : '');
 
-        const effectsHtml = ''; // Effects hidden (avoid noisy rows / [object Object])
+        const effects = Array.isArray(a.effects) ? a.effects : [];
+        const effectsHtml = effects.length
+          ? effects.map(e => `<span class="chip">${escapeHtml(String(e))}</span>`).join('')
+          : '';
 
         tr.innerHTML = `
           <td>
@@ -1846,7 +1999,7 @@ BATTLEMAT ENGINE v3.38
     }
 
     function escapeHtml(s) {
-      return s
+      return String(s)
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
         .replaceAll('>', '&gt;')
@@ -1870,30 +2023,85 @@ BATTLEMAT ENGINE v3.38
       }
     }
 
-    // Boot:
-    // 1) Try to load the scene from API (based on /play/<id>)
-    // 2) Then draw.
+    // Notes (Narration) persistence
+    const NOTES = {
+      battleId: null,
+      keyNarr: null,
+      debounce: null,
+    };
+
+    function notesKey(base, battleId) {
+      return `battlemat:${base}:${battleId || 'local'}`;
+    }
+
+    function initNotesUi(battleId) {
+      NOTES.battleId = battleId || null;
+      NOTES.keyNarr = notesKey('narration', battleId);
+
+      const narr = document.getElementById('narrationBox');
+
+      try {
+        if (narr) narr.value = localStorage.getItem(NOTES.keyNarr) || '';
+      } catch (_) {}
+
+      const save = () => {
+        try {
+          if (narr) localStorage.setItem(NOTES.keyNarr, narr.value || '');
+        } catch (_) {}
+      };
+
+      const onInput = () => {
+        if (NOTES.debounce) clearTimeout(NOTES.debounce);
+        NOTES.debounce = setTimeout(save, 200);
+      };
+
+      narr?.addEventListener('input', onInput);
+    }
+
+    // Minimal self-tests (safe in production; they only log if something is off)
+    function runSelfTests() {
+      try {
+        console.assert(typeof modeDelayMs === 'function', 'modeDelayMs should exist');
+        console.assert(modeDelayMs(RefreshMode.FAST) === FAST_MS, 'FAST delay should be 5000ms');
+        console.assert(modeDelayMs(RefreshMode.S15) === S15_MS, '15s delay should be 15000ms');
+        console.assert(modeDelayMs(RefreshMode.S30) === S30_MS, '30s delay should be 30000ms');
+        console.assert(modeDelayMs(RefreshMode.S60) === S60_MS, '60s delay should be 60000ms');
+        console.assert(FAST_TO_15_IDLE_MS === 60000, 'FAST→15 idle should be 60s');
+        console.assert(S15_TO_30_IDLE_MS === 180000, '15→30 idle should be 3m');
+        console.assert(S30_TO_60_IDLE_MS === 300000, '30→60 idle should be 5m');
+        console.assert(S60_TO_OFF_IDLE_MS === 600000, '60→Off idle should be 10m');
+      } catch (_) {}
+    }
+
+    // Boot
     (async () => {
-      // Initial load
-      const loaded = await tryLoadSceneFromApi();
+      await tryLoadSceneFromApi();
       safeDrawGrid();
 
-      // Start refresh controller (only when we have a battleId)
-      REFRESH.battleId = getBattleIdFromUrl();
+      const bid = getBattleIdFromUrl();
+      initNotesUi(bid);
+      runSelfTests();
+
+      REFRESH.battleId = bid;
       REFRESH.lastChangeAt = Date.now();
 
-      // If we successfully loaded from the API once, seed versionKey using a single fetch,
-      // so SLOW mode can detect changes cheaply.
       if (REFRESH.battleId) {
         try {
           const { versionKey } = await fetchSceneAndVersionKey(REFRESH.battleId);
           if (versionKey) REFRESH.lastVersionKey = versionKey;
         } catch (_) {}
 
-        // Default to ~60s on load (cheap reads). Button can wake it to fast polling.
-        setRefreshMode(RefreshMode.AUTO, { nextDelayOverrideMs: 60000 });
+        // Restore persisted preference (Auto/Off) per battle_id.
+        let restore = RefreshMode.S60;
+        let autoPref = 'auto';
+        try {
+          autoPref = (localStorage.getItem(`battlemat:refresh:auto:${REFRESH.battleId}`) || 'auto').trim();
+          const saved = (localStorage.getItem(`battlemat:refresh:last:${REFRESH.battleId}`) || '').trim();
+          if (saved && saved !== RefreshMode.OFF) restore = saved;
+        } catch (_) {}
+
+        setRefreshMode(autoPref === 'off' ? RefreshMode.OFF : restore);
       } else {
-        // No battle id → no polling
         setRefreshMode(RefreshMode.OFF);
       }
     })();
