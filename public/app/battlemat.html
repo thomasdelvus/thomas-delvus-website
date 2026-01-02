@@ -1,5 +1,5 @@
 <!--
-  Version 3.68
+  Version 3.69
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -420,13 +420,13 @@
     {"id": "win_s_1", "kind": "window", "room": "room1", "wall": "S", "at": "F1", "state": "closed"},
     {"id": "win_s_2", "kind": "window", "room": "room1", "wall": "S", "at": "H1", "state": "closed"},
     {"id": "win_s_3", "kind": "window", "room": "room1", "wall": "S", "at": "J1", "state": "closed"},
-    {"id": "win_s_4", "kind": "window", "room": "room1", "wall": "S", "at": "L1", "state": "closed"},
+    {"id": "win_s_4", "kind": "window", "room": "room1", "wall": "S", "at": "L1", "state": "open"},
 
-    {"id": "door_e_1", "kind": "door.wood", "room": "room1", "wall": "E", "at": "N6", "state": "closed"},
-    {"id": "door_e_2", "kind": "door.wood", "room": "room1", "wall": "E", "at": "N5", "state": "closed", "rot": 270}
+    {"id": "door_e_1", "kind": "door.wood", "room": "room1", "wall": "E", "at": "N6", "state": "open","rot":270},
+    {"id":"door_e_2","kind":"door.wood","room":"room1","wall":"E","at":"N5","state":"closed","rot":90}
   ],
   "objects": [
-    {"id": "table1", "kind": "table", "cells": ["I4", "I5", "J5"], "blocks": true, "label": "T"},
+    {"id": "table1", "kind": "table", "cells": ["I4"], "blocks": true, "label": "T"},
     {"id": "sarc1", "kind": "sarcophagus", "cells": ["J8", "K8", "L8"], "blocks": true, "label": "S"},
     {"id": "difficult_1", "kind": "difficult", "cells": ["G2", "H3", "I3"], "blocks": false, "label": "~", "color": "rgba(120,120,120,0.18)"}
   ],
@@ -436,9 +436,11 @@
     {"id": "wraith2", "name": "Wraith 2", "side": "EN", "init": 11, "hp": 0, "maxHp": 67, "effects": [], "at": "K9", "label": "W2"},
     {"id": "wraith3", "name": "Wraith 3", "side": "EN", "init": 10, "hp": 67, "maxHp": 67, "effects": [], "at": "E6", "label": "W3"},
 
-    {"id": "pc1", "name": "Aelar", "side": "PC", "init": 14, "hp": 42, "maxHp": 42, "effects": [], "at": "K2", "label": "A", "class": "fighter", "gender": "male"},
-    {"id": "pc2", "name": "Brunna", "side": "PC", "init": 13, "hp": 55, "maxHp": 55, "effects": [], "at": "L3", "label": "B", "class": "cleric", "gender": "female"},
-    {"id": "pc3", "name": "Caelin", "side": "PC", "init": 12, "hp": 38, "maxHp": 38, "effects": [], "at": "M3", "label": "C", "class": "wizard", "gender": "male"}
+    {"id": "pc1", "name": "Aelar", "side": "PC", "init": 14, "hp": 42, "maxHp": 42, "effects": [], "at": "K2", "label": "A", "class":"ranger", "gender":"male"},
+{"id":"pc2", "name":"Brunna", "side":"PC", "init":13, "hp":55, "maxHp":55,
+ "effects":[], "at":"L3", "label":"B", "class":"cleric", "gender":"female"},
+
+    {"id": "pc3", "name": "Caelin", "side": "PC", "init": 12, "hp": 38, "maxHp": 38, "effects": [], "at": "M3", "label": "C", "class":"wizard", "gender":"male"}
   ]
 }
   </script>
