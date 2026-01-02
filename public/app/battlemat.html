@@ -1,5 +1,5 @@
 <!--
-  Version 3.60
+  Version 3.61
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -469,7 +469,7 @@
     {"id": "win_s_4", "kind": "window", "room": "room1", "wall": "S", "at": "L1", "state": "closed"},
 
     {"id": "door_e_1", "kind": "door.wood", "room": "room1", "wall": "E", "at": "N6", "state": "closed"},
-    {"id":"door_e_2","kind":"door.wood","room":"room1","wall":"E","at":"N5","state":"closed","rot":270}
+    {"id": "door_e_2", "kind": "door.wood", "room": "room1", "wall": "E", "at": "N5", "state": "closed", "rot": 270}
   ],
   "objects": [
     {"id": "table1", "kind": "table", "cells": ["I4", "I5", "J5"], "blocks": true, "label": "T"},
@@ -996,12 +996,14 @@
         outRoomColor: [0, 0, 0],
         inRoomAlpha: 0.22,
         outRoomAlpha: 0.03
-      },      opening: {
+      },
+      opening: {
         minAcross: 18,
         acrossMul: 1.05,
         spanNSMul: 1.5,
         spanEWMul: 1.0,
-        slotPadPx: 1.5,
+        // how much extra to pad the floor/wall cutout to prevent faint edges showing
+        slotPadPx: 1.8,
       },
       grid: {
         baseStrokeW: 1.2,
@@ -1935,6 +1937,7 @@
         const def = spriteDefForKey(key);
         if (def?.url) urls.add(def.url);
       }
+
       // Openings (doors/windows rendered as sprites)
       for (const op of (sceneNorm?.openings || [])) {
         const k = String(op?.kind || '').trim().toLowerCase();
@@ -2035,7 +2038,6 @@
       const ax = Number.isFinite(axO) ? axO : (def.ax ?? 0.5);
       const ay = Number.isFinite(ayO) ? ayO : (def.ay ?? 0.5);
 
-
       if (def.shadow) {
         drawSoftShadow(x + 2, y + (h * 0.12), w, h, 0.16);
       }
@@ -2051,47 +2053,47 @@
     }
 
     // Rotation helper:
-// - Supports: rot / rotation / rotDeg (ABS degrees)
-// - Supports: rotOffset / rotRel / rotDelta (REL degrees added on top of base)
-// - Supports: orientation: 'h'|'v'|'horizontal'|'vertical'
-// - Returns snapped degrees (0/90/180/270) for crisp pixel-art rotation.
-function entityRotDeg(ent, fallbackDeg) {
-  if (!ent || typeof ent !== 'object') return (fallbackDeg ?? 0);
+    // - Supports: rot / rotation / rotDeg (ABS degrees)
+    // - Supports: rotOffset / rotRel / rotDelta (REL degrees added on top of base)
+    // - Supports: orientation: 'h'|'v'|'horizontal'|'vertical'
+    // - Returns snapped degrees (0/90/180/270) for crisp pixel-art rotation.
+    function entityRotDeg(ent, fallbackDeg) {
+      if (!ent || typeof ent !== 'object') return (fallbackDeg ?? 0);
 
-  // 1) Determine a BASE angle
-  let base = null;
+      // 1) Determine a BASE angle
+      let base = null;
 
-  // explicit ABS degrees
-  let v = (ent.rot ?? ent.rotation ?? ent.rotDeg);
-  if (v != null && v !== '') {
-    const n = Number(v);
-    if (Number.isFinite(n)) base = n;
-  }
+      // explicit ABS degrees
+      let v = (ent.rot ?? ent.rotation ?? ent.rotDeg);
+      if (v != null && v !== '') {
+        const n = Number(v);
+        if (Number.isFinite(n)) base = n;
+      }
 
-  // semantic orientation if no ABS degrees
-  if (base == null) {
-    const o = String(ent.orientation ?? ent.orient ?? ent.dir ?? '').trim().toLowerCase();
-    if (o) {
-      if (o === 'v' || o === 'vert' || o === 'vertical') base = 90;
-      else if (o === 'h' || o === 'horiz' || o === 'horizontal') base = 0;
+      // semantic orientation if no ABS degrees
+      if (base == null) {
+        const o = String(ent.orientation ?? ent.orient ?? ent.dir ?? '').trim().toLowerCase();
+        if (o) {
+          if (o === 'v' || o === 'vert' || o === 'vertical') base = 90;
+          else if (o === 'h' || o === 'horiz' || o === 'horizontal') base = 0;
+        }
+      }
+
+      if (base == null) base = (fallbackDeg ?? 0);
+
+      // 2) Apply RELATIVE offset, if provided
+      const off = (ent.rotOffset ?? ent.rotRel ?? ent.rotDelta);
+      if (off != null && off !== '') {
+        const n = Number(off);
+        if (Number.isFinite(n)) base = base + n;
+      }
+
+      // 3) Normalize and snap to nearest 90
+      let d = ((base % 360) + 360) % 360;
+      const snapped = Math.round(d / 90) * 90;
+      d = ((snapped % 360) + 360) % 360;
+      return d;
     }
-  }
-
-  if (base == null) base = (fallbackDeg ?? 0);
-
-  // 2) Apply RELATIVE offset, if provided
-  const off = (ent.rotOffset ?? ent.rotRel ?? ent.rotDelta);
-  if (off != null && off !== '') {
-    const n = Number(off);
-    if (Number.isFinite(n)) base = base + n;
-  }
-
-  // 3) Normalize and snap to nearest 90
-  let d = ((base % 360) + 360) % 360;
-  const snapped = Math.round(d / 90) * 90;
-  d = ((snapped % 360) + 360) % 360;
-  return d;
-}
 
     // ====== COORDINATE SYSTEM & GRID MATH ======
     function qrToPixel(q, r) {
@@ -2802,6 +2804,48 @@ function entityRotDeg(ent, fallbackDeg) {
     }
 
     // ====== OPENINGS (DOORS/WINDOWS) ======
+    function fillCutoutWithFloor(roomObj, x, y, w, h) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.beginPath();
+      ctx.rect(-w/2, -h/2, w, h);
+      ctx.clip();
+
+      if (TEX.enabled && roomObj) {
+        const fk = floorKindForRoom(roomObj);
+        const pat = texturePatternFor(fk);
+        ctx.globalAlpha = 0.98;
+        ctx.fillStyle = pat;
+        ctx.fillRect(-w/2 - 600, -h/2 - 600, w + 1200, h + 1200);
+      } else {
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = SOLID_FLOOR_COLOR;
+        ctx.fillRect(-w/2, -h/2, w, h);
+      }
+
+      ctx.restore();
+    }
+
+    function drawWindowRecess(roomObj, x, y, w, h) {
+      // Recess should read as "lighter wall" and still look decent over textures.
+      ctx.save();
+      ctx.translate(x, y);
+
+      // base recess fill
+      ctx.beginPath();
+      ctx.rect(-w/2, -h/2, w, h);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fill();
+
+      // subtle edge
+      ctx.globalAlpha = 0.35;
+      ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
     function drawOpenings() {
       const openings = Array.isArray(SCENE_NORM?.openings) ? SCENE_NORM.openings : [];
       if (!openings.length || !ROOM_GEOMS) return;
@@ -2818,6 +2862,8 @@ function entityRotDeg(ent, fallbackDeg) {
 
         const g = ROOM_GEOMS.get(String(o.room || ''));
         if (!g) continue;
+
+        const roomObj = ROOM_BY_ID ? ROOM_BY_ID.get(String(o.room || '')) : null;
 
         const wall = String(o.wall || '').toUpperCase();
         const atPx = labelToPixel(o.at);
@@ -2840,16 +2886,17 @@ function entityRotDeg(ent, fallbackDeg) {
         const rectW = (wall === 'N' || wall === 'S') ? spanAlong : thicknessAcross;
         const rectH = (wall === 'N' || wall === 'S') ? thicknessAcross : spanAlong;
 
-        // --- Doors: carve a floor-colored slot first, then draw the door on top ---
-        if (isDoor) {
-          const roomObj = ROOM_BY_ID ? ROOM_BY_ID.get(String(o.room || '')) : null;
+        const pad = Number(CONFIG.opening.slotPadPx ?? 1.5);
+        const slotW = rectW + pad * 2;
+        const slotH = rectH + pad * 2;
 
-          $1ctx.fillStyle = SOLID_FLOOR_COLOR;
-            ctx.fill();
-          }
-          ctx.restore();
-          const wallRot = (wall === 'E' || wall === 'W') ? 90 : 0;
-          const rot = entityRotDeg(o, wallRot);
+        const wallRot = (wall === 'E' || wall === 'W') ? 90 : 0;
+        const rot = entityRotDeg(o, wallRot);
+
+        // --- Doors ---
+        if (isDoor) {
+          // 1) Always carve a floor-colored slot in the wall (covers wall color/texture)
+          fillCutoutWithFloor(roomObj, x, y, slotW, slotH);
 
           // 2) If open, draw an open-sprite variant if available; otherwise just show the slot.
           if (isOpen) {
@@ -2861,10 +2908,8 @@ function entityRotDeg(ent, fallbackDeg) {
           }
 
           // 3) Closed door: sprite (preferred) or legacy rectangle fallback
-          const doorKey = (SPRITE_DEFS[kind] ? kind : 'door');
-
-          if (isSpriteReady(doorKey)) {
-            // Doors use the sprite definition's anchor by default (prevents per-scene JSON nudges).
+          const doorKey = (SPRITE_DEFS[kind] ? kind : (SPRITE_DEFS['door'] ? 'door' : null));
+          if (doorKey && isSpriteReady(doorKey)) {
             drawSpriteAt(doorKey, x, y, rot, 1, 1);
             continue;
           }
@@ -2872,6 +2917,7 @@ function entityRotDeg(ent, fallbackDeg) {
           // Fallback: draw a simple door slab on top of the slot
           ctx.save();
           ctx.translate(x, y);
+          if (rot) ctx.rotate((Math.PI / 180) * rot);
           ctx.beginPath();
           ctx.rect(-rectW / 2, -rectH / 2, rectW, rectH);
           ctx.fillStyle = '#b07a3f';
@@ -2882,71 +2928,49 @@ function entityRotDeg(ent, fallbackDeg) {
           ctx.restore();
 
           continue;
-        }        // --- Windows: recess + sprite (preferred), else legacy rectangle rendering ---
+        }
+
+        // --- Windows ---
         if (isWindow) {
-          // 0) Draw a subtle “recess” (windowsill) under the window.
-          //     This lets you keep the window sprite narrow without exposing wall color.
-          ctx.save();
-          ctx.translate(x, y);
-          const slotPad = Number(CONFIG.opening?.slotPadPx ?? 1.5);
-          const slotW = rectW + slotPad * 2;
-          const slotH = rectH + slotPad * 2;
-          ctx.beginPath();
-          ctx.rect(-slotW / 2, -slotH / 2, slotW, slotH);
-
-          // Slightly lighter than whatever is under it (wall stroke/texture)
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = 'rgba(255,255,255,0.18)';
-          ctx.fill();
-
-          // A faint edge so it reads as a cutout
-          ctx.globalAlpha = 0.35;
-          ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-          ctx.restore();
-
-          const wallRot = (wall === 'E' || wall === 'W') ? 90 : 0;
-          const rot = entityRotDeg(o, wallRot);
+          // Always draw the recess cutout so narrow sprites never expose wall color.
+          drawWindowRecess(roomObj, x, y, slotW, slotH);
 
           const openKey = (SPRITE_DEFS[`${kind}.open`] ? `${kind}.open` : (SPRITE_DEFS['window.open'] ? 'window.open' : null));
           const closedKey = (SPRITE_DEFS[kind] ? kind : (SPRITE_DEFS['window'] ? 'window' : null));
           const keyToUse = isOpen ? openKey : closedKey;
 
+          // If we have the correct sprite, draw it.
           if (keyToUse && isSpriteReady(keyToUse)) {
             drawSpriteAt(keyToUse, x, y, rot, 1, 1);
             continue;
           }
-        }
 
-        ctx.save();
-        ctx.translate(x, y);
+          // No sprite:
+          // - Open window: show ONLY the recess (no white/blue slab)
+          // - Closed window: legacy blue panel on top of recess
+          if (!isOpen) {
+            ctx.save();
+            ctx.translate(x, y);
+            if (rot) ctx.rotate((Math.PI / 180) * rot);
+            ctx.beginPath();
+            ctx.rect(-rectW / 2, -rectH / 2, rectW, rectH);
+            ctx.fillStyle = '#cfe6f6';
+            ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+            ctx.lineWidth = 2;
+            ctx.fill();
+            ctx.stroke();
 
-        $1ctx.fillStyle = SOLID_FLOOR_COLOR;
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 0;
+            ctx.font = 'bold 12px ui-monospace, system-ui, sans-serif';
+            if (Math.max(rectW, rectH) >= 55) ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
+            ctx.fillStyle = 'rgba(0,0,0,0.55)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('W', 0, 0);
+            ctx.restore();
           }
-        } else {
-          ctx.fillStyle = '#cfe6f6';
-          ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-          ctx.lineWidth = 2;
+
+          continue;
         }
-
-        ctx.beginPath();
-        ctx.rect(-rectW / 2, -rectH / 2, rectW, rectH);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.font = 'bold 12px ui-monospace, system-ui, sans-serif';
-        if (Math.max(rectW, rectH) >= 55) ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
-        if (!isOpen) {
-          ctx.fillStyle = 'rgba(0,0,0,0.55)';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('W', 0, 0);
-        }
-
-        ctx.restore();
       }
     }
 
@@ -3015,7 +3039,8 @@ function entityRotDeg(ent, fallbackDeg) {
           const { x, y } = qrToPixel(q, r);
           const pts = hexCorners(x, y);
 
-          $1ctx.fillStyle = SOLID_FLOOR_COLOR;
+          drawHexPath(pts);
+          ctx.fillStyle = SOLID_FLOOR_COLOR;
           ctx.fill();
 
           ctx.lineWidth = CONFIG.grid.baseStrokeW;
@@ -3269,30 +3294,30 @@ function entityRotDeg(ent, fallbackDeg) {
       'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
 
       // Generic class tokens (male/female). Add files later; engine falls back safely.
-      'fighter.male':    { url: `${SPRITE_BASE}/fighter_male.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'fighter.female':  { url: `${SPRITE_BASE}/fighter_female.png`,   wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'cleric.male':     { url: `${SPRITE_BASE}/cleric_male.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'cleric.female':   { url: `${SPRITE_BASE}/cleric_female.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'wizard.male':     { url: `${SPRITE_BASE}/wizard_male.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'wizard.female':   { url: `${SPRITE_BASE}/wizard_female.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'rogue.male':      { url: `${SPRITE_BASE}/rogue_male.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'rogue.female':    { url: `${SPRITE_BASE}/rogue_female.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'ranger.male':     { url: `${SPRITE_BASE}/ranger_male.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'ranger.female':   { url: `${SPRITE_BASE}/ranger_female.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'paladin.male':    { url: `${SPRITE_BASE}/paladin_male.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'paladin.female':  { url: `${SPRITE_BASE}/paladin_female.png`,   wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'bard.male':       { url: `${SPRITE_BASE}/bard_male.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'bard.female':     { url: `${SPRITE_BASE}/bard_female.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'druid.male':      { url: `${SPRITE_BASE}/druid_male.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'druid.female':    { url: `${SPRITE_BASE}/druid_female.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'monk.male':       { url: `${SPRITE_BASE}/monk_male.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'monk.female':     { url: `${SPRITE_BASE}/monk_female.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'barbarian.male':  { url: `${SPRITE_BASE}/barbarian_male.png`,   wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'barbarian.female':{ url: `${SPRITE_BASE}/barbarian_female.png`, wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'sorcerer.male':   { url: `${SPRITE_BASE}/sorcerer_male.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'sorcerer.female': { url: `${SPRITE_BASE}/sorcerer_female.png`,  wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'warlock.male':    { url: `${SPRITE_BASE}/warlock_male.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'warlock.female':  { url: `${SPRITE_BASE}/warlock_female.png`,   wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'fighter.male':     { url: `${SPRITE_BASE}/fighter_male.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'fighter.female':   { url: `${SPRITE_BASE}/fighter_female.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'cleric.male':      { url: `${SPRITE_BASE}/cleric_male.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'cleric.female':    { url: `${SPRITE_BASE}/cleric_female.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'wizard.male':      { url: `${SPRITE_BASE}/wizard_male.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'wizard.female':    { url: `${SPRITE_BASE}/wizard_female.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'rogue.male':       { url: `${SPRITE_BASE}/rogue_male.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'rogue.female':     { url: `${SPRITE_BASE}/rogue_female.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'ranger.male':      { url: `${SPRITE_BASE}/ranger_male.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'ranger.female':    { url: `${SPRITE_BASE}/ranger_female.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'paladin.male':     { url: `${SPRITE_BASE}/paladin_male.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'paladin.female':   { url: `${SPRITE_BASE}/paladin_female.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'bard.male':        { url: `${SPRITE_BASE}/bard_male.png`,         wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'bard.female':      { url: `${SPRITE_BASE}/bard_female.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'druid.male':       { url: `${SPRITE_BASE}/druid_male.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'druid.female':     { url: `${SPRITE_BASE}/druid_female.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'monk.male':        { url: `${SPRITE_BASE}/monk_male.png`,         wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'monk.female':      { url: `${SPRITE_BASE}/monk_female.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'barbarian.male':   { url: `${SPRITE_BASE}/barbarian_male.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'barbarian.female': { url: `${SPRITE_BASE}/barbarian_female.png`,  wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'sorcerer.male':    { url: `${SPRITE_BASE}/sorcerer_male.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'sorcerer.female':  { url: `${SPRITE_BASE}/sorcerer_female.png`,   wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'warlock.male':     { url: `${SPRITE_BASE}/warlock_male.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'warlock.female':   { url: `${SPRITE_BASE}/warlock_female.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
 
       // ---- Openings ----
       'window':       { url: `${SPRITE_BASE}/window.png`,          wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
@@ -3332,11 +3357,6 @@ function entityRotDeg(ent, fallbackDeg) {
         const n3 = normalizeTextureKind('cobblestone');
         console.assert(n3.base === 'stone' && n3.variant === 'cobble', 'normalizeTextureKind cobblestone');
 
-        // textures should be callable
-        console.assert(typeof texturePatternFor === 'function', 'texturePatternFor should exist');
-        console.assert(!!texturePatternFor('stone'), 'texturePatternFor(stone) should return a pattern');
-        console.assert(typeof drawTexturedRoom === 'function', 'drawTexturedRoom should exist');
-
         // sprite sizing sanity
         console.assert(!!SPRITE_DEFS['table'], 'SPRITE_DEFS should include table');
         console.assert(!!SPRITE_DEFS['table.round'], 'SPRITE_DEFS should include table.round');
@@ -3346,6 +3366,12 @@ function entityRotDeg(ent, fallbackDeg) {
         // class+gender token selection
         console.assert(spriteKeyForActor({ side: 'PC', class: 'fighter', gender: 'male' }) === 'fighter.male', 'fighter.male selection');
         console.assert(spriteKeyForActor({ side: 'PC', class: 'wizard', gender: 'female' }) === 'wizard.female', 'wizard.female selection');
+
+        // rotation helper
+        console.assert(entityRotDeg({ rot: 91 }, 0) === 90, 'snap 91→90');
+        console.assert(entityRotDeg({ rot: 269 }, 0) === 270, 'snap 269→270');
+        console.assert(entityRotDeg({ orientation: 'vertical' }, 0) === 90, 'orientation vertical');
+        console.assert(entityRotDeg({ rot: 0, rotOffset: 180 }, 0) === 180, 'rotOffset applies');
       } catch (_) {}
     }
 
