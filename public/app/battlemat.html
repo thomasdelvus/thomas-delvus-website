@@ -1,5 +1,5 @@
 <!--
-  Version 3.56
+  Version 3.60
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -974,6 +974,9 @@
     const rows = 11;        // 1..11
     const size = 34.5;      // hex radius (center -> corner)
     const margin = 55;
+
+    // Solid color used for non-textured floors (also used for open door cutouts when no sprite)
+    const SOLID_FLOOR_COLOR = '#ffffff';
 
     const canvas = document.getElementById('mat');
     const ctx = canvas.getContext('2d');
@@ -2841,25 +2844,7 @@ function entityRotDeg(ent, fallbackDeg) {
         if (isDoor) {
           const roomObj = ROOM_BY_ID ? ROOM_BY_ID.get(String(o.room || '')) : null;
 
-          // 1) Slot = floor (so narrow doors still look correct)
-          ctx.save();
-          ctx.translate(x, y);
-          const slotPad = Number(CONFIG.opening?.slotPadPx ?? 1.5);
-          const slotW = rectW + slotPad * 2;
-          const slotH = rectH + slotPad * 2;
-
-          ctx.beginPath();
-          ctx.rect(-slotW / 2, -slotH / 2, slotW, slotH);
-
-          if (TEX.enabled && roomObj) {
-            const fk = floorKindForRoom(roomObj);
-            const fpat = texturePatternFor(fk);
-            ctx.globalAlpha = 0.98;
-            ctx.fillStyle = fpat;
-            ctx.fill();
-          } else {
-            ctx.globalAlpha = 1;
-            ctx.fillStyle = '#ffffff';
+          $1ctx.fillStyle = SOLID_FLOOR_COLOR;
             ctx.fill();
           }
           ctx.restore();
@@ -2937,13 +2922,7 @@ function entityRotDeg(ent, fallbackDeg) {
         ctx.save();
         ctx.translate(x, y);
 
-        if (isOpen) {
-          if (isWindow) {
-            ctx.fillStyle = '#eeeeee';
-            ctx.strokeStyle = '#eeeeee';
-            ctx.lineWidth = 1;
-          } else {
-            ctx.fillStyle = '#ffffff';
+        $1ctx.fillStyle = SOLID_FLOOR_COLOR;
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 0;
           }
@@ -3036,8 +3015,7 @@ function entityRotDeg(ent, fallbackDeg) {
           const { x, y } = qrToPixel(q, r);
           const pts = hexCorners(x, y);
 
-          drawHexPath(pts);
-          ctx.fillStyle = '#ffffff';
+          $1ctx.fillStyle = SOLID_FLOOR_COLOR;
           ctx.fill();
 
           ctx.lineWidth = CONFIG.grid.baseStrokeW;
