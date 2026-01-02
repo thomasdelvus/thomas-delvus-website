@@ -1,5 +1,5 @@
 <!--
-  Version 3.54
+  Version 3.55
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -1853,9 +1853,10 @@
       'rect':         { url: `${SPRITE_BASE}/crate_rect.png`,      wHex: 2.0,  hHex: 1.4,  ax: 0.5, ay: 0.58, shadow: true },
       'token.pc':     { url: `${SPRITE_BASE}/token_pc.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
       'token.en':     { url: `${SPRITE_BASE}/token_enemy.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'window':       { url: `${SPRITE_BASE}/window.png`,          wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
+      'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },      'window':       { url: `${SPRITE_BASE}/window.png`,          wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
+      'window.open':  { url: `${SPRITE_BASE}/window_open.png`,     wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
       'door':         { url: `${SPRITE_BASE}/door.png`,            wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
+      'door.open':    { url: `${SPRITE_BASE}/door_open.png`,       wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
       'door.wood':    { url: `${SPRITE_BASE}/door_wood.png`,       wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
       'door_wood':    { url: `${SPRITE_BASE}/door_wood.png`,       wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false }
     };
@@ -2897,9 +2898,30 @@ function entityRotDeg(ent, fallbackDeg) {
           ctx.restore();
 
           continue;
-        }
-        // --- Windows: sprite (preferred), else legacy rectangle rendering ---
+        }        // --- Windows: recess + sprite (preferred), else legacy rectangle rendering ---
         if (isWindow) {
+          // 0) Draw a subtle “recess” (windowsill) under the window.
+          //     This lets you keep the window sprite narrow without exposing wall color.
+          ctx.save();
+          ctx.translate(x, y);
+          const slotPad = Number(CONFIG.opening?.slotPadPx ?? 1.5);
+          const slotW = rectW + slotPad * 2;
+          const slotH = rectH + slotPad * 2;
+          ctx.beginPath();
+          ctx.rect(-slotW / 2, -slotH / 2, slotW, slotH);
+
+          // Slightly lighter than whatever is under it (wall stroke/texture)
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = 'rgba(255,255,255,0.18)';
+          ctx.fill();
+
+          // A faint edge so it reads as a cutout
+          ctx.globalAlpha = 0.35;
+          ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.restore();
+
           const wallRot = (wall === 'E' || wall === 'W') ? 90 : 0;
           const rot = entityRotDeg(o, wallRot);
 
