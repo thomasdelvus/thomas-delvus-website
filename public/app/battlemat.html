@@ -3170,6 +3170,9 @@
     // SPRITE DEFINITIONS (EDIT HERE)
     // =====================================================================
 
+    // Global actor sizing (tune this so full-body art fits ~within one hex)
+    const ACTOR_SCALE = 0.85;
+
     // All sprites now use NATIVE sizing (pixel size mapped to hex height).
     // If you want something to be bigger than a hex: make the PNG bigger.
     // If you need a quick nudge without re-exporting: set `scale` on the sprite def or entity.
@@ -3183,35 +3186,42 @@
       'rect':         { url: `${SPRITE_BASE}/crate_rect.png`,      ax: 0.5, ay: 0.58, shadow: true },
 
       // Tokens (fallback by side)
-      'token.pc':     { url: `${SPRITE_BASE}/token_pc.png`,        ax: 0.5, ay: 0.55, shadow: true },
-      'token.en':     { url: `${SPRITE_BASE}/token_enemy.png`,     ax: 0.5, ay: 0.55, shadow: true },
-      'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,       ax: 0.5, ay: 0.55, shadow: true },
+      'token.pc':     { url: `${SPRITE_BASE}/token_pc.png`,        ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'token.en':     { url: `${SPRITE_BASE}/token_enemy.png`,     ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,       ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
 
       // Class + gender placeholders
-      'fighter.male':     { url: `${SPRITE_BASE}/fighter_male.png`,      ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'fighter.female':   { url: `${SPRITE_BASE}/fighter_female.png`,    ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'cleric.male':      { url: `${SPRITE_BASE}/cleric_male.png`,       ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'cleric.female':    { url: `${SPRITE_BASE}/cleric_female.png`,     ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'wizard.male':      { url: `${SPRITE_BASE}/wizard_male.png`,       ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'wizard.female':    { url: `${SPRITE_BASE}/wizard_female.png`,     ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'rogue.male':       { url: `${SPRITE_BASE}/rogue_male.png`,        ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'rogue.female':     { url: `${SPRITE_BASE}/rogue_female.png`,      ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'ranger.male':      { url: `${SPRITE_BASE}/ranger_male.png`,       ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'ranger.female':    { url: `${SPRITE_BASE}/ranger_female.png`,     ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'paladin.male':     { url: `${SPRITE_BASE}/paladin_male.png`,      ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'paladin.female':   { url: `${SPRITE_BASE}/paladin_female.png`,    ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'bard.male':        { url: `${SPRITE_BASE}/bard_male.png`,         ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'bard.female':      { url: `${SPRITE_BASE}/bard_female.png`,       ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'druid.male':       { url: `${SPRITE_BASE}/druid_male.png`,        ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'druid.female':     { url: `${SPRITE_BASE}/druid_female.png`,      ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'monk.male':        { url: `${SPRITE_BASE}/monk_male.png`,         ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'monk.female':      { url: `${SPRITE_BASE}/monk_female.png`,       ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'barbarian.male':   { url: `${SPRITE_BASE}/barbarian_male.png`,    ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'barbarian.female': { url: `${SPRITE_BASE}/barbarian_female.png`,  ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'sorcerer.male':    { url: `${SPRITE_BASE}/sorcerer_male.png`,     ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'sorcerer.female':  { url: `${SPRITE_BASE}/sorcerer_female.png`,   ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'warlock.male':     { url: `${SPRITE_BASE}/warlock_male.png`,      ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
-      'warlock.female':   { url: `${SPRITE_BASE}/warlock_female.png`,    ax: 0.5, ay: 0.55, shadow: true, scale: 0.5 },
+      'fighter.male':     { url: `${SPRITE_BASE}/fighter_male.png`,      ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'fighter.female':   { url: `${SPRITE_BASE}/fighter_female.png`,    ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'cleric.male':      { url: `${SPRITE_BASE}/cleric_male.png`,       ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'cleric.female':    { url: `${SPRITE_BASE}/cleric_female.png`,     ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'wizard.male':      { url: `${SPRITE_BASE}/wizard_male.png`,       ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'wizard.female':    { url: `${SPRITE_BASE}/wizard_female.png`,     ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'rogue.male':       { url: `${SPRITE_BASE}/rogue_male.png`,        ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'rogue.female':     { url: `${SPRITE_BASE}/rogue_female.png`,      ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'ranger.male':      { url: `${SPRITE_BASE}/ranger_male.png`,       ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'ranger.female':    { url: `${SPRITE_BASE}/ranger_female.png`,     ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'paladin.male':     { url: `${SPRITE_BASE}/paladin_male.png`,      ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'paladin.female':   { url: `${SPRITE_BASE}/paladin_female.png`,    ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'bard.male':        { url: `${SPRITE_BASE}/bard_male.png`,         ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'bard.female':      { url: `${SPRITE_BASE}/bard_female.png`,       ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'druid.male':       { url: `${SPRITE_BASE}/druid_male.png`,        ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'druid.female':     { url: `${SPRITE_BASE}/druid_female.png`,      ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'monk.male':        { url: `${SPRITE_BASE}/monk_male.png`,         ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'monk.female':      { url: `${SPRITE_BASE}/monk_female.png`,       ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'barbarian.male':   { url: `${SPRITE_BASE}/barbarian_male.png`,    ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'barbarian.female': { url: `${SPRITE_BASE}/barbarian_female.png`,  ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'sorcerer.male':    { url: `${SPRITE_BASE}/sorcerer_male.png`,     ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'sorcerer.female':  { url: `${SPRITE_BASE}/sorcerer_female.png`,   ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'warlock.male':     { url: `${SPRITE_BASE}/warlock_male.png`,      ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'warlock.female':   { url: `${SPRITE_BASE}/warlock_female.png`,    ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+
+      // Races / monsters (manual sprite selection via actor.sprite)
+      'dragonkin.green': { url: `${SPRITE_BASE}/dragonkin_green.png`, ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'dragonkin.red':   { url: `${SPRITE_BASE}/dragonkin_red.png`,   ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'dragonkin.blue':  { url: `${SPRITE_BASE}/dragonkin_blue.png`,  ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'dragonkin.black': { url: `${SPRITE_BASE}/dragonkin_black.png`, ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'dragonkin.white': { url: `${SPRITE_BASE}/dragonkin_white.png`,   ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
 
       // Openings
       'window':       { url: `${SPRITE_BASE}/window.png`,          ax: 0.5, ay: 0.5, shadow: false },
