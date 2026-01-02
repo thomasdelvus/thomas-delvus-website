@@ -1,5 +1,5 @@
 <!--
-  Version 3.55
+  Version 3.56
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -1843,23 +1843,9 @@
 
     const SPRITE_BASE = '/assets/sprites';
 
-    // NOTE: Table sprite size reduced ~30% (1.8 -> 1.26)
-    const SPRITE_DEFS = {
-      'table':        { url: `${SPRITE_BASE}/table_round.png`,     wHex: 1.1,  hHex: 1.26, ax: 0.5, ay: 0.52, shadow: true },
-      'table.round':  { url: `${SPRITE_BASE}/table_round.png`,     wHex: 1.1,  hHex: 1.26, ax: 0.5, ay: 0.52, shadow: true },
-      'table.rect':   { url: `${SPRITE_BASE}/table_rect.png`,      wHex: 2.2,  hHex: 1.6,  ax: 0.5, ay: 0.55, shadow: true },
-      'sarcophagus':  { url: `${SPRITE_BASE}/sarcophagus.png`,     wHex: 2.4,  hHex: 1.4,  ax: 0.5, ay: 0.58, shadow: true },
-      'pillar':       { url: `${SPRITE_BASE}/pillar_stone.png`,    wHex: 1.2,  hHex: 1.2,  ax: 0.5, ay: 0.60, shadow: true },
-      'rect':         { url: `${SPRITE_BASE}/crate_rect.png`,      wHex: 2.0,  hHex: 1.4,  ax: 0.5, ay: 0.58, shadow: true },
-      'token.pc':     { url: `${SPRITE_BASE}/token_pc.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'token.en':     { url: `${SPRITE_BASE}/token_enemy.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },      'window':       { url: `${SPRITE_BASE}/window.png`,          wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
-      'window.open':  { url: `${SPRITE_BASE}/window_open.png`,     wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
-      'door':         { url: `${SPRITE_BASE}/door.png`,            wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
-      'door.open':    { url: `${SPRITE_BASE}/door_open.png`,       wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
-      'door.wood':    { url: `${SPRITE_BASE}/door_wood.png`,       wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
-      'door_wood':    { url: `${SPRITE_BASE}/door_wood.png`,       wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false }
-    };
+    // Sprite definitions are assigned near the end of the file for easy editing.
+    // (We declare the variable here so the rest of the engine can reference it.)
+    let SPRITE_DEFS = {};
 
     const SPRITE_CACHE = new Map();
     const SPRITE_PROMISES = new Map();
@@ -1884,8 +1870,21 @@
     }
 
     function spriteKeyForActor(actor) {
+      // 1) Explicit sprite key wins (must exist in SPRITE_DEFS)
       const s = actor && actor.sprite ? String(actor.sprite).trim().toLowerCase() : '';
       if (s && SPRITE_DEFS[s]) return s;
+
+      // 2) Class + gender placeholder tokens
+      //    Accepts: class / cls / archetype / role  AND  gender / sex
+      const cls = String(actor?.class ?? actor?.cls ?? actor?.archetype ?? actor?.role ?? '').trim().toLowerCase();
+      const genRaw = String(actor?.gender ?? actor?.sex ?? '').trim().toLowerCase();
+      const gen = (genRaw.startsWith('f')) ? 'female' : (genRaw.startsWith('m') ? 'male' : '');
+      if (cls && gen) {
+        const key = `${cls}.${gen}`;
+        if (SPRITE_DEFS[key]) return key;
+      }
+
+      // 3) Default by side
       const side = String(actor?.side || 'NPC').toUpperCase();
       if (side === 'PC') return 'token.pc';
       if (side === 'EN') return 'token.en';
@@ -3272,6 +3271,60 @@ function entityRotDeg(ent, fallbackDeg) {
       }
     }
 
+    // =====================================================================
+    // SPRITE DEFINITIONS (EDIT HERE)
+    // =====================================================================
+
+    // NOTE: Table sprite size reduced ~30% (1.8 -> 1.26)
+    SPRITE_DEFS = {
+      'table':        { url: `${SPRITE_BASE}/table_round.png`,     wHex: 1.1,  hHex: 1.26, ax: 0.5, ay: 0.52, shadow: true },
+      'table.round':  { url: `${SPRITE_BASE}/table_round.png`,     wHex: 1.1,  hHex: 1.26, ax: 0.5, ay: 0.52, shadow: true },
+      'table.rect':   { url: `${SPRITE_BASE}/table_rect.png`,      wHex: 2.2,  hHex: 1.6,  ax: 0.5, ay: 0.55, shadow: true },
+      'sarcophagus':  { url: `${SPRITE_BASE}/sarcophagus.png`,     wHex: 2.4,  hHex: 1.4,  ax: 0.5, ay: 0.58, shadow: true },
+      'pillar':       { url: `${SPRITE_BASE}/pillar_stone.png`,    wHex: 1.2,  hHex: 1.2,  ax: 0.5, ay: 0.60, shadow: true },
+      'rect':         { url: `${SPRITE_BASE}/crate_rect.png`,      wHex: 2.0,  hHex: 1.4,  ax: 0.5, ay: 0.58, shadow: true },
+
+      // ---- Character tokens (placeholders by class + gender) ----
+      // Default/fallback tokens
+      'token.pc':     { url: `${SPRITE_BASE}/token_pc.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'token.en':     { url: `${SPRITE_BASE}/token_enemy.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+
+      // Generic class tokens (male/female). Add files later; engine falls back safely.
+      'fighter.male':    { url: `${SPRITE_BASE}/fighter_male.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'fighter.female':  { url: `${SPRITE_BASE}/fighter_female.png`,   wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'cleric.male':     { url: `${SPRITE_BASE}/cleric_male.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'cleric.female':   { url: `${SPRITE_BASE}/cleric_female.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'wizard.male':     { url: `${SPRITE_BASE}/wizard_male.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'wizard.female':   { url: `${SPRITE_BASE}/wizard_female.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'rogue.male':      { url: `${SPRITE_BASE}/rogue_male.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'rogue.female':    { url: `${SPRITE_BASE}/rogue_female.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'ranger.male':     { url: `${SPRITE_BASE}/ranger_male.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'ranger.female':   { url: `${SPRITE_BASE}/ranger_female.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'paladin.male':    { url: `${SPRITE_BASE}/paladin_male.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'paladin.female':  { url: `${SPRITE_BASE}/paladin_female.png`,   wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'bard.male':       { url: `${SPRITE_BASE}/bard_male.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'bard.female':     { url: `${SPRITE_BASE}/bard_female.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'druid.male':      { url: `${SPRITE_BASE}/druid_male.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'druid.female':    { url: `${SPRITE_BASE}/druid_female.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'monk.male':       { url: `${SPRITE_BASE}/monk_male.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'monk.female':     { url: `${SPRITE_BASE}/monk_female.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'barbarian.male':  { url: `${SPRITE_BASE}/barbarian_male.png`,   wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'barbarian.female':{ url: `${SPRITE_BASE}/barbarian_female.png`, wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'sorcerer.male':   { url: `${SPRITE_BASE}/sorcerer_male.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'sorcerer.female': { url: `${SPRITE_BASE}/sorcerer_female.png`,  wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'warlock.male':    { url: `${SPRITE_BASE}/warlock_male.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      'warlock.female':  { url: `${SPRITE_BASE}/warlock_female.png`,   wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+
+      // ---- Openings ----
+      'window':       { url: `${SPRITE_BASE}/window.png`,          wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
+      'window.open':  { url: `${SPRITE_BASE}/window_open.png`,     wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
+      'door':         { url: `${SPRITE_BASE}/door.png`,            wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
+      'door.open':    { url: `${SPRITE_BASE}/door_open.png`,       wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
+      'door.wood':    { url: `${SPRITE_BASE}/door_wood.png`,       wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
+      'door_wood':    { url: `${SPRITE_BASE}/door_wood.png`,       wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false }
+    };
+
     // Minimal self-tests (safe in production; they only log if something is off)
     function runSelfTests() {
       try {
@@ -3309,8 +3362,12 @@ function entityRotDeg(ent, fallbackDeg) {
         // sprite sizing sanity
         console.assert(!!SPRITE_DEFS['table'], 'SPRITE_DEFS should include table');
         console.assert(!!SPRITE_DEFS['table.round'], 'SPRITE_DEFS should include table.round');
-        console.assert(Math.abs((SPRITE_DEFS['table']?.wHex ?? 0) - 1.26) < 0.0001, 'table sprite should be 30% smaller (wHex=1.26)');
+        console.assert(Math.abs((SPRITE_DEFS['table']?.hHex ?? 0) - 1.26) < 0.0001, 'table sprite should be 30% smaller (hHex=1.26)');
         console.assert(Math.abs((SPRITE_DEFS['table.round']?.hHex ?? 0) - 1.26) < 0.0001, 'table.round sprite should be 30% smaller (hHex=1.26)');
+
+        // class+gender token selection
+        console.assert(spriteKeyForActor({ side: 'PC', class: 'fighter', gender: 'male' }) === 'fighter.male', 'fighter.male selection');
+        console.assert(spriteKeyForActor({ side: 'PC', class: 'wizard', gender: 'female' }) === 'wizard.female', 'wizard.female selection');
       } catch (_) {}
     }
 
