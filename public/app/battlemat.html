@@ -469,7 +469,7 @@
     {"id": "win_s_4", "kind": "window", "room": "room1", "wall": "S", "at": "L1", "state": "closed"},
 
     {"id": "door_e_1", "kind": "door.wood", "room": "room1", "wall": "E", "at": "N6", "state": "closed"},
-    {"id":"door_e_2","kind":"door.wood","room":"room1","wall":"E","at":"N5","state":"closed","rot":90,"ax":0.5,"ay":0.5}
+    {"id":"door_e_2","kind":"door.wood","room":"room1","wall":"E","at":"N5","state":"closed","rot":270}
   ],
   "objects": [
     {"id": "table1", "kind": "table", "cells": ["I4", "I5", "J5"], "blocks": true, "label": "T"},
@@ -1853,9 +1853,9 @@
       'token.pc':     { url: `${SPRITE_BASE}/token_pc.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
       'token.en':     { url: `${SPRITE_BASE}/token_enemy.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
       'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'door':         { url: `${SPRITE_BASE}/door.png`,            wHex: 1.05, hHex: 0.38, ax: 0.5, ay: 0.5, shadow: false },
-      'door.wood':    { url: `${SPRITE_BASE}/door_wood.png`,       wHex: 1.05, hHex: 0.38, ax: 0.5, ay: 0.5, shadow: false },
-      'door_wood':    { url: `${SPRITE_BASE}/door_wood.png`,       wHex: 1.05, hHex: 0.38, ax: 0.5, ay: 0.5, shadow: false }
+      'door':         { url: `${SPRITE_BASE}/door.png`,            wHex: 1.05, hHex: 0.38, ax: 0.4, ay: 0.4, shadow: false },
+      'door.wood':    { url: `${SPRITE_BASE}/door_wood.png`,       wHex: 1.05, hHex: 0.38, ax: 0.4, ay: 0.4, shadow: false },
+      'door_wood':    { url: `${SPRITE_BASE}/door_wood.png`,       wHex: 1.05, hHex: 0.38, ax: 0.4, ay: 0.4, shadow: false }
     };
 
     const SPRITE_CACHE = new Map();
@@ -2813,7 +2813,8 @@ function entityRotDeg(ent, fallbackDeg) {
           if (isSpriteReady(doorKey)) {
             const wallRot = (wall === 'E' || wall === 'W') ? 90 : 0;
             const rot = entityRotDeg(o, wallRot);
-            drawSpriteAt(doorKey, x, y, rot, 1, 1, (o.ax ?? o.anchorX), (o.ay ?? o.anchorY));
+            // Doors use the sprite definition's anchor by default (prevents per-scene JSON nudges).
+            drawSpriteAt(doorKey, x, y, rot, 1, 1);
             continue;
           }
         }
