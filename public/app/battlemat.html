@@ -1,5 +1,5 @@
 <!--
-  Version 3.66
+  Version 3.67
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -492,6 +492,11 @@
     }
 
     const DEBUG_DIAG = false;
+
+    // Sprite diagnostics: logs one line per sprite key the first time it successfully draws.
+    // Flip to false to silence logging.
+    const DEBUG_SPRITES = true;
+    const SPRITE_LOGGED_KEYS = new Set();
     function setDiag(html) {
       const box = document.getElementById('diagBox');
       if (!box) return;
@@ -1976,6 +1981,20 @@
       if (!def) return false;
       const img = ensureSpriteLoaded(def.url);
       if (!img || !img.complete) return false;
+
+      // Debug: print sprite load + draw sizing once per key.
+      try {
+        if (DEBUG_SPRITES && key && !SPRITE_LOGGED_KEYS.has(String(key))) {
+          console.log(
+            '[sprite]',
+            key,
+            'src=', img.src,
+            'natural=', (img.naturalWidth || img.width) + 'x' + (img.naturalHeight || img.height),
+            'smoothing=', ctx.imageSmoothingEnabled
+          );
+          SPRITE_LOGGED_KEYS.add(String(key));
+        }
+      } catch (_) {}
 
       const sz = spriteCanvasSize(def, img, scaleMul);
       const w = sz.w;
