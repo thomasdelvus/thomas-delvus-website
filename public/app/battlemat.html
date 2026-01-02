@@ -2863,28 +2863,19 @@
 
       if (tokenKey && isSpriteReady(tokenKey)) {
         drawSpriteAt(tokenKey, x, y + (size * 0.10), rot, scale, alpha, (actorObj?.ax ?? actorObj?.anchorX), (actorObj?.ay ?? actorObj?.anchorY));
-
-        // Hide A/B/C labels for PCs when a sprite is present (but keep labels when falling back to circles).
-        const hideLabel = (actorObj && String(actorObj.side || '').toUpperCase() === 'PC') || !!actorObj?.hideLabel;
+        // Labels: show on sprites by default (set actor.hideLabel=true to suppress).
+        const hideLabel = !!actorObj?.hideLabel;
         if (!hideLabel) {
           ctx.save();
           ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-
-          // Enemies/monsters: use a light label with a dark stroke so it stays readable on dark art.
-          const isEN = String(side || '').toUpperCase() === 'EN';
-          if (isEN) {
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = dead ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.75)';
-            ctx.fillStyle = dead ? 'rgba(245,245,245,0.55)' : 'rgba(250,250,250,0.92)';
-            ctx.strokeText(label, x, y);
-            ctx.fillText(label, x, y);
-          } else {
-            ctx.fillStyle = dead ? 'rgba(0,0,0,0.28)' : 'rgba(0,0,0,0.60)';
-            ctx.fillText(label, x, y);
-          }
-
+          // Sprite labels: off-white text with a dark stroke so it reads on any art.
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = dead ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.75)';
+          ctx.fillStyle = dead ? 'rgba(245,245,245,0.55)' : 'rgba(250,250,250,0.92)';
+          ctx.strokeText(label, x, y);
+          ctx.fillText(label, x, y);
           ctx.restore();
         }
         return;
