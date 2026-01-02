@@ -63,7 +63,7 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
-      height: 750px;
+      height: 1125px;
       width: 360px;
       flex: 0 0 360px;
       min-height: 0;
@@ -334,7 +334,7 @@
   <main>
     <div class="layout">
       <div class="mat-col">
-        <canvas id="mat" width="940" height="750" aria-label="Hex battlemat"></canvas>
+        <canvas id="mat" width="1410" height="1125" aria-label="Hex battlemat"></canvas>
 
         <section class="keybar" aria-label="Map key">
           <div class="keybar-title">
@@ -757,14 +757,20 @@
     // ====== GRID CONFIG ======
     const cols = 17;
     const rows = 11;
-    const size = 34.5;
-    const margin = 55;
+    // Grid “zoom” (more pixels per hex = less pixelated tokens)
+    const GRID_SCALE = 1.5;
+    const size = 34.5 * GRID_SCALE;
+    const margin = 55 * GRID_SCALE;
 
     // Solid floor used for non-textured floors + cutouts
     const SOLID_FLOOR_COLOR = '#ffffff';
 
     const canvas = document.getElementById('mat');
     const ctx = canvas.getContext('2d');
+
+    // Ensure high-quality sprite scaling (helps reduce “pixelly” minification)
+    ctx.imageSmoothingEnabled = true;
+    try { ctx.imageSmoothingQuality = 'high'; } catch (_) {}
     const SQRT3 = Math.sqrt(3);
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
