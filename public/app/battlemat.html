@@ -325,7 +325,7 @@
     }
 
     .legend-swatch.pc { background: rgba(80,160,220,0.95); border-radius: 50%; }
-    .legend-swatch.en { background: rgba(220,120,80,0.95); border-radius: 50%; }
+    .legend-swatch.en { background: rgba(25,25,25,0.92); border-radius: 50%; }
   </style>
 </head>
 <body>
@@ -2869,10 +2869,22 @@
         if (!hideLabel) {
           ctx.save();
           ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
-          ctx.fillStyle = dead ? 'rgba(0,0,0,0.28)' : 'rgba(0,0,0,0.60)';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(label, x, y);
+
+          // Enemies/monsters: use a light label with a dark stroke so it stays readable on dark art.
+          const isEN = String(side || '').toUpperCase() === 'EN';
+          if (isEN) {
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = dead ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.75)';
+            ctx.fillStyle = dead ? 'rgba(245,245,245,0.55)' : 'rgba(250,250,250,0.92)';
+            ctx.strokeText(label, x, y);
+            ctx.fillText(label, x, y);
+          } else {
+            ctx.fillStyle = dead ? 'rgba(0,0,0,0.28)' : 'rgba(0,0,0,0.60)';
+            ctx.fillText(label, x, y);
+          }
+
           ctx.restore();
         }
         return;
@@ -2881,7 +2893,7 @@
       let fill = 'rgba(160,160,160,0.95)';
       if (dead) fill = 'rgba(140,140,140,0.85)';
       else if (side === 'PC') fill = 'rgba(80,160,220,0.95)';
-      else if (side === 'EN') fill = 'rgba(220,120,80,0.95)';
+      else if (side === 'EN') fill = 'rgba(25,25,25,0.92)';
 
       ctx.beginPath();
       ctx.arc(x, y, size * 0.40, 0, Math.PI * 2);
@@ -2893,10 +2905,20 @@
       ctx.stroke();
 
       ctx.font = 'bold 14px ui-monospace, system-ui, sans-serif';
-      ctx.fillStyle = dead ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.72)';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(label, x, y);
+
+      // Enemies/monsters: light label for contrast.
+      if (side === 'EN') {
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = dead ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.80)';
+        ctx.fillStyle = dead ? 'rgba(245,245,245,0.55)' : 'rgba(250,250,250,0.92)';
+        ctx.strokeText(label, x, y);
+        ctx.fillText(label, x, y);
+      } else {
+        ctx.fillStyle = dead ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.72)';
+        ctx.fillText(label, x, y);
+      }
     }
 
     // =====================================================================
@@ -3183,7 +3205,7 @@
     SPRITE_DEFS = {
       // Objects
       'table':        { url: `${SPRITE_BASE}/table_round.png`,     ax: 0.5, ay: 0.52, shadow: true },
-      'table.round':  { url: `${SPRITE_BASE}/table_round.png`,     ax: 0.5, ay: 0.52, shadow: true, scale: 0.75 },
+      'table.round':  { url: `${SPRITE_BASE}/table_round.png`,     ax: 0.5, ay: 0.52, shadow: true, scale: 0.50 },
       'table.rect':   { url: `${SPRITE_BASE}/table_rect.png`,      ax: 0.5, ay: 0.55, shadow: true },
       'sarcophagus':  { url: `${SPRITE_BASE}/sarcophagus.png`,     ax: 0.5, ay: 0.58, shadow: true },
       'pillar':       { url: `${SPRITE_BASE}/pillar_stone.png`,    ax: 0.5, ay: 0.60, shadow: true },
