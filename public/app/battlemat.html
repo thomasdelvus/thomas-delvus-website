@@ -1932,14 +1932,25 @@
         const def = spriteDefForKey(key);
         if (def?.url) urls.add(def.url);
       }
-
-      // Openings (e.g., doors rendered as sprites)
+      // Openings (doors/windows rendered as sprites)
       for (const op of (sceneNorm?.openings || [])) {
         const k = String(op?.kind || '').trim().toLowerCase();
         const base = k.split('.')[0];
-        if (base === 'door') {
-          const key = (SPRITE_DEFS[k] ? k : 'door');
-          const def = spriteDefForKey(key);
+        if (base !== 'door' && base !== 'window') continue;
+
+        // closed sprite
+        const closedKey = (SPRITE_DEFS[k] ? k : (SPRITE_DEFS[base] ? base : null));
+        if (closedKey) {
+          const def = spriteDefForKey(closedKey);
+          if (def?.url) urls.add(def.url);
+        }
+
+        // open sprite variants (optional)
+        const openKind = `${k}.open`;
+        const openBase = `${base}.open`;
+        for (const kk of [openKind, openBase]) {
+          if (!SPRITE_DEFS[kk]) continue;
+          const def = spriteDefForKey(kk);
           if (def?.url) urls.add(def.url);
         }
       }
@@ -1964,7 +1975,16 @@
       for (const op of (sceneNorm?.openings || [])) {
         const k = String(op?.kind || '').trim().toLowerCase();
         const base = k.split('.')[0];
-        if (base === 'door') keys.push('p:' + (SPRITE_DEFS[k] ? k : 'door'));
+        if (base !== 'door' && base !== 'window') continue;
+
+        // Track both closed + possible open variant so preloading/redraw triggers correctly.
+        const closedKey = (SPRITE_DEFS[k] ? k : (SPRITE_DEFS[base] ? base : null));
+        if (closedKey) keys.push('p:' + closedKey);
+
+        const openKind = `${k}.open`;
+        const openBase = `${base}.open`;
+        if (SPRITE_DEFS[openKind]) keys.push('p:' + openKind);
+        if (SPRITE_DEFS[openBase]) keys.push('p:' + openBase);
       }
       keys.sort();
       return keys.join('|');
@@ -2843,14 +2863,20 @@ function entityRotDeg(ent, fallbackDeg) {
             ctx.fill();
           }
           ctx.restore();
+          const wallRot = (wall === 'E' || wall === 'W') ? 90 : 0;
+          const rot = entityRotDeg(o, wallRot);
 
-          // 2) If open, we're done (door sprite is hidden)
-          if (isOpen) continue;
+          // 2) If open, draw an open-sprite variant if available; otherwise just show the slot.
+          if (isOpen) {
+            const openKey = (SPRITE_DEFS[`${kind}.open`] ? `${kind}.open` : (SPRITE_DEFS['door.open'] ? 'door.open' : null));
+            if (openKey && isSpriteReady(openKey)) {
+              drawSpriteAt(openKey, x, y, rot, 1, 1);
+            }
+            continue;
+          }
 
           // 3) Closed door: sprite (preferred) or legacy rectangle fallback
           const doorKey = (SPRITE_DEFS[kind] ? kind : 'door');
-          const wallRot = (wall === 'E' || wall === 'W') ? 90 : 0;
-          const rot = entityRotDeg(o, wallRot);
 
           if (isSpriteReady(doorKey)) {
             // Doors use the sprite definition's anchor by default (prevents per-scene JSON nudges).
@@ -2872,8 +2898,21 @@ function entityRotDeg(ent, fallbackDeg) {
 
           continue;
         }
+        // --- Windows: sprite (preferred), else legacy rectangle rendering ---
+        if (isWindow) {
+          const wallRot = (wall === 'E' || wall === 'W') ? 90 : 0;
+          const rot = entityRotDeg(o, wallRot);
 
-        // --- Windows: keep legacy rectangle rendering ---
+          const openKey = (SPRITE_DEFS[`${kind}.open`] ? `${kind}.open` : (SPRITE_DEFS['window.open'] ? 'window.open' : null));
+          const closedKey = (SPRITE_DEFS[kind] ? kind : (SPRITE_DEFS['window'] ? 'window' : null));
+          const keyToUse = isOpen ? openKey : closedKey;
+
+          if (keyToUse && isSpriteReady(keyToUse)) {
+            drawSpriteAt(keyToUse, x, y, rot, 1, 1);
+            continue;
+          }
+        }
+
         ctx.save();
         ctx.translate(x, y);
 
