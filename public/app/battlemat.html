@@ -1,5 +1,5 @@
 <!--
-  Version 3.51
+  Version 3.52
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -981,6 +981,7 @@
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
     let ROOM_GEOMS = null;
+    let ROOM_BY_ID = null;
     let SCENE_NORM = null;
 
     const CONFIG = {
@@ -2788,6 +2789,9 @@ function entityRotDeg(ent, fallbackDeg) {
         if (kindBase !== 'door' && kindBase !== 'window') continue;
 
         const state = String(o.state ?? 'closed').toLowerCase();
+        const isDoor = (kindBase === 'door');
+        const isWindow = (kindBase === 'window');
+        const isOpen = (state === 'open');
 
         const g = ROOM_GEOMS.get(String(o.room || ''));
         if (!g) continue;
@@ -2804,22 +2808,7 @@ function entityRotDeg(ent, fallbackDeg) {
         else if (wall === 'W') x = g.leftX;
         else continue;
 
-        const isDoor = (kindBase === 'door');
-        const isWindow = (kindBase === 'window');
-        const isOpen = (state === 'open');
-
-        // Door sprite (closed doors only). Default rotation is based on wall (E/W => vertical).
-        if (isDoor && !isOpen) {
-          const doorKey = (SPRITE_DEFS[kind] ? kind : 'door');
-          if (isSpriteReady(doorKey)) {
-            const wallRot = (wall === 'E' || wall === 'W') ? 90 : 0;
-            const rot = entityRotDeg(o, wallRot);
-            // Doors use the sprite definition's anchor by default (prevents per-scene JSON nudges).
-            drawSpriteAt(doorKey, x, y, rot, 1, 1);
-            continue;
-          }
-        }
-
+        // Geometry for the "cutout" in the wall
         const thicknessAcross = Number(o.thicknessAcross ?? Math.max(CONFIG.opening.minAcross, g.thickness * CONFIG.opening.acrossMul));
         const spanAlong = (wall === 'N' || wall === 'S')
           ? Number(o.spanAlong ?? (CONFIG.opening.spanNSMul * size))
@@ -2828,9 +2817,61 @@ function entityRotDeg(ent, fallbackDeg) {
         const rectW = (wall === 'N' || wall === 'S') ? spanAlong : thicknessAcross;
         const rectH = (wall === 'N' || wall === 'S') ? thicknessAcross : spanAlong;
 
+        // --- Doors: carve a floor-colored slot first, then draw the door on top ---
+        if (isDoor) {
+          const roomObj = ROOM_BY_ID ? ROOM_BY_ID.get(String(o.room || '')) : null;
+
+          // 1) Slot = floor (so narrow doors still look correct)
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.beginPath();
+          ctx.rect(-rectW / 2, -rectH / 2, rectW, rectH);
+
+          if (TEX.enabled && roomObj) {
+            const fk = floorKindForRoom(roomObj);
+            const fpat = texturePatternFor(fk);
+            ctx.globalAlpha = 0.98;
+            ctx.fillStyle = fpat;
+            ctx.fill();
+          } else {
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+          }
+          ctx.restore();
+
+          // 2) If open, we're done (door sprite is hidden)
+          if (isOpen) continue;
+
+          // 3) Closed door: sprite (preferred) or legacy rectangle fallback
+          const doorKey = (SPRITE_DEFS[kind] ? kind : 'door');
+          const wallRot = (wall === 'E' || wall === 'W') ? 90 : 0;
+          const rot = entityRotDeg(o, wallRot);
+
+          if (isSpriteReady(doorKey)) {
+            // Doors use the sprite definition's anchor by default (prevents per-scene JSON nudges).
+            drawSpriteAt(doorKey, x, y, rot, 1, 1);
+            continue;
+          }
+
+          // Fallback: draw a simple door slab on top of the slot
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.beginPath();
+          ctx.rect(-rectW / 2, -rectH / 2, rectW, rectH);
+          ctx.fillStyle = '#b07a3f';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
+
+          continue;
+        }
+
+        // --- Windows: keep legacy rectangle rendering ---
         ctx.save();
         ctx.translate(x, y);
-        // (legacy rect rendering continues below)
 
         if (isOpen) {
           if (isWindow) {
@@ -2843,14 +2884,13 @@ function entityRotDeg(ent, fallbackDeg) {
             ctx.lineWidth = 0;
           }
         } else {
-          if (isDoor) ctx.fillStyle = '#b07a3f';
-          else ctx.fillStyle = '#cfe6f6';
+          ctx.fillStyle = '#cfe6f6';
           ctx.strokeStyle = 'rgba(0,0,0,0.6)';
           ctx.lineWidth = 2;
         }
 
         ctx.beginPath();
-        ctx.rect(-rectW/2, -rectH/2, rectW, rectH);
+        ctx.rect(-rectW / 2, -rectH / 2, rectW, rectH);
         ctx.fill();
         ctx.stroke();
 
@@ -2860,7 +2900,7 @@ function entityRotDeg(ent, fallbackDeg) {
           ctx.fillStyle = 'rgba(0,0,0,0.55)';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(isWindow ? 'W' : 'D', 0, 0);
+          ctx.fillText('W', 0, 0);
         }
 
         ctx.restore();
@@ -2948,9 +2988,11 @@ function entityRotDeg(ent, fallbackDeg) {
       requestSpritePreload(SCENE_NORM);
 
       ROOM_GEOMS = new Map();
+      ROOM_BY_ID = new Map();
       for (const room of (SCENE_NORM?.rooms || [])) {
         const g = getRoomGeom(room);
         if (g && g.id) ROOM_GEOMS.set(g.id, g);
+        if (room && room.id) ROOM_BY_ID.set(String(room.id), room);
       }
 
       drawRooms();
