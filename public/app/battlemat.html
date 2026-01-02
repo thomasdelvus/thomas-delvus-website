@@ -1,5 +1,5 @@
 <!--
-  Version 3.67
+  Version 3.68
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -768,9 +768,31 @@
     const canvas = document.getElementById('mat');
     const ctx = canvas.getContext('2d');
 
-    // Ensure high-quality sprite scaling (helps reduce “pixelly” minification)
-    ctx.imageSmoothingEnabled = true;
-    try { ctx.imageSmoothingQuality = 'high'; } catch (_) {}
+    // Canvas resolution ("effective DPI"):
+    // Keep the same on-page size, but allocate more *backing pixels* so the grid + sprites
+    // render sharper (retina-aware, with optional supersampling).
+    const MAT_W = 1410;
+    const MAT_H = 1125;
+    const SUPERSAMPLE = 1.0; // try 1.5 or 2.0 for extra crispness (higher GPU/CPU)
+
+    function setupCanvasResolution() {
+      const dpr = (window.devicePixelRatio || 1) * SUPERSAMPLE;
+      canvas.style.width = MAT_W + 'px';
+      canvas.style.height = MAT_H + 'px';
+      canvas.width = Math.round(MAT_W * dpr);
+      canvas.height = Math.round(MAT_H * dpr);
+
+      // Draw using CSS-pixel coordinates.
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      // Ensure high-quality sprite scaling (helps reduce “pixelly” minification)
+      ctx.imageSmoothingEnabled = true;
+      try { ctx.imageSmoothingQuality = 'high'; } catch (_) {}
+
+      return dpr;
+    }
+
+    const CANVAS_DPR = setupCanvasResolution();
     const SQRT3 = Math.sqrt(3);
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -2340,8 +2362,9 @@
 
     function canvasEventToLocalPx(ev) {
       const rect = canvas.getBoundingClientRect();
-      const x = (ev.clientX - rect.left) * (canvas.width / rect.width);
-      const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
+      // Convert from screen/CSS pixels to our logical draw-space (MAT_W × MAT_H).
+      const x = (ev.clientX - rect.left) * (MAT_W / rect.width);
+      const y = (ev.clientY - rect.top) * (MAT_H / rect.height);
       return { x, y };
     }
 
@@ -2888,10 +2911,10 @@
     }
 
     function drawGrid() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, MAT_W, MAT_H);
 
       ctx.fillStyle = '#d7d7d7';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, MAT_W, MAT_H);
 
       for (let q = 0; q < cols; q++) {
         for (let r = 0; r < rows; r++) {
