@@ -1,5 +1,5 @@
 <!--
-  Version 3.71
+  Version 3.72
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -3175,14 +3175,14 @@
     // =====================================================================
 
     // Global actor sizing (tune this so full-body art fits ~within one hex)
-    const ACTOR_SCALE = 0.50;
+    const ACTOR_SCALE = 0.5;
 
     // All sprites now use NATIVE sizing (pixel size mapped to hex height).
     // If you want something to be bigger than a hex: make the PNG bigger.
     // If you need a quick nudge without re-exporting: set `scale` on the sprite def or entity.
     SPRITE_DEFS = {
       // Objects
-      'table':        { url: `${SPRITE_BASE}/table_round.png`,     ax: 0.5, ay: 0.52, shadow: true},
+      'table':        { url: `${SPRITE_BASE}/table_round.png`,     ax: 0.5, ay: 0.52, shadow: true },
       'table.round':  { url: `${SPRITE_BASE}/table_round.png`,     ax: 0.5, ay: 0.52, shadow: true, scale: 0.75 },
       'table.rect':   { url: `${SPRITE_BASE}/table_rect.png`,      ax: 0.5, ay: 0.55, shadow: true },
       'sarcophagus':  { url: `${SPRITE_BASE}/sarcophagus.png`,     ax: 0.5, ay: 0.58, shadow: true },
