@@ -1,5 +1,5 @@
 <!--
-  Version 3.63
+  Version 3.66
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -14,7 +14,6 @@
 
   Unauthorized use is prohibited.
 -->
-
 
 <!doctype html>
 <html lang="en">
@@ -41,11 +40,10 @@
       padding: 12px;
       display: flex;
       justify-content: center;
-      overflow-x: auto;   /* center when possible; allow horizontal scroll on small windows */
+      overflow-x: auto;
       overflow-y: hidden;
     }
 
-    /* Two-column layout: battlemat + right stack */
     .layout {
       display: flex;
       gap: 12px;
@@ -53,7 +51,6 @@
       margin: 0 auto;
     }
 
-    /* Left column stacks: battlemat + compact key bar */
     .mat-col {
       display: flex;
       flex-direction: column;
@@ -62,18 +59,16 @@
       flex: 0 0 auto;
     }
 
-    /* Right column: fixed height to match canvas; narration expands */
     aside[aria-label="Right panels"] {
       display: flex;
       flex-direction: column;
       gap: 12px;
-      height: 750px; /* match canvas height */
+      height: 750px;
       width: 360px;
       flex: 0 0 360px;
       min-height: 0;
     }
 
-    /* Compact key bar under the battlemat */
     .keybar {
       width: 100%;
       box-sizing: border-box;
@@ -110,7 +105,6 @@
 
     .keybar-list li { white-space: nowrap; }
 
-    /* Pane */
     .pane {
       background: #fff;
       border: 1px solid rgba(0,0,0,0.10);
@@ -140,52 +134,30 @@
       white-space: nowrap;
     }
 
-    .refresh-btn {
-      appearance: none;
-      border: 1px solid rgba(0,0,0,0.18);
-      background: #fff;
-      border-radius: 8px;
-      padding: 6px 10px;
-      font-size: 0.86rem;
-      font-weight: 650;
-      cursor: pointer;
-      line-height: 1;
-    }
-
-    .refresh-btn:hover { background: rgba(0,0,0,0.03); }
-    .refresh-btn:active { background: rgba(0,0,0,0.06); }
-    .refresh-btn:focus { outline: 2px solid rgba(0,0,0,0.25); outline-offset: 2px; }
-
-    .toggle-btn {
-      appearance: none;
-      border: 1px solid rgba(0,0,0,0.18);
-      background: #fff;
-      border-radius: 8px;
-      padding: 6px 10px;
-      font-size: 0.86rem;
-      font-weight: 650;
-      cursor: pointer;
-      line-height: 1;
-    }
-
-    .toggle-btn:hover { background: rgba(0,0,0,0.03); }
-    .toggle-btn:active { background: rgba(0,0,0,0.06); }
-    .toggle-btn:focus { outline: 2px solid rgba(0,0,0,0.25); outline-offset: 2px; }
-
+    .refresh-btn,
+    .toggle-btn,
     .tex-select {
       appearance: none;
       border: 1px solid rgba(0,0,0,0.18);
       background: #fff;
       border-radius: 8px;
-      padding: 6px 8px;
+      padding: 6px 10px;
       font-size: 0.86rem;
       font-weight: 650;
       cursor: pointer;
       line-height: 1;
     }
 
+    .tex-select { padding: 6px 8px; }
+
+    .refresh-btn:hover,
+    .toggle-btn:hover,
     .tex-select:hover { background: rgba(0,0,0,0.03); }
+    .refresh-btn:active,
+    .toggle-btn:active,
     .tex-select:active { background: rgba(0,0,0,0.06); }
+    .refresh-btn:focus,
+    .toggle-btn:focus,
     .tex-select:focus { outline: 2px solid rgba(0,0,0,0.25); outline-offset: 2px; }
 
     .status-wrap {
@@ -242,7 +214,6 @@
       border-left-color: rgba(120,120,120,0.85);
     }
 
-    /* Active turn highlight (Status table) */
     tr.active-turn td {
       border-top: 2px solid rgba(0,0,0,0.85);
       border-bottom: 2px solid rgba(0,0,0,0.85);
@@ -261,7 +232,6 @@
       white-space: nowrap;
     }
 
-    /* Single-line “last action” (replaces Math panel) */
     #actionLine {
       margin-top: 10px;
       padding: 8px 10px;
@@ -274,7 +244,6 @@
       overflow-wrap: anywhere;
     }
 
-    /* Small inline diagnostics (optional) */
     .diag {
       margin-top: 10px;
       padding: 8px 10px;
@@ -288,7 +257,6 @@
     .diag .bad { color: #b00020; font-weight: 650; }
     .diag .ok  { color: #0b6b0b; font-weight: 650; }
 
-    /* Narration grows to fill remaining space */
     #paneNarration {
       flex: 1 1 auto;
       display: flex;
@@ -318,7 +286,6 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     }
 
-    /* Legend swatches */
     .legend-swatch {
       display: inline-flex;
       align-items: center;
@@ -369,22 +336,17 @@
       <div class="mat-col">
         <canvas id="mat" width="940" height="750" aria-label="Hex battlemat"></canvas>
 
-        <!-- Key / Legend (compact, bottom of battlemat) -->
         <section class="keybar" aria-label="Map key">
           <div class="keybar-title">
             <strong>Key</strong>
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
               <label class="subtle" style="display:flex; align-items:center; gap:6px;">
                 Floor
-                <select id="floorTexSel" class="tex-select" title="Preview floor texture">
-                  <!-- populated by JS -->
-                </select>
+                <select id="floorTexSel" class="tex-select" title="Preview floor texture"></select>
               </label>
               <label class="subtle" style="display:flex; align-items:center; gap:6px;">
                 Wall
-                <select id="wallTexSel" class="tex-select" title="Preview wall texture">
-                  <!-- populated by JS -->
-                </select>
+                <select id="wallTexSel" class="tex-select" title="Preview wall texture"></select>
               </label>
               <button id="textureToggleBtn" class="toggle-btn" type="button" title="Toggle textures">Textures: Off</button>
             </div>
@@ -401,7 +363,6 @@
       </div>
 
       <aside aria-label="Right panels">
-        <!-- Status -->
         <section class="pane" aria-label="Combat status panel">
           <div class="panel-title">
             <h3>Status</h3>
@@ -411,7 +372,6 @@
             </div>
           </div>
 
-          <!-- URL/API diagnostics (helps debug /play/<id> routing). Set DEBUG_DIAG=true to show. -->
           <div class="diag" id="diagBox" aria-label="Diagnostics" style="display:none"></div>
 
           <div class="status-wrap" aria-label="Status table">
@@ -430,7 +390,6 @@
           <div id="actionLine" aria-label="Last action"></div>
         </section>
 
-        <!-- Narration -->
         <section class="pane" id="paneNarration" aria-label="Narration">
           <div class="panel-title">
             <h3>Narration</h3>
@@ -441,11 +400,6 @@
     </div>
   </main>
 
-  <!-- ===================== EDIT ONLY THIS BLOCK: SCENE JSON =====================
-     - Edit ONLY the JSON inside this tag.
-     - Keep it VALID JSON (double quotes, no trailing commas, no comments).
-     - If JSON is invalid, the engine will keep showing the last valid scene and print an error.
-     ===================== END SCENE JSON =================================== -->
   <script type="application/json" id="scene-json">
 {
   "round": 1,
@@ -482,16 +436,16 @@
     {"id": "wraith2", "name": "Wraith 2", "side": "EN", "init": 11, "hp": 0, "maxHp": 67, "effects": [], "at": "K9", "label": "W2"},
     {"id": "wraith3", "name": "Wraith 3", "side": "EN", "init": 10, "hp": 67, "maxHp": 67, "effects": [], "at": "E6", "label": "W3"},
 
-    {"id": "pc1", "name": "Aelar", "side": "PC", "init": 14, "hp": 42, "maxHp": 42, "effects": [], "at": "K2", "label": "A"},
-    {"id": "pc2", "name": "Brunna", "side": "PC", "init": 13, "hp": 55, "maxHp": 55, "effects": [], "at": "L3", "label": "B"},
-    {"id": "pc3", "name": "Caelin", "side": "PC", "init": 12, "hp": 38, "maxHp": 38, "effects": [], "at": "M3", "label": "C"}
+    {"id": "pc1", "name": "Aelar", "side": "PC", "init": 14, "hp": 42, "maxHp": 42, "effects": [], "at": "K2", "label": "A", "class": "fighter", "gender": "male"},
+    {"id": "pc2", "name": "Brunna", "side": "PC", "init": 13, "hp": 55, "maxHp": 55, "effects": [], "at": "L3", "label": "B", "class": "cleric", "gender": "female"},
+    {"id": "pc3", "name": "Caelin", "side": "PC", "init": 12, "hp": 38, "maxHp": 38, "effects": [], "at": "M3", "label": "C", "class": "wizard", "gender": "male"}
   ]
 }
   </script>
 
   <script>
     // =====================================================================
-    // DB / API WIRING (safe, minimal) — reads /play/<battle_id> and loads state
+    // DB / API WIRING
     // =====================================================================
 
     function getBattleIdFromUrl() {
@@ -501,7 +455,7 @@
       return u.searchParams.get('battle_id');
     }
 
-    const API_BASE = ''; // same origin
+    const API_BASE = '';
 
     function battleStateUrl(battleId) {
       return `${API_BASE}/api/battles/${encodeURIComponent(battleId)}`;
@@ -537,7 +491,6 @@
       );
     }
 
-    // Optional diagnostics (hide by default)
     const DEBUG_DIAG = false;
     function setDiag(html) {
       const box = document.getElementById('diagBox');
@@ -566,6 +519,7 @@
         if (roundLine) roundLine.textContent = 'No battle_id in URL';
         return false;
       }
+
       try {
         const res = await fetch(endpoint, {
           method: 'GET',
@@ -666,9 +620,7 @@
       const btn = document.getElementById('refreshModeBtn');
       if (!btn) return;
       btn.textContent = modeLabel(REFRESH.mode);
-      btn.title = (REFRESH.mode === RefreshMode.OFF)
-        ? 'Enable refresh (5s)'
-        : 'Reset to 5s';
+      btn.title = (REFRESH.mode === RefreshMode.OFF) ? 'Enable refresh (5s)' : 'Reset to 5s';
     }
 
     function setRefreshMode(mode) {
@@ -679,7 +631,6 @@
     }
 
     function refreshButtonPressed() {
-      // Any press = “wake up” and go straight to FAST/5s.
       REFRESH.lastChangeAt = Date.now();
       try {
         if (REFRESH.battleId) {
@@ -698,7 +649,6 @@
     }
 
     function applyScene(sceneObj) {
-      // Capture where actors *were* before we swap in the new scene.
       try {
         if (SCENE_NORM && SCENE_NORM.actors && SCENE_NORM.actors.length) {
           PENDING_PREV_POS = captureActorPositions(SCENE_NORM);
@@ -743,20 +693,14 @@
       try {
         if (REFRESH.mode === RefreshMode.OFF) return;
 
-        // If we don't have a battleId (e.g., Canvas preview), we still "tick" so
-        // the user can see the Auto/Off behavior and idle backoff.
         if (!REFRESH.battleId) {
           safeDrawGrid();
           const idleMs = Date.now() - (REFRESH.lastChangeAt || Date.now());
-          if (REFRESH.mode === RefreshMode.FAST && idleMs > FAST_TO_15_IDLE_MS) {
-            REFRESH.mode = RefreshMode.S15;
-          } else if (REFRESH.mode === RefreshMode.S15 && idleMs > S15_TO_30_IDLE_MS) {
-            REFRESH.mode = RefreshMode.S30;
-          } else if (REFRESH.mode === RefreshMode.S30 && idleMs > S30_TO_60_IDLE_MS) {
-            REFRESH.mode = RefreshMode.S60;
-          } else if (REFRESH.mode === RefreshMode.S60 && idleMs > S60_TO_OFF_IDLE_MS) {
-            REFRESH.mode = RefreshMode.OFF;
-          }
+          if (REFRESH.mode === RefreshMode.FAST && idleMs > FAST_TO_15_IDLE_MS) REFRESH.mode = RefreshMode.S15;
+          else if (REFRESH.mode === RefreshMode.S15 && idleMs > S15_TO_30_IDLE_MS) REFRESH.mode = RefreshMode.S30;
+          else if (REFRESH.mode === RefreshMode.S30 && idleMs > S30_TO_60_IDLE_MS) REFRESH.mode = RefreshMode.S60;
+          else if (REFRESH.mode === RefreshMode.S60 && idleMs > S60_TO_OFF_IDLE_MS) REFRESH.mode = RefreshMode.OFF;
+
           setRefreshUI();
           scheduleRefreshTick(false);
           return;
@@ -768,31 +712,19 @@
         if (changed) {
           if (versionKey) REFRESH.lastVersionKey = versionKey;
           REFRESH.lastChangeAt = Date.now();
-
-          // Snap back to FAST if we detect activity
-          if (REFRESH.mode !== RefreshMode.FAST) {
-            REFRESH.mode = RefreshMode.FAST;
-          }
-
+          if (REFRESH.mode !== RefreshMode.FAST) REFRESH.mode = RefreshMode.FAST;
           applyScene(sceneObj);
         } else {
           const idleMs = Date.now() - (REFRESH.lastChangeAt || Date.now());
-
-          if (REFRESH.mode === RefreshMode.FAST && idleMs > FAST_TO_15_IDLE_MS) {
-            REFRESH.mode = RefreshMode.S15;
-          } else if (REFRESH.mode === RefreshMode.S15 && idleMs > S15_TO_30_IDLE_MS) {
-            REFRESH.mode = RefreshMode.S30;
-          } else if (REFRESH.mode === RefreshMode.S30 && idleMs > S30_TO_60_IDLE_MS) {
-            REFRESH.mode = RefreshMode.S60;
-          } else if (REFRESH.mode === RefreshMode.S60 && idleMs > S60_TO_OFF_IDLE_MS) {
-            REFRESH.mode = RefreshMode.OFF;
-          }
+          if (REFRESH.mode === RefreshMode.FAST && idleMs > FAST_TO_15_IDLE_MS) REFRESH.mode = RefreshMode.S15;
+          else if (REFRESH.mode === RefreshMode.S15 && idleMs > S15_TO_30_IDLE_MS) REFRESH.mode = RefreshMode.S30;
+          else if (REFRESH.mode === RefreshMode.S30 && idleMs > S30_TO_60_IDLE_MS) REFRESH.mode = RefreshMode.S60;
+          else if (REFRESH.mode === RefreshMode.S60 && idleMs > S60_TO_OFF_IDLE_MS) REFRESH.mode = RefreshMode.OFF;
         }
 
         setRefreshUI();
         scheduleRefreshTick(false);
       } catch {
-        // Swallow transient errors and keep polling.
         setRefreshUI();
         scheduleRefreshTick(false);
       }
@@ -812,10 +744,1336 @@
     let SCENE_PARSE_ERROR = null;
 
     // ====== MOVEMENT TRAILS (lightweight, derived) ======
-    const TRAIL_TTL_MS = 90000;     // keep recent trails (ms)
-    const TRAIL_MAX_SEGMENTS = 24;  // per-actor cap
-    let PENDING_PREV_POS = null;    // Map(actorId -> { at, side }) captured just before applyScene()
-    const MOVE_TRAILS = new Map();  // actorId -> Array<{ from, to, ts, side }>
+    const TRAIL_TTL_MS = 90000;
+    const TRAIL_MAX_SEGMENTS = 24;
+    let PENDING_PREV_POS = null;
+    const MOVE_TRAILS = new Map();
+
+    // ====== GRID CONFIG ======
+    const cols = 17;
+    const rows = 11;
+    const size = 34.5;
+    const margin = 55;
+
+    // Solid floor used for non-textured floors + cutouts
+    const SOLID_FLOOR_COLOR = '#ffffff';
+
+    const canvas = document.getElementById('mat');
+    const ctx = canvas.getContext('2d');
+    const SQRT3 = Math.sqrt(3);
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    let ROOM_GEOMS = null;
+    let ROOM_BY_ID = null;
+    let SCENE_NORM = null;
+
+    const CONFIG = {
+      room: { yInsetFrac: 0.25 },
+      labels: {
+        dyFrac: 0.70,
+        inRoomColor: [0, 0, 0],
+        outRoomColor: [0, 0, 0],
+        inRoomAlpha: 0.22,
+        outRoomAlpha: 0.03
+      },
+      opening: {
+        minAcross: 18,
+        acrossMul: 1.05,
+        spanNSMul: 1.5,
+        spanEWMul: 1.0,
+        slotPadPx: 1.8,
+      },
+      grid: {
+        baseStrokeW: 1.2,
+        baseStrokeA: 0.07,
+        overlayStrokeW: 1.1,
+        overlayStrokeA: 0.04,
+      }
+    };
+
+    // =====================================================================
+    // COORDINATE SYSTEM & GRID MATH
+    // =====================================================================
+
+    function qrToPixel(q, r) {
+      const drawR = (rows - 1 - r);
+      const columnOffset = (q % 2 === 0) ? 0 : 0.5;
+      const x = size * (3/2) * q;
+      const y = size * SQRT3 * (drawR + columnOffset);
+      return { x: x + margin, y: y + margin };
+    }
+
+    function hexCorners(cx, cy) {
+      const pts = [];
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 180) * (60 * i);
+        pts.push({ x: cx + size * Math.cos(a), y: cy + size * Math.sin(a) });
+      }
+      return pts;
+    }
+
+    function drawHexPath(pts) {
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.closePath();
+    }
+
+    function labelFor(q, r) { return `${letters[q]}${r + 1}`; }
+
+    function parseLabel(label) {
+      const m = String(label).trim().toUpperCase().match(/^([A-Z])([0-9]{1,2})$/);
+      if (!m) return null;
+      const q = letters.indexOf(m[1]);
+      const r = Number(m[2]) - 1;
+      if (q < 0 || q >= cols) return null;
+      if (r < 0 || r >= rows) return null;
+      return { q, r };
+    }
+
+    function labelToPixel(label) {
+      const pos = parseLabel(label);
+      if (!pos) return null;
+      return qrToPixel(pos.q, pos.r);
+    }
+
+    function hexWidthPx() { return 2 * size; }
+    function hexHeightPx() { return SQRT3 * size; }
+
+    // =====================================================================
+    // SCENE LOADING
+    // =====================================================================
+
+    function loadSceneFromJsonTag() {
+      const el = document.getElementById('scene-json');
+      const raw = el ? String(el.textContent || '').trim() : '';
+      if (!raw) {
+        SCENE_PARSE_ERROR = 'SCENE JSON is empty.';
+        return (LAST_GOOD_SCENE || {});
+      }
+      try {
+        const obj = JSON.parse(raw);
+        LAST_GOOD_SCENE = obj;
+        SCENE_PARSE_ERROR = null;
+        return obj;
+      } catch (e) {
+        SCENE_PARSE_ERROR = `SCENE JSON parse error: ${e && e.message ? e.message : String(e)}`;
+        try { console.error('[Battlemat] ' + SCENE_PARSE_ERROR); } catch (_) {}
+        return (LAST_GOOD_SCENE || {});
+      }
+    }
+
+    // ====== SCENE COERCION HELPERS ======
+
+    function effectLabel(e) {
+      if (typeof e === 'string') return e;
+      if (e == null) return '';
+      const t = typeof e;
+      if (t === 'number' || t === 'boolean' || t === 'bigint') return String(e);
+      if (t === 'object') {
+        const label = e.name ?? e.label ?? e.id ?? e.type;
+        if (label != null) return String(label);
+        try { return JSON.stringify(e); } catch { return '[effect]'; }
+      }
+      return String(e);
+    }
+
+    function coerceNarration(v) {
+      if (v == null) return '';
+      if (typeof v === 'string') return v;
+      if (Array.isArray(v)) return v.map(x => (x == null ? '' : String(x))).join('\n');
+      try { return JSON.stringify(v); } catch { return String(v); }
+    }
+
+    function coerceActiveActorId(v) {
+      if (v == null) return '';
+      try { return String(v).trim(); } catch { return ''; }
+    }
+
+    function coerceLastAction(v) {
+      if (v == null) return '';
+      if (typeof v === 'string') return v;
+      if (typeof v !== 'object') return String(v);
+
+      try {
+        const actor = v.actorName || v.actor || v.actor_id || v.actorId || '';
+        const from = v.from || '';
+        const to = v.to || '';
+        const movePart = (from && to) ? `${from}→${to}` : (to ? `→${to}` : '');
+
+        const atk = v.attack || v.atk || null;
+        const dmg = v.damage || v.dmg || null;
+
+        const roll = (atk && (atk.total ?? atk.roll ?? atk.toHit ?? atk.hitRoll)) ?? (v.total ?? v.roll ?? null);
+        const weapon = (atk && (atk.name || atk.weapon)) || v.weapon || v.item || '';
+        const dmgVal = (dmg && (dmg.value ?? dmg.amount)) ?? v.damageValue ?? v.dmgValue ?? null;
+
+        const note = (typeof v.note === 'string' && v.note.trim()) ? v.note.trim() : '';
+
+        const bits = [];
+        if (actor) bits.push(String(actor));
+        if (movePart) bits.push(String(movePart));
+
+        const atkBits = [];
+        if (roll != null && roll !== '') atkBits.push(`🎲 ${roll}`);
+        if (weapon) atkBits.push(`⚔️ ${weapon}`);
+        if (dmgVal != null && dmgVal !== '') atkBits.push(`→ ${dmgVal} dmg`);
+        if (atkBits.length) bits.push(atkBits.join(' '));
+
+        if (note) bits.push(`— ${note}`);
+
+        const out = bits.join('  ');
+        if (out.trim()) return out;
+      } catch (_) {}
+
+      try { return JSON.stringify(v); } catch { return '[action]'; }
+    }
+
+    function normalizeScene() {
+      const src = (typeof SCENE === 'object' && SCENE) ? SCENE : {};
+
+      const warn = (msg, obj) => {
+        try { console.warn(`[Battlemat] ${msg}`, obj ?? ''); } catch (_) {}
+      };
+
+      const roomsIn = Array.isArray(src.rooms) ? src.rooms : [];
+      const roomsOut = [];
+      const roomIds = new Set();
+      for (let i = 0; i < roomsIn.length; i++) {
+        const r = roomsIn[i] || {};
+        const corners = Array.isArray(r.corners) ? r.corners : null;
+        if (!corners || corners.length !== 4) { warn('Room skipped: corners must be 4 labels', r); continue; }
+        if (corners.map(parseLabel).some(p => !p)) { warn('Room skipped: invalid corner label(s)', r); continue; }
+
+        let id = String(r.id || '').trim();
+        if (!id) id = `room_${i + 1}`;
+        if (roomIds.has(id)) {
+          warn(`Room id duplicated; making unique: ${id}`, r);
+          let k = 2;
+          while (roomIds.has(`${id}_${k}`)) k++;
+          id = `${id}_${k}`;
+        }
+        roomIds.add(id);
+
+        const floorKind = String(r.floorKind ?? r.floor_kind ?? '').trim();
+        const wallKind = String(r.wallKind ?? r.wall_kind ?? '').trim();
+
+        let floor = null;
+        if (r.floor && typeof r.floor === 'object') floor = r.floor;
+        else if (floorKind) floor = { kind: floorKind };
+
+        let wall = null;
+        if (r.wall && typeof r.wall === 'object') wall = r.wall;
+        else if (wallKind) wall = { kind: wallKind };
+
+        roomsOut.push({
+          id,
+          corners: corners.map(c => String(c).trim().toUpperCase()),
+          thickness: Number(r.thickness ?? 18),
+          color: String(r.color || '#555'),
+          floor,
+          wall
+        });
+      }
+
+      const openingsIn = Array.isArray(src.openings) ? src.openings : [];
+      const openingsOut = [];
+      for (let i = 0; i < openingsIn.length; i++) {
+        const o = openingsIn[i] || {};
+        const kindRaw = String(o.kind || 'door').toLowerCase();
+        const kindBase = kindRaw.split('.')[0];
+        if (kindBase !== 'door' && kindBase !== 'window') { warn('Opening skipped: kind must be door/window (or door.* / window.*)', o); continue; }
+
+        const room = String(o.room || '').trim();
+        if (!room || !roomIds.has(room)) { warn(`Opening skipped: unknown room id '${room}'`, o); continue; }
+
+        const wall = String(o.wall || '').trim().toUpperCase();
+        if (!['N','S','E','W'].includes(wall)) { warn('Opening skipped: wall must be N/S/E/W', o); continue; }
+
+        const at = String(o.at || '').trim().toUpperCase();
+        if (!parseLabel(at)) { warn('Opening skipped: invalid at label', o); continue; }
+
+        const state = String((o.state ?? 'closed')).toLowerCase();
+        openingsOut.push({ ...o, kind: kindRaw, room, wall, at, state });
+      }
+
+      const objectsIn = Array.isArray(src.objects) ? src.objects : [];
+      const objectsOut = [];
+      for (let i = 0; i < objectsIn.length; i++) {
+        const o = objectsIn[i] || {};
+        const kind = String(o.kind || 'object').toLowerCase();
+        const blocks = Boolean(o.blocks ?? false);
+
+        let cells = [];
+        if (Array.isArray(o.cells) && o.cells.length) {
+          cells = o.cells.map(c => String(c).trim().toUpperCase()).filter(Boolean);
+        } else if (o.at) {
+          cells = [String(o.at).trim().toUpperCase()];
+        }
+
+        cells = cells.filter(lab => !!parseLabel(lab));
+        if (!cells.length) { warn('Object skipped: missing/invalid at/cells', o); continue; }
+
+        objectsOut.push({
+          ...o,
+          kind,
+          blocks,
+          cells,
+          label: (o.label != null) ? String(o.label) : null,
+          color: (o.color != null) ? String(o.color) : null
+        });
+      }
+
+      const actorsIn = Array.isArray(src.actors) ? src.actors : [];
+      const actorsOut = [];
+      for (let i = 0; i < actorsIn.length; i++) {
+        const a = actorsIn[i] || {};
+        const at = String(a.at || '').trim().toUpperCase();
+        if (!parseLabel(at)) { warn('Actor skipped: invalid at label', a); continue; }
+        const side = String(a.side || 'NPC').toUpperCase();
+        actorsOut.push({ ...a, at, side: (side === 'PC' || side === 'EN') ? side : 'NPC' });
+      }
+
+      const poiIn = Array.isArray(src.poi) ? src.poi : [];
+      const poiOut = [];
+      const poiIds = new Set();
+
+      for (let i = 0; i < poiIn.length; i++) {
+        const p = poiIn[i] || {};
+        const type = String(p.type || '').trim().toLowerCase();
+        if (!type) continue;
+
+        let id = String(p.id || '').trim();
+        if (!id) id = `poi_${i + 1}`;
+        if (poiIds.has(id)) {
+          let k = 2;
+          while (poiIds.has(`${id}_${k}`)) k++;
+          id = `${id}_${k}`;
+        }
+        poiIds.add(id);
+
+        if (type === 'arrow') {
+          const from = String(p.from || '').trim().toUpperCase();
+          const to = String(p.to || '').trim().toUpperCase();
+          if (!parseLabel(from) || !parseLabel(to)) { warn('POI arrow skipped: invalid from/to', p); continue; }
+          poiOut.push({
+            ...p,
+            id,
+            type,
+            from,
+            to,
+            color: String(p.color || 'rgba(40,40,40,0.65)'),
+            width: Number(p.width ?? 4),
+            label: (p.label != null) ? String(p.label) : ''
+          });
+          continue;
+        }
+
+        poiOut.push({ ...p, id, type });
+      }
+
+      return {
+        round: Number(src.round ?? 1),
+        activeActorId: coerceActiveActorId(src.active_actor_id ?? src.activeActorId ?? src?.ui?.active_actor_id ?? src?.ui?.activeActorId),
+        lastAction: coerceLastAction(src.lastAction ?? src.last_action ?? src.action),
+        narration: coerceNarration(src.narration ?? src.notes ?? src.narrative),
+        rooms: roomsOut,
+        openings: openingsOut,
+        objects: objectsOut,
+        actors: actorsOut,
+        poi: poiOut
+      };
+    }
+
+    // =====================================================================
+    // TEXTURES (floors + walls)
+    // =====================================================================
+
+    const TEX = {
+      enabled: false,
+      patterns: new Map(),
+      tiles: new Map(),
+      overrideFloorKind: '__room__',
+      overrideWallKind: '__room__'
+    };
+
+    function readTexturePref() {
+      try {
+        const v = (localStorage.getItem('battlemat:textures:enabled') || '').trim();
+        return v === '1' || v.toLowerCase() === 'true' || v.toLowerCase() === 'on';
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function writeTexturePref(on) {
+      try { localStorage.setItem('battlemat:textures:enabled', on ? '1' : '0'); } catch (_) {}
+    }
+
+    const TEX_OVERRIDE_ROOM = '__room__';
+
+    const FLOOR_PRESETS = [
+      { value: TEX_OVERRIDE_ROOM, label: 'Room setting' },
+      { value: 'stone', label: 'Stone (slab)' },
+      { value: 'stone:cobble', label: 'Stone (cobble)' },
+      { value: 'stone:dark', label: 'Stone (dark)' },
+      { value: 'stone:blocks', label: 'Stone (blocks)' },
+      { value: 'stone:marble', label: 'Stone (marble)' },
+      { value: 'wood:oak', label: 'Wood (oak)' },
+      { value: 'wood:pine', label: 'Wood (pine)' },
+      { value: 'wood:dark', label: 'Wood (dark)' },
+      { value: 'wood:gray', label: 'Wood (gray)' },
+      { value: 'dirt:earth', label: 'Dirt (earth)' },
+      { value: 'dirt:sand', label: 'Dirt (sand)' },
+      { value: 'dirt:mud', label: 'Dirt (mud)' },
+      { value: 'grass', label: 'Grass' },
+      { value: 'carpet:red', label: 'Carpet (red)' },
+      { value: 'carpet:blue', label: 'Carpet (blue)' },
+      { value: 'carpet:green', label: 'Carpet (green)' },
+      { value: 'carpet:purple', label: 'Carpet (purple)' }
+    ];
+
+    const WALL_PRESETS = [
+      { value: TEX_OVERRIDE_ROOM, label: 'Room setting' },
+      { value: 'brick:red', label: 'Brick (red)' },
+      { value: 'brick:pale', label: 'Brick (pale)' },
+      { value: 'brick:soot', label: 'Brick (soot)' },
+      { value: 'stone', label: 'Stone (slab)' },
+      { value: 'stone:cobble', label: 'Stone (cobble)' },
+      { value: 'stone:dark', label: 'Stone (dark)' },
+      { value: 'wood:oak', label: 'Wood (oak)' },
+      { value: 'wood:dark', label: 'Wood (dark)' }
+    ];
+
+    function readTextureOverride(which) {
+      const key = which === 'wall' ? 'battlemat:textures:wallOverride' : 'battlemat:textures:floorOverride';
+      try {
+        const v = String(localStorage.getItem(key) || '').trim();
+        return v || TEX_OVERRIDE_ROOM;
+      } catch (_) {
+        return TEX_OVERRIDE_ROOM;
+      }
+    }
+
+    function writeTextureOverride(which, value) {
+      const key = which === 'wall' ? 'battlemat:textures:wallOverride' : 'battlemat:textures:floorOverride';
+      try { localStorage.setItem(key, String(value || TEX_OVERRIDE_ROOM)); } catch (_) {}
+    }
+
+    function populateSelect(sel, presets, selectedVal) {
+      sel.innerHTML = '';
+      for (const p of presets) {
+        const opt = document.createElement('option');
+        opt.value = p.value;
+        opt.textContent = p.label;
+        sel.appendChild(opt);
+      }
+      sel.value = selectedVal || TEX_OVERRIDE_ROOM;
+    }
+
+    function initTextureSelectors() {
+      const floorSel = document.getElementById('floorTexSel');
+      const wallSel = document.getElementById('wallTexSel');
+      if (!floorSel || !wallSel) return;
+
+      TEX.overrideFloorKind = readTextureOverride('floor');
+      TEX.overrideWallKind = readTextureOverride('wall');
+
+      populateSelect(floorSel, FLOOR_PRESETS, TEX.overrideFloorKind);
+      populateSelect(wallSel, WALL_PRESETS, TEX.overrideWallKind);
+
+      floorSel.addEventListener('change', () => {
+        TEX.overrideFloorKind = floorSel.value || TEX_OVERRIDE_ROOM;
+        writeTextureOverride('floor', TEX.overrideFloorKind);
+        safeDrawGrid();
+      });
+
+      wallSel.addEventListener('change', () => {
+        TEX.overrideWallKind = wallSel.value || TEX_OVERRIDE_ROOM;
+        writeTextureOverride('wall', TEX.overrideWallKind);
+        safeDrawGrid();
+      });
+    }
+
+    function setTextureUi() {
+      const btn = document.getElementById('textureToggleBtn');
+      if (!btn) return;
+      btn.textContent = TEX.enabled ? 'Textures: On' : 'Textures: Off';
+      btn.title = TEX.enabled ? 'Turn textures off' : 'Turn textures on';
+    }
+
+    function toggleTextures() {
+      TEX.enabled = !TEX.enabled;
+      writeTexturePref(TEX.enabled);
+      setTextureUi();
+      safeDrawGrid();
+    }
+
+    document.getElementById('textureToggleBtn')?.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      toggleTextures();
+    });
+
+    // Small deterministic PRNG for “natural” texture variation (seeded by kind)
+    function seededRng(seedStr) {
+      let h = 2166136261;
+      const s = String(seedStr || 'seed');
+      for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      let state = h >>> 0;
+      return function rand() {
+        state = (Math.imul(1664525, state) + 1013904223) >>> 0;
+        return state / 4294967296;
+      };
+    }
+
+    function offscreenTile(w, h) {
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      return c;
+    }
+
+    // (Texture makers unchanged from prior versions — kept verbatim but compacted)
+
+    function makeWoodTile(variant) {
+      const c = offscreenTile(220, 220);
+      const g = c.getContext('2d');
+      const vRaw = String(variant || '').trim().toLowerCase();
+
+      const PAL = {
+        oak:   { bg: '#c9b08a', plank: 'rgba(140, 95, 55, 0.18)', grain: 'rgba(60, 35, 20, 0.16)' },
+        pine:  { bg: '#d7c59f', plank: 'rgba(155, 110, 65, 0.16)', grain: 'rgba(80, 50, 25, 0.14)' },
+        dark:  { bg: '#7f6a52', plank: 'rgba(50, 32, 18, 0.22)', grain: 'rgba(20, 12, 7, 0.20)' },
+        gray:  { bg: '#b7b1a9', plank: 'rgba(80, 75, 70, 0.14)', grain: 'rgba(35, 35, 35, 0.14)' },
+      };
+
+      const baseVariant = vRaw.split(':')[0] || 'oak';
+      const flags = vRaw.split(':').slice(1);
+
+      let orient = 'v';
+      const flagStr = flags.join(':');
+      if (flagStr.includes('horizontal') || flagStr.includes('h')) orient = 'h';
+      if (flagStr.includes('vertical') || flagStr.includes('v')) orient = 'v';
+
+      const cleanOak = (baseVariant === 'oak');
+      const P = PAL[baseVariant] || PAL.oak;
+      const rand = seededRng('wood:' + (vRaw || 'oak'));
+
+      g.fillStyle = P.bg;
+      g.fillRect(0, 0, c.width, c.height);
+
+      const plank = 28;
+      const scratchMul = 0.5;
+
+      g.strokeStyle = P.grain;
+      g.lineWidth = 1;
+
+      if (orient === 'h') {
+        for (let y = 0; y < c.height + plank; y += plank) {
+          g.fillStyle = P.plank;
+          g.fillRect(0, y, c.width, plank);
+
+          const a0 = g.globalAlpha;
+          g.globalAlpha = a0 * scratchMul;
+          const grainN = cleanOak ? 2 : 6;
+
+          for (let i = 0; i < grainN; i++) {
+            g.beginPath();
+            g.moveTo(0, y + 2 + rand() * (plank - 4));
+            g.bezierCurveTo(
+              c.width * 0.35, y + (plank * 0.50) + (rand() - 0.5) * 10,
+              c.width * 0.65, y + (plank * 0.50) + (rand() - 0.5) * 10,
+              c.width, y + 2 + rand() * (plank - 4)
+            );
+            g.stroke();
+
+            if (!cleanOak) {
+              const x = rand() * c.width;
+              g.globalAlpha = a0 * scratchMul * 0.65;
+              g.beginPath();
+              g.moveTo(x, y + 4 + rand() * (plank - 8));
+              g.lineTo(x + 18 + rand() * 22, y + 4 + rand() * (plank - 8));
+              g.stroke();
+              g.globalAlpha = a0 * scratchMul;
+            }
+          }
+
+          g.globalAlpha = a0;
+
+          g.strokeStyle = 'rgba(0,0,0,0.10)';
+          g.beginPath();
+          g.moveTo(0, y + plank);
+          g.lineTo(c.width, y + plank);
+          g.stroke();
+
+          g.fillStyle = 'rgba(255,255,255,0.03)';
+          g.fillRect(0, y + 1, c.width, 2);
+
+          g.strokeStyle = P.grain;
+          g.lineWidth = 1;
+        }
+      } else {
+        for (let x = 0; x < c.width + plank; x += plank) {
+          g.fillStyle = P.plank;
+          g.fillRect(x, 0, plank, c.height);
+
+          const a0 = g.globalAlpha;
+          g.globalAlpha = a0 * scratchMul;
+
+          const grainN = cleanOak ? 3 : 6;
+          for (let i = 0; i < grainN; i++) {
+            const y = rand() * c.height;
+            g.beginPath();
+            g.moveTo(x + 2, y);
+            g.bezierCurveTo(
+              x + plank * 0.35, y + (rand() - 0.5) * 18,
+              x + plank * 0.65, y + (rand() - 0.5) * 18,
+              x + plank - 2, y
+            );
+            g.stroke();
+          }
+
+          g.globalAlpha = a0;
+
+          g.strokeStyle = 'rgba(0,0,0,0.10)';
+          g.beginPath();
+          g.moveTo(x + plank, 0);
+          g.lineTo(x + plank, c.height);
+          g.stroke();
+
+          g.fillStyle = 'rgba(255,255,255,0.03)';
+          g.fillRect(x + 1, 0, 2, c.height);
+
+          g.strokeStyle = P.grain;
+          g.lineWidth = 1;
+        }
+      }
+
+      if (!cleanOak) {
+        for (let k = 0; k < 14; k++) {
+          const x = rand() * c.width;
+          const y = rand() * c.height;
+          const r = 3 + rand() * 7;
+          g.strokeStyle = 'rgba(50, 25, 10, 0.18)';
+          g.lineWidth = 1;
+          g.beginPath();
+          g.ellipse(x, y, r * 1.2, r, rand() * Math.PI, 0, Math.PI * 2);
+          g.stroke();
+        }
+      }
+
+      return c;
+    }
+
+    function makeStoneTile(variant) {
+      const v = String(variant || '').trim().toLowerCase();
+      const isCobble = (v === 'cobble' || v === 'cobblestone');
+      const isDark = (v === 'dark' || v === 'basalt');
+      const isMarble = (v === 'marble');
+      const isBlocks = (v === 'blocks' || v === 'block' || v.includes('ashlar') || v.includes('block'));
+
+      const c = isBlocks ? offscreenTile(320, 320) : offscreenTile(240, 240);
+      const g = c.getContext('2d');
+      const rand = seededRng('stone:' + (v || 'slab'));
+
+      const base = isMarble ? '#d7d7d7' : (isDark ? '#8a8a8a' : '#b6b6b6');
+      g.fillStyle = base;
+      g.fillRect(0, 0, c.width, c.height);
+
+      if (isBlocks) {
+        const mortar = 3;
+        const rowH = 40;
+        const lens = [54, 72, 92, 64, 84];
+
+        g.fillStyle = isDark ? '#7c7c7c' : '#a9a9a9';
+        g.fillRect(0, 0, c.width, c.height);
+
+        let row = 0;
+        for (let y = 0; y < c.height + rowH; y += (rowH + mortar)) {
+          const offset = (row % 2 === 0) ? 0 : Math.floor((lens[1] + mortar) / 2);
+          let x = -offset;
+
+          while (x < c.width + 120) {
+            const baseLen = lens[Math.floor(rand() * lens.length)];
+            const len = baseLen + Math.floor((rand() - 0.5) * 10);
+
+            const shadeA = (isDark ? 0.18 : 0.12) + rand() * 0.08;
+            g.fillStyle = `rgba(110,110,110,${shadeA})`;
+            g.fillRect(x + mortar, y + mortar, len, rowH);
+
+            g.fillStyle = 'rgba(255,255,255,0.06)';
+            g.fillRect(x + mortar + 1, y + mortar + 1, len - 2, 2);
+            g.fillRect(x + mortar + 1, y + mortar + 1, 2, rowH - 2);
+
+            g.fillStyle = 'rgba(0,0,0,0.07)';
+            g.fillRect(x + mortar + 1, y + mortar + rowH - 3, len - 2, 2);
+            g.fillRect(x + mortar + len - 3, y + mortar + 1, 2, rowH - 2);
+
+            g.strokeStyle = 'rgba(0,0,0,0.10)';
+            g.lineWidth = 1;
+            g.strokeRect(x + mortar, y + mortar, len, rowH);
+
+            x += (len + mortar);
+          }
+          row++;
+        }
+
+        const specks = isDark ? 1100 : 850;
+        for (let i = 0; i < specks; i++) {
+          const xx = rand() * c.width;
+          const yy = rand() * c.height;
+          const a = 0.03 + rand() * 0.06;
+          g.fillStyle = `rgba(0,0,0,${a})`;
+          g.fillRect(xx, yy, 1, 1);
+        }
+
+        return c;
+      }
+
+      const slabLike = !isCobble && !isMarble && !isBlocks;
+      if (slabLike) {
+        const mortar = 3;
+        const rowH = 46;
+        const lens = [54, 72, 92, 64, 84];
+
+        g.fillStyle = isDark ? '#7c7c7c' : '#a9a9a9';
+        g.fillRect(0, 0, c.width, c.height);
+
+        let row = 0;
+        for (let y = 0; y < c.height + rowH; y += (rowH + mortar)) {
+          const offset = (row % 2 === 0) ? 0 : Math.floor((lens[1] + mortar) / 2);
+          let x = -offset;
+
+          while (x < c.width + 120) {
+            const baseLen = lens[Math.floor(rand() * lens.length)];
+            const len = baseLen + Math.floor((rand() - 0.5) * 8);
+
+            const shadeA = (isDark ? 0.16 : 0.11) + rand() * 0.06;
+            g.fillStyle = `rgba(110,110,110,${shadeA})`;
+            g.fillRect(x + mortar, y + mortar, len, rowH);
+
+            g.fillStyle = 'rgba(255,255,255,0.05)';
+            g.fillRect(x + mortar + 1, y + mortar + 1, len - 2, 2);
+            g.fillRect(x + mortar + 1, y + mortar + 1, 2, rowH - 2);
+
+            g.fillStyle = 'rgba(0,0,0,0.06)';
+            g.fillRect(x + mortar + 1, y + mortar + rowH - 3, len - 2, 2);
+            g.fillRect(x + mortar + len - 3, y + mortar + 1, 2, rowH - 2);
+
+            g.strokeStyle = 'rgba(0,0,0,0.10)';
+            g.lineWidth = 1;
+            g.strokeRect(x + mortar, y + mortar, len, rowH);
+
+            if (rand() < 0.18) {
+              g.strokeStyle = 'rgba(0,0,0,0.10)';
+              g.lineWidth = 1;
+              g.beginPath();
+              const cx = x + mortar + 6 + rand() * (len - 12);
+              const cy = y + mortar + 6 + rand() * (rowH - 12);
+              g.moveTo(cx, cy);
+              g.lineTo(cx + (rand() - 0.5) * 26, cy + (rand() - 0.5) * 18);
+              g.stroke();
+            }
+
+            x += (len + mortar);
+          }
+          row++;
+        }
+
+        const specks = isDark ? 900 : 650;
+        for (let i = 0; i < specks; i++) {
+          const xx = rand() * c.width;
+          const yy = rand() * c.height;
+          const a = 0.03 + rand() * 0.06;
+          g.fillStyle = `rgba(0,0,0,${a})`;
+          g.fillRect(xx, yy, 1, 1);
+        }
+
+        return c;
+      }
+
+      const cell = isCobble ? 34 : 48;
+      for (let y = 0; y < c.height + cell; y += cell) {
+        for (let x = 0; x < c.width + cell; x += cell) {
+          const jitterX = (rand() - 0.5) * (isCobble ? 10 : 4);
+          const jitterY = (rand() - 0.5) * (isCobble ? 10 : 4);
+          const w = cell + (rand() - 0.5) * (isCobble ? 18 : 10);
+          const h = cell + (rand() - 0.5) * (isCobble ? 18 : 10);
+
+          const shade = isDark ? 0.16 : 0.12;
+          g.fillStyle = `rgba(110,110,110,${shade + rand() * 0.10})`;
+          g.fillRect(x + jitterX, y + jitterY, w, h);
+
+          g.strokeStyle = `rgba(0,0,0,${isCobble ? 0.14 : 0.09})`;
+          g.lineWidth = 1;
+          g.strokeRect(x + jitterX, y + jitterY, w, h);
+        }
+      }
+
+      if (isMarble) {
+        g.strokeStyle = 'rgba(60,60,60,0.10)';
+        g.lineWidth = 2;
+        for (let i = 0; i < 6; i++) {
+          g.beginPath();
+          let x = rand() * c.width;
+          let y = rand() * c.height;
+          g.moveTo(x, y);
+          for (let k = 0; k < 6; k++) {
+            x += (rand() - 0.5) * 70;
+            y += (rand() - 0.5) * 40;
+            g.lineTo(x, y);
+          }
+          g.stroke();
+        }
+      }
+
+      const specks = isDark ? 900 : 600;
+      for (let i = 0; i < specks; i++) {
+        const x = rand() * c.width;
+        const y = rand() * c.height;
+        const a = 0.03 + rand() * 0.06;
+        g.fillStyle = `rgba(0,0,0,${a})`;
+        g.fillRect(x, y, 1, 1);
+      }
+
+      return c;
+    }
+
+    function makeBrickTile(variant) {
+      const v = String(variant || '').trim().toLowerCase();
+      const rand = seededRng('brick:' + (v || 'red'));
+
+      const c = offscreenTile(240, 160);
+      const g = c.getContext('2d');
+
+      const PAL = {
+        red:   { mortar: '#c9c3b8', lo: [120,60,40], hi: [165,95,70] },
+        pale:  { mortar: '#d6d2c9', lo: [130,110,95], hi: [170,150,130] },
+        soot:  { mortar: '#bfb8ad', lo: [85,55,45],  hi: [130,85,70] },
+      };
+      const P = PAL[v] || PAL.red;
+
+      g.fillStyle = P.mortar;
+      g.fillRect(0, 0, c.width, c.height);
+
+      const brickW = 46;
+      const brickH = 22;
+      const mortar = 3;
+
+      for (let row = 0; row < 8; row++) {
+        const y = row * (brickH + mortar);
+        const offset = (row % 2 === 0) ? 0 : Math.floor(brickW / 2);
+        for (let x0 = -offset; x0 < c.width + brickW; x0 += (brickW + mortar)) {
+          const r = P.lo[0] + Math.floor(rand() * (P.hi[0] - P.lo[0]));
+          const gg = P.lo[1] + Math.floor(rand() * (P.hi[1] - P.lo[1]));
+          const b = P.lo[2] + Math.floor(rand() * (P.hi[2] - P.lo[2]));
+          g.fillStyle = `rgb(${r},${gg},${b})`;
+          g.fillRect(x0 + mortar, y + mortar, brickW, brickH);
+
+          g.fillStyle = 'rgba(255,255,255,0.06)';
+          g.fillRect(x0 + mortar + 1, y + mortar + 1, brickW - 2, 2);
+          g.fillStyle = 'rgba(0,0,0,0.05)';
+          g.fillRect(x0 + mortar + 1, y + mortar + brickH - 2, brickW - 2, 2);
+
+          g.strokeStyle = 'rgba(0,0,0,0.12)';
+          g.lineWidth = 1;
+          g.strokeRect(x0 + mortar, y + mortar, brickW, brickH);
+        }
+      }
+
+      for (let i = 0; i < 180; i++) {
+        const x = rand() * c.width;
+        const y = rand() * c.height;
+        g.fillStyle = 'rgba(0,0,0,0.05)';
+        g.fillRect(x, y, 1, 1);
+      }
+
+      return c;
+    }
+
+    function makeDirtTile(variant) {
+      const v = String(variant || '').trim().toLowerCase();
+      const rand = seededRng('dirt:' + (v || 'earth'));
+
+      const c = offscreenTile(240, 240);
+      const g = c.getContext('2d');
+
+      const PAL = {
+        earth: { bg: '#9b835e', dark: 'rgba(60,40,20,0.10)', light: 'rgba(255,255,255,0.06)' },
+        sand:  { bg: '#d2c18b', dark: 'rgba(120,95,55,0.08)', light: 'rgba(255,255,255,0.07)' },
+        mud:   { bg: '#6f5a42', dark: 'rgba(20,15,10,0.14)', light: 'rgba(255,255,255,0.04)' },
+      };
+      const P = PAL[v] || PAL.earth;
+
+      g.fillStyle = P.bg;
+      g.fillRect(0, 0, c.width, c.height);
+
+      for (let i = 0; i < 1200; i++) {
+        const x = rand() * c.width;
+        const y = rand() * c.height;
+        const r = 1 + rand() * 6;
+        g.fillStyle = (rand() < 0.6) ? P.dark : P.light;
+        g.beginPath();
+        g.arc(x, y, r, 0, Math.PI * 2);
+        g.fill();
+      }
+
+      g.strokeStyle = 'rgba(0,0,0,0.10)';
+      g.lineWidth = 1;
+      for (let k = 0; k < 55; k++) {
+        const x = rand() * c.width;
+        const y = rand() * c.height;
+        const rx = 2 + rand() * 4;
+        const ry = 1 + rand() * 3;
+        g.fillStyle = 'rgba(255,255,255,0.08)';
+        g.beginPath();
+        g.ellipse(x, y, rx, ry, rand() * Math.PI, 0, Math.PI * 2);
+        g.fill();
+        g.beginPath();
+        g.ellipse(x, y, rx, ry, rand() * Math.PI, 0, Math.PI * 2);
+        g.stroke();
+      }
+
+      return c;
+    }
+
+    function makeGrassTile() {
+      const rand = seededRng('grass');
+      const c = offscreenTile(240, 240);
+      const g = c.getContext('2d');
+
+      g.fillStyle = '#8ea86c';
+      g.fillRect(0, 0, c.width, c.height);
+
+      for (let i = 0; i < 1200; i++) {
+        const x = rand() * c.width;
+        const y = rand() * c.height;
+        const a = 0.03 + rand() * 0.06;
+        g.fillStyle = `rgba(0,0,0,${a})`;
+        g.fillRect(x, y, 1, 1);
+      }
+
+      g.strokeStyle = 'rgba(30,60,20,0.10)';
+      g.lineWidth = 1;
+      for (let k = 0; k < 220; k++) {
+        const x = rand() * c.width;
+        const y = rand() * c.height;
+        const len = 6 + rand() * 16;
+        const ang = (-Math.PI / 2) + (rand() - 0.5) * 0.9;
+        g.beginPath();
+        g.moveTo(x, y);
+        g.lineTo(x + Math.cos(ang) * len, y + Math.sin(ang) * len);
+        g.stroke();
+      }
+
+      return c;
+    }
+
+    function makeCarpetTile(variant) {
+      const v = String(variant || '').trim().toLowerCase();
+      const rand = seededRng('carpet:' + (v || 'red'));
+      const c = offscreenTile(240, 240);
+      const g = c.getContext('2d');
+
+      const PAL = {
+        red:   { bg: '#9d3a2f', stripe: 'rgba(255,255,255,0.10)', dark: 'rgba(0,0,0,0.12)' },
+        blue:  { bg: '#2f4f7a', stripe: 'rgba(255,255,255,0.10)', dark: 'rgba(0,0,0,0.12)' },
+        green: { bg: '#2f6b4a', stripe: 'rgba(255,255,255,0.10)', dark: 'rgba(0,0,0,0.12)' },
+        purple:{ bg: '#5b3a7a', stripe: 'rgba(255,255,255,0.10)', dark: 'rgba(0,0,0,0.12)' },
+      };
+      const P = PAL[v] || PAL.red;
+
+      g.fillStyle = P.bg;
+      g.fillRect(0, 0, c.width, c.height);
+
+      for (let i = 0; i < 2200; i++) {
+        const x = rand() * c.width;
+        const y = rand() * c.height;
+        const a = 0.02 + rand() * 0.05;
+        g.fillStyle = `rgba(255,255,255,${a})`;
+        g.fillRect(x, y, 1, 1);
+      }
+
+      g.fillStyle = P.dark;
+      g.fillRect(0, 0, c.width, 10);
+      g.fillRect(0, c.height - 10, c.width, 10);
+      g.fillRect(0, 0, 10, c.height);
+      g.fillRect(c.width - 10, 0, 10, c.height);
+
+      g.fillStyle = P.stripe;
+      for (let y = 18; y < c.height; y += 28) g.fillRect(0, y, c.width, 2);
+
+      return c;
+    }
+
+    function normalizeTextureKind(kind) {
+      const raw = String(kind || '').trim().toLowerCase();
+      if (!raw) return { base: 'stone', variant: '', key: 'stone' };
+
+      let base = raw;
+      let variant = '';
+
+      if (raw.includes(':')) {
+        const parts = raw.split(':');
+        base = (parts[0] || raw).trim();
+        variant = parts.slice(1).join(':').trim();
+      } else if (raw.includes('.')) {
+        const parts = raw.split('.');
+        const head = (parts[0] || raw).trim();
+        if (parts.length >= 2 && ['wood','stone','brick','dirt','grass','carpet','marble','cobble','cobblestone','planks','timber','slab','slabs','tile','tiles','sand','mud'].includes(head)) {
+          base = head;
+          variant = parts.slice(1).join('.').trim();
+        }
+      } else if (raw.includes('-')) {
+        const parts = raw.split('-');
+        const head = (parts[0] || raw).trim();
+        if (parts.length >= 2 && ['wood','stone','brick','dirt','carpet'].includes(head)) {
+          base = head;
+          variant = parts.slice(1).join('-').trim();
+        }
+      }
+
+      const syn = { planks: 'wood', timber: 'wood', slabs: 'stone', slab: 'stone', tiles: 'stone', tile: 'stone', bricks: 'brick' };
+      base = syn[base] || base;
+
+      if (base === 'cobble' || base === 'cobblestone') { base = 'stone'; if (!variant) variant = 'cobble'; }
+      if (base === 'marble') { base = 'stone'; if (!variant) variant = 'marble'; }
+      if (base === 'sand') { base = 'dirt'; if (!variant) variant = 'sand'; }
+
+      if (!['wood','stone','brick','dirt','grass','carpet'].includes(base)) {
+        base = 'stone';
+        variant = '';
+      }
+
+      const key = base + (variant ? ':' + variant : '');
+      return { base, variant, key };
+    }
+
+    function textureTileFor(kind) {
+      const nk = normalizeTextureKind(kind);
+      const key = nk.key;
+      if (TEX.tiles.has(key)) return TEX.tiles.get(key);
+
+      let tile;
+      if (nk.base === 'wood') tile = makeWoodTile(nk.variant);
+      else if (nk.base === 'brick') tile = makeBrickTile(nk.variant);
+      else if (nk.base === 'dirt') tile = makeDirtTile(nk.variant);
+      else if (nk.base === 'grass') tile = makeGrassTile();
+      else if (nk.base === 'carpet') tile = makeCarpetTile(nk.variant);
+      else tile = makeStoneTile(nk.variant);
+
+      TEX.tiles.set(key, tile);
+      return tile;
+    }
+
+    function texturePatternFor(kind) {
+      const nk = normalizeTextureKind(kind);
+      const key = nk.key;
+      if (TEX.patterns.has(key)) return TEX.patterns.get(key);
+
+      const tile = textureTileFor(key);
+      const pat = ctx.createPattern(tile, 'repeat');
+      TEX.patterns.set(key, pat);
+      return pat;
+    }
+
+    function floorKindForRoom(room) {
+      const ov = String(TEX.overrideFloorKind || '').trim();
+      if (ov && ov !== TEX_OVERRIDE_ROOM) return ov;
+      const k = room?.floor?.kind ?? room?.floorKind ?? room?.floor_kind ?? '';
+      const s = String(k || '').trim().toLowerCase();
+      return s || 'stone';
+    }
+
+    function wallKindForRoom(room) {
+      const ov = String(TEX.overrideWallKind || '').trim();
+      if (ov && ov !== TEX_OVERRIDE_ROOM) return ov;
+      const k = room?.wall?.kind ?? room?.wallKind ?? room?.wall_kind ?? '';
+      const s = String(k || '').trim().toLowerCase();
+      return s || 'brick';
+    }
+
+    function drawTexturedRoom(room, g) {
+      const t = Math.max(1, Number(g.thickness || 18));
+      const half = t / 2;
+
+      const outer = {
+        x: g.leftX - half,
+        y: g.topY - half,
+        w: (g.rightX - g.leftX) + t,
+        h: (g.botY - g.topY) + t,
+      };
+
+      const inner = {
+        x: g.leftX + half,
+        y: g.topY + half,
+        w: (g.rightX - g.leftX) - t,
+        h: (g.botY - g.topY) - t,
+      };
+
+      const fk = floorKindForRoom(room);
+      const fpat = texturePatternFor(fk);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(inner.x, inner.y, inner.w, inner.h);
+      ctx.clip();
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = fpat;
+      ctx.fillRect(inner.x - 2000, inner.y - 2000, inner.w + 4000, inner.h + 4000);
+
+      ctx.globalAlpha = 0.10;
+      const grad = ctx.createLinearGradient(inner.x, inner.y, inner.x, inner.y + inner.h);
+      grad.addColorStop(0, 'rgba(0,0,0,0.00)');
+      grad.addColorStop(1, 'rgba(0,0,0,0.40)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(inner.x, inner.y, inner.w, inner.h);
+      ctx.restore();
+
+      const wk = wallKindForRoom(room);
+      const wpat = texturePatternFor(wk);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(outer.x, outer.y, outer.w, outer.h);
+      ctx.rect(inner.x, inner.y, inner.w, inner.h);
+      try { ctx.clip('evenodd'); } catch { ctx.clip(); }
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = wpat;
+      ctx.fillRect(outer.x - 2000, outer.y - 2000, outer.w + 4000, outer.h + 4000);
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(inner.x, inner.y, inner.w, inner.h);
+      ctx.globalAlpha = 0.35;
+      ctx.strokeRect(outer.x, outer.y, outer.w, outer.h);
+      ctx.restore();
+    }
+
+    // =====================================================================
+    // SPRITES (native sizing by default)
+    // =====================================================================
+
+    const SPRITE_BASE = '/assets/sprites';
+
+    // Convention: 512px of sprite height == 1 hex height.
+    // If you want a door/window to "bleed" into neighboring hexes, make the sprite larger
+    // in pixels and keep the background transparent.
+    const SPRITE_PX_PER_HEX = 512;
+
+    // Sprite defs are declared near the end of the file for easy editing.
+    // Fields:
+    // - url (required)
+    // - ax, ay anchors (0..1)
+    // - shadow (bool)
+    // - scale (optional scalar)
+    // - wPx/hPx (optional override; defaults to image natural size)
+    let SPRITE_DEFS = {};
+
+    const SPRITE_CACHE = new Map(); // url -> Image
+
+    function spriteDefForKey(key) {
+      if (!key) return null;
+      const k = String(key).trim();
+      return SPRITE_DEFS[k] || null;
+    }
+
+    function ensureSpriteLoaded(url) {
+      const u = String(url || '').trim();
+      if (!u) return null;
+      if (SPRITE_CACHE.has(u)) return SPRITE_CACHE.get(u);
+
+      const img = new Image();
+      img.decoding = 'async';
+      img.loading = 'eager';
+      img.src = u;
+
+      img.onload = () => {
+        // Only redraw if we have a normalized scene; otherwise avoid noise on load.
+        try { if (SCENE_NORM) safeDrawGrid(); } catch (_) {}
+      };
+
+      SPRITE_CACHE.set(u, img);
+      return img;
+    }
+
+    function requestSpritePreload(sceneNorm) {
+      const keys = new Set();
+
+      for (const o of (sceneNorm?.objects || [])) {
+        const k = spriteKeyForObject(o);
+        if (k) keys.add(k);
+      }
+
+      for (const a of (sceneNorm?.actors || [])) {
+        const k = spriteKeyForActor(a);
+        if (k) keys.add(k);
+      }
+
+      for (const op of (sceneNorm?.openings || [])) {
+        const kind = String(op.kind || '').toLowerCase();
+        const base = kind.split('.')[0];
+        const isOpen = String(op.state || 'closed').toLowerCase() === 'open';
+        if (base !== 'door' && base !== 'window') continue;
+
+        const openKey = `${kind}.open`;
+        const fallbackOpen = `${base}.open`;
+        const closedKey = kind;
+        const fallbackClosed = base;
+
+        const k = isOpen
+          ? (SPRITE_DEFS[openKey] ? openKey : (SPRITE_DEFS[fallbackOpen] ? fallbackOpen : null))
+          : (SPRITE_DEFS[closedKey] ? closedKey : (SPRITE_DEFS[fallbackClosed] ? fallbackClosed : null));
+
+        if (k) keys.add(k);
+      }
+
+      for (const k of keys) {
+        const def = spriteDefForKey(k);
+        if (def?.url) ensureSpriteLoaded(def.url);
+      }
+    }
+
+    function isSpriteReady(key) {
+      const def = spriteDefForKey(key);
+      if (!def || !def.url) return false;
+      const img = ensureSpriteLoaded(def.url);
+      return !!(img && img.complete && (img.naturalWidth || img.width) > 0);
+    }
+
+    function spriteCanvasSize(def, img, scaleMul) {
+      const nw = Number(def?.wPx ?? img?.naturalWidth ?? img?.width ?? 0);
+      const nh = Number(def?.hPx ?? img?.naturalHeight ?? img?.height ?? 0);
+
+      const pxToCanvas = hexHeightPx() / Math.max(1, Number(SPRITE_PX_PER_HEX));
+      const defScale = (def && def.scale != null) ? Number(def.scale) : 1;
+      const entScale = (scaleMul != null) ? Number(scaleMul) : 1;
+
+      // Isotropic scale: no squeezing.
+      return {
+        w: nw * pxToCanvas * defScale * entScale,
+        h: nh * pxToCanvas * defScale * entScale
+      };
+    }
+
+    function drawSoftShadow(x, y, w, h, alpha) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, Number(alpha ?? 0.18)));
+      ctx.fillStyle = 'rgba(0,0,0,1)';
+      ctx.filter = 'blur(8px)';
+      ctx.beginPath();
+      ctx.ellipse(x, y, Math.max(6, w * 0.30), Math.max(6, h * 0.16), 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.filter = 'none';
+      ctx.restore();
+    }
+
+    function drawSpriteAt(key, x, y, rotDeg, scaleMul, alphaMul, axOverride, ayOverride) {
+      const def = spriteDefForKey(key);
+      if (!def) return false;
+      const img = ensureSpriteLoaded(def.url);
+      if (!img || !img.complete) return false;
+
+      const sz = spriteCanvasSize(def, img, scaleMul);
+      const w = sz.w;
+      const h = sz.h;
+
+      const axO = (axOverride != null && axOverride !== '') ? Number(axOverride) : null;
+      const ayO = (ayOverride != null && ayOverride !== '') ? Number(ayOverride) : null;
+      const ax = Number.isFinite(axO) ? axO : (def.ax ?? 0.5);
+      const ay = Number.isFinite(ayO) ? ayO : (def.ay ?? 0.5);
+
+      if (def.shadow) {
+        drawSoftShadow(x + 2, y + (h * 0.12), w, h, 0.16);
+      }
+
+      ctx.save();
+      ctx.globalAlpha = (alphaMul == null) ? 1 : alphaMul;
+      ctx.translate(x, y);
+      if (rotDeg) ctx.rotate((Math.PI / 180) * rotDeg);
+      ctx.drawImage(img, -w * ax, -h * ay, w, h);
+      ctx.restore();
+
+      return true;
+    }
+
+    function spriteKeyForObject(obj) {
+      if (!obj || typeof obj !== 'object') return null;
+      const explicit = (obj.sprite ?? obj.spriteKey ?? obj.sprite_key);
+      if (explicit != null && String(explicit).trim()) return String(explicit).trim();
+
+      const kind = String(obj.kind || '').trim().toLowerCase();
+      if (!kind) return null;
+
+      // Allow table.round/table.rect variants via kind.
+      if (SPRITE_DEFS[kind]) return kind;
+      return null;
+    }
+
+    function spriteKeyForActor(actorObj) {
+      if (!actorObj || typeof actorObj !== 'object') return null;
+
+      const explicit = (actorObj.sprite ?? actorObj.spriteKey ?? actorObj.sprite_key);
+      if (explicit != null && String(explicit).trim()) return String(explicit).trim();
+
+      const cls = String(actorObj.class ?? actorObj.cls ?? actorObj.archetype ?? '').trim().toLowerCase();
+      const g = String(actorObj.gender ?? actorObj.sex ?? '').trim().toLowerCase();
+      if (cls && g) {
+        const key = `${cls}.${g}`;
+        if (SPRITE_DEFS[key]) return key;
+      }
+
+      const side = String(actorObj.side || 'NPC').toUpperCase();
+      if (side === 'PC' && SPRITE_DEFS['token.pc']) return 'token.pc';
+      if (side === 'EN' && SPRITE_DEFS['token.en']) return 'token.en';
+      if (SPRITE_DEFS['token.npc']) return 'token.npc';
+
+      return null;
+    }
+
+    // Rotation helper:
+    // - Supports: rot / rotation / rotDeg (ABS degrees)
+    // - Supports: rotOffset / rotRel / rotDelta (REL degrees added on top of base)
+    // - Supports: orientation: 'h'|'v'|'horizontal'|'vertical'
+    // - Returns snapped degrees (0/90/180/270) for crisp pixel-art rotation.
+    function entityRotDeg(ent, fallbackDeg) {
+      if (!ent || typeof ent !== 'object') return (fallbackDeg ?? 0);
+
+      let base = null;
+      let v = (ent.rot ?? ent.rotation ?? ent.rotDeg);
+      if (v != null && v !== '') {
+        const n = Number(v);
+        if (Number.isFinite(n)) base = n;
+      }
+
+      if (base == null) {
+        const o = String(ent.orientation ?? ent.orient ?? ent.dir ?? '').trim().toLowerCase();
+        if (o) {
+          if (o === 'v' || o === 'vert' || o === 'vertical') base = 90;
+          else if (o === 'h' || o === 'horiz' || o === 'horizontal') base = 0;
+        }
+      }
+
+      if (base == null) base = (fallbackDeg ?? 0);
+
+      const off = (ent.rotOffset ?? ent.rotRel ?? ent.rotDelta);
+      if (off != null && off !== '') {
+        const n = Number(off);
+        if (Number.isFinite(n)) base = base + n;
+      }
+
+      let d = ((base % 360) + 360) % 360;
+      const snapped = Math.round(d / 90) * 90;
+      d = ((snapped % 360) + 360) % 360;
+      return d;
+    }
+
+    // =====================================================================
+    // MOVEMENT TRAILS
+    // =====================================================================
 
     function captureActorPositions(sceneNorm) {
       const m = new Map();
@@ -950,1439 +2208,10 @@
       ctx.restore();
     }
 
-    function loadSceneFromJsonTag() {
-      const el = document.getElementById('scene-json');
-      const raw = el ? String(el.textContent || '').trim() : '';
-      if (!raw) {
-        SCENE_PARSE_ERROR = 'SCENE JSON is empty.';
-        return (LAST_GOOD_SCENE || {});
-      }
-      try {
-        const obj = JSON.parse(raw);
-        LAST_GOOD_SCENE = obj;
-        SCENE_PARSE_ERROR = null;
-        return obj;
-      } catch (e) {
-        SCENE_PARSE_ERROR = `SCENE JSON parse error: ${e && e.message ? e.message : String(e)}`;
-        try { console.error('[Battlemat] ' + SCENE_PARSE_ERROR); } catch (_) {}
-        return (LAST_GOOD_SCENE || {});
-      }
-    }
-
-    // ====== GRID CONFIG ======
-    const cols = 17;        // A..Q
-    const rows = 11;        // 1..11
-    const size = 34.5;      // hex radius (center -> corner)
-    const margin = 55;
-
-    // Solid color used for non-textured floors (also used for open door cutouts when no sprite)
-    const SOLID_FLOOR_COLOR = '#ffffff';
-
-    const canvas = document.getElementById('mat');
-    const ctx = canvas.getContext('2d');
-    const SQRT3 = Math.sqrt(3);
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
-    let ROOM_GEOMS = null;
-    let ROOM_BY_ID = null;
-    let SCENE_NORM = null;
-
-    const CONFIG = {
-      room: { yInsetFrac: 0.25 },
-      labels: {
-        dyFrac: 0.70,
-        // Hex label readability tuning
-        inRoomColor: [0, 0, 0],
-        outRoomColor: [0, 0, 0],
-        inRoomAlpha: 0.22,
-        outRoomAlpha: 0.03
-      },
-      opening: {
-        minAcross: 18,
-        acrossMul: 1.05,
-        spanNSMul: 1.5,
-        spanEWMul: 1.0,
-        // how much extra to pad the floor/wall cutout to prevent faint edges showing
-        slotPadPx: 1.8,
-      },
-      grid: {
-        baseStrokeW: 1.2,
-        baseStrokeA: 0.07,
-        overlayStrokeW: 1.1,
-        overlayStrokeA: 0.04,
-      }
-    };
-
     // =====================================================================
-    // TEXTURES (floors + walls)
+    // POI (Annotations)
     // =====================================================================
 
-    const TEX = {
-      enabled: false,
-      patterns: new Map(), // kind -> CanvasPattern
-      tiles: new Map(),    // kind -> HTMLCanvasElement
-      overrideFloorKind: '__room__',
-      overrideWallKind: '__room__'
-    };
-
-    function readTexturePref() {
-      try {
-        const v = (localStorage.getItem('battlemat:textures:enabled') || '').trim();
-        return v === '1' || v.toLowerCase() === 'true' || v.toLowerCase() === 'on';
-      } catch (_) {
-        return false;
-      }
-    }
-
-    function writeTexturePref(on) {
-      try { localStorage.setItem('battlemat:textures:enabled', on ? '1' : '0'); } catch (_) {}
-    }
-
-    const TEX_OVERRIDE_ROOM = '__room__';
-
-    const FLOOR_PRESETS = [
-      { value: TEX_OVERRIDE_ROOM, label: 'Room setting' },
-      { value: 'stone', label: 'Stone (slab)' },
-      { value: 'stone:cobble', label: 'Stone (cobble)' },
-      { value: 'stone:dark', label: 'Stone (dark)' },
-      { value: 'stone:blocks', label: 'Stone (blocks)' },
-      { value: 'stone:marble', label: 'Stone (marble)' },
-      { value: 'wood:oak', label: 'Wood (oak)' },
-      { value: 'wood:pine', label: 'Wood (pine)' },
-      { value: 'wood:dark', label: 'Wood (dark)' },
-      { value: 'wood:gray', label: 'Wood (gray)' },
-      { value: 'dirt:earth', label: 'Dirt (earth)' },
-      { value: 'dirt:sand', label: 'Dirt (sand)' },
-      { value: 'dirt:mud', label: 'Dirt (mud)' },
-      { value: 'grass', label: 'Grass' },
-      { value: 'carpet:red', label: 'Carpet (red)' },
-      { value: 'carpet:blue', label: 'Carpet (blue)' },
-      { value: 'carpet:green', label: 'Carpet (green)' },
-      { value: 'carpet:purple', label: 'Carpet (purple)' }
-    ];
-
-    const WALL_PRESETS = [
-      { value: TEX_OVERRIDE_ROOM, label: 'Room setting' },
-      { value: 'brick:red', label: 'Brick (red)' },
-      { value: 'brick:pale', label: 'Brick (pale)' },
-      { value: 'brick:soot', label: 'Brick (soot)' },
-      { value: 'stone', label: 'Stone (slab)' },
-      { value: 'stone:cobble', label: 'Stone (cobble)' },
-      { value: 'stone:dark', label: 'Stone (dark)' },
-      { value: 'wood:oak', label: 'Wood (oak)' },
-      { value: 'wood:dark', label: 'Wood (dark)' }
-    ];
-
-    function readTextureOverride(which) {
-      const key = which === 'wall' ? 'battlemat:textures:wallOverride' : 'battlemat:textures:floorOverride';
-      try {
-        const v = String(localStorage.getItem(key) || '').trim();
-        return v || TEX_OVERRIDE_ROOM;
-      } catch (_) {
-        return TEX_OVERRIDE_ROOM;
-      }
-    }
-
-    function writeTextureOverride(which, value) {
-      const key = which === 'wall' ? 'battlemat:textures:wallOverride' : 'battlemat:textures:floorOverride';
-      try { localStorage.setItem(key, String(value || TEX_OVERRIDE_ROOM)); } catch (_) {}
-    }
-
-    function populateSelect(sel, presets, selectedVal) {
-      sel.innerHTML = '';
-      for (const p of presets) {
-        const opt = document.createElement('option');
-        opt.value = p.value;
-        opt.textContent = p.label;
-        sel.appendChild(opt);
-      }
-      sel.value = selectedVal || TEX_OVERRIDE_ROOM;
-    }
-
-    function initTextureSelectors() {
-      const floorSel = document.getElementById('floorTexSel');
-      const wallSel = document.getElementById('wallTexSel');
-      if (!floorSel || !wallSel) return;
-
-      // Load persisted overrides
-      TEX.overrideFloorKind = readTextureOverride('floor');
-      TEX.overrideWallKind = readTextureOverride('wall');
-
-      populateSelect(floorSel, FLOOR_PRESETS, TEX.overrideFloorKind);
-      populateSelect(wallSel, WALL_PRESETS, TEX.overrideWallKind);
-
-      floorSel.addEventListener('change', () => {
-        TEX.overrideFloorKind = floorSel.value || TEX_OVERRIDE_ROOM;
-        writeTextureOverride('floor', TEX.overrideFloorKind);
-        safeDrawGrid();
-      });
-
-      wallSel.addEventListener('change', () => {
-        TEX.overrideWallKind = wallSel.value || TEX_OVERRIDE_ROOM;
-        writeTextureOverride('wall', TEX.overrideWallKind);
-        safeDrawGrid();
-      });
-    }
-
-    function setTextureUi() {
-      const btn = document.getElementById('textureToggleBtn');
-      if (!btn) return;
-      btn.textContent = TEX.enabled ? 'Textures: On' : 'Textures: Off';
-      btn.title = TEX.enabled ? 'Turn textures off' : 'Turn textures on';
-    }
-
-    function toggleTextures() {
-      TEX.enabled = !TEX.enabled;
-      writeTexturePref(TEX.enabled);
-      setTextureUi();
-      safeDrawGrid();
-    }
-
-    document.getElementById('textureToggleBtn')?.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      toggleTextures();
-    });
-
-    // Small deterministic PRNG for “natural” texture variation (seeded by kind)
-    function seededRng(seedStr) {
-      let h = 2166136261;
-      const s = String(seedStr || 'seed');
-      for (let i = 0; i < s.length; i++) {
-        h ^= s.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-      }
-      let state = h >>> 0;
-      return function rand() {
-        state = (Math.imul(1664525, state) + 1013904223) >>> 0;
-        return state / 4294967296;
-      };
-    }
-
-    function offscreenTile(w, h) {
-      const c = document.createElement('canvas');
-      c.width = w; c.height = h;
-      return c;
-    }
-
-    function makeWoodTile(variant) {
-      const c = offscreenTile(220, 220);
-      const g = c.getContext('2d');
-      const vRaw = String(variant || '').trim().toLowerCase();
-
-      // Palettes
-      const PAL = {
-        oak:   { bg: '#c9b08a', plank: 'rgba(140, 95, 55, 0.18)', grain: 'rgba(60, 35, 20, 0.16)' },
-        pine:  { bg: '#d7c59f', plank: 'rgba(155, 110, 65, 0.16)', grain: 'rgba(80, 50, 25, 0.14)' },
-        dark:  { bg: '#7f6a52', plank: 'rgba(50, 32, 18, 0.22)', grain: 'rgba(20, 12, 7, 0.20)' },
-        gray:  { bg: '#b7b1a9', plank: 'rgba(80, 75, 70, 0.14)', grain: 'rgba(35, 35, 35, 0.14)' },
-      };
-
-      // Support variant flags like "wood:pine:horizontal" or "wood:oak:vertical".
-      // Default: vertical planks (oak included); you can force orientation with :horizontal / :vertical.
-      const baseVariant = vRaw.split(':')[0] || 'oak';
-      const flags = vRaw.split(':').slice(1);
-
-      let orient = 'v';
-      const flagStr = flags.join(':');
-      if (flagStr.includes('horizontal') || flagStr.includes('h')) orient = 'h';
-      if (flagStr.includes('vertical') || flagStr.includes('v')) orient = 'v';
-
-      // Cleaner oak planks (no knots/circles)
-      const cleanOak = (baseVariant === 'oak');
-
-      const P = PAL[baseVariant] || PAL.oak;
-      const rand = seededRng('wood:' + (vRaw || 'oak'));
-
-      g.fillStyle = P.bg;
-      g.fillRect(0, 0, c.width, c.height);
-
-      const plank = 28;
-      const scratchMul = 0.5; // reduced wood scratch/grain strength
-
-      g.strokeStyle = P.grain;
-      g.lineWidth = 1;
-
-      if (orient === 'h') {
-        // HORIZONTAL planks (seams are horizontal; planks run left→right)
-        for (let y = 0; y < c.height + plank; y += plank) {
-          g.fillStyle = P.plank;
-          g.fillRect(0, y, c.width, plank);
-
-          // grain (left→right)
-          const a0 = g.globalAlpha;
-          g.globalAlpha = a0 * scratchMul;
-          const grainN = cleanOak ? 2 : 6;
-
-          for (let i = 0; i < grainN; i++) {
-            g.beginPath();
-            g.moveTo(0, y + 2 + rand() * (plank - 4));
-            g.bezierCurveTo(
-              c.width * 0.35, y + (plank * 0.50) + (rand() - 0.5) * 10,
-              c.width * 0.65, y + (plank * 0.50) + (rand() - 0.5) * 10,
-              c.width, y + 2 + rand() * (plank - 4)
-            );
-            g.stroke();
-
-            // subtle short grain scratches (disabled for clean oak)
-            if (!cleanOak) {
-              const x = rand() * c.width;
-              g.globalAlpha = a0 * scratchMul * 0.65;
-              g.beginPath();
-              g.moveTo(x, y + 4 + rand() * (plank - 8));
-              g.lineTo(x + 18 + rand() * 22, y + 4 + rand() * (plank - 8));
-              g.stroke();
-              g.globalAlpha = a0 * scratchMul;
-            }
-          }
-
-          g.globalAlpha = a0;
-
-          // seams
-          g.strokeStyle = 'rgba(0,0,0,0.10)';
-          g.beginPath();
-          g.moveTo(0, y + plank);
-          g.lineTo(c.width, y + plank);
-          g.stroke();
-
-          // highlight strip
-          g.fillStyle = 'rgba(255,255,255,0.03)';
-          g.fillRect(0, y + 1, c.width, 2);
-
-          // restore grain stroke
-          g.strokeStyle = P.grain;
-          g.lineWidth = 1;
-        }
-      } else {
-        // VERTICAL planks
-        for (let x = 0; x < c.width + plank; x += plank) {
-          g.fillStyle = P.plank;
-          g.fillRect(x, 0, plank, c.height);
-
-          // grain (top→bottom)
-          const a0 = g.globalAlpha;
-          g.globalAlpha = a0 * scratchMul;
-
-          const grainN = cleanOak ? 3 : 6;
-          for (let i = 0; i < grainN; i++) {
-            const y = rand() * c.height;
-            g.beginPath();
-            g.moveTo(x + 2, y);
-            g.bezierCurveTo(
-              x + plank * 0.35, y + (rand() - 0.5) * 18,
-              x + plank * 0.65, y + (rand() - 0.5) * 18,
-              x + plank - 2, y
-            );
-            g.stroke();
-          }
-
-          g.globalAlpha = a0;
-
-          // seams
-          g.strokeStyle = 'rgba(0,0,0,0.10)';
-          g.beginPath();
-          g.moveTo(x + plank, 0);
-          g.lineTo(x + plank, c.height);
-          g.stroke();
-
-          // highlight strip
-          g.fillStyle = 'rgba(255,255,255,0.03)';
-          g.fillRect(x + 1, 0, 2, c.height);
-
-          // restore grain stroke
-          g.strokeStyle = P.grain;
-          g.lineWidth = 1;
-        }
-      }
-
-      // knots (disabled for clean oak to avoid repeating circle artifacts)
-      if (!cleanOak) {
-        for (let k = 0; k < 14; k++) {
-          const x = rand() * c.width;
-          const y = rand() * c.height;
-          const r = 3 + rand() * 7;
-          g.strokeStyle = 'rgba(50, 25, 10, 0.18)';
-          g.lineWidth = 1;
-          g.beginPath();
-          g.ellipse(x, y, r * 1.2, r, rand() * Math.PI, 0, Math.PI * 2);
-          g.stroke();
-        }
-      }
-
-      return c;
-    }
-
-    function makeStoneTile(variant) {
-      const v = String(variant || '').trim().toLowerCase();
-      const isCobble = (v === 'cobble' || v === 'cobblestone');
-      const isDark = (v === 'dark' || v === 'basalt');
-      const isMarble = (v === 'marble');
-      const isBlocks = (v === 'blocks' || v === 'block' || v.includes('ashlar') || v.includes('block'));
-
-      // Slightly larger tile for "blocks" to reduce obvious repetition.
-      const c = isBlocks ? offscreenTile(320, 320) : offscreenTile(240, 240);
-      const g = c.getContext('2d');
-      const rand = seededRng('stone:' + (v || 'slab'));
-
-      const base = isMarble ? '#d7d7d7' : (isDark ? '#8a8a8a' : '#b6b6b6');
-      g.fillStyle = base;
-      g.fillRect(0, 0, c.width, c.height);
-
-      // --- Regular interlocking blocks (ashlar style) ---
-      if (isBlocks) {
-        const mortar = 3;
-        const rowH = 40; // block height
-        const lens = [54, 72, 92, 64, 84];
-
-        // Mortar base (slightly darker)
-        g.fillStyle = isDark ? '#7c7c7c' : '#a9a9a9';
-        g.fillRect(0, 0, c.width, c.height);
-
-        let row = 0;
-        for (let y = 0; y < c.height + rowH; y += (rowH + mortar)) {
-          const offset = (row % 2 === 0) ? 0 : Math.floor((lens[1] + mortar) / 2);
-          let x = -offset;
-
-          while (x < c.width + 120) {
-            const baseLen = lens[Math.floor(rand() * lens.length)];
-            const len = baseLen + Math.floor((rand() - 0.5) * 10); // tiny variation
-
-            // Per-block shading (subtle)
-            const shadeA = (isDark ? 0.18 : 0.12) + rand() * 0.08;
-            g.fillStyle = `rgba(110,110,110,${shadeA})`;
-            g.fillRect(x + mortar, y + mortar, len, rowH);
-
-            // Bevel: highlight top/left, shadow bottom/right
-            g.fillStyle = 'rgba(255,255,255,0.06)';
-            g.fillRect(x + mortar + 1, y + mortar + 1, len - 2, 2);
-            g.fillRect(x + mortar + 1, y + mortar + 1, 2, rowH - 2);
-
-            g.fillStyle = 'rgba(0,0,0,0.07)';
-            g.fillRect(x + mortar + 1, y + mortar + rowH - 3, len - 2, 2);
-            g.fillRect(x + mortar + len - 3, y + mortar + 1, 2, rowH - 2);
-
-            // Edge definition (very light)
-            g.strokeStyle = 'rgba(0,0,0,0.10)';
-            g.lineWidth = 1;
-            g.strokeRect(x + mortar, y + mortar, len, rowH);
-
-            x += (len + mortar);
-          }
-          row++;
-        }
-
-        // Speckle / grit
-        const specks = isDark ? 1100 : 850;
-        for (let i = 0; i < specks; i++) {
-          const xx = rand() * c.width;
-          const yy = rand() * c.height;
-          const a = 0.03 + rand() * 0.06;
-          g.fillStyle = `rgba(0,0,0,${a})`;
-          g.fillRect(xx, yy, 1, 1);
-        }
-
-        return c;
-      }
-
-      // --- Slabs (interlocking) vs cobbles ---
-      const slabLike = !isCobble && !isMarble && !isBlocks;
-      if (slabLike) {
-        const mortar = 3;
-        const rowH = 46;
-        const lens = [54, 72, 92, 64, 84];
-
-        // Mortar base
-        g.fillStyle = isDark ? '#7c7c7c' : '#a9a9a9';
-        g.fillRect(0, 0, c.width, c.height);
-
-        let row = 0;
-        for (let y = 0; y < c.height + rowH; y += (rowH + mortar)) {
-          const offset = (row % 2 === 0) ? 0 : Math.floor((lens[1] + mortar) / 2);
-          let x = -offset;
-
-          while (x < c.width + 120) {
-            const baseLen = lens[Math.floor(rand() * lens.length)];
-            const len = baseLen + Math.floor((rand() - 0.5) * 8); // tiny variation
-
-            // Per-slab shading
-            const shadeA = (isDark ? 0.16 : 0.11) + rand() * 0.06;
-            g.fillStyle = `rgba(110,110,110,${shadeA})`;
-            g.fillRect(x + mortar, y + mortar, len, rowH);
-
-            // Soft bevel
-            g.fillStyle = 'rgba(255,255,255,0.05)';
-            g.fillRect(x + mortar + 1, y + mortar + 1, len - 2, 2);
-            g.fillRect(x + mortar + 1, y + mortar + 1, 2, rowH - 2);
-
-            g.fillStyle = 'rgba(0,0,0,0.06)';
-            g.fillRect(x + mortar + 1, y + mortar + rowH - 3, len - 2, 2);
-            g.fillRect(x + mortar + len - 3, y + mortar + 1, 2, rowH - 2);
-
-            // Edge definition
-            g.strokeStyle = 'rgba(0,0,0,0.10)';
-            g.lineWidth = 1;
-            g.strokeRect(x + mortar, y + mortar, len, rowH);
-
-            // Occasional hairline crack
-            if (rand() < 0.18) {
-              g.strokeStyle = 'rgba(0,0,0,0.10)';
-              g.lineWidth = 1;
-              g.beginPath();
-              const cx = x + mortar + 6 + rand() * (len - 12);
-              const cy = y + mortar + 6 + rand() * (rowH - 12);
-              g.moveTo(cx, cy);
-              g.lineTo(cx + (rand() - 0.5) * 26, cy + (rand() - 0.5) * 18);
-              g.stroke();
-            }
-
-            x += (len + mortar);
-          }
-          row++;
-        }
-
-        // Speckle / grit
-        const specks = isDark ? 900 : 650;
-        for (let i = 0; i < specks; i++) {
-          const xx = rand() * c.width;
-          const yy = rand() * c.height;
-          const a = 0.03 + rand() * 0.06;
-          g.fillStyle = `rgba(0,0,0,${a})`;
-          g.fillRect(xx, yy, 1, 1);
-        }
-
-        return c;
-      }
-
-      // Cobble (and marble base) are a bit more irregular
-      const cell = isCobble ? 34 : 48;
-      for (let y = 0; y < c.height + cell; y += cell) {
-        for (let x = 0; x < c.width + cell; x += cell) {
-          // Make slabs a bit more regular (less jitter) than cobble.
-          const jitterX = (rand() - 0.5) * (isCobble ? 10 : 4);
-          const jitterY = (rand() - 0.5) * (isCobble ? 10 : 4);
-          const w = cell + (rand() - 0.5) * (isCobble ? 18 : 10);
-          const h = cell + (rand() - 0.5) * (isCobble ? 18 : 10);
-
-          const shade = isDark ? 0.16 : 0.12;
-          g.fillStyle = `rgba(110,110,110,${shade + rand() * 0.10})`;
-          g.fillRect(x + jitterX, y + jitterY, w, h);
-
-          g.strokeStyle = `rgba(0,0,0,${isCobble ? 0.14 : 0.09})`;
-          g.lineWidth = 1;
-          g.strokeRect(x + jitterX, y + jitterY, w, h);
-        }
-      }
-
-      // Marble veins
-      if (isMarble) {
-        g.strokeStyle = 'rgba(60,60,60,0.10)';
-        g.lineWidth = 2;
-        for (let i = 0; i < 6; i++) {
-          g.beginPath();
-          let x = rand() * c.width;
-          let y = rand() * c.height;
-          g.moveTo(x, y);
-          for (let k = 0; k < 6; k++) {
-            x += (rand() - 0.5) * 70;
-            y += (rand() - 0.5) * 40;
-            g.lineTo(x, y);
-          }
-          g.stroke();
-        }
-      }
-
-      // Speckle
-      const specks = isDark ? 900 : 600;
-      for (let i = 0; i < specks; i++) {
-        const x = rand() * c.width;
-        const y = rand() * c.height;
-        const a = 0.03 + rand() * 0.06;
-        g.fillStyle = `rgba(0,0,0,${a})`;
-        g.fillRect(x, y, 1, 1);
-      }
-
-      return c;
-    }
-
-    function makeBrickTile(variant) {
-      const v = String(variant || '').trim().toLowerCase();
-      const rand = seededRng('brick:' + (v || 'red'));
-
-      const c = offscreenTile(240, 160);
-      const g = c.getContext('2d');
-
-      const PAL = {
-        red:   { mortar: '#c9c3b8', lo: [120,60,40], hi: [165,95,70] },
-        pale:  { mortar: '#d6d2c9', lo: [130,110,95], hi: [170,150,130] },
-        soot:  { mortar: '#bfb8ad', lo: [85,55,45],  hi: [130,85,70] },
-      };
-      const P = PAL[v] || PAL.red;
-
-      g.fillStyle = P.mortar;
-      g.fillRect(0, 0, c.width, c.height);
-
-      const brickW = 46;
-      const brickH = 22;
-      const mortar = 3;
-
-      for (let row = 0; row < 8; row++) {
-        const y = row * (brickH + mortar);
-        const offset = (row % 2 === 0) ? 0 : Math.floor(brickW / 2);
-        for (let x0 = -offset; x0 < c.width + brickW; x0 += (brickW + mortar)) {
-          const r = P.lo[0] + Math.floor(rand() * (P.hi[0] - P.lo[0]));
-          const gg = P.lo[1] + Math.floor(rand() * (P.hi[1] - P.lo[1]));
-          const b = P.lo[2] + Math.floor(rand() * (P.hi[2] - P.lo[2]));
-          g.fillStyle = `rgb(${r},${gg},${b})`;
-          g.fillRect(x0 + mortar, y + mortar, brickW, brickH);
-
-          // subtle bevel
-          g.fillStyle = 'rgba(255,255,255,0.06)';
-          g.fillRect(x0 + mortar + 1, y + mortar + 1, brickW - 2, 2);
-          g.fillStyle = 'rgba(0,0,0,0.05)';
-          g.fillRect(x0 + mortar + 1, y + mortar + brickH - 2, brickW - 2, 2);
-
-          g.strokeStyle = 'rgba(0,0,0,0.12)';
-          g.lineWidth = 1;
-          g.strokeRect(x0 + mortar, y + mortar, brickW, brickH);
-        }
-      }
-
-      // grit
-      for (let i = 0; i < 180; i++) {
-        const x = rand() * c.width;
-        const y = rand() * c.height;
-        g.fillStyle = 'rgba(0,0,0,0.05)';
-        g.fillRect(x, y, 1, 1);
-      }
-
-      return c;
-    }
-
-    function makeDirtTile(variant) {
-      const v = String(variant || '').trim().toLowerCase();
-      const rand = seededRng('dirt:' + (v || 'earth'));
-
-      const c = offscreenTile(240, 240);
-      const g = c.getContext('2d');
-
-      const PAL = {
-        earth: { bg: '#9b835e', dark: 'rgba(60,40,20,0.10)', light: 'rgba(255,255,255,0.06)' },
-        sand:  { bg: '#d2c18b', dark: 'rgba(120,95,55,0.08)', light: 'rgba(255,255,255,0.07)' },
-        mud:   { bg: '#6f5a42', dark: 'rgba(20,15,10,0.14)', light: 'rgba(255,255,255,0.04)' },
-      };
-      const P = PAL[v] || PAL.earth;
-
-      g.fillStyle = P.bg;
-      g.fillRect(0, 0, c.width, c.height);
-
-      // blotchy noise
-      for (let i = 0; i < 1200; i++) {
-        const x = rand() * c.width;
-        const y = rand() * c.height;
-        const r = 1 + rand() * 6;
-        g.fillStyle = (rand() < 0.6) ? P.dark : P.light;
-        g.beginPath();
-        g.arc(x, y, r, 0, Math.PI * 2);
-        g.fill();
-      }
-
-      // small pebbles
-      g.strokeStyle = 'rgba(0,0,0,0.10)';
-      g.lineWidth = 1;
-      for (let k = 0; k < 55; k++) {
-        const x = rand() * c.width;
-        const y = rand() * c.height;
-        const rx = 2 + rand() * 4;
-        const ry = 1 + rand() * 3;
-        g.fillStyle = 'rgba(255,255,255,0.08)';
-        g.beginPath();
-        g.ellipse(x, y, rx, ry, rand() * Math.PI, 0, Math.PI * 2);
-        g.fill();
-        g.beginPath();
-        g.ellipse(x, y, rx, ry, rand() * Math.PI, 0, Math.PI * 2);
-        g.stroke();
-      }
-
-      return c;
-    }
-
-    function makeGrassTile() {
-      const rand = seededRng('grass');
-      const c = offscreenTile(240, 240);
-      const g = c.getContext('2d');
-
-      g.fillStyle = '#8ea86c';
-      g.fillRect(0, 0, c.width, c.height);
-
-      // mottling
-      for (let i = 0; i < 1200; i++) {
-        const x = rand() * c.width;
-        const y = rand() * c.height;
-        const a = 0.03 + rand() * 0.06;
-        g.fillStyle = `rgba(0,0,0,${a})`;
-        g.fillRect(x, y, 1, 1);
-      }
-
-      // blades
-      g.strokeStyle = 'rgba(30,60,20,0.10)';
-      g.lineWidth = 1;
-      for (let k = 0; k < 220; k++) {
-        const x = rand() * c.width;
-        const y = rand() * c.height;
-        const len = 6 + rand() * 16;
-        const ang = (-Math.PI / 2) + (rand() - 0.5) * 0.9;
-        g.beginPath();
-        g.moveTo(x, y);
-        g.lineTo(x + Math.cos(ang) * len, y + Math.sin(ang) * len);
-        g.stroke();
-      }
-
-      return c;
-    }
-
-    function makeCarpetTile(variant) {
-      const v = String(variant || '').trim().toLowerCase();
-      const rand = seededRng('carpet:' + (v || 'red'));
-      const c = offscreenTile(240, 240);
-      const g = c.getContext('2d');
-
-      const PAL = {
-        red:   { bg: '#9d3a2f', stripe: 'rgba(255,255,255,0.10)', dark: 'rgba(0,0,0,0.12)' },
-        blue:  { bg: '#2f4f7a', stripe: 'rgba(255,255,255,0.10)', dark: 'rgba(0,0,0,0.12)' },
-        green: { bg: '#2f6b4a', stripe: 'rgba(255,255,255,0.10)', dark: 'rgba(0,0,0,0.12)' },
-        purple:{ bg: '#5b3a7a', stripe: 'rgba(255,255,255,0.10)', dark: 'rgba(0,0,0,0.12)' },
-      };
-      const P = PAL[v] || PAL.red;
-
-      g.fillStyle = P.bg;
-      g.fillRect(0, 0, c.width, c.height);
-
-      // woven noise
-      for (let i = 0; i < 2200; i++) {
-        const x = rand() * c.width;
-        const y = rand() * c.height;
-        const a = 0.02 + rand() * 0.05;
-        g.fillStyle = `rgba(255,255,255,${a})`;
-        g.fillRect(x, y, 1, 1);
-      }
-
-      // simple border + stripes
-      g.fillStyle = P.dark;
-      g.fillRect(0, 0, c.width, 10);
-      g.fillRect(0, c.height - 10, c.width, 10);
-      g.fillRect(0, 0, 10, c.height);
-      g.fillRect(c.width - 10, 0, 10, c.height);
-
-      g.fillStyle = P.stripe;
-      for (let y = 18; y < c.height; y += 28) {
-        g.fillRect(0, y, c.width, 2);
-      }
-
-      return c;
-    }
-
-    function normalizeTextureKind(kind) {
-      const raw = String(kind || '').trim().toLowerCase();
-      if (!raw) return { base: 'stone', variant: '', key: 'stone' };
-
-      let base = raw;
-      let variant = '';
-
-      // Prefer explicit variant via ':'  (e.g. "wood:oak")
-      if (raw.includes(':')) {
-        const parts = raw.split(':');
-        base = (parts[0] || raw).trim();
-        variant = parts.slice(1).join(':').trim();
-      } else if (raw.includes('.')) {
-        // Allow "stone.cobble" or "brick.soot" etc
-        const parts = raw.split('.');
-        const head = (parts[0] || raw).trim();
-        if (parts.length >= 2 && ['wood','stone','brick','dirt','grass','carpet','marble','cobble','cobblestone','planks','timber','slab','slabs','tile','tiles','sand','mud'].includes(head)) {
-          base = head;
-          variant = parts.slice(1).join('.').trim();
-        }
-      } else if (raw.includes('-')) {
-        const parts = raw.split('-');
-        const head = (parts[0] || raw).trim();
-        if (parts.length >= 2 && ['wood','stone','brick','dirt','carpet'].includes(head)) {
-          base = head;
-          variant = parts.slice(1).join('-').trim();
-        }
-      }
-
-      // Synonyms / convenience
-      const syn = {
-        planks: 'wood',
-        timber: 'wood',
-        slabs: 'stone',
-        slab: 'stone',
-        tiles: 'stone',
-        tile: 'stone',
-        bricks: 'brick',
-      };
-      base = syn[base] || base;
-
-      if (base === 'cobble' || base === 'cobblestone') { base = 'stone'; if (!variant) variant = 'cobble'; }
-      if (base === 'marble') { base = 'stone'; if (!variant) variant = 'marble'; }
-      if (base === 'sand') { base = 'dirt'; if (!variant) variant = 'sand'; }
-
-      // Clamp to supported bases (fallback to stone)
-      if (!['wood','stone','brick','dirt','grass','carpet'].includes(base)) {
-        base = 'stone';
-        variant = '';
-      }
-
-      const key = base + (variant ? ':' + variant : '');
-      return { base, variant, key };
-    }
-
-    function textureTileFor(kind) {
-      const nk = normalizeTextureKind(kind);
-      const key = nk.key;
-      if (TEX.tiles.has(key)) return TEX.tiles.get(key);
-
-      let tile;
-      if (nk.base === 'wood') tile = makeWoodTile(nk.variant);
-      else if (nk.base === 'brick') tile = makeBrickTile(nk.variant);
-      else if (nk.base === 'dirt') tile = makeDirtTile(nk.variant);
-      else if (nk.base === 'grass') tile = makeGrassTile();
-      else if (nk.base === 'carpet') tile = makeCarpetTile(nk.variant);
-      else tile = makeStoneTile(nk.variant);
-
-      TEX.tiles.set(key, tile);
-      return tile;
-    }
-
-    function texturePatternFor(kind) {
-      const nk = normalizeTextureKind(kind);
-      const key = nk.key;
-      if (TEX.patterns.has(key)) return TEX.patterns.get(key);
-
-      const tile = textureTileFor(key);
-      const pat = ctx.createPattern(tile, 'repeat');
-      TEX.patterns.set(key, pat);
-      return pat;
-    }
-
-    function floorKindForRoom(room) {
-      const ov = String(TEX.overrideFloorKind || '').trim();
-      if (ov && ov !== TEX_OVERRIDE_ROOM) return ov;
-      const k = room?.floor?.kind ?? room?.floorKind ?? room?.floor_kind ?? '';
-      const s = String(k || '').trim().toLowerCase();
-      return s || 'stone';
-    }
-
-    function wallKindForRoom(room) {
-      const ov = String(TEX.overrideWallKind || '').trim();
-      if (ov && ov !== TEX_OVERRIDE_ROOM) return ov;
-      const k = room?.wall?.kind ?? room?.wallKind ?? room?.wall_kind ?? '';
-      const s = String(k || '').trim().toLowerCase();
-      return s || 'brick';
-    }
-
-    function drawTexturedRoom(room, g) {
-      const t = Math.max(1, Number(g.thickness || 18));
-      const half = t / 2;
-
-      const outer = {
-        x: g.leftX - half,
-        y: g.topY - half,
-        w: (g.rightX - g.leftX) + t,
-        h: (g.botY - g.topY) + t,
-      };
-
-      const inner = {
-        x: g.leftX + half,
-        y: g.topY + half,
-        w: (g.rightX - g.leftX) - t,
-        h: (g.botY - g.topY) - t,
-      };
-
-      // 1) Floor
-      const fk = floorKindForRoom(room);
-      const fpat = texturePatternFor(fk);
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(inner.x, inner.y, inner.w, inner.h);
-      ctx.clip();
-      ctx.globalAlpha = 0.95;
-      ctx.fillStyle = fpat;
-      ctx.fillRect(inner.x - 2000, inner.y - 2000, inner.w + 4000, inner.h + 4000);
-
-      // subtle vignette
-      ctx.globalAlpha = 0.10;
-      const grad = ctx.createLinearGradient(inner.x, inner.y, inner.x, inner.y + inner.h);
-      grad.addColorStop(0, 'rgba(0,0,0,0.00)');
-      grad.addColorStop(1, 'rgba(0,0,0,0.40)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(inner.x, inner.y, inner.w, inner.h);
-      ctx.restore();
-
-      // 2) Walls ring
-      const wk = wallKindForRoom(room);
-      const wpat = texturePatternFor(wk);
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(outer.x, outer.y, outer.w, outer.h);
-      ctx.rect(inner.x, inner.y, inner.w, inner.h);
-      // even-odd clip (with fallback)
-      try { ctx.clip('evenodd'); } catch { ctx.clip(); }
-      ctx.globalAlpha = 0.95;
-      ctx.fillStyle = wpat;
-      ctx.fillRect(outer.x - 2000, outer.y - 2000, outer.w + 4000, outer.h + 4000);
-      ctx.restore();
-
-      // 3) Edge definition
-      ctx.save();
-      ctx.globalAlpha = 0.55;
-      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(inner.x, inner.y, inner.w, inner.h);
-      ctx.globalAlpha = 0.35;
-      ctx.strokeRect(outer.x, outer.y, outer.w, outer.h);
-      ctx.restore();
-    }
-
-    // =====================================================================
-    // SPRITES
-    // =====================================================================
-
-    const SPRITE_BASE = '/assets/sprites';
-
-    // Sprite definitions are assigned near the end of the file for easy editing.
-    // (We declare the variable here so the rest of the engine can reference it.)
-    let SPRITE_DEFS = {};
-
-    const SPRITE_CACHE = new Map();
-    const SPRITE_PROMISES = new Map();
-
-    function spriteDefForKey(key) {
-      if (!key) return null;
-      const k = String(key).trim().toLowerCase();
-      return SPRITE_DEFS[k] || null;
-    }
-
-    function spriteKeyForObject(obj) {
-      const s = obj && obj.sprite ? String(obj.sprite).trim().toLowerCase() : '';
-      if (s && SPRITE_DEFS[s]) return s;
-
-      const k = obj && obj.kind ? String(obj.kind).trim().toLowerCase() : '';
-      if (k && SPRITE_DEFS[k]) return k;
-      if (k && k.includes('.')) {
-        const base = k.split('.')[0];
-        if (SPRITE_DEFS[base]) return base;
-      }
-      return null;
-    }
-
-    function spriteKeyForActor(actor) {
-      // 1) Explicit sprite key wins (must exist in SPRITE_DEFS)
-      const s = actor && actor.sprite ? String(actor.sprite).trim().toLowerCase() : '';
-      if (s && SPRITE_DEFS[s]) return s;
-
-      // 2) Class + gender placeholder tokens
-      //    Accepts: class / cls / archetype / role  AND  gender / sex
-      const cls = String(actor?.class ?? actor?.cls ?? actor?.archetype ?? actor?.role ?? '').trim().toLowerCase();
-      const genRaw = String(actor?.gender ?? actor?.sex ?? '').trim().toLowerCase();
-      const gen = (genRaw.startsWith('f')) ? 'female' : (genRaw.startsWith('m') ? 'male' : '');
-      if (cls && gen) {
-        const key = `${cls}.${gen}`;
-        if (SPRITE_DEFS[key]) return key;
-      }
-
-      // 3) Default by side
-      const side = String(actor?.side || 'NPC').toUpperCase();
-      if (side === 'PC') return 'token.pc';
-      if (side === 'EN') return 'token.en';
-      return 'token.npc';
-    }
-
-    function ensureImage(url) {
-      const u = String(url || '').trim();
-      if (!u) return Promise.reject(new Error('Missing sprite url'));
-      if (SPRITE_CACHE.has(u)) {
-        const img = SPRITE_CACHE.get(u);
-        if (img && img.complete) return Promise.resolve(img);
-      }
-      if (SPRITE_PROMISES.has(u)) return SPRITE_PROMISES.get(u);
-
-      const p = new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => { SPRITE_CACHE.set(u, img); resolve(img); };
-        img.onerror = () => reject(new Error('Failed to load sprite: ' + u));
-        img.src = u;
-      });
-
-      SPRITE_PROMISES.set(u, p);
-      return p;
-    }
-
-    function isSpriteReady(key) {
-      const def = spriteDefForKey(key);
-      if (!def) return false;
-      const img = SPRITE_CACHE.get(def.url);
-      return !!(img && img.complete);
-    }
-
-    async function preloadSceneSprites(sceneNorm) {
-      const urls = new Set();
-
-      for (const o of (sceneNorm?.objects || [])) {
-        const key = spriteKeyForObject(o);
-        const def = spriteDefForKey(key);
-        if (def?.url) urls.add(def.url);
-      }
-
-      for (const a of (sceneNorm?.actors || [])) {
-        const key = spriteKeyForActor(a);
-        const def = spriteDefForKey(key);
-        if (def?.url) urls.add(def.url);
-      }
-
-      // Openings (doors/windows rendered as sprites)
-      for (const op of (sceneNorm?.openings || [])) {
-        const k = String(op?.kind || '').trim().toLowerCase();
-        const base = k.split('.')[0];
-        if (base !== 'door' && base !== 'window') continue;
-
-        // closed sprite
-        const closedKey = (SPRITE_DEFS[k] ? k : (SPRITE_DEFS[base] ? base : null));
-        if (closedKey) {
-          const def = spriteDefForKey(closedKey);
-          if (def?.url) urls.add(def.url);
-        }
-
-        // open sprite variants (optional)
-        const openKind = `${k}.open`;
-        const openBase = `${base}.open`;
-        for (const kk of [openKind, openBase]) {
-          if (!SPRITE_DEFS[kk]) continue;
-          const def = spriteDefForKey(kk);
-          if (def?.url) urls.add(def.url);
-        }
-      }
-
-      const promises = Array.from(urls).map(u => ensureImage(u).catch(() => null));
-      await Promise.allSettled(promises);
-    }
-
-    let LAST_SPRITE_KEYSET = '';
-    let SPRITE_REDRAW_SCHEDULED = false;
-
-    function requiredSpriteKeyset(sceneNorm) {
-      const keys = [];
-      for (const o of (sceneNorm?.objects || [])) {
-        const k = spriteKeyForObject(o);
-        if (k) keys.push('o:' + k);
-      }
-      for (const a of (sceneNorm?.actors || [])) {
-        const k = spriteKeyForActor(a);
-        if (k) keys.push('a:' + k);
-      }
-      for (const op of (sceneNorm?.openings || [])) {
-        const k = String(op?.kind || '').trim().toLowerCase();
-        const base = k.split('.')[0];
-        if (base !== 'door' && base !== 'window') continue;
-
-        // Track both closed + possible open variant so preloading/redraw triggers correctly.
-        const closedKey = (SPRITE_DEFS[k] ? k : (SPRITE_DEFS[base] ? base : null));
-        if (closedKey) keys.push('p:' + closedKey);
-
-        const openKind = `${k}.open`;
-        const openBase = `${base}.open`;
-        if (SPRITE_DEFS[openKind]) keys.push('p:' + openKind);
-        if (SPRITE_DEFS[openBase]) keys.push('p:' + openBase);
-      }
-      keys.sort();
-      return keys.join('|');
-    }
-
-    function requestSpritePreload(sceneNorm) {
-      const ks = requiredSpriteKeyset(sceneNorm);
-      if (!ks || ks === LAST_SPRITE_KEYSET) return;
-      LAST_SPRITE_KEYSET = ks;
-
-      preloadSceneSprites(sceneNorm).then(() => {
-        if (SPRITE_REDRAW_SCHEDULED) return;
-        SPRITE_REDRAW_SCHEDULED = true;
-        requestAnimationFrame(() => {
-          SPRITE_REDRAW_SCHEDULED = false;
-          safeDrawGrid();
-        });
-      });
-    }
-
-    function hexWidthPx() { return 2 * size; }
-    function hexHeightPx() { return SQRT3 * size; }
-
-    function drawSoftShadow(x, y, w, h, alpha) {
-      const a = (alpha == null) ? 0.18 : alpha;
-      ctx.save();
-      ctx.globalAlpha = a;
-      ctx.fillStyle = 'rgba(0,0,0,1)';
-      ctx.beginPath();
-      ctx.ellipse(x, y, w * 0.42, h * 0.22, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-
-    function drawSpriteAt(key, x, y, rotDeg, scaleMul, alphaMul, axOverride, ayOverride) {
-      const def = spriteDefForKey(key);
-      if (!def) return false;
-      const img = SPRITE_CACHE.get(def.url);
-      if (!img || !img.complete) return false;
-
-      const w = (def.wHex ?? 1) * hexWidthPx() * (scaleMul ?? 1);
-      const h = (def.hHex ?? 1) * hexHeightPx() * (scaleMul ?? 1);
-      const axO = (axOverride != null && axOverride !== '') ? Number(axOverride) : null;
-      const ayO = (ayOverride != null && ayOverride !== '') ? Number(ayOverride) : null;
-      const ax = Number.isFinite(axO) ? axO : (def.ax ?? 0.5);
-      const ay = Number.isFinite(ayO) ? ayO : (def.ay ?? 0.5);
-
-      if (def.shadow) {
-        drawSoftShadow(x + 2, y + (h * 0.12), w, h, 0.16);
-      }
-
-      ctx.save();
-      ctx.globalAlpha = (alphaMul == null) ? 1 : alphaMul;
-      ctx.translate(x, y);
-      if (rotDeg) ctx.rotate((Math.PI / 180) * rotDeg);
-      ctx.drawImage(img, -w * ax, -h * ay, w, h);
-      ctx.restore();
-
-      return true;
-    }
-
-    // Rotation helper:
-    // - Supports: rot / rotation / rotDeg (ABS degrees)
-    // - Supports: rotOffset / rotRel / rotDelta (REL degrees added on top of base)
-    // - Supports: orientation: 'h'|'v'|'horizontal'|'vertical'
-    // - Returns snapped degrees (0/90/180/270) for crisp pixel-art rotation.
-    function entityRotDeg(ent, fallbackDeg) {
-      if (!ent || typeof ent !== 'object') return (fallbackDeg ?? 0);
-
-      // 1) Determine a BASE angle
-      let base = null;
-
-      // explicit ABS degrees
-      let v = (ent.rot ?? ent.rotation ?? ent.rotDeg);
-      if (v != null && v !== '') {
-        const n = Number(v);
-        if (Number.isFinite(n)) base = n;
-      }
-
-      // semantic orientation if no ABS degrees
-      if (base == null) {
-        const o = String(ent.orientation ?? ent.orient ?? ent.dir ?? '').trim().toLowerCase();
-        if (o) {
-          if (o === 'v' || o === 'vert' || o === 'vertical') base = 90;
-          else if (o === 'h' || o === 'horiz' || o === 'horizontal') base = 0;
-        }
-      }
-
-      if (base == null) base = (fallbackDeg ?? 0);
-
-      // 2) Apply RELATIVE offset, if provided
-      const off = (ent.rotOffset ?? ent.rotRel ?? ent.rotDelta);
-      if (off != null && off !== '') {
-        const n = Number(off);
-        if (Number.isFinite(n)) base = base + n;
-      }
-
-      // 3) Normalize and snap to nearest 90
-      let d = ((base % 360) + 360) % 360;
-      const snapped = Math.round(d / 90) * 90;
-      d = ((snapped % 360) + 360) % 360;
-      return d;
-    }
-
-    // ====== COORDINATE SYSTEM & GRID MATH ======
-    function qrToPixel(q, r) {
-      const drawR = (rows - 1 - r);
-      const columnOffset = (q % 2 === 0) ? 0 : 0.5;
-      const x = size * (3/2) * q;
-      const y = size * SQRT3 * (drawR + columnOffset);
-      return { x: x + margin, y: y + margin };
-    }
-
-    function hexCorners(cx, cy) {
-      const pts = [];
-      for (let i = 0; i < 6; i++) {
-        const a = (Math.PI / 180) * (60 * i);
-        pts.push({ x: cx + size * Math.cos(a), y: cy + size * Math.sin(a) });
-      }
-      return pts;
-    }
-
-    function drawHexPath(pts) {
-      ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-      ctx.closePath();
-    }
-
-    function labelFor(q, r) { return `${letters[q]}${r + 1}`; }
-
-    function parseLabel(label) {
-      const m = String(label).trim().toUpperCase().match(/^([A-Z])([0-9]{1,2})$/);
-      if (!m) return null;
-      const q = letters.indexOf(m[1]);
-      const r = Number(m[2]) - 1;
-      if (q < 0 || q >= cols) return null;
-      if (r < 0 || r >= rows) return null;
-      return { q, r };
-    }
-
-    function labelToPixel(label) {
-      const pos = parseLabel(label);
-      if (!pos) return null;
-      return qrToPixel(pos.q, pos.r);
-    }
-
-    // ====== SCENE COERCION HELPERS ======
-
-    function effectLabel(e) {
-      if (typeof e === 'string') return e;
-      if (e == null) return '';
-      const t = typeof e;
-      if (t === 'number' || t === 'boolean' || t === 'bigint') return String(e);
-      if (t === 'object') {
-        const label = e.name ?? e.label ?? e.id ?? e.type;
-        if (label != null) return String(label);
-        try { return JSON.stringify(e); } catch { return '[effect]'; }
-      }
-      return String(e);
-    }
-
-    function coerceNarration(v) {
-      if (v == null) return '';
-      if (typeof v === 'string') return v;
-      if (Array.isArray(v)) return v.map(x => (x == null ? '' : String(x))).join('\n');
-      try { return JSON.stringify(v); } catch { return String(v); }
-    }
-
-    function coerceActiveActorId(v) {
-      if (v == null) return '';
-      try { return String(v).trim(); } catch { return ''; }
-    }
-
-    function coerceLastAction(v) {
-      if (v == null) return '';
-      if (typeof v === 'string') return v;
-      if (typeof v !== 'object') return String(v);
-
-      try {
-        const actor = v.actorName || v.actor || v.actor_id || v.actorId || '';
-        const from = v.from || '';
-        const to = v.to || '';
-        const movePart = (from && to) ? `${from}→${to}` : (to ? `→${to}` : '');
-
-        const atk = v.attack || v.atk || null;
-        const dmg = v.damage || v.dmg || null;
-
-        const roll = (atk && (atk.total ?? atk.roll ?? atk.toHit ?? atk.hitRoll)) ?? (v.total ?? v.roll ?? null);
-        const weapon = (atk && (atk.name || atk.weapon)) || v.weapon || v.item || '';
-        const dmgVal = (dmg && (dmg.value ?? dmg.amount)) ?? v.damageValue ?? v.dmgValue ?? null;
-
-        const note = (typeof v.note === 'string' && v.note.trim()) ? v.note.trim() : '';
-
-        const bits = [];
-        if (actor) bits.push(String(actor));
-        if (movePart) bits.push(String(movePart));
-
-        const atkBits = [];
-        if (roll != null && roll !== '') atkBits.push(`🎲 ${roll}`);
-        if (weapon) atkBits.push(`⚔️ ${weapon}`);
-        if (dmgVal != null && dmgVal !== '') atkBits.push(`→ ${dmgVal} dmg`);
-        if (atkBits.length) bits.push(atkBits.join(' '));
-
-        if (note) bits.push(`— ${note}`);
-
-        const out = bits.join('  ');
-        if (out.trim()) return out;
-      } catch (_) {}
-
-      try { return JSON.stringify(v); } catch { return '[action]'; }
-    }
-
-    function normalizeScene() {
-      const src = (typeof SCENE === 'object' && SCENE) ? SCENE : {};
-
-      const warn = (msg, obj) => {
-        try { console.warn(`[Battlemat] ${msg}`, obj ?? ''); } catch (_) {}
-      };
-
-      const roomsIn = Array.isArray(src.rooms) ? src.rooms : [];
-      const roomsOut = [];
-      const roomIds = new Set();
-      for (let i = 0; i < roomsIn.length; i++) {
-        const r = roomsIn[i] || {};
-        const corners = Array.isArray(r.corners) ? r.corners : null;
-        if (!corners || corners.length !== 4) {
-          warn(`Room skipped: corners must be 4 labels`, r);
-          continue;
-        }
-        if (corners.map(parseLabel).some(p => !p)) {
-          warn(`Room skipped: invalid corner label(s)`, r);
-          continue;
-        }
-        let id = String(r.id || '').trim();
-        if (!id) id = `room_${i + 1}`;
-        if (roomIds.has(id)) {
-          warn(`Room id duplicated; making unique: ${id}`, r);
-          let k = 2;
-          while (roomIds.has(`${id}_${k}`)) k++;
-          id = `${id}_${k}`;
-        }
-        roomIds.add(id);
-
-        const floorKind = String(r.floorKind ?? r.floor_kind ?? '').trim();
-        const wallKind = String(r.wallKind ?? r.wall_kind ?? '').trim();
-
-        let floor = null;
-        if (r.floor && typeof r.floor === 'object') floor = r.floor;
-        else if (floorKind) floor = { kind: floorKind };
-
-        let wall = null;
-        if (r.wall && typeof r.wall === 'object') wall = r.wall;
-        else if (wallKind) wall = { kind: wallKind };
-
-        roomsOut.push({
-          id,
-          corners: corners.map(c => String(c).trim().toUpperCase()),
-          thickness: Number(r.thickness ?? 18),
-          color: String(r.color || '#555'),
-          floor,
-          wall
-        });
-      }
-
-      const openingsIn = Array.isArray(src.openings) ? src.openings : [];
-      const openingsOut = [];
-      for (let i = 0; i < openingsIn.length; i++) {
-        const o = openingsIn[i] || {};
-        const kindRaw = String(o.kind || 'door').toLowerCase();
-        const kindBase = kindRaw.split('.')[0];
-        if (kindBase !== 'door' && kindBase !== 'window') {
-          warn(`Opening skipped: kind must be door/window (or door.* / window.*)`, o);
-          continue;
-        }
-        const room = String(o.room || '').trim();
-        if (!room || !roomIds.has(room)) {
-          warn(`Opening skipped: unknown room id '${room}'`, o);
-          continue;
-        }
-        const wall = String(o.wall || '').trim().toUpperCase();
-        if (!['N','S','E','W'].includes(wall)) {
-          warn(`Opening skipped: wall must be N/S/E/W`, o);
-          continue;
-        }
-        const at = String(o.at || '').trim().toUpperCase();
-        if (!parseLabel(at)) {
-          warn(`Opening skipped: invalid at label`, o);
-          continue;
-        }
-        const state = String((o.state ?? 'closed')).toLowerCase();
-        openingsOut.push({ ...o, kind: kindRaw, room, wall, at, state });
-      }
-
-      const objectsIn = Array.isArray(src.objects) ? src.objects : [];
-      const objectsOut = [];
-      for (let i = 0; i < objectsIn.length; i++) {
-        const o = objectsIn[i] || {};
-        const kind = String(o.kind || 'object').toLowerCase();
-        const blocks = Boolean(o.blocks ?? false);
-
-        let cells = [];
-        if (Array.isArray(o.cells) && o.cells.length) {
-          cells = o.cells.map(c => String(c).trim().toUpperCase()).filter(Boolean);
-        } else if (o.at) {
-          cells = [String(o.at).trim().toUpperCase()];
-        }
-
-        cells = cells.filter(lab => !!parseLabel(lab));
-        if (!cells.length) {
-          warn('Object skipped: missing/invalid at/cells', o);
-          continue;
-        }
-
-        objectsOut.push({
-          ...o,
-          kind,
-          blocks,
-          cells,
-          label: (o.label != null) ? String(o.label) : null,
-          color: (o.color != null) ? String(o.color) : null
-        });
-      }
-
-      const actorsIn = Array.isArray(src.actors) ? src.actors : [];
-      const actorsOut = [];
-      for (let i = 0; i < actorsIn.length; i++) {
-        const a = actorsIn[i] || {};
-        const at = String(a.at || '').trim().toUpperCase();
-        if (!parseLabel(at)) {
-          warn(`Actor skipped: invalid at label`, a);
-          continue;
-        }
-        const side = String(a.side || 'NPC').toUpperCase();
-        actorsOut.push({ ...a, at, side: (side === 'PC' || side === 'EN') ? side : 'NPC' });
-      }
-
-      const poiIn = Array.isArray(src.poi) ? src.poi : [];
-      const poiOut = [];
-      const poiIds = new Set();
-
-      for (let i = 0; i < poiIn.length; i++) {
-        const p = poiIn[i] || {};
-        const type = String(p.type || '').trim().toLowerCase();
-        if (!type) continue;
-
-        let id = String(p.id || '').trim();
-        if (!id) id = `poi_${i + 1}`;
-        if (poiIds.has(id)) {
-          let k = 2;
-          while (poiIds.has(`${id}_${k}`)) k++;
-          id = `${id}_${k}`;
-        }
-        poiIds.add(id);
-
-        if (type === 'arrow') {
-          const from = String(p.from || '').trim().toUpperCase();
-          const to = String(p.to || '').trim().toUpperCase();
-          if (!parseLabel(from) || !parseLabel(to)) {
-            warn('POI arrow skipped: invalid from/to', p);
-            continue;
-          }
-          poiOut.push({
-            ...p,
-            id,
-            type,
-            from,
-            to,
-            color: String(p.color || 'rgba(40,40,40,0.65)'),
-            width: Number(p.width ?? 4),
-            label: (p.label != null) ? String(p.label) : ''
-          });
-          continue;
-        }
-
-        poiOut.push({ ...p, id, type });
-      }
-
-      return {
-        round: Number(src.round ?? 1),
-        activeActorId: coerceActiveActorId(src.active_actor_id ?? src.activeActorId ?? src?.ui?.active_actor_id ?? src?.ui?.activeActorId),
-        lastAction: coerceLastAction(src.lastAction ?? src.last_action ?? src.action),
-        narration: coerceNarration(src.narration ?? src.notes ?? src.narrative),
-        rooms: roomsOut,
-        openings: openingsOut,
-        objects: objectsOut,
-        actors: actorsOut,
-        poi: poiOut
-      };
-    }
-
-    // ====== POI (Annotations) ======
     function drawArrowPx(x1, y1, x2, y2, color, width, label) {
       const dx = x2 - x1;
       const dy = y2 - y1;
@@ -2562,7 +2391,10 @@
       endPoiDrag(false);
     });
 
-    // ====== ROOM GEOMETRY (RECT WALLS) ======
+    // =====================================================================
+    // ROOM GEOMETRY
+    // =====================================================================
+
     function getRoomGeom(room) {
       const c = Array.isArray(room.corners) ? room.corners : null;
       if (!c || c.length !== 4) return null;
@@ -2573,8 +2405,7 @@
       const pBL = labelToPixel(c[3]);
       if (!pTL || !pTR || !pBR || !pBL) return null;
 
-      const hexH = SQRT3 * size;
-      const yInset = hexH * CONFIG.room.yInsetFrac;
+      const yInset = hexHeightPx() * CONFIG.room.yInsetFrac;
 
       return {
         id: String(room.id || ''),
@@ -2619,7 +2450,10 @@
       }
     }
 
-    // ====== OBJECTS ======
+    // =====================================================================
+    // OBJECTS
+    // =====================================================================
+
     function objectCentroidPx(cells) {
       let sx = 0, sy = 0, n = 0;
       for (const lab of (cells || [])) {
@@ -2676,6 +2510,30 @@
           ? String(obj.color)
           : (blocks ? 'rgba(0,0,0,0.20)' : 'rgba(0,0,0,0.10)');
 
+        const spriteKey = spriteKeyForObject(obj);
+        const rot = entityRotDeg(obj, 0);
+        const scale = (obj.scale != null) ? Number(obj.scale) : 1;
+
+        if (spriteKey && isSpriteReady(spriteKey)) {
+          const c = objectCentroidPx(cells);
+          if (c) {
+            const yBias = size * 0.10;
+            drawSpriteAt(spriteKey, c.x, c.y + yBias, rot, scale, 1, (obj.ax ?? obj.anchorX), (obj.ay ?? obj.anchorY));
+
+            if (obj.label != null && String(obj.label).trim()) {
+              ctx.save();
+              ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
+              ctx.fillStyle = 'rgba(0,0,0,0.55)';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(String(obj.label).trim().slice(0, 3), c.x, c.y);
+              ctx.restore();
+            }
+            continue;
+          }
+        }
+
+        // Fallback rendering (legacy shapes)
         if (kind !== 'table' && kind !== 'rect' && kind !== 'sarcophagus' && kind !== 'pillar') {
           for (let i = 0; i < cells.length; i++) {
             const lab = String(cells[i]).trim().toUpperCase();
@@ -2703,28 +2561,6 @@
             ctx.restore();
           }
           continue;
-        }
-
-        const spriteKey = spriteKeyForObject(obj);
-        const rot = entityRotDeg(obj, 0);
-
-        if (spriteKey && isSpriteReady(spriteKey)) {
-          const c = objectCentroidPx(cells);
-          if (c) {
-            const yBias = size * 0.10;
-            drawSpriteAt(spriteKey, c.x, c.y + yBias, rot, 1, 1, (obj.ax ?? obj.anchorX), (obj.ay ?? obj.anchorY));
-
-            if (obj.label != null && String(obj.label).trim()) {
-              ctx.save();
-              ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
-              ctx.fillStyle = 'rgba(0,0,0,0.55)';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(String(obj.label).trim().slice(0, 3), c.x, c.y);
-              ctx.restore();
-            }
-            continue;
-          }
         }
 
         if (kind === 'table') {
@@ -2803,7 +2639,10 @@
       }
     }
 
-    // ====== OPENINGS (DOORS/WINDOWS) ======
+    // =====================================================================
+    // OPENINGS (DOORS/WINDOWS)
+    // =====================================================================
+
     function fillCutoutWithFloor(roomObj, x, y, w, h) {
       ctx.save();
       ctx.translate(x, y);
@@ -2827,17 +2666,14 @@
     }
 
     function drawWindowRecess(roomObj, x, y, w, h) {
-      // Recess should read as "lighter wall" and still look decent over textures.
       ctx.save();
       ctx.translate(x, y);
 
-      // base recess fill
       ctx.beginPath();
       ctx.rect(-w/2, -h/2, w, h);
       ctx.fillStyle = 'rgba(255,255,255,0.18)';
       ctx.fill();
 
-      // subtle edge
       ctx.globalAlpha = 0.35;
       ctx.strokeStyle = 'rgba(0,0,0,0.18)';
       ctx.lineWidth = 1;
@@ -2877,7 +2713,6 @@
         else if (wall === 'W') x = g.leftX;
         else continue;
 
-        // Geometry for the "cutout" in the wall
         const thicknessAcross = Number(o.thicknessAcross ?? Math.max(CONFIG.opening.minAcross, g.thickness * CONFIG.opening.acrossMul));
         const spanAlong = (wall === 'N' || wall === 'S')
           ? Number(o.spanAlong ?? (CONFIG.opening.spanNSMul * size))
@@ -2892,29 +2727,25 @@
 
         const wallRot = (wall === 'E' || wall === 'W') ? 90 : 0;
         const rot = entityRotDeg(o, wallRot);
+        const scale = (o.scale != null) ? Number(o.scale) : 1;
 
-        // --- Doors ---
         if (isDoor) {
-          // 1) Always carve a floor-colored slot in the wall (covers wall color/texture)
+          // Always carve a floor-colored cutout.
           fillCutoutWithFloor(roomObj, x, y, slotW, slotH);
 
-          // 2) If open, draw an open-sprite variant if available; otherwise just show the slot.
           if (isOpen) {
             const openKey = (SPRITE_DEFS[`${kind}.open`] ? `${kind}.open` : (SPRITE_DEFS['door.open'] ? 'door.open' : null));
-            if (openKey && isSpriteReady(openKey)) {
-              drawSpriteAt(openKey, x, y, rot, 1, 1);
-            }
+            if (openKey && isSpriteReady(openKey)) drawSpriteAt(openKey, x, y, rot, scale, 1);
             continue;
           }
 
-          // 3) Closed door: sprite (preferred) or legacy rectangle fallback
           const doorKey = (SPRITE_DEFS[kind] ? kind : (SPRITE_DEFS['door'] ? 'door' : null));
           if (doorKey && isSpriteReady(doorKey)) {
-            drawSpriteAt(doorKey, x, y, rot, 1, 1);
+            drawSpriteAt(doorKey, x, y, rot, scale, 1);
             continue;
           }
 
-          // Fallback: draw a simple door slab on top of the slot
+          // Fallback slab.
           ctx.save();
           ctx.translate(x, y);
           if (rot) ctx.rotate((Math.PI / 180) * rot);
@@ -2926,28 +2757,22 @@
           ctx.lineWidth = 2;
           ctx.stroke();
           ctx.restore();
-
           continue;
         }
 
-        // --- Windows ---
         if (isWindow) {
-          // Always draw the recess cutout so narrow sprites never expose wall color.
+          // Always draw recess cutout.
           drawWindowRecess(roomObj, x, y, slotW, slotH);
 
           const openKey = (SPRITE_DEFS[`${kind}.open`] ? `${kind}.open` : (SPRITE_DEFS['window.open'] ? 'window.open' : null));
           const closedKey = (SPRITE_DEFS[kind] ? kind : (SPRITE_DEFS['window'] ? 'window' : null));
           const keyToUse = isOpen ? openKey : closedKey;
 
-          // If we have the correct sprite, draw it.
           if (keyToUse && isSpriteReady(keyToUse)) {
-            drawSpriteAt(keyToUse, x, y, rot, 1, 1);
+            drawSpriteAt(keyToUse, x, y, rot, scale, 1);
             continue;
           }
 
-          // No sprite:
-          // - Open window: show ONLY the recess (no white/blue slab)
-          // - Closed window: legacy blue panel on top of recess
           if (!isOpen) {
             ctx.save();
             ctx.translate(x, y);
@@ -2960,19 +2785,23 @@
             ctx.fill();
             ctx.stroke();
 
-            ctx.font = 'bold 12px ui-monospace, system-ui, sans-serif';
-            if (Math.max(rectW, rectH) >= 55) ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
+            ctx.font = (Math.max(rectW, rectH) >= 55)
+              ? 'bold 13px ui-monospace, system-ui, sans-serif'
+              : 'bold 12px ui-monospace, system-ui, sans-serif';
             ctx.fillStyle = 'rgba(0,0,0,0.55)';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('W', 0, 0);
             ctx.restore();
           }
-
           continue;
         }
       }
     }
+
+    // =====================================================================
+    // TOKENS
+    // =====================================================================
 
     function drawToken(q, r, label, side, dead, actorObj) {
       const { x, y } = qrToPixel(q, r);
@@ -2980,9 +2809,10 @@
       const tokenKey = actorObj ? spriteKeyForActor(actorObj) : ((side === 'PC') ? 'token.pc' : (side === 'EN' ? 'token.en' : 'token.npc'));
       const alpha = dead ? 0.55 : 1.0;
       const rot = actorObj ? entityRotDeg(actorObj, 0) : 0;
+      const scale = (actorObj && actorObj.scale != null) ? Number(actorObj.scale) : 1;
 
       if (tokenKey && isSpriteReady(tokenKey)) {
-        drawSpriteAt(tokenKey, x, y + (size * 0.10), rot, 1, alpha, (actorObj?.ax ?? actorObj?.anchorX), (actorObj?.ay ?? actorObj?.anchorY));
+        drawSpriteAt(tokenKey, x, y + (size * 0.10), rot, scale, alpha, (actorObj?.ax ?? actorObj?.anchorX), (actorObj?.ay ?? actorObj?.anchorY));
 
         ctx.save();
         ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
@@ -3014,6 +2844,10 @@
       ctx.textBaseline = 'middle';
       ctx.fillText(label, x, y);
     }
+
+    // =====================================================================
+    // GRID DRAW
+    // =====================================================================
 
     function drawHexOverlay() {
       for (let q = 0; q < cols; q++) {
@@ -3077,7 +2911,6 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      // Make labels pop inside rooms, fade away outside rooms.
       const inAnyRoomInterior = (px, py) => {
         if (!ROOM_GEOMS || !ROOM_GEOMS.size) return false;
         for (const g of ROOM_GEOMS.values()) {
@@ -3117,7 +2950,10 @@
       renderStatus();
     }
 
-    // Notes (Narration) persistence
+    // =====================================================================
+    // NOTES (Narration) persistence
+    // =====================================================================
+
     const NOTES = {
       battleId: null,
       keyNarr: null,
@@ -3148,9 +2984,7 @@
       }
 
       const save = () => {
-        try {
-          if (narr) localStorage.setItem(NOTES.keyNarr, narr.value || '');
-        } catch (_) {}
+        try { if (narr) localStorage.setItem(NOTES.keyNarr, narr.value || ''); } catch (_) {}
       };
 
       const onInput = () => {
@@ -3181,6 +3015,10 @@
         NOTES.lastSceneNarration = sceneText;
       }
     }
+
+    // =====================================================================
+    // STATUS TABLE
+    // =====================================================================
 
     function renderStatus() {
       const tbody = document.getElementById('statusBody');
@@ -3249,6 +3087,10 @@
       }
     }
 
+    // =====================================================================
+    // HELPERS
+    // =====================================================================
+
     function escapeHtml(s) {
       return String(s)
         .replaceAll('&', '&amp;')
@@ -3278,57 +3120,62 @@
     // SPRITE DEFINITIONS (EDIT HERE)
     // =====================================================================
 
-    // NOTE: Table sprite size reduced ~30% (1.8 -> 1.26)
+    // All sprites now use NATIVE sizing (pixel size mapped to hex height).
+    // If you want something to be bigger than a hex: make the PNG bigger.
+    // If you need a quick nudge without re-exporting: set `scale` on the sprite def or entity.
     SPRITE_DEFS = {
-      'table':        { url: `${SPRITE_BASE}/table_round.png`,     wHex: 1.1,  hHex: 1.26, ax: 0.5, ay: 0.52, shadow: true },
-      'table.round':  { url: `${SPRITE_BASE}/table_round.png`,     wHex: 1.1,  hHex: 1.26, ax: 0.5, ay: 0.52, shadow: true },
-      'table.rect':   { url: `${SPRITE_BASE}/table_rect.png`,      wHex: 2.2,  hHex: 1.6,  ax: 0.5, ay: 0.55, shadow: true },
-      'sarcophagus':  { url: `${SPRITE_BASE}/sarcophagus.png`,     wHex: 2.4,  hHex: 1.4,  ax: 0.5, ay: 0.58, shadow: true },
-      'pillar':       { url: `${SPRITE_BASE}/pillar_stone.png`,    wHex: 1.2,  hHex: 1.2,  ax: 0.5, ay: 0.60, shadow: true },
-      'rect':         { url: `${SPRITE_BASE}/crate_rect.png`,      wHex: 2.0,  hHex: 1.4,  ax: 0.5, ay: 0.58, shadow: true },
+      // Objects
+      'table':        { url: `${SPRITE_BASE}/table_round.png`,     ax: 0.5, ay: 0.52, shadow: true },
+      'table.round':  { url: `${SPRITE_BASE}/table_round.png`,     ax: 0.5, ay: 0.52, shadow: true },
+      'table.rect':   { url: `${SPRITE_BASE}/table_rect.png`,      ax: 0.5, ay: 0.55, shadow: true },
+      'sarcophagus':  { url: `${SPRITE_BASE}/sarcophagus.png`,     ax: 0.5, ay: 0.58, shadow: true },
+      'pillar':       { url: `${SPRITE_BASE}/pillar_stone.png`,    ax: 0.5, ay: 0.60, shadow: true },
+      'rect':         { url: `${SPRITE_BASE}/crate_rect.png`,      ax: 0.5, ay: 0.58, shadow: true },
 
-      // ---- Character tokens (placeholders by class + gender) ----
-      // Default/fallback tokens
-      'token.pc':     { url: `${SPRITE_BASE}/token_pc.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'token.en':     { url: `${SPRITE_BASE}/token_enemy.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      // Tokens (fallback by side)
+      'token.pc':     { url: `${SPRITE_BASE}/token_pc.png`,        ax: 0.5, ay: 0.55, shadow: true },
+      'token.en':     { url: `${SPRITE_BASE}/token_enemy.png`,     ax: 0.5, ay: 0.55, shadow: true },
+      'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,       ax: 0.5, ay: 0.55, shadow: true },
 
-      // Generic class tokens (male/female). Add files later; engine falls back safely.
-      'fighter.male':     { url: `${SPRITE_BASE}/fighter_male.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'fighter.female':   { url: `${SPRITE_BASE}/fighter_female.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'cleric.male':      { url: `${SPRITE_BASE}/cleric_male.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'cleric.female':    { url: `${SPRITE_BASE}/cleric_female.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'wizard.male':      { url: `${SPRITE_BASE}/wizard_male.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'wizard.female':    { url: `${SPRITE_BASE}/wizard_female.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'rogue.male':       { url: `${SPRITE_BASE}/rogue_male.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'rogue.female':     { url: `${SPRITE_BASE}/rogue_female.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'ranger.male':      { url: `${SPRITE_BASE}/ranger_male.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'ranger.female':    { url: `${SPRITE_BASE}/ranger_female.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'paladin.male':     { url: `${SPRITE_BASE}/paladin_male.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'paladin.female':   { url: `${SPRITE_BASE}/paladin_female.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'bard.male':        { url: `${SPRITE_BASE}/bard_male.png`,         wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'bard.female':      { url: `${SPRITE_BASE}/bard_female.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'druid.male':       { url: `${SPRITE_BASE}/druid_male.png`,        wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'druid.female':     { url: `${SPRITE_BASE}/druid_female.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'monk.male':        { url: `${SPRITE_BASE}/monk_male.png`,         wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'monk.female':      { url: `${SPRITE_BASE}/monk_female.png`,       wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'barbarian.male':   { url: `${SPRITE_BASE}/barbarian_male.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'barbarian.female': { url: `${SPRITE_BASE}/barbarian_female.png`,  wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'sorcerer.male':    { url: `${SPRITE_BASE}/sorcerer_male.png`,     wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'sorcerer.female':  { url: `${SPRITE_BASE}/sorcerer_female.png`,   wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'warlock.male':     { url: `${SPRITE_BASE}/warlock_male.png`,      wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
-      'warlock.female':   { url: `${SPRITE_BASE}/warlock_female.png`,    wHex: 0.95, hHex: 0.95, ax: 0.5, ay: 0.55, shadow: true },
+      // Class + gender placeholders
+      'fighter.male':     { url: `${SPRITE_BASE}/fighter_male.png`,      ax: 0.5, ay: 0.55, shadow: true },
+      'fighter.female':   { url: `${SPRITE_BASE}/fighter_female.png`,    ax: 0.5, ay: 0.55, shadow: true },
+      'cleric.male':      { url: `${SPRITE_BASE}/cleric_male.png`,       ax: 0.5, ay: 0.55, shadow: true },
+      'cleric.female':    { url: `${SPRITE_BASE}/cleric_female.png`,     ax: 0.5, ay: 0.55, shadow: true },
+      'wizard.male':      { url: `${SPRITE_BASE}/wizard_male.png`,       ax: 0.5, ay: 0.55, shadow: true },
+      'wizard.female':    { url: `${SPRITE_BASE}/wizard_female.png`,     ax: 0.5, ay: 0.55, shadow: true },
+      'rogue.male':       { url: `${SPRITE_BASE}/rogue_male.png`,        ax: 0.5, ay: 0.55, shadow: true },
+      'rogue.female':     { url: `${SPRITE_BASE}/rogue_female.png`,      ax: 0.5, ay: 0.55, shadow: true },
+      'ranger.male':      { url: `${SPRITE_BASE}/ranger_male.png`,       ax: 0.5, ay: 0.55, shadow: true },
+      'ranger.female':    { url: `${SPRITE_BASE}/ranger_female.png`,     ax: 0.5, ay: 0.55, shadow: true },
+      'paladin.male':     { url: `${SPRITE_BASE}/paladin_male.png`,      ax: 0.5, ay: 0.55, shadow: true },
+      'paladin.female':   { url: `${SPRITE_BASE}/paladin_female.png`,    ax: 0.5, ay: 0.55, shadow: true },
+      'bard.male':        { url: `${SPRITE_BASE}/bard_male.png`,         ax: 0.5, ay: 0.55, shadow: true },
+      'bard.female':      { url: `${SPRITE_BASE}/bard_female.png`,       ax: 0.5, ay: 0.55, shadow: true },
+      'druid.male':       { url: `${SPRITE_BASE}/druid_male.png`,        ax: 0.5, ay: 0.55, shadow: true },
+      'druid.female':     { url: `${SPRITE_BASE}/druid_female.png`,      ax: 0.5, ay: 0.55, shadow: true },
+      'monk.male':        { url: `${SPRITE_BASE}/monk_male.png`,         ax: 0.5, ay: 0.55, shadow: true },
+      'monk.female':      { url: `${SPRITE_BASE}/monk_female.png`,       ax: 0.5, ay: 0.55, shadow: true },
+      'barbarian.male':   { url: `${SPRITE_BASE}/barbarian_male.png`,    ax: 0.5, ay: 0.55, shadow: true },
+      'barbarian.female': { url: `${SPRITE_BASE}/barbarian_female.png`,  ax: 0.5, ay: 0.55, shadow: true },
+      'sorcerer.male':    { url: `${SPRITE_BASE}/sorcerer_male.png`,     ax: 0.5, ay: 0.55, shadow: true },
+      'sorcerer.female':  { url: `${SPRITE_BASE}/sorcerer_female.png`,   ax: 0.5, ay: 0.55, shadow: true },
+      'warlock.male':     { url: `${SPRITE_BASE}/warlock_male.png`,      ax: 0.5, ay: 0.55, shadow: true },
+      'warlock.female':   { url: `${SPRITE_BASE}/warlock_female.png`,    ax: 0.5, ay: 0.55, shadow: true },
 
-      // ---- Openings ----
-      'window':       { url: `${SPRITE_BASE}/window.png`,          wHex: 0.80, hHex: 0.20, ax: 0.5, ay: 0.5, shadow: false },
-      'window.open':  { url: `${SPRITE_BASE}/window_open.png`,     wHex: 0.80, hHex: 1.00, ax: 0.5, ay: 0.5, shadow: false },
-      'door':         { url: `${SPRITE_BASE}/door.png`,            wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
-      'door.open':    { url: `${SPRITE_BASE}/door_open.png`,       wHex: 3.60, hHex: 1.0, ax: 0.5, ay: 0.5, shadow: false },
-      'door.wood':    { url: `${SPRITE_BASE}/door_wood.png`,       wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false },
-      'door_wood':    { url: `${SPRITE_BASE}/door_wood.png`,       wHex: 0.90, hHex: 0.25, ax: 0.5, ay: 0.5, shadow: false }
+      // Openings
+      'window':       { url: `${SPRITE_BASE}/window.png`,          ax: 0.5, ay: 0.5, shadow: false },
+      'window.open':  { url: `${SPRITE_BASE}/window_open.png`,     ax: 0.5, ay: 0.5, shadow: false },
+      'door':         { url: `${SPRITE_BASE}/door.png`,            ax: 0.5, ay: 0.5, shadow: false },
+      'door.open':    { url: `${SPRITE_BASE}/door_open.png`,       ax: 0.5, ay: 0.5, shadow: false },
+      'door.wood':    { url: `${SPRITE_BASE}/door_wood.png`,       ax: 0.5, ay: 0.5, shadow: false },
+      'door.wood.open': { url: `${SPRITE_BASE}/door_wood_open.png`, ax: 0.5, ay: 0.5, shadow: false }
     };
 
+    // =====================================================================
     // Minimal self-tests (safe in production; they only log if something is off)
+    // =====================================================================
+
     function runSelfTests() {
       try {
         console.assert(typeof modeDelayMs === 'function', 'modeDelayMs should exist');
@@ -3336,12 +3183,7 @@
         console.assert(modeDelayMs(RefreshMode.S15) === S15_MS, '15s delay should be 15000ms');
         console.assert(modeDelayMs(RefreshMode.S30) === S30_MS, '30s delay should be 30000ms');
         console.assert(modeDelayMs(RefreshMode.S60) === S60_MS, '60s delay should be 60000ms');
-        console.assert(FAST_TO_15_IDLE_MS === 60000, 'FAST→15 idle should be 60s');
-        console.assert(S15_TO_30_IDLE_MS === 180000, '15→30 idle should be 3m');
-        console.assert(S30_TO_60_IDLE_MS === 300000, '30→60 idle should be 5m');
-        console.assert(S60_TO_OFF_IDLE_MS === 600000, '60→Off idle should be 10m');
 
-        // lastAction + narration + effects robustness
         console.assert(coerceActiveActorId(' pc1 ') === 'pc1', 'coerceActiveActorId should trim');
         console.assert(coerceLastAction({ a: 1 }).includes('a'), 'coerceLastAction should stringify objects');
         console.assert(coerceNarration({ n: 1 }).includes('n'), 'coerceNarration should stringify objects');
@@ -3349,7 +3191,6 @@
         console.assert(effectLabel({ label: 'Stunned' }) === 'Stunned', 'effectLabel should prefer label');
         console.assert(effectLabel(7) === '7', 'effectLabel should stringify primitives');
 
-        // texture kind parsing
         const n1 = normalizeTextureKind('wood:pine');
         console.assert(n1.base === 'wood' && n1.variant === 'pine' && n1.key === 'wood:pine', 'normalizeTextureKind wood:pine');
         const n2 = normalizeTextureKind('stone.cobble');
@@ -3357,29 +3198,37 @@
         const n3 = normalizeTextureKind('cobblestone');
         console.assert(n3.base === 'stone' && n3.variant === 'cobble', 'normalizeTextureKind cobblestone');
 
-        // sprite sizing sanity
         console.assert(!!SPRITE_DEFS['table'], 'SPRITE_DEFS should include table');
-        console.assert(!!SPRITE_DEFS['table.round'], 'SPRITE_DEFS should include table.round');
-        console.assert(Math.abs((SPRITE_DEFS['table']?.hHex ?? 0) - 1.26) < 0.0001, 'table sprite should be 30% smaller (hHex=1.26)');
-        console.assert(Math.abs((SPRITE_DEFS['table.round']?.hHex ?? 0) - 1.26) < 0.0001, 'table.round sprite should be 30% smaller (hHex=1.26)');
 
-        // class+gender token selection
+        // Native sizing sanity: 512px == 1 hex height
+        const mockImg = { naturalWidth: 512, naturalHeight: 512 };
+        const sz0 = spriteCanvasSize({ url: 'x' }, mockImg, 1);
+        console.assert(Math.abs(sz0.w - hexHeightPx()) < 0.001, '512px width should map to 1 hex height');
+        console.assert(Math.abs(sz0.h - hexHeightPx()) < 0.001, '512px height should map to 1 hex height');
+
         console.assert(spriteKeyForActor({ side: 'PC', class: 'fighter', gender: 'male' }) === 'fighter.male', 'fighter.male selection');
         console.assert(spriteKeyForActor({ side: 'PC', class: 'wizard', gender: 'female' }) === 'wizard.female', 'wizard.female selection');
 
-        // rotation helper
         console.assert(entityRotDeg({ rot: 91 }, 0) === 90, 'snap 91→90');
         console.assert(entityRotDeg({ rot: 269 }, 0) === 270, 'snap 269→270');
         console.assert(entityRotDeg({ orientation: 'vertical' }, 0) === 90, 'orientation vertical');
         console.assert(entityRotDeg({ rot: 0, rotOffset: 180 }, 0) === 180, 'rotOffset applies');
+
+        // Scaling sanity
+        const sz1 = spriteCanvasSize({ url: 'x', scale: 2 }, mockImg, 1);
+        console.assert(Math.abs(sz1.h - 2 * hexHeightPx()) < 0.01, 'def.scale=2 should double size');
+        const sz2 = spriteCanvasSize({ url: 'x' }, mockImg, 0.5);
+        console.assert(Math.abs(sz2.h - 0.5 * hexHeightPx()) < 0.01, 'entity scale=0.5 should halve size');
       } catch (_) {}
     }
 
+    // =====================================================================
     // Boot
+    // =====================================================================
+
     (async () => {
       await tryLoadSceneFromApi();
 
-      // Textures toggle (persisted) — set before first render so the first frame matches UI state.
       TEX.enabled = readTexturePref();
       setTextureUi();
       initTextureSelectors();
