@@ -1,5 +1,5 @@
 <!--
-  Version 3.73
+  Version 3.75
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -1951,22 +1951,23 @@
       for (const op of (sceneNorm?.openings || [])) {
         const kind = String(op.kind || '').toLowerCase();
         const base = kind.split('.')[0];
-        const isOpen = String(op.state || 'closed').toLowerCase() === 'open';
         if (base !== 'door' && base !== 'window') continue;
 
-        const openKey = `${kind}.open`;
-        const fallbackOpen = `${base}.open`;
-        const closedKey = kind;
-        const fallbackClosed = base;
+        const isOpen = String(op.state || 'closed').toLowerCase() === 'open';
 
-        const k = isOpen
-          ? (SPRITE_DEFS[openKey] ? openKey : (SPRITE_DEFS[fallbackOpen] ? fallbackOpen : null))
-          : (SPRITE_DEFS[closedKey] ? closedKey : (SPRITE_DEFS[fallbackClosed] ? fallbackClosed : null));
+        const closedKey = (SPRITE_DEFS[kind] ? kind : (SPRITE_DEFS[base] ? base : null));
+        if (closedKey) keys.add(closedKey);
 
-        if (k) keys.add(k);
+        // Only preload a dedicated ".open" sprite if the opening explicitly requests it.
+        const wantsOpenSprite = !!(op.useOpenSprite || op.spriteOpen || op.sprite_open);
+        if (isOpen && wantsOpenSprite) {
+          const openKey = (SPRITE_DEFS[`${kind}.open`] ? `${kind}.open` : (SPRITE_DEFS[`${base}.open`] ? `${base}.open` : null));
+          if (openKey) keys.add(openKey);
+        }
       }
 
       for (const k of keys) {
+
         const def = spriteDefForKey(k);
         if (def?.url) ensureSpriteLoaded(def.url);
       }
@@ -2693,6 +2694,68 @@
     // OPENINGS (DOORS/WINDOWS)
     // =====================================================================
 
+    // Door swinging (math, no extra sprites):
+    // - Door sprite is drawn CLOSED at the wall cutout center.
+    // - When state="open", we rotate the SAME sprite around its hinge.
+    // - Hinge is assumed to be at the sprite's "A" end.
+    //   To flip hinge to the other end, set rot to rot+180 on that opening.
+    // - Control swing direction with opening.swing (e.g. 90 or -90) or opening.opens ('cw'/'ccw').
+
+    function parseSwingDeg(opening) {
+      let v = opening?.swing ?? opening?.swingDeg ?? opening?.openSwing ?? opening?.openDeg ?? opening?.openAngle ?? opening?.opens;
+
+      if (typeof v === 'string') {
+        const s = v.trim().toLowerCase();
+        if (s === 'cw' || s === 'right' || s === 'r') return 90;
+        if (s === 'ccw' || s === 'left' || s === 'l') return -90;
+        const n = Number(s);
+        if (Number.isFinite(n)) v = n;
+      }
+
+      const n = Number(v);
+      if (Number.isFinite(n) && n !== 0) {
+        // Keep it crisp for pixel-art: snap to 90-degree steps.
+        return Math.round(n / 90) * 90;
+      }
+
+      return 90;
+    }
+
+    function rotateVec(x, y, deg) {
+      const a = (Math.PI / 180) * deg;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      return { x: x * ca - y * sa, y: x * sa + y * ca };
+    }
+
+    function drawDoorSwingAt(doorKey, cx, cy, closedRotDeg, swingDeg, scaleMul, alphaMul) {
+      const def = spriteDefForKey(doorKey);
+      if (!def) return false;
+
+      const img = ensureSpriteLoaded(def.url);
+      if (!img || !img.complete) return false;
+
+      const sz = spriteCanvasSize(def, img, scaleMul);
+      const w = sz.w;
+      const h = sz.h;
+
+      // Most door art is "length along X". Allow override via def.lengthAxis = 'y'.
+      const axis = String(def.lengthAxis || 'x').toLowerCase() === 'y' ? 'y' : 'x';
+
+      // Hinge is at the sprite's "A" end (negative along the length axis).
+      // Compute hinge world position from the closed center.
+      const hingeOffset = (axis === 'y') ? rotateVec(0, -h * 0.5, closedRotDeg) : rotateVec(-w * 0.5, 0, closedRotDeg);
+      const hx = cx + hingeOffset.x;
+      const hy = cy + hingeOffset.y;
+
+      const openRot = closedRotDeg + swingDeg;
+
+      // Draw at hinge pivot (anchor at the hinge end).
+      const ax = (axis === 'y') ? 0.5 : 0.0;
+      const ay = (axis === 'y') ? 0.0 : 0.5;
+      return drawSpriteAt(doorKey, hx, hy, openRot, scaleMul, alphaMul, ax, ay);
+    }
+
     function fillCutoutWithFloor(roomObj, x, y, w, h) {
       ctx.save();
       ctx.translate(x, y);
@@ -2783,13 +2846,41 @@
           // Always carve a floor-colored cutout.
           fillCutoutWithFloor(roomObj, x, y, slotW, slotH);
 
+          const doorKey = (SPRITE_DEFS[kind] ? kind : (SPRITE_DEFS['door'] ? 'door' : null));
+          const wantsOpenSprite = !!(o.useOpenSprite || o.spriteOpen || o.sprite_open);
+
           if (isOpen) {
-            const openKey = (SPRITE_DEFS[`${kind}.open`] ? `${kind}.open` : (SPRITE_DEFS['door.open'] ? 'door.open' : null));
-            if (openKey && isSpriteReady(openKey)) drawSpriteAt(openKey, x, y, rot, scale, 1);
+            // Back-compat: allow a dedicated open sprite if explicitly requested.
+            if (wantsOpenSprite) {
+              const openKey = (SPRITE_DEFS[`${kind}.open`] ? `${kind}.open` : (SPRITE_DEFS['door.open'] ? 'door.open' : null));
+              if (openKey && isSpriteReady(openKey)) {
+                drawSpriteAt(openKey, x, y, rot, scale, 1);
+                continue;
+              }
+            }
+
+            // Default: swing the *closed* sprite around its hinge.
+            if (doorKey && isSpriteReady(doorKey)) {
+              const swing = parseSwingDeg(o);
+              drawDoorSwingAt(doorKey, x, y, rot, swing, scale, 1);
+              continue;
+            }
+
+            // Last-ditch fallback: slab.
+            ctx.save();
+            ctx.translate(x, y);
+            if (rot) ctx.rotate((Math.PI / 180) * rot);
+            ctx.beginPath();
+            ctx.rect(-rectW / 2, -rectH / 2, rectW, rectH);
+            ctx.fillStyle = '#b07a3f';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
             continue;
           }
 
-          const doorKey = (SPRITE_DEFS[kind] ? kind : (SPRITE_DEFS['door'] ? 'door' : null));
           if (doorKey && isSpriteReady(doorKey)) {
             drawSpriteAt(doorKey, x, y, rot, scale, 1);
             continue;
