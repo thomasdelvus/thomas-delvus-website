@@ -1,5 +1,5 @@
 <!--
-  Version 3.75   
+  Version 3.94
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -344,11 +344,6 @@
                 Floor
                 <select id="floorTexSel" class="tex-select" title="Preview floor texture"></select>
               </label>
-              <label class="subtle" style="display:flex; align-items:center; gap:6px;">
-                Wall
-                <select id="wallTexSel" class="tex-select" title="Preview wall texture"></select>
-              </label>
-              <button id="textureToggleBtn" class="toggle-btn" type="button" title="Toggle textures">Textures: Off</button>
             </div>
           </div>
           <ul class="keybar-list">
@@ -405,11 +400,34 @@
   "round": 1,
   "active_actor_id": "pc1",
   "lastAction": "🎲 16  ⚔️ Longsword  →  7 dmg",
-  "narration": "The crypt is silent but for the soft scrape of bone on stone.\nAelar steps forward, blade raised — and the air suddenly turns *cold*.\n\nCaelin: \"I don’t like this…\"\n\nA shadow shifts near the sarcophagus.",
+  "narration": "The crypt is silent but for the soft scrape of bone on stone.\nAelar steps forward, blade raised — and the air suddenly turns cold.\n\nCaelin: \"I don’t like this…\"\n\nA shadow shifts near the sarcophagus.",
+  "fog": {
+    "enabled": true,
+    "opacity": 0.88,
+    "revealWalls": true,
+    "visibleRooms": ["room_left"],
+    "note": "Room-based fog-of-war: rooms not listed in visibleRooms are fogged."
+  },
   "rooms": [
     {
-      "id": "room1",
+      "id": "building1",
       "corners": ["D11", "N11", "N1", "D1"],
+      "thickness": 30,
+      "color": "#555",
+      "floor": { "kind": "stone" },
+      "wall": { "kind": "brick" }
+    },
+    {
+      "id": "room_left",
+      "corners": ["D11", "H11", "H1", "D1"],
+      "thickness": 30,
+      "color": "#555",
+      "floor": { "kind": "stone" },
+      "wall": { "kind": "brick" }
+    },
+    {
+      "id": "room_right",
+      "corners": ["H11", "N11", "N1", "H1"],
       "thickness": 30,
       "color": "#555",
       "floor": { "kind": "stone" },
@@ -417,30 +435,36 @@
     }
   ],
   "openings": [
-    {"id": "win_s_1", "kind": "window", "room": "room1", "wall": "S", "at": "F1", "state": "closed"},
-    {"id": "win_s_2", "kind": "window", "room": "room1", "wall": "S", "at": "H1", "state": "closed"},
-    {"id": "win_s_3", "kind": "window", "room": "room1", "wall": "S", "at": "J1", "state": "closed"},
-    {"id": "win_s_4", "kind": "window", "room": "room1", "wall": "S", "at": "L1", "state": "open"},
+    { "id": "win_s_1", "kind": "window", "room": "building1", "wall": "S", "at": "F1", "state": "closed" },
+    { "id": "win_s_2", "kind": "window", "room": "building1", "wall": "S", "at": "H1", "state": "closed" },
+    { "id": "win_s_3", "kind": "window", "room": "building1", "wall": "S", "at": "J1", "state": "closed" },
+    { "id": "win_s_4", "kind": "window", "room": "building1", "wall": "S", "at": "L1", "state": "open" },
 
-    {"id": "door_e_1", "kind": "door.wood", "room": "room1", "wall": "E", "at": "N6", "state": "open","rot":270},
-    {"id":"door_e_2","kind":"door.wood","room":"room1","wall":"E","at":"N5","state":"closed","rot":90}
+    { "id": "door_e_1", "kind": "door.wood", "room": "building1", "wall": "E", "at": "N6", "state": "open", "rot": 180 },
+    { "id": "door_e_2", "kind": "door.wood", "room": "building1", "wall": "E", "at": "N5", "state": "closed", "rot": 0 },
+
+    { "id": "door_mid_1", "kind": "door.wood", "room": "room_left", "wall": "E", "at": "H6", "state": "closed", "rot": 0 }
   ],
   "objects": [
-    {"id": "table1", "kind": "table.round", "cells": ["I4"], "blocks": true, "label": "T"},
-    {"id": "sarc1", "kind": "sarcophagus", "cells": ["J8", "K8", "L8"], "blocks": true, "label": "S"},
-    {"id": "difficult_1", "kind": "difficult", "cells": ["G2", "H3", "I3"], "blocks": false, "label": "~", "color": "rgba(120,120,120,0.18)"}
+    { "id": "sarc1", "kind": "sarcophagus", "cells": ["J8", "K8", "L8"], "blocks": true, "label": "S" },
+    {
+      "id": "difficult_1",
+      "kind": "difficult",
+      "cells": ["G2", "H3", "I3"],
+      "blocks": false,
+      "label": "~",
+      "color": "rgba(120,120,120,0.18)"
+    }
   ],
   "actors": [
-    {"id": "lich", "name": "Lich", "side": "EN", "init": 15, "hp": 135, "maxHp": 135, "effects": [], "at": "K9", "label": "L", "sprite": "lich"},
-    {"id": "wraith1", "name": "Wraith 1", "side": "EN", "init": 12, "hp": 67, "maxHp": 67, "effects": [], "at": "H7", "label": "W1", "sprite": "wraith"},
-    {"id": "wraith2", "name": "Wraith 2", "side": "EN", "init": 11, "hp": 67, "maxHp": 67, "effects": [], "at": "F9", "label": "W2", "sprite": "wraith"},
-    {"id": "wraith3", "name": "Wraith 3", "side": "EN", "init": 10, "hp": 67, "maxHp": 67, "effects": [], "at": "E6", "label": "W3", "sprite": "wraith"},
+    { "id": "lich", "name": "Lich", "side": "EN", "init": 15, "hp": 135, "maxHp": 135, "effects": [], "at": "K9", "label": "L", "sprite": "lich" },
+    { "id": "wraith1", "name": "Wraith 1", "side": "EN", "init": 12, "hp": 67, "maxHp": 67, "effects": [], "at": "H7", "label": "W1", "sprite": "wraith" },
+    { "id": "wraith2", "name": "Wraith 2", "side": "EN", "init": 11, "hp": 67, "maxHp": 67, "effects": [], "at": "F9", "label": "W2", "sprite": "wraith" },
+    { "id": "wraith3", "name": "Wraith 3", "side": "EN", "init": 10, "hp": 67, "maxHp": 67, "effects": [], "at": "E6", "label": "W3", "sprite": "wraith" },
 
-    {"id": "pc1", "name": "Aelar", "side": "PC", "init": 14, "hp": 42, "maxHp": 42, "effects": [], "at": "K2", "label": "A", "class":"ranger", "gender":"male"},
-{"id":"pc2", "name":"Brunna", "side":"PC", "init":13, "hp":55, "maxHp":55,
- "effects":[], "at":"L3", "label":"B", "class":"cleric", "gender":"female"},
-
-    {"id": "pc3", "name": "Caelin", "side": "PC", "init": 12, "hp": 38, "maxHp": 38, "effects": [], "at": "M3", "label": "C", "class":"wizard", "gender":"male"}
+    { "id": "pc1", "name": "Aelar", "side": "PC", "init": 14, "hp": 42, "maxHp": 42, "effects": [], "at": "K2", "label": "A", "class": "ranger", "gender": "male" },
+    { "id": "pc2", "name": "Brunna", "side": "PC", "init": 13, "hp": 55, "maxHp": 55, "effects": [], "at": "L3", "label": "B", "class": "cleric", "gender": "female" },
+    { "id": "pc3", "name": "Caelin", "side": "PC", "init": 12, "hp": 38, "maxHp": 38, "effects": [], "at": "M3", "label": "C", "class": "wizard", "gender": "male" }
   ]
 }
   </script>
@@ -499,6 +523,7 @@
     // Flip to false to silence logging.
     const DEBUG_SPRITES = true;
     const SPRITE_LOGGED_KEYS = new Set();
+
     function setDiag(html) {
       const box = document.getElementById('diagBox');
       if (!box) return;
@@ -802,7 +827,11 @@
     let ROOM_BY_ID = null;
     let SCENE_NORM = null;
 
-    const CONFIG = {
+    // TEMP DEBUG: disable fog-of-war rendering so we can inspect wall/room overlap math.
+// Flip back to false when done.
+const DEBUG_FOG_DISABLE = true;
+
+const CONFIG = {
       room: { yInsetFrac: 0.25 },
       labels: {
         dyFrac: 0.70,
@@ -1112,6 +1141,7 @@
         activeActorId: coerceActiveActorId(src.active_actor_id ?? src.activeActorId ?? src?.ui?.active_actor_id ?? src?.ui?.activeActorId),
         lastAction: coerceLastAction(src.lastAction ?? src.last_action ?? src.action),
         narration: coerceNarration(src.narration ?? src.notes ?? src.narrative),
+        fog: (src.fog && typeof src.fog === 'object') ? src.fog : ((src.fow && typeof src.fow === 'object') ? src.fow : null),
         rooms: roomsOut,
         openings: openingsOut,
         objects: objectsOut,
@@ -1124,130 +1154,57 @@
     // TEXTURES (floors + walls)
     // =====================================================================
 
-    const TEX = {
-      enabled: false,
-      patterns: new Map(),
-      tiles: new Map(),
-      overrideFloorKind: '__room__',
-      overrideWallKind: '__room__'
-    };
-
-    function readTexturePref() {
-      try {
-        const v = (localStorage.getItem('battlemat:textures:enabled') || '').trim();
-        return v === '1' || v.toLowerCase() === 'true' || v.toLowerCase() === 'on';
-      } catch (_) {
-        return false;
-      }
-    }
-
-    function writeTexturePref(on) {
-      try { localStorage.setItem('battlemat:textures:enabled', on ? '1' : '0'); } catch (_) {}
-    }
-
+    // Sentinel used by UI to mean: "use the room's own floor kind".
     const TEX_OVERRIDE_ROOM = '__room__';
 
-    const FLOOR_PRESETS = [
-      { value: TEX_OVERRIDE_ROOM, label: 'Room setting' },
-      { value: 'stone', label: 'Stone (slab)' },
-      { value: 'stone:cobble', label: 'Stone (cobble)' },
-      { value: 'stone:dark', label: 'Stone (dark)' },
-      { value: 'stone:blocks', label: 'Stone (blocks)' },
-      { value: 'stone:marble', label: 'Stone (marble)' },
-      { value: 'wood:oak', label: 'Wood (oak)' },
-      { value: 'wood:pine', label: 'Wood (pine)' },
-      { value: 'wood:dark', label: 'Wood (dark)' },
-      { value: 'wood:gray', label: 'Wood (gray)' },
-      { value: 'dirt:earth', label: 'Dirt (earth)' },
-      { value: 'dirt:sand', label: 'Dirt (sand)' },
-      { value: 'dirt:mud', label: 'Dirt (mud)' },
-      { value: 'grass', label: 'Grass' },
-      { value: 'carpet:red', label: 'Carpet (red)' },
-      { value: 'carpet:blue', label: 'Carpet (blue)' },
-      { value: 'carpet:green', label: 'Carpet (green)' },
-      { value: 'carpet:purple', label: 'Carpet (purple)' }
-    ];
+    const TEX = {
+      enabled: true,
+      patterns: new Map(),
+      tiles: new Map(),
+      overrideFloorKind: TEX_OVERRIDE_ROOM,
+      overrideWallKind: TEX_OVERRIDE_ROOM
+    };
 
-    const WALL_PRESETS = [
-      { value: TEX_OVERRIDE_ROOM, label: 'Room setting' },
-      { value: 'brick:red', label: 'Brick (red)' },
-      { value: 'brick:pale', label: 'Brick (pale)' },
-      { value: 'brick:soot', label: 'Brick (soot)' },
-      { value: 'stone', label: 'Stone (slab)' },
-      { value: 'stone:cobble', label: 'Stone (cobble)' },
-      { value: 'stone:dark', label: 'Stone (dark)' },
-      { value: 'wood:oak', label: 'Wood (oak)' },
-      { value: 'wood:dark', label: 'Wood (dark)' }
-    ];
+    // Populate the floor preview selector (textures are ALWAYS enabled now).
+    // Expected behavior (confirm): when you change the dropdown, it forces ALL room floors
+    // to render with that texture (unless set back to "Room floors").
+    function initTextureSelectors() {
+      const sel = document.getElementById('floorTexSel');
+      if (!sel) return;
 
-    function readTextureOverride(which) {
-      const key = which === 'wall' ? 'battlemat:textures:wallOverride' : 'battlemat:textures:floorOverride';
-      try {
-        const v = String(localStorage.getItem(key) || '').trim();
-        return v || TEX_OVERRIDE_ROOM;
-      } catch (_) {
-        return TEX_OVERRIDE_ROOM;
-      }
-    }
+      const options = [
+        { value: TEX_OVERRIDE_ROOM, label: 'Room floors' },
+        { value: 'stone', label: 'Stone' },
+        { value: 'stone:blocks', label: 'Stone blocks' },
+        { value: 'stone:cobble', label: 'Cobble' },
+        { value: 'stone:marble', label: 'Marble' },
+        { value: 'wood:oak', label: 'Wood (oak)' },
+        { value: 'wood:pine', label: 'Wood (pine)' },
+        { value: 'wood:gray', label: 'Wood (gray)' },
+        { value: 'dirt:earth', label: 'Dirt' },
+        { value: 'dirt:sand', label: 'Sand' },
+        { value: 'grass', label: 'Grass' },
+        { value: 'carpet:red', label: 'Carpet (red)' },
+        { value: 'carpet:blue', label: 'Carpet (blue)' },
+        { value: 'carpet:green', label: 'Carpet (green)' },
+        { value: 'carpet:purple', label: 'Carpet (purple)' },
+      ];
 
-    function writeTextureOverride(which, value) {
-      const key = which === 'wall' ? 'battlemat:textures:wallOverride' : 'battlemat:textures:floorOverride';
-      try { localStorage.setItem(key, String(value || TEX_OVERRIDE_ROOM)); } catch (_) {}
-    }
-
-    function populateSelect(sel, presets, selectedVal) {
       sel.innerHTML = '';
-      for (const p of presets) {
+      for (const o of options) {
         const opt = document.createElement('option');
-        opt.value = p.value;
-        opt.textContent = p.label;
+        opt.value = o.value;
+        opt.textContent = o.label;
         sel.appendChild(opt);
       }
-      sel.value = selectedVal || TEX_OVERRIDE_ROOM;
-    }
 
-    function initTextureSelectors() {
-      const floorSel = document.getElementById('floorTexSel');
-      const wallSel = document.getElementById('wallTexSel');
-      if (!floorSel || !wallSel) return;
+      sel.value = String(TEX.overrideFloorKind || TEX_OVERRIDE_ROOM);
 
-      TEX.overrideFloorKind = readTextureOverride('floor');
-      TEX.overrideWallKind = readTextureOverride('wall');
-
-      populateSelect(floorSel, FLOOR_PRESETS, TEX.overrideFloorKind);
-      populateSelect(wallSel, WALL_PRESETS, TEX.overrideWallKind);
-
-      floorSel.addEventListener('change', () => {
-        TEX.overrideFloorKind = floorSel.value || TEX_OVERRIDE_ROOM;
-        writeTextureOverride('floor', TEX.overrideFloorKind);
-        safeDrawGrid();
-      });
-
-      wallSel.addEventListener('change', () => {
-        TEX.overrideWallKind = wallSel.value || TEX_OVERRIDE_ROOM;
-        writeTextureOverride('wall', TEX.overrideWallKind);
+      sel.addEventListener('change', () => {
+        TEX.overrideFloorKind = String(sel.value || TEX_OVERRIDE_ROOM);
         safeDrawGrid();
       });
     }
-
-    function setTextureUi() {
-      const btn = document.getElementById('textureToggleBtn');
-      if (!btn) return;
-      btn.textContent = TEX.enabled ? 'Textures: On' : 'Textures: Off';
-      btn.title = TEX.enabled ? 'Turn textures off' : 'Turn textures on';
-    }
-
-    function toggleTextures() {
-      TEX.enabled = !TEX.enabled;
-      writeTexturePref(TEX.enabled);
-      setTextureUi();
-      safeDrawGrid();
-    }
-
-    document.getElementById('textureToggleBtn')?.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      toggleTextures();
-    });
 
     // Small deterministic PRNG for “natural” texture variation (seeded by kind)
     function seededRng(seedStr) {
@@ -1271,7 +1228,6 @@
     }
 
     // (Texture makers unchanged from prior versions — kept verbatim but compacted)
-
     function makeWoodTile(variant) {
       const c = offscreenTile(220, 220);
       const g = c.getContext('2d');
@@ -1577,52 +1533,90 @@
     }
 
     function makeBrickTile(variant) {
-      const v = String(variant || '').trim().toLowerCase();
-      const rand = seededRng('brick:' + (v || 'red'));
+      // Uniform cool-gray brick wall (no random size/color variation).
+      // Variants still supported: red / pale / soot / gray.
+      let v = String(variant || '').trim().toLowerCase();
+      if (!v) v = 'gray';
 
-      const c = offscreenTile(240, 160);
+      // Larger tile reduces repetition, but the pattern is perfectly regular.
+      const c = offscreenTile(256, 192);
       const g = c.getContext('2d');
 
       const PAL = {
-        red:   { mortar: '#c9c3b8', lo: [120,60,40], hi: [165,95,70] },
-        pale:  { mortar: '#d6d2c9', lo: [130,110,95], hi: [170,150,130] },
-        soot:  { mortar: '#bfb8ad', lo: [85,55,45],  hi: [130,85,70] },
+        red:  { mortar: '#c9c3b8', brick: [145,  80,  55] },
+        pale: { mortar: '#d6d2c9', brick: [155, 135, 118] },
+        soot: { mortar: '#bfb8ad', brick: [112,  78,  64] },
+        gray: { mortar: '#6a7078', brick: [118, 120, 124] },
       };
-      const P = PAL[v] || PAL.red;
+      const P = PAL[v] || PAL.gray;
 
+      // Mortar base
       g.fillStyle = P.mortar;
       g.fillRect(0, 0, c.width, c.height);
 
-      const brickW = 46;
-      const brickH = 22;
-      const mortar = 3;
+      // Brick geometry (small bricks)
+      const brickW = 16;
+      const brickH = 8;
+      const mortar = 2;
+      const radius = 2;
 
-      for (let row = 0; row < 8; row++) {
-        const y = row * (brickH + mortar);
-        const offset = (row % 2 === 0) ? 0 : Math.floor(brickW / 2);
-        for (let x0 = -offset; x0 < c.width + brickW; x0 += (brickW + mortar)) {
-          const r = P.lo[0] + Math.floor(rand() * (P.hi[0] - P.lo[0]));
-          const gg = P.lo[1] + Math.floor(rand() * (P.hi[1] - P.lo[1]));
-          const b = P.lo[2] + Math.floor(rand() * (P.hi[2] - P.lo[2]));
-          g.fillStyle = `rgb(${r},${gg},${b})`;
-          g.fillRect(x0 + mortar, y + mortar, brickW, brickH);
-
-          g.fillStyle = 'rgba(255,255,255,0.06)';
-          g.fillRect(x0 + mortar + 1, y + mortar + 1, brickW - 2, 2);
-          g.fillStyle = 'rgba(0,0,0,0.05)';
-          g.fillRect(x0 + mortar + 1, y + mortar + brickH - 2, brickW - 2, 2);
-
-          g.strokeStyle = 'rgba(0,0,0,0.12)';
-          g.lineWidth = 1;
-          g.strokeRect(x0 + mortar, y + mortar, brickW, brickH);
-        }
+      function rr(x, y, w, h, r) {
+        const rr0 = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+        g.beginPath();
+        g.moveTo(x + rr0, y);
+        g.lineTo(x + w - rr0, y);
+        g.quadraticCurveTo(x + w, y, x + w, y + rr0);
+        g.lineTo(x + w, y + h - rr0);
+        g.quadraticCurveTo(x + w, y + h, x + w - rr0, y + h);
+        g.lineTo(x + rr0, y + h);
+        g.quadraticCurveTo(x, y + h, x, y + h - rr0);
+        g.lineTo(x, y + rr0);
+        g.quadraticCurveTo(x, y, x + rr0, y);
+        g.closePath();
       }
 
-      for (let i = 0; i < 180; i++) {
-        const x = rand() * c.width;
-        const y = rand() * c.height;
-        g.fillStyle = 'rgba(0,0,0,0.05)';
-        g.fillRect(x, y, 1, 1);
+      const [br, bg, bb] = P.brick;
+      const hi = [Math.min(255, br + 10), Math.min(255, bg + 10), Math.min(255, bb + 10)];
+      const lo = [Math.max(0, br - 10), Math.max(0, bg - 10), Math.max(0, bb - 10)];
+
+      // Draw rows with clean half-brick offset. No jitter.
+      const stepY = brickH + mortar;
+      const stepX = brickW + mortar;
+      const rowsN = Math.ceil(c.height / stepY) + 1;
+
+      for (let row = 0; row < rowsN; row++) {
+        const y0 = row * stepY;
+        const offset = (row % 2 === 0) ? 0 : Math.floor(brickW / 2);
+
+        for (let x0 = -offset; x0 < c.width + brickW; x0 += stepX) {
+          const x = x0 + mortar;
+          const y = y0 + mortar;
+          const w = brickW;
+          const h = brickH;
+
+          // Subtle constant vertical gradient for depth (same for every brick).
+          const grad = g.createLinearGradient(x, y, x, y + h);
+          grad.addColorStop(0, `rgb(${hi[0]},${hi[1]},${hi[2]})`);
+          grad.addColorStop(1, `rgb(${lo[0]},${lo[1]},${lo[2]})`);
+
+          rr(x, y, w, h, radius);
+          g.fillStyle = grad;
+          g.fill();
+
+          // Gentle highlight + edge (uniform)
+          g.save();
+          g.globalAlpha = 0.12;
+          rr(x + 1, y + 1, w - 2, h - 2, Math.max(0, radius - 1));
+          g.strokeStyle = 'rgba(255,255,255,1)';
+          g.lineWidth = 2;
+          g.stroke();
+          g.restore();
+
+          g.strokeStyle = 'rgba(0,0,0,0.20)';
+          g.lineWidth = 1;
+          rr(x, y, w, h, radius);
+          g.stroke();
+        }
       }
 
       return c;
@@ -1827,65 +1821,8 @@
       if (ov && ov !== TEX_OVERRIDE_ROOM) return ov;
       const k = room?.wall?.kind ?? room?.wallKind ?? room?.wall_kind ?? '';
       const s = String(k || '').trim().toLowerCase();
-      return s || 'brick';
-    }
-
-    function drawTexturedRoom(room, g) {
-      const t = Math.max(1, Number(g.thickness || 18));
-      const half = t / 2;
-
-      const outer = {
-        x: g.leftX - half,
-        y: g.topY - half,
-        w: (g.rightX - g.leftX) + t,
-        h: (g.botY - g.topY) + t,
-      };
-
-      const inner = {
-        x: g.leftX + half,
-        y: g.topY + half,
-        w: (g.rightX - g.leftX) - t,
-        h: (g.botY - g.topY) - t,
-      };
-
-      const fk = floorKindForRoom(room);
-      const fpat = texturePatternFor(fk);
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(inner.x, inner.y, inner.w, inner.h);
-      ctx.clip();
-      ctx.globalAlpha = 0.95;
-      ctx.fillStyle = fpat;
-      ctx.fillRect(inner.x - 2000, inner.y - 2000, inner.w + 4000, inner.h + 4000);
-
-      ctx.globalAlpha = 0.10;
-      const grad = ctx.createLinearGradient(inner.x, inner.y, inner.x, inner.y + inner.h);
-      grad.addColorStop(0, 'rgba(0,0,0,0.00)');
-      grad.addColorStop(1, 'rgba(0,0,0,0.40)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(inner.x, inner.y, inner.w, inner.h);
-      ctx.restore();
-
-      const wk = wallKindForRoom(room);
-      const wpat = texturePatternFor(wk);
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(outer.x, outer.y, outer.w, outer.h);
-      ctx.rect(inner.x, inner.y, inner.w, inner.h);
-      try { ctx.clip('evenodd'); } catch { ctx.clip(); }
-      ctx.globalAlpha = 0.95;
-      ctx.fillStyle = wpat;
-      ctx.fillRect(outer.x - 2000, outer.y - 2000, outer.w + 4000, outer.h + 4000);
-      ctx.restore();
-
-      ctx.save();
-      ctx.globalAlpha = 0.55;
-      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(inner.x, inner.y, inner.w, inner.h);
-      ctx.globalAlpha = 0.35;
-      ctx.strokeRect(outer.x, outer.y, outer.w, outer.h);
-      ctx.restore();
+      // Default wall look: the new gray brick.
+      return s || 'brick:gray';
     }
 
     // =====================================================================
@@ -1895,20 +1832,21 @@
     const SPRITE_BASE = '/assets/sprites';
 
     // Convention: 512px of sprite height == 1 hex height.
-    // If you want a door/window to "bleed" into neighboring hexes, make the sprite larger
-    // in pixels and keep the background transparent.
     const SPRITE_PX_PER_HEX = 512;
 
-    // Sprite defs are declared near the end of the file for easy editing.
-    // Fields:
-    // - url (required)
-    // - ax, ay anchors (0..1)
-    // - shadow (bool)
-    // - scale (optional scalar)
-    // - wPx/hPx (optional override; defaults to image natural size)
     let SPRITE_DEFS = {};
-
     const SPRITE_CACHE = new Map(); // url -> Image
+
+    // Robust image readiness check: some browsers mark failed loads as complete=true but naturalWidth=0,
+    // and drawImage() will throw "Passed-in image is \"broken\"".
+    function isImgUsable(img) {
+      if (!img) return false;
+      if (img.__broken) return false;
+      if (!img.complete) return false;
+      const nw = Number(img.naturalWidth ?? img.width ?? 0);
+      const nh = Number(img.naturalHeight ?? img.height ?? 0);
+      return nw > 0 && nh > 0;
+    }
 
     function spriteDefForKey(key) {
       if (!key) return null;
@@ -1924,12 +1862,23 @@
       const img = new Image();
       img.decoding = 'async';
       img.loading = 'eager';
-      img.src = u;
+      img.__broken = false;
 
       img.onload = () => {
-        // Only redraw if we have a normalized scene; otherwise avoid noise on load.
+        img.__broken = false;
         try { if (SCENE_NORM) safeDrawGrid(); } catch (_) {}
       };
+
+      img.onerror = () => {
+        img.__broken = true;
+        try {
+          console.warn('[Battlemat] Sprite failed to load:', u);
+          // Re-render so we fall back to non-sprite tokens/rects instead of crashing.
+          if (SCENE_NORM) safeDrawGrid();
+        } catch (_) {}
+      };
+
+      img.src = u;
 
       SPRITE_CACHE.set(u, img);
       return img;
@@ -1958,7 +1907,6 @@
         const closedKey = (SPRITE_DEFS[kind] ? kind : (SPRITE_DEFS[base] ? base : null));
         if (closedKey) keys.add(closedKey);
 
-        // Only preload a dedicated ".open" sprite if the opening explicitly requests it.
         const wantsOpenSprite = !!(op.useOpenSprite || op.spriteOpen || op.sprite_open);
         if (isOpen && wantsOpenSprite) {
           const openKey = (SPRITE_DEFS[`${kind}.open`] ? `${kind}.open` : (SPRITE_DEFS[`${base}.open`] ? `${base}.open` : null));
@@ -1967,7 +1915,6 @@
       }
 
       for (const k of keys) {
-
         const def = spriteDefForKey(k);
         if (def?.url) ensureSpriteLoaded(def.url);
       }
@@ -1977,7 +1924,7 @@
       const def = spriteDefForKey(key);
       if (!def || !def.url) return false;
       const img = ensureSpriteLoaded(def.url);
-      return !!(img && img.complete && (img.naturalWidth || img.width) > 0);
+      return isImgUsable(img);
     }
 
     function spriteCanvasSize(def, img, scaleMul) {
@@ -1988,7 +1935,6 @@
       const defScale = (def && def.scale != null) ? Number(def.scale) : 1;
       const entScale = (scaleMul != null) ? Number(scaleMul) : 1;
 
-      // Isotropic scale: no squeezing.
       return {
         w: nw * pxToCanvas * defScale * entScale,
         h: nh * pxToCanvas * defScale * entScale
@@ -2011,9 +1957,8 @@
       const def = spriteDefForKey(key);
       if (!def) return false;
       const img = ensureSpriteLoaded(def.url);
-      if (!img || !img.complete) return false;
+      if (!isImgUsable(img)) return false;
 
-      // Debug: print sprite load + draw sizing once per key.
       try {
         if (DEBUG_SPRITES && key && !SPRITE_LOGGED_KEYS.has(String(key))) {
           console.log(
@@ -2044,7 +1989,15 @@
       ctx.globalAlpha = (alphaMul == null) ? 1 : alphaMul;
       ctx.translate(x, y);
       if (rotDeg) ctx.rotate((Math.PI / 180) * rotDeg);
-      ctx.drawImage(img, -w * ax, -h * ay, w, h);
+      try {
+        ctx.drawImage(img, -w * ax, -h * ay, w, h);
+      } catch (e) {
+        // If the browser considers the image "broken", avoid taking down the whole render.
+        try { img.__broken = true; } catch (_) {}
+        try { console.warn('[Battlemat] drawImage failed for sprite:', key, img?.src, e); } catch (_) {}
+        ctx.restore();
+        return false;
+      }
       ctx.restore();
 
       return true;
@@ -2058,7 +2011,6 @@
       const kind = String(obj.kind || '').trim().toLowerCase();
       if (!kind) return null;
 
-      // Allow table.round/table.rect variants via kind.
       if (SPRITE_DEFS[kind]) return kind;
       return null;
     }
@@ -2084,11 +2036,6 @@
       return null;
     }
 
-    // Rotation helper:
-    // - Supports: rot / rotation / rotDeg (ABS degrees)
-    // - Supports: rotOffset / rotRel / rotDelta (REL degrees added on top of base)
-    // - Supports: orientation: 'h'|'v'|'horizontal'|'vertical'
-    // - Returns snapped degrees (0/90/180/270) for crisp pixel-art rotation.
     function entityRotDeg(ent, fallbackDeg) {
       if (!ent || typeof ent !== 'object') return (fallbackDeg ?? 0);
 
@@ -2155,70 +2102,22 @@
 
       for (const a of (SCENE_NORM?.actors || [])) {
         const id = String(a.id ?? '').trim();
-        if (!id) continue;
+        const at = String(a.at ?? '').trim().toUpperCase();
+        if (!id || !at) continue;
+        const prevRec = prev.get(id);
+        if (!prevRec) continue;
+        const prevAt = String(prevRec.at || '').trim().toUpperCase();
+        if (!prevAt || prevAt === at) continue;
 
-        const curAt = String(a.at ?? '').trim().toUpperCase();
-        const curSide = String(a.side || 'NPC').toUpperCase();
-        const p = prev.get(id);
-        if (!p) continue;
-
-        const from = String(p.at || '').trim().toUpperCase();
-        const to = curAt;
-        if (!from || !to || from === to) continue;
-
-        const seg = { from, to, ts: now, side: curSide || p.side || 'NPC' };
-        const list = MOVE_TRAILS.get(id) || [];
-        list.push(seg);
-        MOVE_TRAILS.set(id, list.slice(-TRAIL_MAX_SEGMENTS));
-      }
-
-      pruneTrails(now);
-    }
-
-    function sideTrailStyle(side) {
-      const s = String(side || 'NPC').toUpperCase();
-      if (s === 'PC') return { stroke: 'rgba(80,160,220,0.30)', fill: 'rgba(80,160,220,0.22)' };
-      if (s === 'EN') return { stroke: 'rgba(220,120,80,0.30)', fill: 'rgba(220,120,80,0.22)' };
-      return { stroke: 'rgba(120,120,120,0.28)', fill: 'rgba(120,120,120,0.18)' };
-    }
-
-    function drawArrowHead(x1, y1, x2, y2, sizePx) {
-      const dx = x2 - x1;
-      const dy = y2 - y1;
-      const ang = Math.atan2(dy, dx);
-      const s = Number(sizePx || 8);
-
-      ctx.save();
-      ctx.translate(x2, y2);
-      ctx.rotate(ang);
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(-s, -s * 0.55);
-      ctx.lineTo(-s,  s * 0.55);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    }
-
-    function drawFootsteps(x1, y1, x2, y2, dotR, stepPx) {
-      const dx = x2 - x1;
-      const dy = y2 - y1;
-      const dist = Math.hypot(dx, dy);
-      if (dist < 1) return;
-      const step = Math.max(6, Number(stepPx || (size * 0.65)));
-      const n = Math.max(2, Math.floor(dist / step));
-
-      for (let i = 0; i <= n; i++) {
-        const t = i / n;
-        const x = x1 + dx * t;
-        const y = y1 + dy * t;
-        ctx.beginPath();
-        ctx.arc(x, y, dotR, 0, Math.PI * 2);
-        ctx.fill();
+        const seg = { from: prevAt, to: at, ts: now, side: String(a.side || prevRec.side || 'NPC').toUpperCase() };
+        const arr = MOVE_TRAILS.get(id) || [];
+        arr.push(seg);
+        MOVE_TRAILS.set(id, arr.slice(-TRAIL_MAX_SEGMENTS));
       }
     }
 
-    function drawMoveTrails() {
+    function drawTrails() {
+      if (!MOVE_TRAILS.size) return;
       const now = Date.now();
       pruneTrails(now);
 
@@ -2228,884 +2127,27 @@
 
       for (const segs of MOVE_TRAILS.values()) {
         for (const s of (segs || [])) {
-          const p1 = labelToPixel(s.from);
-          const p2 = labelToPixel(s.to);
-          if (!p1 || !p2) continue;
+          const a = labelToPixel(s.from);
+          const b = labelToPixel(s.to);
+          if (!a || !b) continue;
 
-          const style = sideTrailStyle(s.side);
           const age = Math.max(0, now - (s.ts || now));
-          const fade = Math.max(0, 1 - (age / TRAIL_TTL_MS));
+          const t = Math.max(0, Math.min(1, 1 - (age / TRAIL_TTL_MS)));
+          const alpha = 0.08 + 0.18 * t;
 
-          ctx.globalAlpha = 0.9 * fade;
-          ctx.strokeStyle = style.stroke;
-          ctx.fillStyle = style.fill;
-          ctx.lineWidth = 2;
+          ctx.strokeStyle = (String(s.side || '').toUpperCase() === 'PC')
+            ? `rgba(80,160,220,${alpha})`
+            : `rgba(60,60,60,${alpha})`;
+          ctx.lineWidth = 5;
 
-          ctx.setLineDash([6, 8]);
           ctx.beginPath();
-          ctx.moveTo(p1.x, p1.y);
-          ctx.lineTo(p2.x, p2.y);
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
           ctx.stroke();
-
-          ctx.setLineDash([]);
-          drawFootsteps(p1.x, p1.y, p2.x, p2.y, 2.2, size * 0.70);
-
-          ctx.globalAlpha = 0.65 * fade;
-          drawArrowHead(p1.x, p1.y, p2.x, p2.y, 9);
         }
       }
 
       ctx.restore();
-    }
-
-    // =====================================================================
-    // POI (Annotations)
-    // =====================================================================
-
-    function drawArrowPx(x1, y1, x2, y2, color, width, label) {
-      const dx = x2 - x1;
-      const dy = y2 - y1;
-      const len = Math.max(1, Math.hypot(dx, dy));
-      const ux = dx / len;
-      const uy = dy / len;
-
-      const inset = size * 0.55;
-      const sx = x1 + ux * inset;
-      const sy = y1 + uy * inset;
-      const ex = x2 - ux * inset;
-      const ey = y2 - uy * inset;
-
-      ctx.save();
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-
-      ctx.globalAlpha = 0.35;
-      ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(ex, ey);
-      ctx.strokeStyle = 'rgba(255,255,255,1)';
-      ctx.lineWidth = Math.max(3, Number(width || 4) + 2);
-      ctx.stroke();
-
-      ctx.globalAlpha = 1;
-      ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(ex, ey);
-      ctx.strokeStyle = color || 'rgba(40,40,40,0.65)';
-      ctx.lineWidth = Math.max(2, Number(width || 4));
-      ctx.stroke();
-
-      const headLen = Math.max(10, size * 0.45);
-      const headW = headLen * 0.75;
-      const angle = Math.atan2(ey - sy, ex - sx);
-
-      ctx.save();
-      ctx.translate(ex, ey);
-      ctx.rotate(angle);
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(-headLen, headW * 0.5);
-      ctx.lineTo(-headLen, -headW * 0.5);
-      ctx.closePath();
-      ctx.fillStyle = color || 'rgba(40,40,40,0.65)';
-      ctx.fill();
-      ctx.restore();
-
-      if (label) {
-        const mx = (sx + ex) / 2;
-        const my = (sy + ey) / 2;
-        const txt = String(label).slice(0, 20);
-        ctx.font = 'bold 12px ui-monospace, system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillStyle = 'rgba(255,255,255,0.90)';
-        ctx.fillText(txt, mx, my - 2);
-        ctx.fillStyle = 'rgba(0,0,0,0.65)';
-        ctx.fillText(txt, mx, my - 3);
-      }
-
-      ctx.restore();
-    }
-
-    const POI_DRAG = { active: false, from: null, to: null };
-
-    function drawPoi() {
-      const poi = Array.isArray(SCENE_NORM?.poi) ? SCENE_NORM.poi : [];
-      for (const p of poi) {
-        if (!p || String(p.type || '').toLowerCase() !== 'arrow') continue;
-        const a = labelToPixel(p.from);
-        const b = labelToPixel(p.to);
-        if (!a || !b) continue;
-        drawArrowPx(a.x, a.y, b.x, b.y, p.color, p.width, p.label);
-      }
-
-      if (POI_DRAG.active && POI_DRAG.from && POI_DRAG.to) {
-        const a = labelToPixel(POI_DRAG.from);
-        const b = labelToPixel(POI_DRAG.to);
-        if (a && b) drawArrowPx(a.x, a.y, b.x, b.y, 'rgba(40,40,40,0.40)', 3, '');
-      }
-    }
-
-    function nearestHexLabelFromPixel(px, py) {
-      let best = null;
-      let bestD = Infinity;
-      for (let q = 0; q < cols; q++) {
-        for (let r = 0; r < rows; r++) {
-          const p = qrToPixel(q, r);
-          const d = Math.hypot(px - p.x, py - p.y);
-          if (d < bestD) {
-            bestD = d;
-            best = labelFor(q, r);
-          }
-        }
-      }
-      if (bestD > size * 0.95) return null;
-      return best;
-    }
-
-    function canvasEventToLocalPx(ev) {
-      const rect = canvas.getBoundingClientRect();
-      // Convert from screen/CSS pixels to our logical draw-space (MAT_W × MAT_H).
-      const x = (ev.clientX - rect.left) * (MAT_W / rect.width);
-      const y = (ev.clientY - rect.top) * (MAT_H / rect.height);
-      return { x, y };
-    }
-
-    function addArrowPoi(from, to) {
-      if (!from || !to || from === to) return;
-
-      const el = document.getElementById('scene-json');
-      const raw = el ? String(el.textContent || '').trim() : '';
-      if (!raw) return;
-
-      let obj;
-      try { obj = JSON.parse(raw); } catch { return; }
-      if (!obj || typeof obj !== 'object') return;
-
-      if (!Array.isArray(obj.poi)) obj.poi = [];
-
-      const hasCrypto = (typeof crypto !== 'undefined') && crypto && typeof crypto.randomUUID === 'function';
-      const id = hasCrypto ? `poi_${crypto.randomUUID()}` : `poi_${Date.now()}_${Math.floor(Math.random()*1000000)}`;
-
-      obj.poi.push({ id, type: 'arrow', from, to, color: 'rgba(40,40,40,0.65)', width: 4, label: '' });
-
-      el.textContent = JSON.stringify(obj, null, 2);
-      safeDrawGrid();
-
-      try {
-        const battleId = getBattleIdFromUrl();
-        if (battleId) saveSceneToApi(battleId, obj).catch(() => {});
-      } catch (_) {}
-    }
-
-    canvas.addEventListener('mousedown', (ev) => {
-      if (ev.button !== 0) return;
-      if (!ev.shiftKey) return;
-      const p = canvasEventToLocalPx(ev);
-      const lab = nearestHexLabelFromPixel(p.x, p.y);
-      if (!lab) return;
-      POI_DRAG.active = true;
-      POI_DRAG.from = lab;
-      POI_DRAG.to = lab;
-      safeDrawGrid();
-    });
-
-    canvas.addEventListener('mousemove', (ev) => {
-      if (!POI_DRAG.active) return;
-      const p = canvasEventToLocalPx(ev);
-      const lab = nearestHexLabelFromPixel(p.x, p.y);
-      if (!lab) return;
-      if (POI_DRAG.to !== lab) {
-        POI_DRAG.to = lab;
-        safeDrawGrid();
-      }
-    });
-
-    function endPoiDrag(commit) {
-      if (!POI_DRAG.active) return;
-      const from = POI_DRAG.from;
-      const to = POI_DRAG.to;
-      POI_DRAG.active = false;
-      POI_DRAG.from = null;
-      POI_DRAG.to = null;
-      if (commit) addArrowPoi(from, to);
-      else safeDrawGrid();
-    }
-
-    canvas.addEventListener('mouseup', () => {
-      if (!POI_DRAG.active) return;
-      endPoiDrag(true);
-    });
-
-    canvas.addEventListener('mouseleave', () => {
-      if (!POI_DRAG.active) return;
-      endPoiDrag(false);
-    });
-
-    // =====================================================================
-    // ROOM GEOMETRY
-    // =====================================================================
-
-    function getRoomGeom(room) {
-      const c = Array.isArray(room.corners) ? room.corners : null;
-      if (!c || c.length !== 4) return null;
-
-      const pTL = labelToPixel(c[0]);
-      const pTR = labelToPixel(c[1]);
-      const pBR = labelToPixel(c[2]);
-      const pBL = labelToPixel(c[3]);
-      if (!pTL || !pTR || !pBR || !pBL) return null;
-
-      const yInset = hexHeightPx() * CONFIG.room.yInsetFrac;
-
-      return {
-        id: String(room.id || ''),
-        leftX:  pTL.x,
-        rightX: pTR.x,
-        topY:   pTL.y + yInset,
-        botY:   pBL.y - yInset,
-        thickness: Number(room.thickness ?? 18),
-        color: String(room.color || 'rgba(0,0,0,0.88)')
-      };
-    }
-
-    function drawRooms() {
-      const rooms = Array.isArray(SCENE_NORM?.rooms) ? SCENE_NORM.rooms : [];
-      if (!rooms.length || !ROOM_GEOMS) return;
-
-      for (const room of rooms) {
-        const g = ROOM_GEOMS.get(String(room.id || ''));
-        if (!g) continue;
-
-        if (TEX.enabled) {
-          drawTexturedRoom(room, g);
-          continue;
-        }
-
-        ctx.save();
-        ctx.globalAlpha = 1.0;
-        ctx.strokeStyle = g.color;
-        ctx.lineWidth = g.thickness;
-        ctx.lineJoin = 'miter';
-        ctx.lineCap = 'butt';
-
-        ctx.beginPath();
-        ctx.moveTo(g.leftX,  g.topY);
-        ctx.lineTo(g.rightX, g.topY);
-        ctx.lineTo(g.rightX, g.botY);
-        ctx.lineTo(g.leftX,  g.botY);
-        ctx.closePath();
-        ctx.stroke();
-
-        ctx.restore();
-      }
-    }
-
-    // =====================================================================
-    // OBJECTS
-    // =====================================================================
-
-    function objectCentroidPx(cells) {
-      let sx = 0, sy = 0, n = 0;
-      for (const lab of (cells || [])) {
-        const p = labelToPixel(lab);
-        if (!p) continue;
-        sx += p.x; sy += p.y; n++;
-      }
-      if (!n) return null;
-      return { x: sx / n, y: sy / n };
-    }
-
-    function objectBoundsPx(cells) {
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      let n = 0;
-      for (const lab of (cells || [])) {
-        const p = labelToPixel(lab);
-        if (!p) continue;
-        minX = Math.min(minX, p.x);
-        minY = Math.min(minY, p.y);
-        maxX = Math.max(maxX, p.x);
-        maxY = Math.max(maxY, p.y);
-        n++;
-      }
-      if (!n) return null;
-      return { minX, minY, maxX, maxY };
-    }
-
-    function roundRectPath(x, y, w, h, r) {
-      const rr = Math.max(0, Math.min(r, Math.min(w, h) / 2));
-      ctx.beginPath();
-      ctx.moveTo(x + rr, y);
-      ctx.arcTo(x + w, y, x + w, y + h, rr);
-      ctx.arcTo(x + w, y + h, x, y + h, rr);
-      ctx.arcTo(x, y + h, x, y, rr);
-      ctx.arcTo(x, y, x + w, y, rr);
-      ctx.closePath();
-    }
-
-    function drawObjects() {
-      const objs = Array.isArray(SCENE_NORM?.objects) ? SCENE_NORM.objects : [];
-      if (!objs.length) return;
-
-      for (const obj of objs) {
-        const cells = Array.isArray(obj.cells) ? obj.cells : [];
-        if (!cells.length) continue;
-
-        const blocks = Boolean(obj.blocks);
-        const kind = String(obj.kind || 'object').toLowerCase();
-        const glyph = (obj.label != null && String(obj.label).trim())
-          ? String(obj.label).trim().slice(0, 3)
-          : kind.slice(0, 1).toUpperCase();
-
-        const fill = obj.color
-          ? String(obj.color)
-          : (blocks ? 'rgba(0,0,0,0.20)' : 'rgba(0,0,0,0.10)');
-
-        const spriteKey = spriteKeyForObject(obj);
-        const rot = entityRotDeg(obj, 0);
-        const scale = (obj.scale != null) ? Number(obj.scale) : 1;
-
-        if (spriteKey && isSpriteReady(spriteKey)) {
-          const c = objectCentroidPx(cells);
-          if (c) {
-            const yBias = size * 0.10;
-            drawSpriteAt(spriteKey, c.x, c.y + yBias, rot, scale, 1, (obj.ax ?? obj.anchorX), (obj.ay ?? obj.anchorY));
-
-            if (obj.label != null && String(obj.label).trim()) {
-              ctx.save();
-              ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
-              ctx.fillStyle = 'rgba(0,0,0,0.55)';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(String(obj.label).trim().slice(0, 3), c.x, c.y);
-              ctx.restore();
-            }
-            continue;
-          }
-        }
-
-        // Fallback rendering (legacy shapes)
-        if (kind !== 'table' && kind !== 'rect' && kind !== 'sarcophagus' && kind !== 'pillar') {
-          for (let i = 0; i < cells.length; i++) {
-            const lab = String(cells[i]).trim().toUpperCase();
-            const p = labelToPixel(lab);
-            if (!p) continue;
-
-            const pts = hexCorners(p.x, p.y);
-            drawHexPath(pts);
-            ctx.save();
-            ctx.fillStyle = fill;
-            ctx.fill();
-
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-            ctx.stroke();
-
-            if (kind === 'difficult' || i === 0) {
-              ctx.font = 'bold 12px ui-monospace, system-ui, sans-serif';
-              ctx.fillStyle = 'rgba(0,0,0,0.55)';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(glyph, p.x, p.y);
-            }
-
-            ctx.restore();
-          }
-          continue;
-        }
-
-        if (kind === 'table') {
-          const c = objectCentroidPx(cells);
-          if (!c) continue;
-          const radius = size * 1.25;
-
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(c.x, c.y, radius, 0, Math.PI * 2);
-          ctx.fillStyle = '#b07a3f';
-          ctx.fill();
-
-          ctx.lineWidth = 2;
-          ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-          ctx.stroke();
-
-          const tLabel = (obj.label != null && String(obj.label).trim()) ? String(obj.label).trim().slice(0, 3) : 'T';
-          ctx.font = 'bold 14px ui-monospace, system-ui, sans-serif';
-          ctx.fillStyle = 'rgba(0,0,0,0.85)';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(tLabel, c.x, c.y);
-
-          ctx.restore();
-        }
-
-        if (kind === 'rect' || kind === 'sarcophagus') {
-          const c = objectCentroidPx(cells);
-          const b = objectBoundsPx(cells);
-          if (!c || !b) continue;
-
-          const padX = size * 0.85;
-          const padY = size * 0.55;
-          const w = (b.maxX - b.minX) + padX * 2;
-          const h = (b.maxY - b.minY) + padY * 2;
-
-          const radius = Math.max(6, Math.min(size * 0.35, Math.min(w, h) * 0.25));
-          const fillRect = obj.color ? String(obj.color) : '#b07a3f';
-          const outline = 'rgba(0,0,0,0.85)';
-          const labelRect = (obj.label != null && String(obj.label).trim()) ? String(obj.label).trim().slice(0, 3) : (kind === 'sarcophagus' ? 'S' : 'R');
-
-          ctx.save();
-          ctx.translate(c.x, c.y);
-          if (rot) ctx.rotate((Math.PI / 180) * rot);
-
-          roundRectPath(-w/2, -h/2, w, h, radius);
-          ctx.fillStyle = fillRect;
-          ctx.fill();
-          ctx.lineWidth = 2;
-          ctx.strokeStyle = outline;
-          ctx.stroke();
-
-          ctx.font = 'bold 14px ui-monospace, system-ui, sans-serif';
-          ctx.fillStyle = 'rgba(0,0,0,0.85)';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(labelRect, 0, 0);
-
-          ctx.restore();
-        }
-
-        if (kind === 'pillar') {
-          const c = objectCentroidPx(cells);
-          if (!c) continue;
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(c.x, c.y, size * 0.60, 0, Math.PI * 2);
-          ctx.fillStyle = obj.color ? String(obj.color) : 'rgba(0,0,0,0.20)';
-          ctx.fill();
-          ctx.lineWidth = 2;
-          ctx.strokeStyle = 'rgba(0,0,0,0.70)';
-          ctx.stroke();
-          ctx.restore();
-        }
-      }
-    }
-
-    // =====================================================================
-    // OPENINGS (DOORS/WINDOWS)
-    // =====================================================================
-
-    // Door swinging (math, no extra sprites):
-    // - Door sprite is drawn CLOSED at the wall cutout center.
-    // - When state="open", we rotate the SAME sprite around its hinge.
-    // - Hinge is assumed to be at the sprite's "A" end.
-    //   To flip hinge to the other end, set rot to rot+180 on that opening.
-    // - Control swing direction with opening.swing (e.g. 90 or -90) or opening.opens ('cw'/'ccw').
-
-    function parseSwingDeg(opening) {
-      let v = opening?.swing ?? opening?.swingDeg ?? opening?.openSwing ?? opening?.openDeg ?? opening?.openAngle ?? opening?.opens;
-
-      if (typeof v === 'string') {
-        const s = v.trim().toLowerCase();
-        if (s === 'cw' || s === 'right' || s === 'r') return 90;
-        if (s === 'ccw' || s === 'left' || s === 'l') return -90;
-        const n = Number(s);
-        if (Number.isFinite(n)) v = n;
-      }
-
-      const n = Number(v);
-      if (Number.isFinite(n) && n !== 0) {
-        // Keep it crisp for pixel-art: snap to 90-degree steps.
-        return Math.round(n / 90) * 90;
-      }
-
-      return 90;
-    }
-
-    function rotateVec(x, y, deg) {
-      const a = (Math.PI / 180) * deg;
-      const ca = Math.cos(a);
-      const sa = Math.sin(a);
-      return { x: x * ca - y * sa, y: x * sa + y * ca };
-    }
-
-    function drawDoorSwingAt(doorKey, cx, cy, closedRotDeg, swingDeg, scaleMul, alphaMul) {
-      const def = spriteDefForKey(doorKey);
-      if (!def) return false;
-
-      const img = ensureSpriteLoaded(def.url);
-      if (!img || !img.complete) return false;
-
-      const sz = spriteCanvasSize(def, img, scaleMul);
-      const w = sz.w;
-      const h = sz.h;
-
-      // Most door art is "length along X". Allow override via def.lengthAxis = 'y'.
-      const axis = String(def.lengthAxis || 'x').toLowerCase() === 'y' ? 'y' : 'x';
-
-      // Hinge is at the sprite's "A" end (negative along the length axis).
-      // Compute hinge world position from the closed center.
-      const hingeOffset = (axis === 'y') ? rotateVec(0, -h * 0.5, closedRotDeg) : rotateVec(-w * 0.5, 0, closedRotDeg);
-      const hx = cx + hingeOffset.x;
-      const hy = cy + hingeOffset.y;
-
-      const openRot = closedRotDeg + swingDeg;
-
-      // Draw at hinge pivot (anchor at the hinge end).
-      const ax = (axis === 'y') ? 0.5 : 0.0;
-      const ay = (axis === 'y') ? 0.0 : 0.5;
-      return drawSpriteAt(doorKey, hx, hy, openRot, scaleMul, alphaMul, ax, ay);
-    }
-
-    function fillCutoutWithFloor(roomObj, x, y, w, h) {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.beginPath();
-      ctx.rect(-w/2, -h/2, w, h);
-      ctx.clip();
-
-      if (TEX.enabled && roomObj) {
-        const fk = floorKindForRoom(roomObj);
-        const pat = texturePatternFor(fk);
-        ctx.globalAlpha = 0.98;
-        ctx.fillStyle = pat;
-        ctx.fillRect(-w/2 - 600, -h/2 - 600, w + 1200, h + 1200);
-      } else {
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = SOLID_FLOOR_COLOR;
-        ctx.fillRect(-w/2, -h/2, w, h);
-      }
-
-      ctx.restore();
-    }
-
-    function drawWindowRecess(roomObj, x, y, w, h) {
-      ctx.save();
-      ctx.translate(x, y);
-
-      ctx.beginPath();
-      ctx.rect(-w/2, -h/2, w, h);
-      ctx.fillStyle = 'rgba(255,255,255,0.18)';
-      ctx.fill();
-
-      ctx.globalAlpha = 0.35;
-      ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      ctx.restore();
-    }
-
-    function drawOpenings() {
-      const openings = Array.isArray(SCENE_NORM?.openings) ? SCENE_NORM.openings : [];
-      if (!openings.length || !ROOM_GEOMS) return;
-
-      for (const o of openings) {
-        const kind = String(o.kind || 'door').toLowerCase();
-        const kindBase = kind.split('.')[0];
-        if (kindBase !== 'door' && kindBase !== 'window') continue;
-
-        const state = String(o.state ?? 'closed').toLowerCase();
-        const isDoor = (kindBase === 'door');
-        const isWindow = (kindBase === 'window');
-        const isOpen = (state === 'open');
-
-        const g = ROOM_GEOMS.get(String(o.room || ''));
-        if (!g) continue;
-
-        const roomObj = ROOM_BY_ID ? ROOM_BY_ID.get(String(o.room || '')) : null;
-
-        const wall = String(o.wall || '').toUpperCase();
-        const atPx = labelToPixel(o.at);
-        if (!atPx) continue;
-
-        let x = atPx.x;
-        let y = atPx.y;
-        if (wall === 'N') y = g.topY;
-        else if (wall === 'S') y = g.botY;
-        else if (wall === 'E') x = g.rightX;
-        else if (wall === 'W') x = g.leftX;
-        else continue;
-
-        const thicknessAcross = Number(o.thicknessAcross ?? Math.max(CONFIG.opening.minAcross, g.thickness * CONFIG.opening.acrossMul));
-        const spanAlong = (wall === 'N' || wall === 'S')
-          ? Number(o.spanAlong ?? (CONFIG.opening.spanNSMul * size))
-          : Number(o.spanAlong ?? (CONFIG.opening.spanEWMul * SQRT3 * size));
-
-        const rectW = (wall === 'N' || wall === 'S') ? spanAlong : thicknessAcross;
-        const rectH = (wall === 'N' || wall === 'S') ? thicknessAcross : spanAlong;
-
-        const pad = Number(CONFIG.opening.slotPadPx ?? 1.5);
-        const slotW = rectW + pad * 2;
-        const slotH = rectH + pad * 2;
-
-        const wallRot = (wall === 'E' || wall === 'W') ? 90 : 0;
-        const rot = entityRotDeg(o, wallRot);
-        const scale = (o.scale != null) ? Number(o.scale) : 1;
-
-        if (isDoor) {
-          // Always carve a floor-colored cutout.
-          fillCutoutWithFloor(roomObj, x, y, slotW, slotH);
-
-          const doorKey = (SPRITE_DEFS[kind] ? kind : (SPRITE_DEFS['door'] ? 'door' : null));
-          const wantsOpenSprite = !!(o.useOpenSprite || o.spriteOpen || o.sprite_open);
-
-          if (isOpen) {
-            // Back-compat: allow a dedicated open sprite if explicitly requested.
-            if (wantsOpenSprite) {
-              const openKey = (SPRITE_DEFS[`${kind}.open`] ? `${kind}.open` : (SPRITE_DEFS['door.open'] ? 'door.open' : null));
-              if (openKey && isSpriteReady(openKey)) {
-                drawSpriteAt(openKey, x, y, rot, scale, 1);
-                continue;
-              }
-            }
-
-            // Default: swing the *closed* sprite around its hinge.
-            if (doorKey && isSpriteReady(doorKey)) {
-              const swing = parseSwingDeg(o);
-              drawDoorSwingAt(doorKey, x, y, rot, swing, scale, 1);
-              continue;
-            }
-
-            // Last-ditch fallback: slab.
-            ctx.save();
-            ctx.translate(x, y);
-            if (rot) ctx.rotate((Math.PI / 180) * rot);
-            ctx.beginPath();
-            ctx.rect(-rectW / 2, -rectH / 2, rectW, rectH);
-            ctx.fillStyle = '#b07a3f';
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.restore();
-            continue;
-          }
-
-          if (doorKey && isSpriteReady(doorKey)) {
-            drawSpriteAt(doorKey, x, y, rot, scale, 1);
-            continue;
-          }
-
-          // Fallback slab.
-          ctx.save();
-          ctx.translate(x, y);
-          if (rot) ctx.rotate((Math.PI / 180) * rot);
-          ctx.beginPath();
-          ctx.rect(-rectW / 2, -rectH / 2, rectW, rectH);
-          ctx.fillStyle = '#b07a3f';
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          ctx.restore();
-          continue;
-        }
-
-        if (isWindow) {
-          // Always draw recess cutout.
-          drawWindowRecess(roomObj, x, y, slotW, slotH);
-
-          const openKey = (SPRITE_DEFS[`${kind}.open`] ? `${kind}.open` : (SPRITE_DEFS['window.open'] ? 'window.open' : null));
-          const closedKey = (SPRITE_DEFS[kind] ? kind : (SPRITE_DEFS['window'] ? 'window' : null));
-          const keyToUse = isOpen ? openKey : closedKey;
-
-          if (keyToUse && isSpriteReady(keyToUse)) {
-            drawSpriteAt(keyToUse, x, y, rot, scale, 1);
-            continue;
-          }
-
-          if (!isOpen) {
-            ctx.save();
-            ctx.translate(x, y);
-            if (rot) ctx.rotate((Math.PI / 180) * rot);
-            ctx.beginPath();
-            ctx.rect(-rectW / 2, -rectH / 2, rectW, rectH);
-            ctx.fillStyle = '#cfe6f6';
-            ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-            ctx.lineWidth = 2;
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.font = (Math.max(rectW, rectH) >= 55)
-              ? 'bold 13px ui-monospace, system-ui, sans-serif'
-              : 'bold 12px ui-monospace, system-ui, sans-serif';
-            ctx.fillStyle = 'rgba(0,0,0,0.55)';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('W', 0, 0);
-            ctx.restore();
-          }
-          continue;
-        }
-      }
-    }
-
-    // =====================================================================
-    // TOKENS
-    // =====================================================================
-
-    function drawToken(q, r, label, side, dead, actorObj) {
-      const { x, y } = qrToPixel(q, r);
-
-      const tokenKey = actorObj ? spriteKeyForActor(actorObj) : ((side === 'PC') ? 'token.pc' : (side === 'EN' ? 'token.en' : 'token.npc'));
-      const alpha = dead ? 0.55 : 1.0;
-      const rot = actorObj ? entityRotDeg(actorObj, 0) : 0;
-      const scale = (actorObj && actorObj.scale != null) ? Number(actorObj.scale) : 1;
-
-      if (tokenKey && isSpriteReady(tokenKey)) {
-        drawSpriteAt(tokenKey, x, y + (size * 0.10), rot, scale, alpha, (actorObj?.ax ?? actorObj?.anchorX), (actorObj?.ay ?? actorObj?.anchorY));
-        // Labels: show on sprites by default (set actor.hideLabel=true to suppress).
-        const hideLabel = !!actorObj?.hideLabel;
-        if (!hideLabel) {
-          ctx.save();
-          ctx.font = 'bold 13px ui-monospace, system-ui, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          // Sprite labels: off-white text with a dark stroke so it reads on any art.
-          ctx.lineWidth = 3;
-          ctx.strokeStyle = dead ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.75)';
-          ctx.fillStyle = dead ? 'rgba(245,245,245,0.55)' : 'rgba(250,250,250,0.92)';
-          ctx.strokeText(label, x, y);
-          ctx.fillText(label, x, y);
-          ctx.restore();
-        }
-        return;
-      }
-
-      let fill = 'rgba(160,160,160,0.95)';
-      if (dead) fill = 'rgba(140,140,140,0.85)';
-      else if (side === 'PC') fill = 'rgba(80,160,220,0.95)';
-      else if (side === 'EN') fill = 'rgba(25,25,25,0.92)';
-
-      ctx.beginPath();
-      ctx.arc(x, y, size * 0.40, 0, Math.PI * 2);
-      ctx.fillStyle = fill;
-      ctx.fill();
-
-      ctx.lineWidth = 0.75;
-      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-      ctx.stroke();
-
-      ctx.font = 'bold 14px ui-monospace, system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      // Enemies/monsters: light label for contrast.
-      if (side === 'EN') {
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = dead ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.80)';
-        ctx.fillStyle = dead ? 'rgba(245,245,245,0.55)' : 'rgba(250,250,250,0.92)';
-        ctx.strokeText(label, x, y);
-        ctx.fillText(label, x, y);
-      } else {
-        ctx.fillStyle = dead ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.72)';
-        ctx.fillText(label, x, y);
-      }
-    }
-
-    // =====================================================================
-    // GRID DRAW
-    // =====================================================================
-
-    function drawHexOverlay() {
-      for (let q = 0; q < cols; q++) {
-        for (let r = 0; r < rows; r++) {
-          const { x, y } = qrToPixel(q, r);
-          const pts = hexCorners(x, y);
-          drawHexPath(pts);
-          ctx.lineWidth = CONFIG.grid.overlayStrokeW;
-          ctx.strokeStyle = `rgba(0,0,0,${CONFIG.grid.overlayStrokeA})`;
-          ctx.stroke();
-        }
-      }
-    }
-
-    function drawGrid() {
-      ctx.clearRect(0, 0, MAT_W, MAT_H);
-
-      ctx.fillStyle = '#d7d7d7';
-      ctx.fillRect(0, 0, MAT_W, MAT_H);
-
-      for (let q = 0; q < cols; q++) {
-        for (let r = 0; r < rows; r++) {
-          const { x, y } = qrToPixel(q, r);
-          const pts = hexCorners(x, y);
-
-          drawHexPath(pts);
-          ctx.fillStyle = SOLID_FLOOR_COLOR;
-          ctx.fill();
-
-          ctx.lineWidth = CONFIG.grid.baseStrokeW;
-          ctx.strokeStyle = `rgba(0,0,0,${CONFIG.grid.baseStrokeA})`;
-          ctx.stroke();
-        }
-      }
-
-      SCENE = loadSceneFromJsonTag();
-      SCENE_NORM = normalizeScene();
-
-      requestSpritePreload(SCENE_NORM);
-
-      ROOM_GEOMS = new Map();
-      ROOM_BY_ID = new Map();
-      for (const room of (SCENE_NORM?.rooms || [])) {
-        const g = getRoomGeom(room);
-        if (g && g.id) ROOM_GEOMS.set(g.id, g);
-        if (room && room.id) ROOM_BY_ID.set(String(room.id), room);
-      }
-
-      drawRooms();
-      drawOpenings();
-      drawObjects();
-      drawHexOverlay();
-
-      updateTrailsFromPending();
-      drawMoveTrails();
-
-      drawPoi();
-
-      const LABEL_DY = size * CONFIG.labels.dyFrac;
-      ctx.font = '13px "Times New Roman", Georgia, "Century Schoolbook", "Book Antiqua", serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      const inAnyRoomInterior = (px, py) => {
-        if (!ROOM_GEOMS || !ROOM_GEOMS.size) return false;
-        for (const g of ROOM_GEOMS.values()) {
-          const half = Math.max(1, Number(g.thickness || 18) / 2);
-          const ix1 = g.leftX + half;
-          const ix2 = g.rightX - half;
-          const iy1 = g.topY + half;
-          const iy2 = g.botY - half;
-          if (px >= ix1 && px <= ix2 && py >= iy1 && py <= iy2) return true;
-        }
-        return false;
-      };
-
-      const inRGB = CONFIG.labels.inRoomColor || [245,245,245];
-      const outRGB = CONFIG.labels.outRoomColor || [255,255,255];
-      const inA = Number(CONFIG.labels.inRoomAlpha ?? 0.55);
-      const outA = Number(CONFIG.labels.outRoomAlpha ?? 0.06);
-
-      for (let q = 0; q < cols; q++) {
-        for (let r = 0; r < rows; r++) {
-          const { x, y } = qrToPixel(q, r);
-          const inRoom = inAnyRoomInterior(x, y);
-          const rgb = inRoom ? inRGB : outRGB;
-          const a = inRoom ? inA : outA;
-          ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
-          ctx.fillText(labelFor(q, r), x, y + LABEL_DY);
-        }
-      }
-
-      for (const a of (SCENE_NORM?.actors || [])) {
-        const pos = parseLabel(a.at);
-        if (!pos) continue;
-        const isDead = Number(a.hp ?? 0) <= 0 || (Array.isArray(a.effects) && (a.effects.includes('dead') || a.effects.includes('down')));
-        drawToken(pos.q, pos.r, a.label || a.name?.slice(0, 1) || '?', a.side, isDead, a);
-      }
-
-      renderStatus();
     }
 
     // =====================================================================
@@ -3258,6 +2300,410 @@
         .replaceAll("'", '&#39;');
     }
 
+    // =====================================================================
+    // RENDERING (minimal baseline)
+    // =====================================================================
+
+    function buildRoomGeoms(sceneNorm) {
+      const byId = new Map();
+      const list = [];
+
+      for (const room of (sceneNorm?.rooms || [])) {
+        const corners = Array.isArray(room.corners) ? room.corners : [];
+        const pts = corners.map(labelToPixel).filter(Boolean);
+        if (pts.length !== 4) continue;
+
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const p of pts) {
+          if (p.x < minX) minX = p.x;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.y > maxY) maxY = p.y;
+        }
+
+        // Expand from hex centers to a rectangle that fully covers the border hexes.
+        const halfW = hexWidthPx() / 2;
+        const halfH = hexHeightPx() / 2;
+
+        const leftX = minX - halfW;
+        const rightX = maxX + halfW;
+        const topY = minY - halfH;
+        const botY = maxY + halfH;
+
+        const thickness = Math.max(0, Number(room.thickness ?? 0));
+        const halfT = thickness / 2;
+
+        const geom = {
+          room,
+          id: String(room.id || ''),
+          thickness,
+          leftX,
+          rightX,
+          topY,
+          botY,
+          outer: {
+            x: leftX - halfT,
+            y: topY - halfT,
+            w: (rightX - leftX) + thickness,
+            h: (botY - topY) + thickness,
+          },
+          inner: {
+            x: leftX + halfT,
+            y: topY + halfT,
+            w: (rightX - leftX) - thickness,
+            h: (botY - topY) - thickness,
+          }
+        };
+
+        byId.set(geom.id, geom);
+        list.push(geom);
+      }
+
+      // draw thicker first (e.g. building shell)
+      list.sort((a, b) => (b.thickness || 0) - (a.thickness || 0));
+
+      return { list, byId };
+    }
+
+    function drawBaseGrid() {
+      ctx.clearRect(0, 0, MAT_W, MAT_H);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, MAT_W, MAT_H);
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+      ctx.lineWidth = 1;
+      for (let q = 0; q < cols; q++) {
+        for (let r = 0; r < rows; r++) {
+          const p = qrToPixel(q, r);
+          const pts = hexCorners(p.x, p.y);
+          drawHexPath(pts);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.10)';
+      ctx.font = '12px ui-monospace, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let q = 0; q < cols; q++) {
+        for (let r = 0; r < rows; r++) {
+          const p = qrToPixel(q, r);
+          ctx.fillText(labelFor(q, r), p.x, p.y);
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawRoomGeom(geom) {
+      const room = geom.room;
+      const floorKind = String(room?.floor?.kind ?? '').trim().toLowerCase();
+      const wallKind = String(room?.wall?.kind ?? '').trim().toLowerCase();
+
+      // Floors
+      if (geom.inner.w > 0 && geom.inner.h > 0 && floorKind !== 'none') {
+        const fk = floorKindForRoom(room);
+        const pat = texturePatternFor(fk);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(geom.inner.x, geom.inner.y, geom.inner.w, geom.inner.h);
+        ctx.clip();
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = pat;
+        ctx.fillRect(geom.inner.x - 2000, geom.inner.y - 2000, geom.inner.w + 4000, geom.inner.h + 4000);
+        ctx.restore();
+      }
+
+      // Walls
+      if (geom.thickness > 0 && wallKind !== 'none') {
+        const wk = wallKindForRoom(room);
+        const pat = texturePatternFor(wk);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(geom.outer.x, geom.outer.y, geom.outer.w, geom.outer.h);
+        ctx.rect(geom.inner.x, geom.inner.y, geom.inner.w, geom.inner.h);
+        try { ctx.clip('evenodd'); } catch { ctx.clip(); }
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = pat;
+        ctx.fillRect(geom.outer.x - 2000, geom.outer.y - 2000, geom.outer.w + 4000, geom.outer.h + 4000);
+        ctx.restore();
+      }
+    }
+
+    function openingSpriteKey(op) {
+      const kind = String(op.kind || '').toLowerCase();
+      const base = kind.split('.')[0];
+      const isOpen = String(op.state || 'closed').toLowerCase() === 'open';
+
+      if (isOpen) {
+        const kOpen = `${kind}.open`;
+        if (SPRITE_DEFS[kOpen]) return kOpen;
+        const bOpen = `${base}.open`;
+        if (SPRITE_DEFS[bOpen]) return bOpen;
+      }
+
+      if (SPRITE_DEFS[kind]) return kind;
+      if (SPRITE_DEFS[base]) return base;
+      return null;
+    }
+
+    function drawOpenings() {
+      for (const op of (SCENE_NORM?.openings || [])) {
+        const at = labelToPixel(op.at);
+        if (!at) continue;
+
+        const wall = String(op.wall || '').toUpperCase();
+        const dxdy = {
+          N: { dx: 0, dy: -hexHeightPx() / 2 },
+          S: { dx: 0, dy: +hexHeightPx() / 2 },
+          E: { dx: +size, dy: 0 },
+          W: { dx: -size, dy: 0 },
+        }[wall] || { dx: 0, dy: 0 };
+
+        const key = openingSpriteKey(op);
+        const rot = entityRotDeg(op, 0);
+
+        if (key) {
+          drawSpriteAt(key, at.x + dxdy.dx, at.y + dxdy.dy, rot, 1, 1);
+        } else {
+          ctx.save();
+          ctx.fillStyle = (String(op.kind || '').toLowerCase().includes('window')) ? '#cfe6f6' : '#b07a3f';
+          ctx.globalAlpha = 0.95;
+          ctx.fillRect(at.x + dxdy.dx - 18, at.y + dxdy.dy - 6, 36, 12);
+          ctx.restore();
+        }
+      }
+    }
+
+    function centroidForCells(cells) {
+      const pts = (cells || []).map(labelToPixel).filter(Boolean);
+      if (!pts.length) return null;
+      let sx = 0, sy = 0;
+      for (const p of pts) { sx += p.x; sy += p.y; }
+      return { x: sx / pts.length, y: sy / pts.length };
+    }
+
+    function drawObjects() {
+      for (const o of (SCENE_NORM?.objects || [])) {
+        const p = centroidForCells(o.cells);
+        if (!p) continue;
+        const key = spriteKeyForObject(o);
+        if (key && isSpriteReady(key)) {
+          drawSpriteAt(key, p.x, p.y, entityRotDeg(o, 0), 1, 1);
+        } else {
+          ctx.save();
+          ctx.fillStyle = o.color || '#b07a3f';
+          ctx.globalAlpha = 0.85;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        if (o.label) {
+          ctx.save();
+          ctx.fillStyle = 'rgba(0,0,0,0.75)';
+          ctx.font = '14px system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(String(o.label), p.x, p.y);
+          ctx.restore();
+        }
+      }
+    }
+
+    function drawToken(q, r, label, side, isDead) {
+      const p = qrToPixel(q, r);
+      ctx.save();
+      const fill = (side === 'PC') ? 'rgba(80,160,220,0.95)' : (side === 'EN' ? 'rgba(25,25,25,0.92)' : 'rgba(160,160,160,0.92)');
+      ctx.fillStyle = fill;
+      ctx.globalAlpha = isDead ? 0.35 : 1;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.fillStyle = (side === 'EN') ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.82)';
+      ctx.font = '12px ui-monospace, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(label || '?'), p.x, p.y);
+      ctx.restore();
+    }
+
+    function drawActors() {
+      for (const a of (SCENE_NORM?.actors || [])) {
+        const pos = parseLabel(a.at);
+        if (!pos) continue;
+
+        const effectsArr = Array.isArray(a.effects) ? a.effects : [];
+        const isDead = Number(a.hp ?? 0) <= 0 || effectsArr.includes('dead') || effectsArr.includes('down');
+
+        const key = spriteKeyForActor(a);
+        const p = qrToPixel(pos.q, pos.r);
+
+        if (key && isSpriteReady(key)) {
+          drawSpriteAt(key, p.x, p.y, entityRotDeg(a, 0), 1, isDead ? 0.35 : 1);
+        } else {
+          drawToken(pos.q, pos.r, a.label || a.name?.slice(0, 1) || '?', a.side, isDead);
+        }
+
+        const name = String(a.name || '').trim();
+        if (name) {
+          ctx.save();
+          ctx.font = '12px system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'alphabetic';
+          ctx.fillStyle = (String(a.side || '').toUpperCase() === 'EN') ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.75)';
+          ctx.fillText(name, p.x, p.y + 34);
+          ctx.restore();
+        }
+      }
+    }
+
+    function rectIntersection(a, b) {
+      const x1 = Math.max(a.x, b.x);
+      const y1 = Math.max(a.y, b.y);
+      const x2 = Math.min(a.x + a.w, b.x + b.w);
+      const y2 = Math.min(a.y + a.h, b.y + b.h);
+      const w = x2 - x1;
+      const h = y2 - y1;
+      if (w <= 0 || h <= 0) return null;
+      return { x: x1, y: y1, w, h };
+    }
+
+    // Returns up to 4 rectangles representing base minus cut (axis-aligned).
+    function rectSubtract(base, cut) {
+      const i = rectIntersection(base, cut);
+      if (!i) return [base];
+
+      const out = [];
+
+      // top band
+      if (i.y > base.y) out.push({ x: base.x, y: base.y, w: base.w, h: i.y - base.y });
+      // bottom band
+      const baseBottom = base.y + base.h;
+      const iBottom = i.y + i.h;
+      if (iBottom < baseBottom) out.push({ x: base.x, y: iBottom, w: base.w, h: baseBottom - iBottom });
+
+      // middle bands (left/right)
+      const midY = i.y;
+      const midH = i.h;
+      if (i.x > base.x) out.push({ x: base.x, y: midY, w: i.x - base.x, h: midH });
+      const baseRight = base.x + base.w;
+      const iRight = i.x + i.w;
+      if (iRight < baseRight) out.push({ x: iRight, y: midY, w: baseRight - iRight, h: midH });
+
+      // Filter degenerate
+      return out.filter(r => r.w > 0 && r.h > 0);
+    }
+
+    function rectSubtractMany(base, cuts) {
+      let parts = [base];
+      for (const c of cuts) {
+        const next = [];
+        for (const p of parts) next.push(...rectSubtract(p, c));
+        parts = next;
+        if (!parts.length) break;
+      }
+      return parts;
+    }
+
+    function drawWallOutlinesOnly() {
+      // Redraw ONLY the wall rings (no floor) so geometry stays readable above fog.
+      // Intentionally no inner-edge stroke, to avoid thin black lines at wall/floor boundaries.
+      for (const geom of (ROOM_GEOMS?.list || [])) {
+        const room = geom.room;
+        const wallKind = String(room?.wall?.kind ?? '').trim().toLowerCase();
+        if (geom.thickness <= 0 || wallKind === 'none') continue;
+
+        const wk = wallKindForRoom(room);
+        const pat = texturePatternFor(wk);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(geom.outer.x, geom.outer.y, geom.outer.w, geom.outer.h);
+        ctx.rect(geom.inner.x, geom.inner.y, geom.inner.w, geom.inner.h);
+        try { ctx.clip('evenodd'); } catch { ctx.clip(); }
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = pat;
+        ctx.fillRect(geom.outer.x - 2000, geom.outer.y - 2000, geom.outer.w + 4000, geom.outer.h + 4000);
+        ctx.restore();
+      }
+    }
+
+    function drawFogOfWar() {
+      if (DEBUG_FOG_DISABLE) return;
+      const fog = (SCENE_NORM?.fog && typeof SCENE_NORM.fog === 'object') ? SCENE_NORM.fog : null;
+      if (!fog || !fog.enabled) return;
+
+      const visible = new Set(Array.isArray(fog.visibleRooms) ? fog.visibleRooms.map(String) : []);
+      const opacity = Math.max(0, Math.min(1, Number(fog.opacity ?? 0.85)));
+      const revealWalls = !!fog.revealWalls;
+
+      // If rooms overlap (common when using shared hex columns for interior walls),
+      // prevent fog from spilling into visible rooms by subtracting visible rects.
+      const visibleRects = [];
+      for (const geom of (ROOM_GEOMS?.list || [])) {
+        const room = geom.room;
+        const floorKind = String(room?.floor?.kind ?? '').trim().toLowerCase();
+        if (floorKind === 'none') continue;
+        if (!visible.has(String(geom.id))) continue;
+        visibleRects.push({ x: geom.inner.x, y: geom.inner.y, w: geom.inner.w, h: geom.inner.h });
+      }
+
+      for (const geom of (ROOM_GEOMS?.list || [])) {
+        const room = geom.room;
+        const floorKind = String(room?.floor?.kind ?? '').trim().toLowerCase();
+        if (floorKind === 'none') continue;
+        if (visible.has(String(geom.id))) continue;
+
+        const base = { x: geom.inner.x, y: geom.inner.y, w: geom.inner.w, h: geom.inner.h };
+        const parts = rectSubtractMany(base, visibleRects);
+
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        ctx.fillStyle = 'rgba(70,70,70,1)';
+        for (const p of parts) ctx.fillRect(p.x, p.y, p.w, p.h);
+        ctx.restore();
+      }
+
+      if (revealWalls) {
+        // Put walls/openings back on top so geometry stays readable.
+        drawWallOutlinesOnly();
+        drawOpenings();
+      }
+    }
+
+    function drawGrid() {
+      SCENE = loadSceneFromJsonTag();
+      SCENE_NORM = normalizeScene();
+
+      const geoms = buildRoomGeoms(SCENE_NORM);
+      ROOM_GEOMS = geoms;
+      ROOM_BY_ID = geoms.byId;
+
+      requestSpritePreload(SCENE_NORM);
+
+      drawBaseGrid();
+
+      for (const g of (ROOM_GEOMS?.list || [])) drawRoomGeom(g);
+
+      drawOpenings();
+      drawObjects();
+      drawActors();
+
+      drawFogOfWar();
+
+      updateTrailsFromPending();
+      drawTrails();
+
+      renderStatus();
+    }
+
     function safeDrawGrid() {
       try {
         drawGrid();
@@ -3278,14 +2724,9 @@
     // SPRITE DEFINITIONS (EDIT HERE)
     // =====================================================================
 
-    // Global actor sizing (tune this so full-body art fits ~within one hex)
     const ACTOR_SCALE = 0.5;
 
-    // All sprites now use NATIVE sizing (pixel size mapped to hex height).
-    // If you want something to be bigger than a hex: make the PNG bigger.
-    // If you need a quick nudge without re-exporting: set `scale` on the sprite def or entity.
     SPRITE_DEFS = {
-      // Objects
       'table':        { url: `${SPRITE_BASE}/table_round.png`,     ax: 0.5, ay: 0.52, shadow: true },
       'table.round':  { url: `${SPRITE_BASE}/table_round.png`,     ax: 0.5, ay: 0.52, shadow: true, scale: 0.75 },
       'table.rect':   { url: `${SPRITE_BASE}/table_rect.png`,      ax: 0.5, ay: 0.55, shadow: true },
@@ -3293,12 +2734,10 @@
       'pillar':       { url: `${SPRITE_BASE}/pillar_stone.png`,    ax: 0.5, ay: 0.60, shadow: true },
       'rect':         { url: `${SPRITE_BASE}/crate_rect.png`,      ax: 0.5, ay: 0.58, shadow: true },
 
-      // Tokens (fallback by side)
       'token.pc':     { url: `${SPRITE_BASE}/token_pc.png`,        ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
       'token.en':     { url: `${SPRITE_BASE}/token_enemy.png`,     ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
       'token.npc':    { url: `${SPRITE_BASE}/token_npc.png`,       ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
 
-      // Class + gender placeholders
       'fighter.male':     { url: `${SPRITE_BASE}/fighter_male.png`,      ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
       'fighter.female':   { url: `${SPRITE_BASE}/fighter_female.png`,    ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
       'cleric.male':      { url: `${SPRITE_BASE}/cleric_male.png`,       ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
@@ -3324,24 +2763,21 @@
       'warlock.male':     { url: `${SPRITE_BASE}/warlock_male.png`,      ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
       'warlock.female':   { url: `${SPRITE_BASE}/warlock_female.png`,    ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
 
-      // Races / monsters (manual sprite selection via actor.sprite)
       'dragonkin.green': { url: `${SPRITE_BASE}/dragonkin_green.png`, ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
       'dragonkin.red':   { url: `${SPRITE_BASE}/dragonkin_red.png`,   ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
       'dragonkin.blue':  { url: `${SPRITE_BASE}/dragonkin_blue.png`,  ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
       'dragonkin.black': { url: `${SPRITE_BASE}/dragonkin_black.png`, ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
-      'dragonkin.white': { url: `${SPRITE_BASE}/dragonkin_white.png`,   ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
+      'dragonkin.white': { url: `${SPRITE_BASE}/dragonkin_white.png`, ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
 
-      // Undead
       'lich':         { url: `${SPRITE_BASE}/lich.png`,               ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
       'wraith':       { url: `${SPRITE_BASE}/wraith.png`,             ax: 0.5, ay: 0.55, shadow: true, scale: ACTOR_SCALE },
 
-      // Openings
       'window':       { url: `${SPRITE_BASE}/window.png`,          ax: 0.5, ay: 0.5, shadow: false },
       'window.open':  { url: `${SPRITE_BASE}/window_open.png`,     ax: 0.5, ay: 0.5, shadow: false },
       'door':         { url: `${SPRITE_BASE}/door.png`,            ax: 0.5, ay: 0.5, shadow: false },
       'door.open':    { url: `${SPRITE_BASE}/door_open.png`,       ax: 0.5, ay: 0.5, shadow: false },
       'door.wood':    { url: `${SPRITE_BASE}/door_wood.png`,       ax: 0.5, ay: 0.5, shadow: false },
-      'door.wood.open': { url: `${SPRITE_BASE}/door_wood_open.png`, ax: 0.5, ay: 0.5, shadow: false }
+      'door.wood.open': { url: `${SPRITE_BASE}/door_wood_open.png`, ax: 0.5, ay: 0.5, shadow: false },
     };
 
     // =====================================================================
@@ -3370,9 +2806,25 @@
         const n3 = normalizeTextureKind('cobblestone');
         console.assert(n3.base === 'stone' && n3.variant === 'cobble', 'normalizeTextureKind cobblestone');
 
+        console.assert(typeof initTextureSelectors === 'function', 'initTextureSelectors should exist');
+        console.assert(typeof drawWallOutlinesOnly === 'function', 'drawWallOutlinesOnly should exist');
+        console.assert(TEX.enabled === true, 'Textures should default to enabled');
+        console.assert(TEX_OVERRIDE_ROOM === '__room__', 'TEX_OVERRIDE_ROOM sentinel value');
+
         console.assert(!!SPRITE_DEFS['table'], 'SPRITE_DEFS should include table');
 
-        // Native sizing sanity: 512px == 1 hex height
+        // isImgUsable self-test (mock objects)
+        console.assert(isImgUsable({ complete: true, naturalWidth: 10, naturalHeight: 10, __broken: false }) === true, 'isImgUsable should accept loaded images');
+        console.assert(isImgUsable({ complete: true, naturalWidth: 0, naturalHeight: 10, __broken: false }) === false, 'isImgUsable should reject naturalWidth=0');
+        console.assert(isImgUsable({ complete: true, naturalWidth: 10, naturalHeight: 0, __broken: false }) === false, 'isImgUsable should reject naturalHeight=0');
+        console.assert(isImgUsable({ complete: true, naturalWidth: 10, naturalHeight: 10, __broken: true }) === false, 'isImgUsable should reject broken images');
+
+        const raw = String(document.getElementById('scene-json')?.textContent || '').trim();
+        let parsed = null;
+        try { parsed = JSON.parse(raw); } catch (e) { console.assert(false, 'Embedded SCENE JSON should parse: ' + (e?.message || e)); }
+        console.assert(parsed && typeof parsed === 'object', 'Embedded SCENE JSON should parse to an object');
+        console.assert(typeof parsed.narration === 'string', 'Embedded SCENE JSON should include a narration string');
+
         const mockImg = { naturalWidth: 512, naturalHeight: 512 };
         const sz0 = spriteCanvasSize({ url: 'x' }, mockImg, 1);
         console.assert(Math.abs(sz0.w - hexHeightPx()) < 0.001, '512px width should map to 1 hex height');
@@ -3386,7 +2838,6 @@
         console.assert(entityRotDeg({ orientation: 'vertical' }, 0) === 90, 'orientation vertical');
         console.assert(entityRotDeg({ rot: 0, rotOffset: 180 }, 0) === 180, 'rotOffset applies');
 
-        // Scaling sanity
         const sz1 = spriteCanvasSize({ url: 'x', scale: 2 }, mockImg, 1);
         console.assert(Math.abs(sz1.h - 2 * hexHeightPx()) < 0.01, 'def.scale=2 should double size');
         const sz2 = spriteCanvasSize({ url: 'x' }, mockImg, 0.5);
@@ -3401,8 +2852,8 @@
     (async () => {
       await tryLoadSceneFromApi();
 
-      TEX.enabled = readTexturePref();
-      setTextureUi();
+      // Textures are always enabled now.
+      TEX.enabled = true;
       initTextureSelectors();
 
       safeDrawGrid();
