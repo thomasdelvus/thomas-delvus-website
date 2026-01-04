@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Battlemat - V4
-  Version 4.34
+  Version 4.35
 
   Rewrite notes (v4.32):
   - Fixes a JS SyntaxError caused by an unescaped newline inside a string literal.
@@ -42,7 +42,7 @@
     .app {
       height: 100%;
       display: grid;
-      grid-template-columns: 1fr 500px;
+      grid-template-columns: 1fr 625px;
       gap: 12px;
       padding: 12px;
       box-sizing: border-box;
@@ -192,7 +192,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.34</div>
+        <div class="pill" id="versionLine">v4.35</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -531,8 +531,15 @@
     // Robust averaging keeps things stable even if a user accidentally mixes parities.
     const xL = (c0.x + c3.x) / 2;
     const xR = (c1.x + c2.x) / 2;
-    const yTop = (c0.y + c1.y) / 2;
-    const yBot = (c2.y + c3.y) / 2;
+    let yTop = (c0.y + c1.y) / 2;
+    let yBot = (c2.y + c3.y) / 2;
+
+    // Horizontal wall phase tweak: shift all horizontal room edges 1/4-hex SOUTH so
+    // horizontal walls land in the gap between alternating flat tops.
+    // NOTE: world Y increases downward (south).
+    const yShift = rowStep() / 4;
+    yTop += yShift;
+    yBot += yShift;
 
     // Keep bounds around for debug/inspection.
     const b = cornersToBounds(room.corners);
@@ -855,13 +862,19 @@
       const p = parseHexId('AA27');
       if (hexId(p.col, p.row) !== 'AA27') throw new Error('parseHexId/hexId mismatch for AA27');
 
-      // Geometry sanity: Bedroom1 south wall should land on the declared south-corner hex centers.
+      // Geometry sanity: Bedroom1 south wall should be shifted 1/4-hex SOUTH of the declared south-corner hex centers.
       const testRoom = { id: 'Bedroom1', corners: ['B11','F11','F8','B8'], thickness: 20 };
       const b8 = hexCenterWorld(parseHexId('B8').col, parseHexId('B8').row);
+      const b11 = hexCenterWorld(parseHexId('B11').col, parseHexId('B11').row);
       const box = roomToWallBox(testRoom);
       const eps = 0.001;
-      if (Math.abs(box.yBot - b8.y) > eps) {
-        throw new Error(`roomToWallBox yBot mismatch: expected ${b8.y} got ${box.yBot}`);
+      const yShift = rowStep() / 4;
+
+      if (Math.abs(box.yBot - (b8.y + yShift)) > eps) {
+        throw new Error(`roomToWallBox yBot mismatch: expected ${b8.y + yShift} got ${box.yBot}`);
+      }
+      if (Math.abs(box.yTop - (b11.y + yShift)) > eps) {
+        throw new Error(`roomToWallBox yTop mismatch: expected ${b11.y + yShift} got ${box.yTop}`);
       }
 
       console.log('[Battlemat] self-tests: OK');
