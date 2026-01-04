@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Battlemat - V4
-  Version 4.03
+  Version 4.12
 
   Notes:
   - Restores full room/wall rendering pipeline (walls/floors/doors/windows) while keeping the grid + labels drawn on top.
@@ -27,10 +27,9 @@
     html,body{height:100%; margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial,sans-serif; color:var(--text); background:var(--bg);}
     .app{display:grid; grid-template-columns: 1fr 340px; gap:16px; padding:16px; height:100%; box-sizing:border-box;}
     .left{display:flex; flex-direction:column; gap:10px; min-width:0;}
-    .title{font-weight:700; font-size:14px; margin:0 0 2px 4px; color:#111;}
 
     .stage{flex:1; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:10px; display:flex; align-items:center; justify-content:center; min-height:540px;}
-    canvas{background:#fff; border-radius:10px;}
+    canvas{background:#fff; border-radius:10px; width:100%; height:100%;}
 
     .bottom{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:10px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
 
@@ -54,6 +53,8 @@
     textarea{width:100%; height:520px; resize:none; border:1px solid var(--line); border-radius:10px; padding:10px; font-size:12px; line-height:1.35; box-sizing:border-box; outline:none;}
 
     select{border:1px solid var(--line); border-radius:999px; padding:6px 10px; font-size:12px; background:#fff;}
+    .hexJump{border:1px solid var(--line); border-radius:999px; padding:8px 12px; font-size:12px; background:#fff; width:110px; box-sizing:border-box; outline:none;}
+    .hexJump:focus{border-color:#cbd5e1;}
     .btn{border:1px solid var(--line); border-radius:999px; padding:8px 12px; background:#fff; cursor:pointer; font-size:12px;}
     .btn:hover{background:#fafafa;}
 
@@ -66,7 +67,6 @@
 <body>
   <div class="app">
     <div class="left">
-      <div class="title">Battlemat - V4</div>
       <div class="stage">
         <canvas id="mat" width="1000" height="820"></canvas>
       </div>
@@ -86,6 +86,8 @@
             <option value="stone" selected>Stone</option>
             <option value="wood">Wood</option>
           </select>
+          <input class="hexJump" id="cameraHexInput" type="text" placeholder="Jump to (e.g., H6, AA27)" />
+          <button class="btn" id="cameraGoBtn">Jump</button>
           <button class="btn" id="redrawBtn">Redraw</button>
         </div>
       </div>
@@ -95,7 +97,7 @@
       <div class="panel">
         <div class="row">
           <div class="panel-title" style="margin:0;">Status</div>
-          <div class="pill" style="border:none; background:transparent; cursor:default;" id="versionLine">v4.02</div>
+          <div class="pill" style="border:none; background:transparent; cursor:default;" id="versionLine">v4.12</div>
         </div>
         <div class="row subtle" style="margin-top:6px;">
           <div id="roundLine">Round 1</div>
@@ -134,15 +136,48 @@
     // ---------------------------
     const canvas = document.getElementById('mat');
     const ctx = canvas.getContext('2d');
+    const stageEl = document.querySelector('.stage');
+
+    function resizeCanvasToStage(){
+      if(!stageEl) return;
+      const cs = getComputedStyle(stageEl);
+      const padX = (parseFloat(cs.paddingLeft)||0) + (parseFloat(cs.paddingRight)||0);
+      const padY = (parseFloat(cs.paddingTop)||0) + (parseFloat(cs.paddingBottom)||0);
+
+      const w = Math.max(480, Math.floor(stageEl.clientWidth - padX));
+      const h = Math.max(360, Math.floor(stageEl.clientHeight - padY));
+
+      if(canvas.width !== w || canvas.height !== h){
+        canvas.width = w;
+        canvas.height = h;
+      }
+    }
 
     // Grid: flat-top hexes
     const GRID = {
-      cols: 16,      // A..P
-      rows: 11,      // 1..11 (A1 is bottom-left)
+      // Flat-top hex geometry
       size: 42,      // hex radius
-      originX: 70,
+      originX: 70,   // world-space origin
       originY: 70,
     };
+
+    // Absolute world extents (labels are stable: A1..DZ90 etc)
+    // Camera selects which slice is visible.
+    const WORLD = {
+      cols: 140,
+      rows: 90,
+    };
+
+    // View/camera state (in hex coords). Rendering translates world -> screen.
+    const VIEW = {
+      camera: { col: 30, row: 31 },
+      anchor: { x: canvas.width / 2, y: canvas.height / 2 },
+      dx: 0,
+      dy: 0,
+      // On boot, we currently auto-center on the scene bounds.
+      // Set false to honor the manual VIEW.camera values above.
+      autoCenterOnBoot: true,
+    }; 
 
     // Visual tuning
     const COLORS = {
@@ -195,13 +230,14 @@
         { id: 'door_mid', kind: 'door', at: 'H6', facing: 'E', widthPx: 70 },
         { id: 'door_east1', kind: 'door', at: 'N6', facing: 'E', widthPx: 70 },
         { id: 'door_east2', kind: 'door', at: 'N5', facing: 'E', widthPx: 70 },
-        { id: 'win_s1', kind: 'window', at: 'F1', facing: 'S', widthPx: 70 },
-        { id: 'win_s2', kind: 'window', at: 'H1', facing: 'S', widthPx: 70 },
-        { id: 'win_s3', kind: 'window', at: 'J1', facing: 'S', widthPx: 70 },
+        { id: 'door_south', kind: 'door', at: 'L2', facing: 'E', widthPx: 70, Rot: 90 },
+        { id: 'win_s1', kind: 'window', at: 'F2', facing: 'S', widthPx: 70 },
+        { id: 'win_s2', kind: 'window', at: 'H2', facing: 'S', widthPx: 70 },
+        { id: 'win_s3', kind: 'window', at: 'J2', facing: 'S', widthPx: 70 },
       ],
       actors: [
         { id: 'lich', name: 'Lich', side: 'ENEMY', at: 'K9', init: 15, hp: 135 },
-        { id: 'w1', name: 'Wraith 1', side: 'ENEMY', at: 'H6', init: 12, hp: 67 },
+        { id: 'w1', name: 'Wraith 1', side: 'ENEMY', at: 'J6', init: 12, hp: 67 },
         { id: 'w2', name: 'Wraith 2', side: 'ENEMY', at: 'G8', init: 11, hp: 67 },
         { id: 'w3', name: 'Wraith 3', side: 'ENEMY', at: 'F6', init: 10, hp: 67 },
         { id: 'a', name: 'Aelar', side: 'PLAYER', at: 'J3', init: 14, hp: 42 },
@@ -221,31 +257,48 @@
     // ---------------------------
     // Utilities: hex math
     // ---------------------------
-    const LETTERS = 'ABCDEFGHIJKLMNOP'.split('');
+    // Excel-style column labels: 0->A, 25->Z, 26->AA, ...
+    function colToLabel(col){
+      let n = col + 1; // 1-based
+      let out = '';
+      while(n > 0){
+        n--; // make it 0..25
+        out = String.fromCharCode(65 + (n % 26)) + out;
+        n = Math.floor(n / 26);
+      }
+      return out;
+    }
+
+    function labelToCol(label){
+      const s = String(label || '').trim().toUpperCase();
+      if(!/^[A-Z]+$/.test(s)) return -1;
+      let n = 0;
+      for(let i=0;i<s.length;i++){
+        n = n * 26 + (s.charCodeAt(i) - 64); // A=1..Z=26
+      }
+      return n - 1; // back to 0-based
+    }
 
     function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
 
     function parseHexId(id){
-      // e.g. "H6" => {col:7,row:6}
-      const m = String(id).trim().toUpperCase().match(/^([A-P])(\d{1,2})$/);
+      // e.g. "H6" or "AA27" => {col,row}
+      const m = String(id).trim().toUpperCase().match(/^([A-Z]+)([0-9]{1,3})$/);
       if(!m) return null;
-      const col = LETTERS.indexOf(m[1]);
+      const col = labelToCol(m[1]);
       const row = parseInt(m[2], 10);
-      if(col < 0 || row < 1 || row > GRID.rows) return null;
+      if(col < 0 || row < 1) return null;
+      if(col >= WORLD.cols || row > WORLD.rows) return null;
       return { col, row };
     }
 
     function hexCenter(col, row){
       // Flat-top layout (odd-q vertical offset).
-      // IMPORTANT: Coordinate system is "A1 in the lower-left".
-      // That means row 1 should be at the bottom of the canvas and row numbers increase upward.
-      // We implement that by flipping the row index when mapping to pixels.
-      //
-      // x = originX + size*3/2*col
-      // y = originY + size*sqrt(3)*(rowFromTop + 0.5*(col%2))
+      // Coordinate system is "A1 in the lower-left" in *world* terms.
+      // We map that to pixels by flipping against WORLD.rows.
       const s = GRID.size;
       const x = GRID.originX + (s * 1.5) * col;
-      const rowFromTop = (GRID.rows - row); // 0-based; row=GRID.rows at top, row=1 at bottom
+      const rowFromTop = (WORLD.rows - row); // 0-based; row=WORLD.rows at top, row=1 at bottom
       const y = GRID.originY + (s * Math.sqrt(3)) * (rowFromTop + 0.5 * (col % 2));
       return { x, y };
     }
@@ -422,21 +475,36 @@
     // ---------------------------
     function drawHexGrid(){
       const s = GRID.size;
-      for(let col=0; col<GRID.cols; col++){
-        for(let row=1; row<=GRID.rows; row++){
+
+      // Draw only what's near the camera (keeps big worlds fast)
+      const colRadius = Math.ceil(canvas.width / (1.5 * s)) + 4;
+      const rowRadius = Math.ceil(canvas.height / (Math.sqrt(3) * s)) + 4;
+
+      const cMin = clamp(VIEW.camera.col - colRadius, 0, WORLD.cols - 1);
+      const cMax = clamp(VIEW.camera.col + colRadius, 0, WORLD.cols - 1);
+      const rMin = clamp(VIEW.camera.row - rowRadius, 1, WORLD.rows);
+      const rMax = clamp(VIEW.camera.row + rowRadius, 1, WORLD.rows);
+
+      for(let col=cMin; col<=cMax; col++){
+        for(let row=rMin; row<=rMax; row++){
           const c = hexCenter(col,row);
           const poly = hexPolygon(c.x,c.y,s);
-          ctx.lineWidth = 1;
-          ctx.strokeStyle = COLORS.grid;
           drawPoly(poly, null, COLORS.grid, 1);
 
-          // labels
-          const label = `${LETTERS[col]}${row}`;
-          ctx.fillStyle = (row === GRID.rows || row === 1 || col === 0 || col === GRID.cols-1) ? COLORS.labelBold : COLORS.label;
-          ctx.font = '600 12px system-ui, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(label, c.x, c.y);
+          // labels (absolute world labels)
+          // Avoid drawing labels that would be clipped by the canvas edge.
+          const sx = c.x + VIEW.dx;
+          const sy = c.y + VIEW.dy;
+          const labelPad = 14;
+          if(sx >= labelPad && sx <= canvas.width - labelPad && sy >= labelPad && sy <= canvas.height - labelPad){
+            const label = `${colToLabel(col)}${row}`;
+            const isEdge = (row === WORLD.rows || row === 1 || col === 0 || col === WORLD.cols-1);
+            ctx.fillStyle = isEdge ? COLORS.labelBold : COLORS.label;
+            ctx.font = '600 12px system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, c.x, c.y);
+          }
         }
       }
     }
@@ -493,6 +561,15 @@
       const w = Number(o.widthPx || 70);
       const thick = 18;
 
+      // Rotation support (legacy + new):
+      // - facing sets the default orientation (E/W = 90deg)
+      // - rot adds an additional degrees rotation (e.g., rot: 90)
+      // Accept both "rot" and legacy "Rot".
+      const facing = String(o.facing || 'E').toUpperCase();
+      const facingDeg = (facing === 'E' || facing === 'W') ? 90 : 0;
+      const rotDeg = Number(o.rot ?? o.Rot ?? 0);
+      const angle = (facingDeg + rotDeg) * Math.PI / 180;
+
       ctx.save();
       if(o.kind === 'window'){
         ctx.fillStyle = COLORS.window;
@@ -503,16 +580,14 @@
       }
       ctx.lineWidth = 2;
 
-      const facing = String(o.facing || 'E').toUpperCase();
-      // Draw as a small rectangle straddling the wall line.
-      let x=c.x, y=c.y, rw=w, rh=thick;
-      if(facing === 'E' || facing === 'W'){
-        rw = thick; rh = w;
-      }
+      // Draw as a small rectangle centered on the hex, rotated as requested.
+      ctx.translate(c.x, c.y);
+      if(angle) ctx.rotate(angle);
       ctx.beginPath();
-      ctx.rect(x - rw/2, y - rh/2, rw, rh);
+      ctx.rect(-w/2, -thick/2, w, thick);
       ctx.fill();
       ctx.stroke();
+
       ctx.restore();
     }
 
@@ -576,7 +651,9 @@
       // - Then punch holes for visible rooms
       ctx.save();
       ctx.fillStyle = COLORS.fog;
-      ctx.fillRect(0,0,canvas.width,canvas.height);
+      // NOTE: drawFog is called inside the translated (camera) context.
+      // Fill the *screen* area by drawing a world-space rect that maps onto the canvas.
+      ctx.fillRect(-VIEW.dx, -VIEW.dy, canvas.width, canvas.height);
 
       ctx.globalCompositeOperation = 'destination-out';
       for(const r of (SCENE.rooms || [])){
@@ -598,13 +675,94 @@
 
     function render(){
       clear();
+
+      // Anchor should follow the canvas size.
+      VIEW.anchor.x = canvas.width / 2;
+      VIEW.anchor.y = canvas.height / 2;
+
+      // Translate world -> screen so that VIEW.camera lands at VIEW.anchor.
+      const camPx = hexCenter(VIEW.camera.col, VIEW.camera.row);
+      VIEW.dx = VIEW.anchor.x - camPx.x;
+      VIEW.dy = VIEW.anchor.y - camPx.y;
+
+      ctx.save();
+      ctx.translate(VIEW.dx, VIEW.dy);
+
       drawRooms();
       drawOpenings();
       drawActors();
       drawFog();
       // Grid + labels LAST (on top)
       drawHexGrid();
+
+      ctx.restore();
     }
+
+    // ---------------------------
+    // View helpers (camera)
+    // ---------------------------
+    function computeSceneBounds(scene){
+      let minCol = Infinity, minRow = Infinity, maxCol = -Infinity, maxRow = -Infinity;
+
+      function considerHexId(hexId){
+        const h = parseHexId(hexId);
+        if(!h) return;
+        minCol = Math.min(minCol, h.col);
+        maxCol = Math.max(maxCol, h.col);
+        minRow = Math.min(minRow, h.row);
+        maxRow = Math.max(maxRow, h.row);
+      }
+
+      for(const r of (scene.rooms || [])){
+        for(const c of (r.corners || [])) considerHexId(c);
+      }
+      for(const o of (scene.openings || [])) considerHexId(o.at);
+      for(const a of (scene.actors || [])) considerHexId(a.at);
+
+      if(!Number.isFinite(minCol)){
+        return { minCol: 0, maxCol: 0, minRow: 1, maxRow: 1 };
+      }
+      return { minCol, maxCol, minRow, maxRow };
+    }
+
+    function centerCameraOnScene(scene){
+      const b = computeSceneBounds(scene);
+      const col = Math.round((b.minCol + b.maxCol) / 2);
+      const row = Math.round((b.minRow + b.maxRow) / 2);
+      VIEW.camera.col = clamp(col, 0, WORLD.cols - 1);
+      VIEW.camera.row = clamp(row, 1, WORLD.rows);
+    }
+
+    // Keyboard pan (arrow keys). Steps are 2 hexes to keep parity clean. Shift = faster.
+    document.addEventListener('keydown', (e) => {
+      const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+      if(tag === 'textarea' || tag === 'input' || tag === 'select') return;
+
+      const step = e.shiftKey ? 10 : 2;
+      let handled = true;
+
+      switch(e.key){
+        case 'ArrowLeft':
+          VIEW.camera.col = clamp(VIEW.camera.col - step, 0, WORLD.cols - 1);
+          break;
+        case 'ArrowRight':
+          VIEW.camera.col = clamp(VIEW.camera.col + step, 0, WORLD.cols - 1);
+          break;
+        case 'ArrowUp':
+          VIEW.camera.row = clamp(VIEW.camera.row + step, 1, WORLD.rows);
+          break;
+        case 'ArrowDown':
+          VIEW.camera.row = clamp(VIEW.camera.row - step, 1, WORLD.rows);
+          break;
+        default:
+          handled = false;
+      }
+
+      if(handled){
+        e.preventDefault();
+        render();
+      }
+    });
 
     // ---------------------------
     // UI wiring
@@ -633,6 +791,40 @@
         .replaceAll("'",'&#039;');
     }
 
+    // Camera jump UI
+    const cameraHexInput = document.getElementById('cameraHexInput');
+    const cameraGoBtn = document.getElementById('cameraGoBtn');
+
+    function flashInvalidHex(){
+      if(!cameraHexInput) return;
+      const prev = cameraHexInput.style.borderColor;
+      cameraHexInput.style.borderColor = '#ef4444';
+      setTimeout(() => { cameraHexInput.style.borderColor = prev || ''; }, 350);
+    }
+
+    function jumpCameraToHex(hexStr){
+      const h = parseHexId(hexStr);
+      if(!h) { flashInvalidHex(); return; }
+      VIEW.camera.col = h.col;
+      VIEW.camera.row = h.row;
+      render();
+    }
+
+    if(cameraGoBtn){
+      cameraGoBtn.addEventListener('click', () => {
+        jumpCameraToHex(cameraHexInput?.value || '');
+      });
+    }
+
+    if(cameraHexInput){
+      cameraHexInput.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter'){
+          e.preventDefault();
+          jumpCameraToHex(cameraHexInput.value || '');
+        }
+      });
+    }
+
     document.getElementById('redrawBtn').addEventListener('click', () => {
       render();
     });
@@ -647,9 +839,11 @@
       // Basic parsing
       console.assert(parseHexId('A1')?.col === 0 && parseHexId('A1')?.row === 1, '[Test] parseHexId A1');
       console.assert(parseHexId('P11')?.col === 15 && parseHexId('P11')?.row === 11, '[Test] parseHexId P11');
-      console.assert(parseHexId('Z9') === null, '[Test] parseHexId invalid letter');
+      console.assert(parseHexId('AA1')?.col === 26 && parseHexId('AA1')?.row === 1, '[Test] parseHexId AA1');
+      console.assert(parseHexId('1A') === null, '[Test] parseHexId invalid format');
+      console.assert(parseHexId('ZZ99') === null, '[Test] parseHexId out-of-range');
 
-      // Coordinate orientation: A1 should be BELOW A11 on the canvas
+      // Coordinate orientation: A1 should be BELOW A11 in world space
       const a1 = hexCenter(0, 1);
       const a11 = hexCenter(0, 11);
       console.assert(a1.y > a11.y, '[Test] A1 is below A11 (A1 bottom-left)');
@@ -659,8 +853,8 @@
       const expectedExpandX = 0.25 * (1.5 * s);
       const expectedExpandY = 0.5 * (Math.sqrt(3) * s);
 
-      const c1 = hexCenter(LETTERS.indexOf('D'), 1);
-      const c2 = hexCenter(LETTERS.indexOf('D'), 11);
+      const c1 = hexCenter(labelToCol('D'), 1);
+      const c2 = hexCenter(labelToCol('D'), 11);
       const r = cornersToRect(['D1','D11']);
       console.assert(r && Math.abs(r.x - (Math.min(c1.x,c2.x) - expectedExpandX)) < 1e-6, '[Test] cornersToRect expandX');
       console.assert(r && Math.abs(r.y - (Math.min(c1.y,c2.y) - expectedExpandY)) < 1e-6, '[Test] cornersToRect expandY');
@@ -686,6 +880,11 @@
 
     // Boot
     (function boot(){
+      resizeCanvasToStage();
+      window.addEventListener('resize', () => {
+        resizeCanvasToStage();
+        render();
+      });
       // Ensure default floor matches dropdown.
       try{
         const sel = document.getElementById('floorSelect');
@@ -699,6 +898,8 @@
 
       runSelfTests();
       validateScene(SCENE);
+      // Start with camera centered on whatever is in the scene (unless disabled).
+      if (VIEW.autoCenterOnBoot) centerCameraOnScene(SCENE);
       refreshStatus();
       render();
     })();
