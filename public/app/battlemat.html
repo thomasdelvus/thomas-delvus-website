@@ -1,1117 +1,955 @@
 <!doctype html>
 <!--
   Battlemat - V4
-  Version 4.21
+  Version 4.34
 
-  Notes:
-  - Restores full room/wall rendering pipeline (walls/floors/doors/windows) while keeping the grid + labels drawn on top.
-  - Textures are always ON (no toggle).
-  - Brick texture uses small, consistent medium-gray bricks.
+  Rewrite notes (v4.32):
+  - Fixes a JS SyntaxError caused by an unescaped newline inside a string literal.
+  - Adds a tiny console self-test for hex label parsing/roundtrips.
+
+  Rewrite notes (v4.31):
+  - Single, explicit geometry model for flat-top hexes (odd-q offset).
+  - One authoritative wall pipeline: rooms -> wall centerlines -> wall rings (thickness-aware).
+  - Horizontal walls use the "lower-half rule" by anchoring to a consistent parity phase,
+    then shifting by 1/4 rowStep to land in the gap between alternating flat tops.
+  - Doors/windows snap to the nearest precomputed wall segment (no parity hacks in openings).
+  - Camera pan + jump-to-hex preserved.
 -->
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat - V4</title>
+  <title>Battlemat</title>
   <style>
-    :root{
-      --bg:#f5f6f7;
-      --panel:#ffffff;
-      --line:#e6e8eb;
-      --text:#111827;
-      --muted:#6b7280;
-      --pill:#f3f4f6;
-      --shadow:0 10px 30px rgba(0,0,0,.06);
-      --radius:12px;
+    :root {
+      --ui-bg: #f4f4f4;
+      --panel-bg: #ffffff;
+      --panel-border: #e5e5e5;
+      --text: #111;
+      --muted: #666;
+      --btn: #ffffff;
+      --btn-border: #d0d0d0;
     }
-    html,body{height:100%; margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial,sans-serif; color:var(--text); background:var(--bg);}
-    .app{display:grid; grid-template-columns: 1fr 340px; gap:16px; padding:16px; height:100%; box-sizing:border-box;}
-    .left{display:flex; flex-direction:column; gap:10px; min-width:0;}
 
-    .stage{flex:1; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:10px; display:flex; align-items:center; justify-content:center; min-height:540px;}
-    canvas{background:#fff; border-radius:10px; width:100%; height:100%;}
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: var(--ui-bg);
+      color: var(--text);
+    }
 
-    .bottom{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:10px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+    .app {
+      height: 100%;
+      display: grid;
+      grid-template-columns: 1fr 500px;
+      gap: 12px;
+      padding: 12px;
+      box-sizing: border-box;
+    }
 
-    .legend{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
-    .legend .item{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted);}
-    .swatch{width:14px; height:14px; border-radius:4px; border:1px solid rgba(0,0,0,.12);}
+    .stage {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      min-width: 0;
+      min-height: 0;
+    }
 
-    .right{display:flex; flex-direction:column; gap:12px;}
-    .panel{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:12px;}
-    .panel-title{font-weight:700; font-size:13px; margin:0 0 8px 0;}
+    .canvasWrap {
+      position: relative;
+      min-height: 0;
+      min-width: 0;
+    }
 
-    .row{display:flex; align-items:center; justify-content:space-between; gap:10px;}
-    .subtle{color:var(--muted); font-size:12px;}
-    .pill{background:var(--pill); border:1px solid var(--line); border-radius:999px; padding:6px 10px; font-size:12px; color:#111; cursor:pointer; user-select:none;}
-    .pill:active{transform:translateY(1px);}
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #fff;
+    }
 
-    table{width:100%; border-collapse:collapse; font-size:12px;}
-    th,td{padding:6px 6px; border-bottom:1px solid var(--line); text-align:left;}
-    th{color:var(--muted); font-weight:600;}
+    .controls {
+      border-top: 1px solid var(--panel-border);
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
 
-    textarea{width:100%; height:520px; resize:none; border:1px solid var(--line); border-radius:10px; padding:10px; font-size:12px; line-height:1.35; box-sizing:border-box; outline:none;}
+    .controls .spacer { flex: 1; }
 
-    select{border:1px solid var(--line); border-radius:999px; padding:6px 10px; font-size:12px; background:#fff;}
-    .hexJump{border:1px solid var(--line); border-radius:999px; padding:8px 12px; font-size:12px; background:#fff; width:110px; box-sizing:border-box; outline:none;}
-    .hexJump:focus{border-color:#cbd5e1;}
-    .btn{border:1px solid var(--line); border-radius:999px; padding:8px 12px; background:#fff; cursor:pointer; font-size:12px;}
-    .btn:hover{background:#fafafa;}
+    button {
+      background: var(--btn);
+      border: 1px solid var(--btn-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+    button:active { transform: translateY(1px); }
 
-    @media (max-width: 1060px){
-      .app{grid-template-columns: 1fr;}
-      .right{order:2;}
+    input, select {
+      border: 1px solid var(--btn-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      outline: none;
+    }
+
+    .sidebar {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .sidebarHeader {
+      padding: 12px;
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pill {
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--panel-border);
+      background: #fafafa;
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
+
+    .sidebarBody {
+      padding: 12px;
+      overflow: auto;
+    }
+
+    .kvs {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .sw {
+      width: 14px; height: 14px;
+      border-radius: 4px;
+      border: 1px solid rgba(0,0,0,0.15);
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 6px;
     }
   </style>
 </head>
 <body>
   <div class="app">
-    <div class="left">
-      <div class="stage">
-        <canvas id="mat" width="1000" height="820"></canvas>
+    <div class="stage">
+      <div class="canvasWrap">
+        <canvas id="canvas"></canvas>
       </div>
+      <div class="controls">
+        <button id="btnLeft">←</button>
+        <button id="btnUp">↑</button>
+        <button id="btnDown">↓</button>
+        <button id="btnRight">→</button>
 
-      <div class="bottom">
-        <div class="legend" aria-label="Legend">
-          <div class="item"><span class="swatch" style="background:#b07a2f"></span>Door</div>
-          <div class="item"><span class="swatch" style="background:#cfe9ff"></span>Window</div>
-          <div class="item"><span class="swatch" style="background:#4aa3ff"></span>Player</div>
-          <div class="item"><span class="swatch" style="background:#111"></span>Enemy</div>
-          <div class="item"><span class="swatch" style="background:#d1d5db"></span>Difficult</div>
-        </div>
+        <span class="spacer"></span>
 
-        <div class="row" style="gap:8px;">
-          <span class="subtle">Floor</span>
-          <select id="floorSelect">
-            <option value="stone" selected>Stone</option>
-            <option value="wood">Wood</option>
-          </select>
-          <input class="hexJump" id="cameraHexInput" type="text" placeholder="Jump to (e.g., H6, AA27)" />
-          <button class="btn" id="cameraGoBtn">Jump</button>
-          <button class="btn" id="redrawBtn">Redraw</button>
-        </div>
+        <label class="legend" style="margin-right: 8px;">
+          <span><span class="sw" style="background:#b67a2c"></span>Door</span>
+          <span><span class="sw" style="background:#bfe2ff"></span>Window</span>
+          <span><span class="sw" style="background:#666"></span>Wall</span>
+        </label>
+
+        <select id="floorKind">
+          <option value="wood">Floor: Wood</option>
+          <option value="stone">Floor: Stone</option>
+          <option value="none">Floor: None</option>
+        </select>
+
+        <input id="jumpHex" placeholder="Jump to (e.g., H6)" style="width: 140px;" />
+        <button id="btnJump">Jump</button>
+        <button id="btnRedraw">Redraw</button>
       </div>
     </div>
 
-    <div class="right">
-      <div class="panel">
-        <div class="row">
-          <div class="panel-title" style="margin:0;">Status</div>
-          <div class="pill" style="border:none; background:transparent; cursor:default;" id="versionLine">v4.21</div>
-        </div>
-        <div class="row subtle" style="margin-top:6px;">
-          <div id="roundLine">Round 1</div>
-          <span class="pill" id="refreshBtn">Refresh: 60s</span>
-        </div>
-        <div style="margin-top:10px;">
-          <table>
-            <thead>
-              <tr><th>Actor</th><th>Init</th><th>HP</th></tr>
-            </thead>
-            <tbody id="statusBody"></tbody>
-          </table>
-        </div>
+    <div class="sidebar">
+      <div class="sidebarHeader">
+        <div style="font-weight: 600;">Status</div>
+        <div class="pill" id="versionLine">v4.34</div>
       </div>
-
-      <div class="panel" style="flex:1; display:flex; flex-direction:column;">
-        <div class="panel-title">Narration</div>
-        <textarea id="narration" placeholder="Scene beats, GM notes, what just happened..."></textarea>
+      <div class="sidebarBody">
+        <div class="kvs" id="kvs"></div>
+        <hr style="border: none; border-top: 1px solid var(--panel-border); margin: 12px 0;" />
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px;">Debug: Room corner coords</div>
+        <div id="debugRooms" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 11px; color: var(--muted); white-space: pre; line-height: 1.35;"></div>
+        <hr style="border: none; border-top: 1px solid var(--panel-border); margin: 12px 0;" />
+        <div style="font-size: 12px; color: var(--muted); line-height: 1.35;">
+          Geometry rewrite: rooms → wall centerlines → thickness-aware wall rings.
+        </div>
       </div>
     </div>
   </div>
 
-  <script>
-    'use strict';
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
 
-    /**
-     * Core idea:
-     * - Keep a simple, deterministic flat-top hex coordinate system.
-     * - Draw rooms/walls/floors first.
-     * - Then doors/windows/props/tokens.
-     * - Finally draw hex grid + hex labels on top.
-     */
+  // Flat-top hex geometry: size is center-to-vertex.
+  const GRID = {
+    size: 42,
+    lineWidth: 2,
+    lineAlpha: 0.18,
+    labelAlpha: 0.65,
+    labelFont: 'bold 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial',
+  };
 
-    // ---------------------------
-    // Canvas + sizing
-    // ---------------------------
-    const canvas = document.getElementById('mat');
-    const ctx = canvas.getContext('2d');
-    const stageEl = document.querySelector('.stage');
+  const COLORS = {
+    wall: '#666',
+    door: '#b67a2c',
+    window: '#bfe2ff',
+    floorStone: 'rgba(214, 195, 140, 0.78)',
+    floorWood: 'rgba(193, 146, 86, 0.78)',
+    tokenHero: '#4aa3ff',
+    tokenEnemy: '#111',
+    tokenTextDark: 'rgba(0,0,0,0.72)',
+    tokenTextLight: 'rgba(255,255,255,0.88)',
+  };
 
-    function resizeCanvasToStage(){
-      if(!stageEl) return;
-      const cs = getComputedStyle(stageEl);
-      const padX = (parseFloat(cs.paddingLeft)||0) + (parseFloat(cs.paddingRight)||0);
-      const padY = (parseFloat(cs.paddingTop)||0) + (parseFloat(cs.paddingBottom)||0);
+  const VIEW = {
+    // Camera is in hex coords (col,row), row 0 is "row 1" at the bottom.
+    camera: { col: 6, row: 6 },
+    anchor: { x: 0, y: 0 },
+    dx: 0,
+    dy: 0,
+  };
 
-      const w = Math.max(480, Math.floor(stageEl.clientWidth - padX));
-      const h = Math.max(360, Math.floor(stageEl.clientHeight - padY));
+  const PAN_STEP = 2;
 
-      if(canvas.width !== w || canvas.height !== h){
-        canvas.width = w;
-        canvas.height = h;
-      }
-    }
+  const DEFAULT_STATE = {
+    meta: { title: 'Cross Keys Inn — Upper Floor', battleId: 'local', round: 1 },
+    view: { camera_hex: 'K6' },
 
-    // Grid: flat-top hexes
-    const GRID = {
-      // Flat-top hex geometry
-      size: 42,      // hex radius
-      originX: 70,   // world-space origin
-      originY: 70,
-    };
-
-    // Absolute world extents (labels are stable: A1..DZ90 etc)
-    // Camera selects which slice is visible.
-    const WORLD = {
-      cols: 140,
-      rows: 90,
-    };
-
-    // View/camera state (in hex coords). Rendering translates world -> screen.
-    const VIEW = {
-      camera: { col: 30, row: 31 },
-      anchor: { x: canvas.width / 2, y: canvas.height / 2 },
-      dx: 0,
-      dy: 0,
-      // On boot, we currently auto-center on the scene bounds.
-      // Set false to honor the manual VIEW.camera values above.
-      autoCenterOnBoot: true,
-    }; 
-
-    // Visual tuning
-    const COLORS = {
-      grid: 'rgba(0,0,0,0.15)',
-      gridBold: 'rgba(0,0,0,0.18)',
-      label: 'rgba(0,0,0,0.16)',
-      labelBold: 'rgba(0,0,0,0.18)',
-      fog: 'rgba(0,0,0,0.55)',
-      door: '#b07a2f',
-      window: '#cfe9ff',
-      enemy: '#111111',
-      player: '#4aa3ff',
-    };
-
-    // ---------------------------
-    // Scene data (default)
-    // ---------------------------
-    // NOTE: This provides walls/floors by default so you can verify rendering.
-    // If you later load scene JSON from an API, merge it over this.
-    const DEFAULT_SCENE = {
-      battleId: 'local',
-      round: 1,
-      rooms: [
-        {
-          id: 'CrossKeysUpperFloor',
-          corners: ['B11','Z11','Z2','B2'],
-          thickness: 20,
-          color: '#555',
-          floor: { kind: 'wood' },
-          wall: { kind: 'brick' },
-        },
-        {
-          id: 'Bedroom1',
-          corners: ['B11','F11','F8','B8'],
-          thickness: 20,
-          color: '#555',
-          floor: { kind: 'wood' },
-          wall: { kind: 'brick' },
-        },
-        {
-          id: 'Bedroom2',
-          corners: ['B8','F8','F5','B5'],
-          thickness: 20,
-          color: '#555',
-          floor: { kind: 'wood' },
-          wall: { kind: 'brick' },
-        },
-        {
-          id: 'Bedroom3',
-          corners: ['B5','F5','F2','B2'],
-          thickness: 20,
-          color: '#555',
-          floor: { kind: 'wood' },
-          wall: { kind: 'brick' },
-        },
-        {
-          id: 'Bedroom4',
-          corners: ['H5','N5','N2','H2'],
-          thickness: 36,
-          color: '#555',
-          floor: { kind: 'wood' },
-          wall: { kind: 'brick' },
-        },
-        {
-          id: 'Bedroom5',
-          corners: ['H11','N11','N7','H7'],
-          thickness: 36,
-          color: '#555',
-          floor: { kind: 'wood' },
-          wall: { kind: 'brick' },
-        },
-        {
-          id: 'Bedroom6',
-          corners: ['N9','T9','T7','N7'],
-          thickness: 36,
-          color: '#555',
-          floor: { kind: 'wood' },
-          wall: { kind: 'brick' },
-        },
-        {
-          id: 'Bedroom7',
-          corners: ['N5','T5','T2','N2'],
-          thickness: 26,
-          color: '#555',
-          floor: { kind: 'wood' },
-          wall: { kind: 'brick' },
-        },
-        {
-          id: 'Bedroom8',
-          corners: ['V5','Z5','Z2','V2'],
-          thickness: 26,
-          color: '#555',
-          floor: { kind: 'wood' },
-          wall: { kind: 'brick' },
-        },
-        {
-          id: 'Bedroom9',
-          corners: ['V8','Z8','Z5','V5'],
-          thickness: 26,
-          color: '#555',
-          floor: { kind: 'wood' },
-          wall: { kind: 'brick' },
-        },
-        {
-          id: 'Bedroom10',
-          corners: ['V11','Z11','Z8','V8'],
-          thickness: 36,
-          color: '#555',
-          floor: { kind: 'wood' },
-          wall: { kind: 'brick' },
-        },
-        
-      ],
-      openings: [
-        { id: 'door_room1', kind: 'door', at: 'F9', facing: 'E', widthPx: 70 },
-        { id: 'door_room2', kind: 'door', at: 'F6', facing: 'E', widthPx: 70 },
-        { id: 'door_room3', kind: 'door', at: 'F3', facing: 'E', widthPx: 70 },
-        { id: 'door_room4', kind: 'door', at: 'J5', facing: 'N', widthPx: 70 },
-        { id: 'door_room5', kind: 'door', at: 'K6', facing: 'S', widthPx: 70 },
-        { id: 'door_room6', kind: 'door', at: 'Q6', facing: 'D', widthPx: 70 },
-        { id: 'door_room7', kind: 'door', at: 'S4', facing: 'N', widthPx: 70 },
-        { id: 'door_room8', kind: 'door', at: 'V3', facing: 'W', widthPx: 70 },
-        { id: 'door_room9', kind: 'door', at: 'V6', facing: 'W', widthPx: 70 },
-        { id: 'door_room1', kind: 'door', at: 'V10', facing: 'W', widthPx: 70 },
-        { id: 'west_window1', kind: 'window', at: 'B10', facing: 'W', widthPx: 70 },
-        { id: 'west_window2', kind: 'window', at: 'B9', facing: 'W', widthPx: 70 },
-        { id: 'west_window3', kind: 'window', at: 'B7', facing: 'W', widthPx: 70 },
-        { id: 'west_window4', kind: 'window', at: 'B6', facing: 'W', widthPx: 70 },
-        { id: 'west_window5', kind: 'window', at: 'B4', facing: 'W', widthPx: 70 },
-        { id: 'west_window6', kind: 'window', at: 'B3', facing: 'W', widthPx: 70 },
-        { id: 'south_window1', kind: 'window', at: 'C1', facing: 'S', widthPx: 70 },
-        { id: 'south_window2', kind: 'window', at: 'D2', facing: 'S', widthPx: 70 },
-        { id: 'south_window3', kind: 'window', at: 'G1', facing: 'S', widthPx: 70 },
-        { id: 'south_window4', kind: 'window', at: 'J2', facing: 'S', widthPx: 70 },
-        { id: 'south_window5', kind: 'window', at: 'K1', facing: 'S', widthPx: 70 },
-        { id: 'south_window6', kind: 'window', at: 'Q1', facing: 'S', widthPx: 70 },
-        { id: 'south_window7', kind: 'window', at: 'R2', facing: 'S', widthPx: 70 },
-        { id: 'south_window8', kind: 'window', at: 'U1', facing: 'S', widthPx: 70 },
-        { id: 'south_window9', kind: 'window', at: 'X2', facing: 'S', widthPx: 70 },
-
-
-      ],
-      actors: [
-        { id: 'lich', name: 'Lich', side: 'ENEMY', at: 'K9', init: 15, hp: 135 },
-        { id: 'w1', name: 'Wraith 1', side: 'ENEMY', at: 'J6', init: 12, hp: 67 },
-        { id: 'w2', name: 'Wraith 2', side: 'ENEMY', at: 'G8', init: 11, hp: 67 },
-        { id: 'w3', name: 'Wraith 3', side: 'ENEMY', at: 'D7', init: 10, hp: 67 },
-        { id: 'a', name: 'Aelar', side: 'PLAYER', at: 'J3', init: 14, hp: 42 },
-        { id: 'b', name: 'Brunna', side: 'PLAYER', at: 'K3', init: 13, hp: 55 },
-        { id: 'c', name: 'Caelin', side: 'PLAYER', at: 'L4', init: 12, hp: 38 },
-      ],
-      fog: {
-        enabled: false,
-        visibleRooms: ['room_left'],
+    rooms: [
+      {
+        id: 'CrossKeysUpperFloor',
+        corners: ['B11','Z11','Z2','B2'],
+        thickness: 20,
+        color: '#555',
+        floor: { kind: 'wood' },
+        wall: { kind: 'brick' },
       },
-      narration: "The crypt is silent but for the soft scrape of bone on stone.\n\nAelar steps forward, blade raised — and the air suddenly turns cold.\n\nCaelin: \"I don't like this...\"\n\nA shadow shifts near the sarcophagus."
-    };
+      {
+        id: 'Bedroom2',
+        corners: ['B8','F8','F5','B5'],
+        thickness: 20,
+        color: '#555',
+        floor: { kind: 'wood' },
+        wall: { kind: 'brick' },
+      },
+      {
+        id: 'Bedroom3',
+        corners: ['B5','F5','F2','B2'],
+        thickness: 20,
+        color: '#555',
+        floor: { kind: 'wood' },
+        wall: { kind: 'brick' },
+      },
+      {
+        id: 'Bedroom4',
+        corners: ['H5','N5','N2','H2'],
+        thickness: 20,
+        color: '#555',
+        floor: { kind: 'wood' },
+        wall: { kind: 'brick' },
+      },
+      {
+        id: 'Bedroom5',
+        corners: ['H11','N11','N7','H7'],
+        thickness: 20,
+        color: '#555',
+        floor: { kind: 'wood' },
+        wall: { kind: 'brick' },
+      },
+      {
+        id: 'Bedroom6',
+        corners: ['N9','T9','T7','N7'],
+        thickness: 20,
+        color: '#555',
+        floor: { kind: 'wood' },
+        wall: { kind: 'brick' },
+      },
+      {
+        id: 'Bedroom7',
+        corners: ['N5','T5','T2','N2'],
+        thickness: 20,
+        color: '#555',
+        floor: { kind: 'wood' },
+        wall: { kind: 'brick' },
+      },
+      {
+        id: 'Bedroom8',
+        corners: ['V5','Z5','Z2','V2'],
+        thickness: 20,
+        color: '#555',
+        floor: { kind: 'wood' },
+        wall: { kind: 'brick' },
+      },
+      {
+        id: 'Bedroom9',
+        corners: ['V8','Z8','Z5','V5'],
+        thickness: 20,
+        color: '#555',
+        floor: { kind: 'wood' },
+        wall: { kind: 'brick' },
+      },
+      {
+        id: 'Bedroom10',
+        corners: ['V11','Z11','Z8','V8'],
+        thickness: 20,
+        color: '#555',
+        floor: { kind: 'wood' },
+        wall: { kind: 'brick' },
+      },
+      {
+        id: 'Bedroom1',
+        corners: ['B11','F11','F8','B8'],
+        thickness: 20,
+        color: '#555',
+        floor: { kind: 'wood' },
+        wall: { kind: 'brick' },
+      },
+      
+    ],
 
-    // Active scene
-    let SCENE = structuredClone(DEFAULT_SCENE);
+    // Converted: at -> hex, facing -> orientation (E/W => v, N/S/D => h)
+    openings: [
+      { id: 'door_room1', kind: 'door', hex: 'F9', orientation: 'v', widthPx: 70 },
+      { id: 'door_room2', kind: 'door', hex: 'F6', orientation: 'v', widthPx: 70 },
+      { id: 'door_room3', kind: 'door', hex: 'F3', orientation: 'v', widthPx: 70 },
+      { id: 'door_room4', kind: 'door', hex: 'J5', orientation: 'h', widthPx: 70 },
+      { id: 'door_room5', kind: 'door', hex: 'K6', orientation: 'h', widthPx: 70 },
+      { id: 'door_room6', kind: 'door', hex: 'Q6', orientation: 'h', widthPx: 70 },
+      { id: 'door_room7', kind: 'door', hex: 'S4', orientation: 'h', widthPx: 70 },
+      { id: 'door_room8', kind: 'door', hex: 'V3', orientation: 'v', widthPx: 70 },
+      { id: 'door_room9', kind: 'door', hex: 'V6', orientation: 'v', widthPx: 70 },
+      { id: 'door_room10', kind: 'door', hex: 'V10', orientation: 'v', widthPx: 70 },
 
-    // ---------------------------
-    // Utilities: hex math
-    // ---------------------------
-    // Excel-style column labels: 0->A, 25->Z, 26->AA, ...
-    function colToLabel(col){
-      let n = col + 1; // 1-based
-      let out = '';
-      while(n > 0){
-        n--; // make it 0..25
-        out = String.fromCharCode(65 + (n % 26)) + out;
-        n = Math.floor(n / 26);
-      }
-      return out;
+      { id: 'west_window1', kind: 'window', hex: 'B10', orientation: 'v', widthPx: 70 },
+      { id: 'west_window2', kind: 'window', hex: 'B9', orientation: 'v', widthPx: 70 },
+      { id: 'west_window3', kind: 'window', hex: 'B7', orientation: 'v', widthPx: 70 },
+      { id: 'west_window4', kind: 'window', hex: 'B6', orientation: 'v', widthPx: 70 },
+      { id: 'west_window5', kind: 'window', hex: 'B4', orientation: 'v', widthPx: 70 },
+      { id: 'west_window6', kind: 'window', hex: 'B3', orientation: 'v', widthPx: 70 },
+
+      { id: 'south_window1', kind: 'window', hex: 'C1', orientation: 'h', widthPx: 70 },
+      { id: 'south_window2', kind: 'window', hex: 'D2', orientation: 'h', widthPx: 70 },
+      { id: 'south_window3', kind: 'window', hex: 'G1', orientation: 'h', widthPx: 70 },
+      { id: 'south_window4', kind: 'window', hex: 'J2', orientation: 'h', widthPx: 70 },
+      { id: 'south_window5', kind: 'window', hex: 'K1', orientation: 'h', widthPx: 70 },
+      { id: 'south_window6', kind: 'window', hex: 'Q1', orientation: 'h', widthPx: 70 },
+      { id: 'south_window7', kind: 'window', hex: 'R2', orientation: 'h', widthPx: 70 },
+      { id: 'south_window8', kind: 'window', hex: 'U1', orientation: 'h', widthPx: 70 },
+      { id: 'south_window9', kind: 'window', hex: 'X2', orientation: 'h', widthPx: 70 },
+    ],
+
+    // Converted: actors[] -> tokens[] (at -> hex). Kept init/hp for later UI.
+    tokens: [
+      { id: 'lich', name: 'Lich', side: 'ENEMY', hex: 'K9', label: 'L', init: 15, hp: 135 },
+      { id: 'w1', name: 'Wraith 1', side: 'ENEMY', hex: 'J6', label: 'W1', init: 12, hp: 67 },
+      { id: 'w2', name: 'Wraith 2', side: 'ENEMY', hex: 'G8', label: 'W2', init: 11, hp: 67 },
+      { id: 'w3', name: 'Wraith 3', side: 'ENEMY', hex: 'D7', label: 'W3', init: 10, hp: 67 },
+      { id: 'a', name: 'Aelar', side: 'PC', hex: 'J3', label: 'A', init: 14, hp: 42 },
+      { id: 'b', name: 'Brunna', side: 'PC', hex: 'K3', label: 'B', init: 13, hp: 55 },
+      { id: 'c', name: 'Caelin', side: 'PC', hex: 'L4', label: 'C', init: 12, hp: 38 },
+    ],
+  };
+
+  const getState = () => (window.BATTLE_STATE ?? DEFAULT_STATE);
+
+  // ===== Hex helpers =====
+  function colToLetters(col) {
+    let n = col + 1;
+    let s = '';
+    while (n > 0) {
+      const r = (n - 1) % 26;
+      s = String.fromCharCode(65 + r) + s;
+      n = Math.floor((n - 1) / 26);
+    }
+    return s;
+  }
+
+  function lettersToCol(letters) {
+    const u = String(letters).toUpperCase();
+    let n = 0;
+    for (let i = 0; i < u.length; i++) {
+      const c = u.charCodeAt(i);
+      if (c < 65 || c > 90) throw new Error('Bad column letters');
+      n = n * 26 + (c - 64);
+    }
+    return n - 1;
+  }
+
+  function parseHexId(hex) {
+    const m = String(hex).trim().toUpperCase().match(/^([A-Z]+)([0-9]+)$/);
+    if (!m) throw new Error('Bad hex: ' + hex);
+    return { col: lettersToCol(m[1]), row: parseInt(m[2], 10) - 1 };
+  }
+
+  function hexId(col, row) {
+    return colToLetters(col) + String(row + 1);
+  }
+
+  // ===== Geometry (world coords) =====
+  const sqrt3 = Math.sqrt(3);
+  function colStep() { return 1.5 * GRID.size; }
+  function rowStep() { return sqrt3 * GRID.size; }
+
+  // Row 0 is bottom row ("1"), row increases upward.
+  function hexCenterWorld(col, row) {
+    const x = col * colStep();
+    const y = -(row * rowStep() + (col & 1) * (rowStep() / 2));
+    return { x, y };
+  }
+
+  function snappedCenterY(row, phase) {
+    const p = phase ? 1 : 0;
+    return -(row * rowStep() + p * (rowStep() / 2));
+  }
+
+  // Horizontal walls baseline (test): use the *upper-phase* gap.
+  // Anchor to even-column phase (phase 0) and shift DOWN by 1/4 rowStep to hit the mid-gap.
+  function horizontalGapY_forTopOfRow(row) {
+    const half = rowStep() / 2;
+    const quarter = rowStep() / 4;
+    return (snappedCenterY(row, 0) - half) + quarter;
+  }
+
+  function horizontalGapY_forBottomOfRow(row) {
+    const half = rowStep() / 2;
+    const quarter = rowStep() / 4;
+    return (snappedCenterY(row, 0) + half) + quarter;
+  }
+
+  // ===== Camera transform =====
+  function cameraWorld() {
+    return hexCenterWorld(VIEW.camera.col, VIEW.camera.row);
+  }
+
+  function worldToScreen(p) {
+    const cam = cameraWorld();
+    return { x: VIEW.anchor.x + (p.x - cam.x) + VIEW.dx, y: VIEW.anchor.y + (p.y - cam.y) + VIEW.dy };
+  }
+
+  function screenToWorld(p) {
+    const cam = cameraWorld();
+    return { x: (p.x - VIEW.anchor.x) + cam.x - VIEW.dx, y: (p.y - VIEW.anchor.y) + cam.y - VIEW.dy };
+  }
+
+  // ===== Grid drawing =====
+  function hexCornersWorld(center) {
+    const s = GRID.size;
+    return [
+      { x: center.x + s,   y: center.y },
+      { x: center.x + s/2, y: center.y + (sqrt3*s)/2 },
+      { x: center.x - s/2, y: center.y + (sqrt3*s)/2 },
+      { x: center.x - s,   y: center.y },
+      { x: center.x - s/2, y: center.y - (sqrt3*s)/2 },
+      { x: center.x + s/2, y: center.y - (sqrt3*s)/2 },
+    ];
+  }
+
+  function drawHexOutline(col, row) {
+    const pts = hexCornersWorld(hexCenterWorld(col, row)).map(worldToScreen);
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  function drawHexLabel(col, row) {
+    const c = worldToScreen(hexCenterWorld(col, row));
+    const text = hexId(col, row);
+
+    // Outline helps labels stay readable over floors/walls.
+    ctx.save();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.strokeText(text, c.x, c.y);
+    ctx.fillText(text, c.x, c.y);
+    ctx.restore();
+  }
+
+  // ===== Rooms =====
+  function cornersToBounds(corners) {
+    const pts = corners.map(parseHexId);
+    const cols = pts.map(p => p.col);
+    const rows = pts.map(p => p.row);
+    return { minCol: Math.min.apply(null, cols), maxCol: Math.max.apply(null, cols), minRow: Math.min.apply(null, rows), maxRow: Math.max.apply(null, rows) };
+  }
+
+  function roomToWallBox(room) {
+    const thickness = Math.max(1, Number(room.thickness ?? 30));
+
+    if (!Array.isArray(room.corners) || room.corners.length < 4) {
+      throw new Error('Room missing 4 corners');
     }
 
-    function labelToCol(label){
-      const s = String(label || '').trim().toUpperCase();
-      if(!/^[A-Z]+$/.test(s)) return -1;
-      let n = 0;
-      for(let i=0;i<s.length;i++){
-        n = n * 26 + (s.charCodeAt(i) - 64); // A=1..Z=26
-      }
-      return n - 1; // back to 0-based
+    // Corner order (by convention in our scenes):
+    // [top-left, top-right, bottom-right, bottom-left]
+    // IMPORTANT: We anchor horizontal/vertical wall *centerlines* to the declared corner hex CENTERS.
+    // That means a room with corners [..., 'B8', ...] will have its south wall centerline at the
+    // world-space Y of hex B8 (not "one row lower" via gap math).
+    const p0 = parseHexId(room.corners[0]);
+    const p1 = parseHexId(room.corners[1]);
+    const p2 = parseHexId(room.corners[2]);
+    const p3 = parseHexId(room.corners[3]);
+
+    const c0 = hexCenterWorld(p0.col, p0.row);
+    const c1 = hexCenterWorld(p1.col, p1.row);
+    const c2 = hexCenterWorld(p2.col, p2.row);
+    const c3 = hexCenterWorld(p3.col, p3.row);
+
+    // Robust averaging keeps things stable even if a user accidentally mixes parities.
+    const xL = (c0.x + c3.x) / 2;
+    const xR = (c1.x + c2.x) / 2;
+    const yTop = (c0.y + c1.y) / 2;
+    const yBot = (c2.y + c3.y) / 2;
+
+    // Keep bounds around for debug/inspection.
+    const b = cornersToBounds(room.corners);
+
+    const halfT = thickness / 2;
+    const outer = { x1: xL - halfT, x2: xR + halfT, y1: yTop - halfT, y2: yBot + halfT, thickness: thickness };
+    const inner = { x1: outer.x1 + thickness, x2: outer.x2 - thickness, y1: outer.y1 + thickness, y2: outer.y2 - thickness };
+
+    return { bounds: b, thickness: thickness, outer: outer, inner: inner, xL: xL, xR: xR, yTop: yTop, yBot: yBot };
+  }
+
+  function buildWallSegments(rooms) {
+    const segs = [];
+    for (const r of rooms) {
+      const box = roomToWallBox(r);
+      const t = box.thickness;
+      segs.push({ orientation: 'h', y: box.yTop, x1: box.xL, x2: box.xR, thickness: t });
+      segs.push({ orientation: 'h', y: box.yBot, x1: box.xL, x2: box.xR, thickness: t });
+      segs.push({ orientation: 'v', x: box.xL, y1: box.yTop, y2: box.yBot, thickness: t });
+      segs.push({ orientation: 'v', x: box.xR, y1: box.yTop, y2: box.yBot, thickness: t });
     }
+    return segs;
+  }
 
-    function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+  function fillBrickRectScreen(rect, color) {
+    const brickW = 18;
+    const brickH = 10;
+    const mortar = 2;
 
-    function parseHexId(id){
-      // e.g. "H6" or "AA27" => {col,row}
-      const m = String(id).trim().toUpperCase().match(/^([A-Z]+)([0-9]{1,3})$/);
-      if(!m) return null;
-      const col = labelToCol(m[1]);
-      const row = parseInt(m[2], 10);
-      if(col < 0 || row < 1) return null;
-      if(col >= WORLD.cols || row > WORLD.rows) return null;
-      return { col, row };
+    ctx.fillStyle = color;
+    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    for (let y = rect.y; y < rect.y + rect.h; y += brickH) ctx.fillRect(rect.x, y, rect.w, mortar);
+
+    for (let row = 0, y = rect.y; y < rect.y + rect.h; row++, y += brickH) {
+      const offset = (row % 2) ? (brickW / 2) : 0;
+      for (let x = rect.x - offset; x < rect.x + rect.w; x += brickW) ctx.fillRect(x, y, mortar, brickH);
     }
+  }
 
-    function hexCenter(col, row){
-      // Flat-top layout (odd-q vertical offset).
-      // Coordinate system is "A1 in the lower-left" in *world* terms.
-      // We map that to pixels by flipping against WORLD.rows.
-      const s = GRID.size;
-      const x = GRID.originX + (s * 1.5) * col;
-      const rowFromTop = (WORLD.rows - row); // 0-based; row=WORLD.rows at top, row=1 at bottom
-      const y = GRID.originY + (s * Math.sqrt(3)) * (rowFromTop + 0.5 * (col % 2));
-      return { x, y };
+  function drawRoom(room) {
+    const box = roomToWallBox(room);
+    const wallColor = room.color ?? COLORS.wall;
+
+    const o1 = worldToScreen({ x: box.outer.x1, y: box.outer.y1 });
+    const o2 = worldToScreen({ x: box.outer.x2, y: box.outer.y2 });
+    const i1 = worldToScreen({ x: box.inner.x1, y: box.inner.y1 });
+    const i2 = worldToScreen({ x: box.inner.x2, y: box.inner.y2 });
+
+    const t = box.thickness;
+
+    // Wall ring
+    fillBrickRectScreen({ x: o1.x, y: o1.y, w: o2.x - o1.x, h: t }, wallColor);
+    fillBrickRectScreen({ x: o1.x, y: o2.y - t, w: o2.x - o1.x, h: t }, wallColor);
+    fillBrickRectScreen({ x: o1.x, y: o1.y + t, w: t, h: (o2.y - o1.y) - 2*t }, wallColor);
+    fillBrickRectScreen({ x: o2.x - t, y: o1.y + t, w: t, h: (o2.y - o1.y) - 2*t }, wallColor);
+
+    // Floor
+    const floorKind = room.floor?.kind ?? 'stone';
+    if (floorKind !== 'none') {
+      ctx.fillStyle = (floorKind === 'stone') ? COLORS.floorStone
+        : (floorKind === 'wood') ? COLORS.floorWood
+        : 'rgba(255,255,255,0)';
+      ctx.fillRect(i1.x, i1.y, i2.x - i1.x, i2.y - i1.y);
     }
+  }
 
-    function hexPolygon(cx, cy, s){
-      // flat-top
-      const pts = [];
-      for(let i=0;i<6;i++){
-        const a = Math.PI/180 * (60*i);
-        pts.push({ x: cx + s*Math.cos(a), y: cy + s*Math.sin(a) });
-      }
-      return pts;
-    }
+  // ===== Openings =====
+  function openingOrientation(o) {
+    if (o.orientation === 'h' || o.orientation === 'v') return o.orientation;
+    const rot = Number(o.rot ?? 0) % 180;
+    return (rot === 90) ? 'h' : 'v';
+  }
 
-    function drawPoly(p, fill=null, stroke=null, lw=1){
-      ctx.beginPath();
-      ctx.moveTo(p[0].x, p[0].y);
-      for(let i=1;i<p.length;i++) ctx.lineTo(p[i].x, p[i].y);
-      ctx.closePath();
-      if(fill){ ctx.fillStyle = fill; ctx.fill(); }
-      if(stroke){ ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
-    }
+  function findNearestWallSegment(segs, orient, worldPoint) {
+    let best = null;
+    let bestD = Infinity;
 
-    // Convert a corners array into a pixel-space bounding box rectangle.
-    // NOTE: This is the simple rectangle mode you've been using for now.
-    function cornersToRect(corners, thicknessPx = 30){
-      // IMPORTANT: cornersToRect is a rectangle approximation on a hex grid.
-      // To keep the "horizontal walls snap to lower-half" convention stable even when
-      // corners span both even/odd columns (which have different center Y offsets),
-      // compute vertical bounds using an explicit snap parity instead of raw min/max
-      // corner center Ys.
-      const hs = corners
-        .map(parseHexId)
-        .filter(Boolean);
-      if(hs.length < 2) return null;
-
-      let minCol = Infinity, maxCol = -Infinity;
-      let minRow = Infinity, maxRow = -Infinity;
-      for(const h of hs){
-        minCol = Math.min(minCol, h.col);
-        maxCol = Math.max(maxCol, h.col);
-        minRow = Math.min(minRow, h.row);
-        maxRow = Math.max(maxRow, h.row);
-      }
-
-      const s = GRID.size;
-      const colStep = 1.5 * s;
-      const rowStep = Math.sqrt(3) * s;
-
-      // Expand by our agreed rules:
-      // - X expands by quarter column-step (align vertical walls to boundary hex column)
-      // - Y expands by half row-step (align horizontal walls to bottom-half convention)
-      // X expansion depends on wall thickness so the *centerline* of vertical walls stays
-      // centered on the hex center X regardless of thickness.
-      // (Outer edge shifts by thickness/2, inner edge shifts by thickness/2 in the other direction.)
-      const tPx = Number(thicknessPx || 0);
-      const expandX = (tPx > 0) ? (tPx / 2) : (0.25 * colStep); // fallback if no thickness provided
-      const expandY = 0.5 * rowStep;  // = sqrt3*s/2
-
-      // X bounds are independent of row parity.
-      const minX = GRID.originX + colStep * minCol;
-      const maxX = GRID.originX + colStep * maxCol;
-
-      // Y bounds: enforce the "lower-half" snap by always using odd-column parity (+0.5).
-      // (Odd columns are shifted downward by +0.5 in our flat-top odd-q layout.)
-      const snapParity = 1; // 0=upper half, 1=lower half
-
-      function snappedCenterY(row){
-        const rowFromTop = (WORLD.rows - row);
-        return GRID.originY + rowStep * (rowFromTop + 0.5 * snapParity);
-      }
-
-      // Higher row numbers are higher up (smaller y) in our flipped coordinate system.
-      const topY = snappedCenterY(maxRow);
-      const botY = snappedCenterY(minRow);
-      const minY = Math.min(topY, botY);
-      const maxY = Math.max(topY, botY);
-
-      return {
-        x: minX - expandX,
-        // Top outer boundary should originate at the hex centerline ("lower half" convention).
-        y: minY,
-        w: (maxX - minX) + 2 * expandX,
-        // Keep the bottom outer boundary where it was (maxY + expandY).
-        h: (maxY - minY) + expandY,
-      };
-    }
-
-    // ---------------------------
-    // Procedural textures
-    // ---------------------------
-    const patternCache = new Map();
-
-    function makePattern(key, build){
-      if(patternCache.has(key)) return patternCache.get(key);
-      const p = build();
-      patternCache.set(key, p);
-      return p;
-    }
-
-    function patternBrickSmall(){
-      // Small, consistent medium-gray bricks.
-      return makePattern('brickSmall', () => {
-        const c = document.createElement('canvas');
-        // 1/4 size feel: keep tile small
-        c.width = 64;
-        c.height = 48;
-        const g = c.getContext('2d');
-
-        // background mortar
-        g.fillStyle = '#7d7f82';
-        g.fillRect(0,0,c.width,c.height);
-
-        // brick fill
-        const brick = '#8a8c8f';
-        const edge = 'rgba(0,0,0,0.10)';
-        const mortar = '#7d7f82';
-
-        const bw = 16; // brick width
-        const bh = 10; // brick height
-        const gap = 2; // mortar thickness
-
-        for(let y=0; y<c.height; y += (bh+gap)){
-          const row = Math.floor(y/(bh+gap));
-          const offset = (row % 2) ? Math.floor((bw+gap)/2) : 0;
-          for(let x=-offset; x<c.width; x += (bw+gap)){
-            g.fillStyle = brick;
-            g.fillRect(x, y, bw, bh);
-            g.strokeStyle = edge;
-            g.lineWidth = 1;
-            g.strokeRect(x+0.5, y+0.5, bw-1, bh-1);
-
-            // speckles (subtle)
-            g.fillStyle = 'rgba(0,0,0,0.05)';
-            for(let i=0;i<2;i++){
-              const sx = x + 2 + Math.random()*(bw-4);
-              const sy = y + 2 + Math.random()*(bh-4);
-              g.fillRect(sx, sy, 1, 1);
-            }
-          }
-        }
-
-        // thin mortar lines
-        g.fillStyle = mortar;
-        for(let y=bh; y<c.height; y += (bh+gap)){
-          g.fillRect(0, y, c.width, gap);
-        }
-        return ctx.createPattern(c, 'repeat');
-      });
-    }
-
-    function patternStone(){
-      return makePattern('stone', () => {
-        const c = document.createElement('canvas');
-        c.width = 120;
-        c.height = 120;
-        const g = c.getContext('2d');
-        g.fillStyle = '#b7b9bc';
-        g.fillRect(0,0,c.width,c.height);
-        g.strokeStyle = 'rgba(0,0,0,0.10)';
-        g.lineWidth = 2;
-        for(let y=0;y<120;y+=24){
-          for(let x=0;x<120;x+=40){
-            g.strokeRect(x+1, y+1, 38, 22);
-          }
-        }
-        g.fillStyle = 'rgba(0,0,0,0.05)';
-        for(let i=0;i<150;i++){
-          g.fillRect(Math.random()*120, Math.random()*120, 1, 1);
-        }
-        return ctx.createPattern(c, 'repeat');
-      });
-    }
-
-    function patternWood(){
-      return makePattern('wood', () => {
-        const c = document.createElement('canvas');
-        c.width = 120;
-        c.height = 120;
-        const g = c.getContext('2d');
-        g.fillStyle = '#d2c19a';
-        g.fillRect(0,0,c.width,c.height);
-        g.strokeStyle = 'rgba(0,0,0,0.10)';
-        g.lineWidth = 2;
-        for(let x=0;x<120;x+=20){
-          g.beginPath();
-          g.moveTo(x,0);
-          g.lineTo(x,120);
-          g.stroke();
-        }
-        g.strokeStyle = 'rgba(0,0,0,0.06)';
-        for(let i=0;i<12;i++){
-          g.beginPath();
-          g.moveTo(0, Math.random()*120);
-          g.bezierCurveTo(40, Math.random()*120, 80, Math.random()*120, 120, Math.random()*120);
-          g.stroke();
-        }
-        g.fillStyle = 'rgba(0,0,0,0.07)';
-        for(let i=0;i<60;i++){
-          g.beginPath();
-          g.arc(Math.random()*120, Math.random()*120, Math.random()*3, 0, Math.PI*2);
-          g.stroke();
-        }
-        return ctx.createPattern(c, 'repeat');
-      });
-    }
-
-    function floorPattern(kind){
-      if(kind === 'wood') return patternWood();
-      return patternStone();
-    }
-
-    // ---------------------------
-    // Drawing: grid + labels
-    // ---------------------------
-    function drawHexGrid(){
-      const s = GRID.size;
-
-      // Draw only what's near the camera (keeps big worlds fast)
-      const colRadius = Math.ceil(canvas.width / (1.5 * s)) + 4;
-      const rowRadius = Math.ceil(canvas.height / (Math.sqrt(3) * s)) + 4;
-
-      const cMin = clamp(VIEW.camera.col - colRadius, 0, WORLD.cols - 1);
-      const cMax = clamp(VIEW.camera.col + colRadius, 0, WORLD.cols - 1);
-      const rMin = clamp(VIEW.camera.row - rowRadius, 1, WORLD.rows);
-      const rMax = clamp(VIEW.camera.row + rowRadius, 1, WORLD.rows);
-
-      for(let col=cMin; col<=cMax; col++){
-        for(let row=rMin; row<=rMax; row++){
-          const c = hexCenter(col,row);
-          const poly = hexPolygon(c.x,c.y,s);
-          drawPoly(poly, null, COLORS.grid, 1);
-
-          // labels (absolute world labels)
-          // Avoid drawing labels that would be clipped by the canvas edge.
-          const sx = c.x + VIEW.dx;
-          const sy = c.y + VIEW.dy;
-          const labelPad = 14;
-          if(sx >= labelPad && sx <= canvas.width - labelPad && sy >= labelPad && sy <= canvas.height - labelPad){
-            const label = `${colToLabel(col)}${row}`;
-            const isEdge = (row === WORLD.rows || row === 1 || col === 0 || col === WORLD.cols-1);
-            ctx.fillStyle = isEdge ? COLORS.labelBold : COLORS.label;
-            ctx.font = '600 12px system-ui, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(label, c.x, c.y);
-          }
-        }
-      }
-    }
-
-    // ---------------------------
-    // Drawing: rooms (walls + floors)
-    // ---------------------------
-    function drawRoom(room){
-      const rect = cornersToRect(room.corners, room.thickness);
-      if(!rect) return;
-
-      const t = Number(room.thickness || 0);
-      // Wall: brick pattern inside the wall band
-      if(t > 0){
-        ctx.save();
-        ctx.fillStyle = patternBrickSmall();
-        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-
-        // Cut out interior (to leave a wall ring)
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillRect(rect.x + t, rect.y + t, rect.w - 2*t, rect.h - 2*t);
-        ctx.restore();
-
-        // subtle outline (very light, to avoid the thin black line you flagged)
-        ctx.save();
-        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.w - 1, rect.h - 1);
-        ctx.restore();
-      }
-
-      // Floor fill
-      const floorKind = (room.floor && room.floor.kind) ? room.floor.kind : document.getElementById('floorSelect').value;
-      ctx.save();
-      ctx.fillStyle = floorPattern(floorKind);
-      ctx.fillRect(rect.x + t, rect.y + t, rect.w - 2*t, rect.h - 2*t);
-      ctx.restore();
-    }
-
-    function drawRooms(){
-      if(!Array.isArray(SCENE.rooms)) return;
-      for(const r of SCENE.rooms){
-        drawRoom(r);
-      }
-    }
-
-    // ---------------------------
-    // Openings: doors/windows
-    // ---------------------------
-    function drawOpening(o){
-      const h = parseHexId(o.at);
-      if(!h) return;
-      const w = Number(o.widthPx || 70);
-      const thick = 18;
-
-      // Rotation support (legacy + new):
-      // - facing sets the default orientation (E/W = 90deg)
-      // - rot adds an additional degrees rotation (e.g., rot: 90)
-      // Accept both "rot" and legacy "Rot".
-      const facing = String(o.facing || 'E').toUpperCase();
-      const facingDeg = (facing === 'E' || facing === 'W') ? 90 : 0;
-      const rotDeg = Number(o.rot ?? o.Rot ?? 0);
-      const angle = (facingDeg + rotDeg) * Math.PI / 180;
-
-      // Determine whether the opening is drawn horizontally (E-W) or vertically (N-S).
-      // We snap to the nearest wall-band centerline in the matching orientation.
-      const orientDegRaw = ((facingDeg + rotDeg) % 180 + 180) % 180; // 0..179
-      const orientDeg = (Math.round(orientDegRaw / 90) * 90) % 180;  // snap to 0/90
-      const isHorizontal = (orientDeg === 0);
-
-      const s = GRID.size;
-      const colStep = (s * 1.5);
-      const rowStep = (s * Math.sqrt(3));
-      const probe = hexCenter(h.col, h.row);
-
-      let c;
-
-      if(isHorizontal){
-        // Horizontal openings: center inside the nearest horizontal wall band (top or bottom).
-        // Use hex X without parity concerns; use probeY only to choose the nearest band.
-        const x = GRID.originX + colStep * h.col;
-        const probeY = probe.y;
-
-        let bestY = null;
-        let bestDist = Infinity;
-
-        for(const r of (SCENE.rooms || [])){
-          const rect = cornersToRect(r.corners, r.thickness);
-          if(!rect) continue;
-          if(x < rect.x || x > (rect.x + rect.w)) continue;
-
-          const wallT = Number(o.wallThicknessPx ?? o.wallT ?? r.thickness ?? 30);
-          if(!(wallT > 0)) continue;
-
-          const yTop = rect.y + (wallT / 2);
-          const yBot = (rect.y + rect.h) - (wallT / 2);
-
-          const dTop = Math.abs(probeY - yTop);
-          const dBot = Math.abs(probeY - yBot);
-
-          if(dTop < bestDist){ bestDist = dTop; bestY = yTop; }
-          if(dBot < bestDist){ bestDist = dBot; bestY = yBot; }
-        }
-
-        // If we found a plausible nearby wall band, use it; otherwise fall back to a stable "lower-half" snap.
-        if(bestY !== null && bestDist <= rowStep){
-          c = { x, y: bestY };
-        } else {
-          const rowFromTop = (WORLD.rows - h.row);
-          const yStable = GRID.originY + rowStep * (rowFromTop + 0.5);
-          c = { x, y: yStable };
-        }
+    for (const s of segs) {
+      if (s.orientation !== orient) continue;
+      if (orient === 'h') {
+        if (worldPoint.x < Math.min(s.x1, s.x2) - 1 || worldPoint.x > Math.max(s.x1, s.x2) + 1) continue;
+        const d = Math.abs(worldPoint.y - s.y);
+        if (d < bestD) { bestD = d; best = s; }
       } else {
-        // Vertical openings: snap X to the nearest vertical wall band (left or right).
-        // Keep Y at the probed hex center (parity is expected for vertical placement).
-        const probeX = probe.x;
-        const probeY = probe.y;
-
-        let bestX = null;
-        let bestDist = Infinity;
-
-        for(const r of (SCENE.rooms || [])){
-          const rect = cornersToRect(r.corners, r.thickness);
-          if(!rect) continue;
-          if(probeY < rect.y || probeY > (rect.y + rect.h)) continue;
-
-          const wallT = Number(o.wallThicknessPx ?? o.wallT ?? r.thickness ?? 30);
-          if(!(wallT > 0)) continue;
-
-          const xLeft  = rect.x + (wallT / 2);
-          const xRight = (rect.x + rect.w) - (wallT / 2);
-
-          const dLeft = Math.abs(probeX - xLeft);
-          const dRight = Math.abs(probeX - xRight);
-
-          if(dLeft < bestDist){ bestDist = dLeft; bestX = xLeft; }
-          if(dRight < bestDist){ bestDist = dRight; bestX = xRight; }
-        }
-
-        if(bestX !== null && bestDist <= colStep){
-          c = { x: bestX, y: probe.y };
-        } else {
-          c = probe;
-        }
+        if (worldPoint.y < Math.min(s.y1, s.y2) - 1 || worldPoint.y > Math.max(s.y1, s.y2) + 1) continue;
+        const d = Math.abs(worldPoint.x - s.x);
+        if (d < bestD) { bestD = d; best = s; }
       }
-
-      ctx.save();
-      if(o.kind === 'window'){
-        ctx.fillStyle = COLORS.window;
-        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-      } else {
-        ctx.fillStyle = COLORS.door;
-        ctx.strokeStyle = 'rgba(0,0,0,0.20)';
-      }
-      ctx.lineWidth = 2;
-
-      // Draw as a small rectangle centered on the hex, rotated as requested.
-      ctx.translate(c.x, c.y);
-      if(angle) ctx.rotate(angle);
-      ctx.beginPath();
-      ctx.rect(-w/2, -thick/2, w, thick);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.restore();
     }
 
-    function drawOpenings(
-){
-      if(!Array.isArray(SCENE.openings)) return;
-      for(const o of SCENE.openings) drawOpening(o);
+    return best;
+  }
+
+  function drawOpening(opening, wallSegs) {
+    const kind = String(opening.kind ?? 'door').toLowerCase();
+    const orient = openingOrientation(opening);
+    const p = parseHexId(opening.hex);
+
+    const hexWorld = hexCenterWorld(p.col, p.row);
+    const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
+
+    const w = GRID.size * 1.2;
+    const fallbackH = GRID.size * 0.55;
+
+    let cx = hexWorld.x;
+    let cy = hexWorld.y;
+    let thickness = 28;
+
+    if (seg) {
+      thickness = seg.thickness;
+      if (orient === 'h') cy = seg.y;
+      else cx = seg.x;
     }
 
-    // ---------------------------
-    // Actors (tokens)
-    // ---------------------------
-    function tokenColor(side){
-      return (String(side).toUpperCase() === 'PLAYER') ? COLORS.player : COLORS.enemy;
-    }
+    const centerS = worldToScreen({ x: cx, y: cy });
 
-    function drawActor(a){
-      const h = parseHexId(a.at);
-      if(!h) return;
-      const c = hexCenter(h.col, h.row);
+    ctx.save();
+    ctx.translate(centerS.x, centerS.y);
+    if (orient === 'v') ctx.rotate(Math.PI / 2);
 
-      const fill = tokenColor(a.side);
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(c.x, c.y, 18, 0, Math.PI*2);
-      ctx.fillStyle = fill;
-      ctx.fill();
+    const fill = (kind === 'window') ? COLORS.window : COLORS.door;
+    const stroke = 'rgba(0,0,0,0.35)';
+    const openingH = Math.min(thickness * 0.72, fallbackH);
+
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+    ctx.roundRect(-w/2, -openingH/2, w, openingH, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    if (kind === 'window') {
       ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -openingH/2 + 2);
+      ctx.lineTo(0, openingH/2 - 2);
       ctx.stroke();
-
-      // label inside
-      ctx.fillStyle = '#fff';
-      ctx.font = '700 12px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const inside = (a.name || '').trim().split(/\s+/)[0].slice(0,1).toUpperCase();
-      ctx.fillText(inside || '?', c.x, c.y);
-
-      // name under token
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.font = '600 12px system-ui, sans-serif';
-      ctx.fillText(a.name || a.id, c.x, c.y + 28);
-      ctx.restore();
     }
 
-    function drawActors(){
-      if(!Array.isArray(SCENE.actors)) return;
-      for(const a of SCENE.actors) drawActor(a);
+    ctx.restore();
+  }
+
+  // ===== Tokens =====
+  function drawToken(t) {
+    const p = parseHexId(t.hex);
+    const cS = worldToScreen(hexCenterWorld(p.col, p.row));
+
+    const isEnemy = String(t.side || '').toUpperCase().indexOf('EN') >= 0;
+    const r = GRID.size * 0.42;
+
+    ctx.beginPath();
+    ctx.arc(cS.x, cS.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = isEnemy ? COLORS.tokenEnemy : COLORS.tokenHero;
+    ctx.fill();
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.stroke();
+
+    const label = t.label ?? (t.name ? t.name[0] : '?');
+    ctx.font = 'bold 14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = isEnemy ? COLORS.tokenTextLight : 'rgba(255,255,255,0.95)';
+    ctx.fillText(label, cS.x, cS.y);
+
+    if (t.name) {
+      ctx.font = '12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+      ctx.fillStyle = COLORS.tokenTextDark;
+      ctx.fillText(t.name, cS.x, cS.y + r + 14);
     }
+  }
 
-    // ---------------------------
-    // Fog of war
-    // ---------------------------
-    function drawFog(){
-      if(!SCENE.fog || !SCENE.fog.enabled) return;
+  // ===== Grid range =====
+  function estimateVisibleRange() {
+    const pad = GRID.size * 4;
+    const topLeftW = screenToWorld({ x: -pad, y: -pad });
+    const botRightW = screenToWorld({ x: canvas.width + pad, y: canvas.height + pad });
 
-      const visible = new Set(SCENE.fog.visibleRooms || []);
+    const minCol = Math.floor(Math.min(topLeftW.x, botRightW.x) / colStep()) - 2;
+    const maxCol = Math.ceil(Math.max(topLeftW.x, botRightW.x) / colStep()) + 2;
 
-      // Simple room-based fog for now:
-      // - Darken everything
-      // - Then punch holes for visible rooms
-      ctx.save();
-      ctx.fillStyle = COLORS.fog;
-      // NOTE: drawFog is called inside the translated (camera) context.
-      // Fill the *screen* area by drawing a world-space rect that maps onto the canvas.
-      ctx.fillRect(-VIEW.dx, -VIEW.dy, canvas.width, canvas.height);
+    const minRow = Math.floor(-Math.max(topLeftW.y, botRightW.y) / rowStep()) - 4;
+    const maxRow = Math.ceil(-Math.min(topLeftW.y, botRightW.y) / rowStep()) + 4;
 
-      ctx.globalCompositeOperation = 'destination-out';
-      for(const r of (SCENE.rooms || [])){
-        if(!visible.has(r.id)) continue;
-        const rect = cornersToRect(r.corners, r.thickness);
-        if(!rect) continue;
-        const t = Number(r.thickness || 0);
-        ctx.fillRect(rect.x + t, rect.y + t, rect.w - 2*t, rect.h - 2*t);
+    return { minCol: Math.max(-10, minCol), maxCol: Math.min(400, maxCol), minRow: Math.max(-10, minRow), maxRow: Math.min(400, maxRow) };
+  }
+
+  function drawGrid() {
+    const range = estimateVisibleRange();
+
+    ctx.save();
+    ctx.lineWidth = GRID.lineWidth;
+    ctx.strokeStyle = 'rgba(0,0,0,' + GRID.lineAlpha + ')';
+
+    for (let col = range.minCol; col <= range.maxCol; col++) {
+      for (let row = range.minRow; row <= range.maxRow; row++) {
+        drawHexOutline(col, row);
       }
-      ctx.restore();
     }
 
-    // ---------------------------
-    // Render pipeline
-    // ---------------------------
-    function clear(){
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-    }
+    ctx.font = GRID.labelFont;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(0,0,0,' + GRID.labelAlpha + ')';
 
-    function render(){
-      clear();
-
-      // Anchor should follow the canvas size.
-      VIEW.anchor.x = canvas.width / 2;
-      VIEW.anchor.y = canvas.height / 2;
-
-      // Translate world -> screen so that VIEW.camera lands at VIEW.anchor.
-      const camPx = hexCenter(VIEW.camera.col, VIEW.camera.row);
-      VIEW.dx = VIEW.anchor.x - camPx.x;
-      VIEW.dy = VIEW.anchor.y - camPx.y;
-
-      ctx.save();
-      ctx.translate(VIEW.dx, VIEW.dy);
-
-      drawRooms();
-      drawOpenings();
-      drawActors();
-      drawFog();
-      // Grid + labels LAST (on top)
-      drawHexGrid();
-
-      ctx.restore();
-    }
-
-    // ---------------------------
-    // View helpers (camera)
-    // ---------------------------
-    function computeSceneBounds(scene){
-      let minCol = Infinity, minRow = Infinity, maxCol = -Infinity, maxRow = -Infinity;
-
-      function considerHexId(hexId){
-        const h = parseHexId(hexId);
-        if(!h) return;
-        minCol = Math.min(minCol, h.col);
-        maxCol = Math.max(maxCol, h.col);
-        minRow = Math.min(minRow, h.row);
-        maxRow = Math.max(maxRow, h.row);
+    for (let col = range.minCol; col <= range.maxCol; col++) {
+      for (let row = range.minRow; row <= range.maxRow; row++) {
+        drawHexLabel(col, row);
       }
-
-      for(const r of (scene.rooms || [])){
-        for(const c of (r.corners || [])) considerHexId(c);
-      }
-      for(const o of (scene.openings || [])) considerHexId(o.at);
-      for(const a of (scene.actors || [])) considerHexId(a.at);
-
-      if(!Number.isFinite(minCol)){
-        return { minCol: 0, maxCol: 0, minRow: 1, maxRow: 1 };
-      }
-      return { minCol, maxCol, minRow, maxRow };
     }
 
-    function centerCameraOnScene(scene){
-      const b = computeSceneBounds(scene);
-      const col = Math.round((b.minCol + b.maxCol) / 2);
-      const row = Math.round((b.minRow + b.maxRow) / 2);
-      VIEW.camera.col = clamp(col, 0, WORLD.cols - 1);
-      VIEW.camera.row = clamp(row, 1, WORLD.rows);
-    }
+    ctx.restore();
+  }
 
-    // Keyboard pan (arrow keys). Steps are 2 hexes to keep parity clean. Shift = faster.
-    document.addEventListener('keydown', (e) => {
-      const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
-      if(tag === 'textarea' || tag === 'input' || tag === 'select') return;
+  // ===== Render =====
+  function clear() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
-      const step = e.shiftKey ? 10 : 2;
-      let handled = true;
+  function updateSidebar(state) {
+    const kvs = document.getElementById('kvs');
+    const dbg = document.getElementById('debugRooms');
 
-      switch(e.key){
-        case 'ArrowLeft':
-          VIEW.camera.col = clamp(VIEW.camera.col - step, 0, WORLD.cols - 1);
-          break;
-        case 'ArrowRight':
-          VIEW.camera.col = clamp(VIEW.camera.col + step, 0, WORLD.cols - 1);
-          break;
-        case 'ArrowUp':
-          VIEW.camera.row = clamp(VIEW.camera.row + step, 1, WORLD.rows);
-          break;
-        case 'ArrowDown':
-          VIEW.camera.row = clamp(VIEW.camera.row - step, 1, WORLD.rows);
-          break;
-        default:
-          handled = false;
-      }
+    const rows = [];
+    const meta = state.meta || {};
+    rows.push(['Round', meta.round ?? '-']);
+    rows.push(['Camera', hexId(VIEW.camera.col, VIEW.camera.row)]);
+    rows.push(['Rooms', (state.rooms || []).length]);
+    rows.push(['Openings', (state.openings || []).length]);
+    rows.push(['Tokens', (state.tokens || []).length]);
+    kvs.innerHTML = rows
+      .map(pair => '<div>' + pair[0] + '</div><div style="color:#111; font-variant-numeric: tabular-nums;">' + pair[1] + '</div>')
+      .join('');
 
-      if(handled){
-        e.preventDefault();
-        render();
-      }
-    });
+    // Debug block: for each room, print the world-space X/Y of each declared corner hex center,
+    // plus the derived wall centerlines (xL/xR/yTop/yBot) that drive the wall ring.
+    const fmt = (n) => (Number.isFinite(n) ? n.toFixed(1) : String(n));
 
-    // ---------------------------
-    // UI wiring
-    // ---------------------------
-    const statusBody = document.getElementById('statusBody');
-    const narrationBox = document.getElementById('narration');
-
-    function refreshStatus(){
-      const list = [...(SCENE.actors || [])].slice().sort((a,b) => (b.init||0)-(a.init||0));
-      statusBody.innerHTML = '';
-      for(const a of list){
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${escapeHtml(a.name || a.id)}</td><td>${escapeHtml(String(a.init ?? ''))}</td><td>${escapeHtml(String(a.hp ?? ''))}</td>`;
-        statusBody.appendChild(tr);
-      }
-      document.getElementById('roundLine').textContent = `Round ${SCENE.round || 1}`;
-      narrationBox.value = SCENE.narration || '';
-    }
-
-    function escapeHtml(s){
-      return String(s)
-        .replaceAll('&','&amp;')
-        .replaceAll('<','&lt;')
-        .replaceAll('>','&gt;')
-        .replaceAll('"','&quot;')
-        .replaceAll("'",'&#039;');
-    }
-
-    // Camera jump UI
-    const cameraHexInput = document.getElementById('cameraHexInput');
-    const cameraGoBtn = document.getElementById('cameraGoBtn');
-
-    function flashInvalidHex(){
-      if(!cameraHexInput) return;
-      const prev = cameraHexInput.style.borderColor;
-      cameraHexInput.style.borderColor = '#ef4444';
-      setTimeout(() => { cameraHexInput.style.borderColor = prev || ''; }, 350);
-    }
-
-    function jumpCameraToHex(hexStr){
-      const h = parseHexId(hexStr);
-      if(!h) { flashInvalidHex(); return; }
-      VIEW.camera.col = h.col;
-      VIEW.camera.row = h.row;
-      render();
-    }
-
-    if(cameraGoBtn){
-      cameraGoBtn.addEventListener('click', () => {
-        jumpCameraToHex(cameraHexInput?.value || '');
-      });
-    }
-
-    if(cameraHexInput){
-      cameraHexInput.addEventListener('keydown', (e) => {
-        if(e.key === 'Enter'){
-          e.preventDefault();
-          jumpCameraToHex(cameraHexInput.value || '');
-        }
-      });
-    }
-
-    document.getElementById('redrawBtn').addEventListener('click', () => {
-      render();
-    });
-
-    document.getElementById('floorSelect').addEventListener('change', () => {
-      render();
-    });
-
-    // ---------------------------
-    // Self-checks (lightweight "tests")
-    function runSelfTests(){
-      // Basic parsing
-      console.assert(parseHexId('A1')?.col === 0 && parseHexId('A1')?.row === 1, '[Test] parseHexId A1');
-      console.assert(parseHexId('P11')?.col === 15 && parseHexId('P11')?.row === 11, '[Test] parseHexId P11');
-      console.assert(parseHexId('AA1')?.col === 26 && parseHexId('AA1')?.row === 1, '[Test] parseHexId AA1');
-      console.assert(parseHexId('1A') === null, '[Test] parseHexId invalid format');
-      console.assert(parseHexId('ZZ99') === null, '[Test] parseHexId out-of-range');
-
-      // Coordinate orientation: A1 should be BELOW A11 in world space
-      const a1 = hexCenter(0, 1);
-      const a11 = hexCenter(0, 11);
-      console.assert(a1.y > a11.y, '[Test] A1 is below A11 (A1 bottom-left)');
-
-      // Expansion math: quarter column-step & half row-step
-      const s = GRID.size;
-      const expectedExpandX = 30 / 2; // cornersToRect default thicknessPx is 30, so expandX = t/2
-      const expectedExpandY = 0.5 * (Math.sqrt(3) * s);
-
-      const c1 = hexCenter(labelToCol('D'), 1);
-      const c2 = hexCenter(labelToCol('D'), 11);
-      const r = cornersToRect(['D1','D11']);
-      console.assert(r && Math.abs(r.x - (Math.min(c1.x,c2.x) - expectedExpandX)) < 1e-6, '[Test] cornersToRect expandX');
-      console.assert(r && Math.abs(r.y - Math.min(c1.y,c2.y)) < 1e-6, '[Test] cornersToRect topY aligns to hex centerline');
-    }
-
-    // Self-checks (lightweight "tests")
-    // ---------------------------
-    function validateScene(scene){
-      const errs = [];
-      if(!scene) errs.push('scene is null');
-      if(!Array.isArray(scene.rooms) || scene.rooms.length === 0) errs.push('scene.rooms missing/empty (walls will not draw)');
-      if(scene.rooms){
-        for(const r of scene.rooms){
-          if(!r.id) errs.push('room missing id');
-          if(!Array.isArray(r.corners) || r.corners.length < 4) errs.push(`room ${r.id||'?'} missing corners`);
-        }
-      }
-      if(errs.length){
-        console.warn('[Battlemat] Scene validation warnings:', errs);
-      }
-      return errs;
-    }
-
-    // Boot
-    (function boot(){
-      resizeCanvasToStage();
-      window.addEventListener('resize', () => {
-        resizeCanvasToStage();
-        render();
-      });
-      // Ensure default floor matches dropdown.
-      try{
-        const sel = document.getElementById('floorSelect');
-        if(sel && sel.value){
-          for(const r of SCENE.rooms){
-            if(r.floor && r.floor.kind) continue;
-            r.floor = { kind: sel.value };
+    const rooms = Array.isArray(state.rooms) ? state.rooms : [];
+    const lines = [];
+    for (const r of rooms) {
+      lines.push(`${r.id ?? '(unnamed)'}  (t=${r.thickness ?? ''})`);
+      if (Array.isArray(r.corners) && r.corners.length) {
+        for (const h of r.corners) {
+          try {
+            const p = parseHexId(h);
+            const c = hexCenterWorld(p.col, p.row);
+            lines.push(`  ${h.padEnd(5)} -> center world: x=${fmt(c.x)}  y=${fmt(c.y)}  (col=${p.col}, row=${p.row})`);
+          } catch (e) {
+            lines.push(`  ${String(h)} -> ERROR: ${e.message}`);
           }
         }
-      } catch(_){ }
+      } else {
+        lines.push('  (no corners)');
+      }
 
-      runSelfTests();
-      validateScene(SCENE);
-      // Start with camera centered on whatever is in the scene (unless disabled).
-      if (VIEW.autoCenterOnBoot) centerCameraOnScene(SCENE);
-      refreshStatus();
-      render();
-    })();
+      // Derived rectangle numbers that actually place the walls/floor.
+      try {
+        const box = roomToWallBox(r);
+        lines.push(`  derived: xL=${fmt(box.xL)}  xR=${fmt(box.xR)}  yTop=${fmt(box.yTop)}  yBot=${fmt(box.yBot)}`);
+        lines.push(`  outer:   x1=${fmt(box.outer.x1)}  y1=${fmt(box.outer.y1)}  x2=${fmt(box.outer.x2)}  y2=${fmt(box.outer.y2)}`);
+        lines.push(`  inner:   x1=${fmt(box.inner.x1)}  y1=${fmt(box.inner.y1)}  x2=${fmt(box.inner.x2)}  y2=${fmt(box.inner.y2)}`);
+      } catch (e) {
+        lines.push(`  derived: ERROR: ${e.message}`);
+      }
 
-  </script>
+      lines.push('');
+    }
+
+    // IMPORTANT: use an escaped newline so we don't create a syntax error.
+    dbg.textContent = lines.join('\n');
+  }
+
+  function redraw() {
+    const state = getState();
+
+    clear();
+
+    const rooms = Array.isArray(state.rooms) ? state.rooms : [];
+    for (const r of rooms) drawRoom(r);
+
+    const wallSegs = buildWallSegments(rooms);
+
+    const openings = Array.isArray(state.openings) ? state.openings : [];
+    for (const o of openings) drawOpening(o, wallSegs);
+
+    const tokens = Array.isArray(state.tokens) ? state.tokens : [];
+    for (const t of tokens) drawToken(t);
+
+    drawGrid();
+    updateSidebar(state);
+  }
+
+  // ===== Tiny self-tests (console only) =====
+  function runSelfTests() {
+    try {
+      const a = 'A';
+      const z = 'Z';
+      const aa = 'AA';
+      const dz = 'DZ';
+
+      const checkRoundTrip = (letters) => {
+        const col = lettersToCol(letters);
+        const back = colToLetters(col);
+        if (back !== letters) throw new Error(`Roundtrip failed: ${letters} -> ${col} -> ${back}`);
+      };
+
+      checkRoundTrip(a);
+      checkRoundTrip(z);
+      checkRoundTrip(aa);
+      checkRoundTrip(dz);
+
+      const p = parseHexId('AA27');
+      if (hexId(p.col, p.row) !== 'AA27') throw new Error('parseHexId/hexId mismatch for AA27');
+
+      // Geometry sanity: Bedroom1 south wall should land on the declared south-corner hex centers.
+      const testRoom = { id: 'Bedroom1', corners: ['B11','F11','F8','B8'], thickness: 20 };
+      const b8 = hexCenterWorld(parseHexId('B8').col, parseHexId('B8').row);
+      const box = roomToWallBox(testRoom);
+      const eps = 0.001;
+      if (Math.abs(box.yBot - b8.y) > eps) {
+        throw new Error(`roomToWallBox yBot mismatch: expected ${b8.y} got ${box.yBot}`);
+      }
+
+      console.log('[Battlemat] self-tests: OK');
+    } catch (e) {
+      console.warn('[Battlemat] self-tests: FAIL', e);
+    }
+  }
+
+  // ===== UI =====
+  function pan(dc, dr) {
+    VIEW.camera.col += dc;
+    VIEW.camera.row += dr;
+    redraw();
+  }
+
+  function setCameraToHex(hex) {
+    const p = parseHexId(hex);
+    VIEW.camera.col = p.col;
+    VIEW.camera.row = p.row;
+    redraw();
+  }
+
+  function wireUI() {
+    document.getElementById('btnLeft').addEventListener('click', () => pan(-PAN_STEP, 0));
+    document.getElementById('btnRight').addEventListener('click', () => pan(PAN_STEP, 0));
+    document.getElementById('btnUp').addEventListener('click', () => pan(0, PAN_STEP));
+    document.getElementById('btnDown').addEventListener('click', () => pan(0, -PAN_STEP));
+
+    document.getElementById('btnRedraw').addEventListener('click', redraw);
+
+    document.getElementById('btnJump').addEventListener('click', () => {
+      const v = document.getElementById('jumpHex').value.trim();
+      if (!v) return;
+      try { setCameraToHex(v); } catch (e) { console.warn(e); }
+    });
+
+    document.getElementById('jumpHex').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('btnJump').click();
+    });
+
+    document.getElementById('floorKind').addEventListener('change', (e) => {
+      const state = getState();
+      const kind = e.target.value;
+      if (!Array.isArray(state.rooms)) return redraw();
+      for (const r of state.rooms) {
+        if (!r.floor) r.floor = {};
+        r.floor.kind = kind;
+      }
+      redraw();
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); pan(-PAN_STEP, 0); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); pan(PAN_STEP, 0); }
+      if (e.key === 'ArrowUp') { e.preventDefault(); pan(0, PAN_STEP); }
+      if (e.key === 'ArrowDown') { e.preventDefault(); pan(0, -PAN_STEP); }
+    });
+  }
+
+  function resize() {
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    VIEW.anchor.x = rect.width / 2;
+    VIEW.anchor.y = rect.height / 2;
+
+    redraw();
+  }
+
+  function init() {
+    wireUI();
+    runSelfTests();
+
+    const state = getState();
+    const hex = state.view?.camera_hex;
+    if (hex) {
+      try { setCameraToHex(hex); } catch (e) { /* ignore */ }
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+  }
+
+  init();
+})();
+</script>
 </body>
 </html>
