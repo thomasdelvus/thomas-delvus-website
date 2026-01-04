@@ -1,5 +1,5 @@
 <!--
-  Version 3.94
+  Version 3.96
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -828,10 +828,10 @@
     let SCENE_NORM = null;
 
     // TEMP DEBUG: disable fog-of-war rendering so we can inspect wall/room overlap math.
-// Flip back to false when done.
-const DEBUG_FOG_DISABLE = true;
+    // Set to false for normal play.
+    const DEBUG_FOG_DISABLE = false;
 
-const CONFIG = {
+    const CONFIG = {
       room: { yInsetFrac: 0.25 },
       labels: {
         dyFrac: 0.70,
@@ -1166,8 +1166,6 @@ const CONFIG = {
     };
 
     // Populate the floor preview selector (textures are ALWAYS enabled now).
-    // Expected behavior (confirm): when you change the dropdown, it forces ALL room floors
-    // to render with that texture (unless set back to "Room floors").
     function initTextureSelectors() {
       const sel = document.getElementById('floorTexSel');
       if (!sel) return;
@@ -1907,8 +1905,8 @@ const CONFIG = {
         const closedKey = (SPRITE_DEFS[kind] ? kind : (SPRITE_DEFS[base] ? base : null));
         if (closedKey) keys.add(closedKey);
 
-        const wantsOpenSprite = !!(op.useOpenSprite || op.spriteOpen || op.sprite_open);
-        if (isOpen && wantsOpenSprite) {
+        // If the opening is open and we have an open sprite, preload it.
+        if (isOpen) {
           const openKey = (SPRITE_DEFS[`${kind}.open`] ? `${kind}.open` : (SPRITE_DEFS[`${base}.open`] ? `${base}.open` : null));
           if (openKey) keys.add(openKey);
         }
@@ -2465,9 +2463,14 @@ const CONFIG = {
         const key = openingSpriteKey(op);
         const rot = entityRotDeg(op, 0);
 
-        if (key) {
-          drawSpriteAt(key, at.x + dxdy.dx, at.y + dxdy.dy, rot, 1, 1);
-        } else {
+        // IMPORTANT: if the sprite isn't ready (or is broken), fall back to a simple rect
+        // so doors/windows never disappear.
+        let drew = false;
+        if (key && isSpriteReady(key)) {
+          drew = drawSpriteAt(key, at.x + dxdy.dx, at.y + dxdy.dy, rot, 1, 1);
+        }
+
+        if (!drew) {
           ctx.save();
           ctx.fillStyle = (String(op.kind || '').toLowerCase().includes('window')) ? '#cfe6f6' : '#b07a3f';
           ctx.globalAlpha = 0.95;
@@ -2692,6 +2695,7 @@ const CONFIG = {
 
       for (const g of (ROOM_GEOMS?.list || [])) drawRoomGeom(g);
 
+      // Draw openings/contents BEFORE fog so hidden rooms are masked.
       drawOpenings();
       drawObjects();
       drawActors();
@@ -2808,10 +2812,16 @@ const CONFIG = {
 
         console.assert(typeof initTextureSelectors === 'function', 'initTextureSelectors should exist');
         console.assert(typeof drawWallOutlinesOnly === 'function', 'drawWallOutlinesOnly should exist');
+        console.assert(typeof drawOpenings === 'function', 'drawOpenings should exist');
         console.assert(TEX.enabled === true, 'Textures should default to enabled');
         console.assert(TEX_OVERRIDE_ROOM === '__room__', 'TEX_OVERRIDE_ROOM sentinel value');
 
         console.assert(!!SPRITE_DEFS['table'], 'SPRITE_DEFS should include table');
+
+        // Opening sprite selection
+        console.assert(openingSpriteKey({ kind: 'door.wood', state: 'closed' }) === 'door.wood', 'openingSpriteKey door.wood closed');
+        console.assert(openingSpriteKey({ kind: 'door.wood', state: 'open' }) === 'door.wood.open', 'openingSpriteKey door.wood open');
+        console.assert(openingSpriteKey({ kind: 'window', state: 'open' }) === 'window.open', 'openingSpriteKey window open');
 
         // isImgUsable self-test (mock objects)
         console.assert(isImgUsable({ complete: true, naturalWidth: 10, naturalHeight: 10, __broken: false }) === true, 'isImgUsable should accept loaded images');
