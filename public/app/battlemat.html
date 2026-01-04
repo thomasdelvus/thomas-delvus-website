@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Battlemat - V4
-  Version 4.12
+  Version 4.16
 
   Notes:
   - Restores full room/wall rendering pipeline (walls/floors/doors/windows) while keeping the grid + labels drawn on top.
@@ -97,7 +97,7 @@
       <div class="panel">
         <div class="row">
           <div class="panel-title" style="margin:0;">Status</div>
-          <div class="pill" style="border:none; background:transparent; cursor:default;" id="versionLine">v4.12</div>
+          <div class="pill" style="border:none; background:transparent; cursor:default;" id="versionLine">v4.16</div>
         </div>
         <div class="row subtle" style="margin-top:6px;">
           <div id="roundLine">Round 1</div>
@@ -202,44 +202,113 @@
       round: 1,
       rooms: [
         {
-          id: 'building1',
-          corners: ['D11','N11','N2','D2'],
+          id: 'CrossKeysUpperFloor',
+          corners: ['B11','Z11','Z2','B2'],
           thickness: 30,
           color: '#555',
           floor: { kind: 'wood' },
           wall: { kind: 'brick' },
         },
         {
-          id: 'room_left',
-          corners: ['D11','H11','H2','D2'],
+          id: 'Bedroom1',
+          corners: ['B11','F11','F8','B8'],
           thickness: 30,
           color: '#555',
           floor: { kind: 'wood' },
           wall: { kind: 'brick' },
         },
         {
-          id: 'room_right',
-          corners: ['H11','N11','N2','H2'],
+          id: 'Bedroom2',
+          corners: ['B8','F8','F5','B5'],
           thickness: 30,
           color: '#555',
           floor: { kind: 'wood' },
           wall: { kind: 'brick' },
         },
+        {
+          id: 'Bedroom3',
+          corners: ['B5','F5','F2','B2'],
+          thickness: 30,
+          color: '#555',
+          floor: { kind: 'wood' },
+          wall: { kind: 'brick' },
+        },
+        {
+          id: 'Bedroom4',
+          corners: ['H5','N5','N2','H2'],
+          thickness: 30,
+          color: '#555',
+          floor: { kind: 'wood' },
+          wall: { kind: 'brick' },
+        },
+        {
+          id: 'Bedroom5',
+          corners: ['H11','N11','N7','H7'],
+          thickness: 30,
+          color: '#555',
+          floor: { kind: 'wood' },
+          wall: { kind: 'brick' },
+        },
+        {
+          id: 'Bedroom6',
+          corners: ['N9','T9','T7','N7'],
+          thickness: 30,
+          color: '#555',
+          floor: { kind: 'wood' },
+          wall: { kind: 'brick' },
+        },
+        {
+          id: 'Bedroom7',
+          corners: ['N5','T5','T2','N2'],
+          thickness: 30,
+          color: '#555',
+          floor: { kind: 'wood' },
+          wall: { kind: 'brick' },
+        },
+        {
+          id: 'Bedroom8',
+          corners: ['V5','Z5','Z2','V2'],
+          thickness: 30,
+          color: '#555',
+          floor: { kind: 'wood' },
+          wall: { kind: 'brick' },
+        },
+        {
+          id: 'Bedroom9',
+          corners: ['V8','Z8','Z5','V5'],
+          thickness: 30,
+          color: '#555',
+          floor: { kind: 'wood' },
+          wall: { kind: 'brick' },
+        },
+        {
+          id: 'Bedroom10',
+          corners: ['V11','Z11','Z8','V8'],
+          thickness: 30,
+          color: '#555',
+          floor: { kind: 'wood' },
+          wall: { kind: 'brick' },
+        },
+        
       ],
       openings: [
-        { id: 'door_mid', kind: 'door', at: 'H6', facing: 'E', widthPx: 70 },
-        { id: 'door_east1', kind: 'door', at: 'N6', facing: 'E', widthPx: 70 },
-        { id: 'door_east2', kind: 'door', at: 'N5', facing: 'E', widthPx: 70 },
-        { id: 'door_south', kind: 'door', at: 'L2', facing: 'E', widthPx: 70, Rot: 90 },
-        { id: 'win_s1', kind: 'window', at: 'F2', facing: 'S', widthPx: 70 },
-        { id: 'win_s2', kind: 'window', at: 'H2', facing: 'S', widthPx: 70 },
-        { id: 'win_s3', kind: 'window', at: 'J2', facing: 'S', widthPx: 70 },
+        { id: 'door_room1', kind: 'door', at: 'F9', facing: 'E', widthPx: 70 },
+        { id: 'door_room2', kind: 'door', at: 'F6', facing: 'E', widthPx: 70 },
+        { id: 'door_room3', kind: 'door', at: 'F3', facing: 'E', widthPx: 70 },
+        { id: 'door_room4', kind: 'door', at: 'J5', facing: 'E', widthPx: 70, Rot: 90 },
+        { id: 'door_room5', kind: 'door', at: 'K6', facing: 'E', widthPx: 70, Rot: 90 },
+        { id: 'door_room6', kind: 'door', at: 'Q6', facing: 'E', widthPx: 70, Rot: 90 },
+        { id: 'door_room7', kind: 'door', at: 'S4', facing: 'E', widthPx: 70, Rot: 90 },
+        { id: 'door_room8', kind: 'door', at: 'V3', facing: 'E', widthPx: 70 },
+        { id: 'door_room9', kind: 'door', at: 'V6', facing: 'E', widthPx: 70 },
+        { id: 'door_room1', kind: 'door', at: 'V10', facing: 'E', widthPx: 70 },
+
       ],
       actors: [
         { id: 'lich', name: 'Lich', side: 'ENEMY', at: 'K9', init: 15, hp: 135 },
         { id: 'w1', name: 'Wraith 1', side: 'ENEMY', at: 'J6', init: 12, hp: 67 },
         { id: 'w2', name: 'Wraith 2', side: 'ENEMY', at: 'G8', init: 11, hp: 67 },
-        { id: 'w3', name: 'Wraith 3', side: 'ENEMY', at: 'F6', init: 10, hp: 67 },
+        { id: 'w3', name: 'Wraith 3', side: 'ENEMY', at: 'D7', init: 10, hp: 67 },
         { id: 'a', name: 'Aelar', side: 'PLAYER', at: 'J3', init: 14, hp: 42 },
         { id: 'b', name: 'Brunna', side: 'PLAYER', at: 'K3', init: 13, hp: 55 },
         { id: 'c', name: 'Caelin', side: 'PLAYER', at: 'L4', init: 12, hp: 38 },
@@ -325,25 +394,62 @@
     // Convert a corners array into a pixel-space bounding box rectangle.
     // NOTE: This is the simple rectangle mode you've been using for now.
     function cornersToRect(corners){
-      const pts = corners
+      // IMPORTANT: cornersToRect is a rectangle approximation on a hex grid.
+      // To keep the "horizontal walls snap to lower-half" convention stable even when
+      // corners span both even/odd columns (which have different center Y offsets),
+      // compute vertical bounds using an explicit snap parity instead of raw min/max
+      // corner center Ys.
+      const hs = corners
         .map(parseHexId)
-        .filter(Boolean)
-        .map(h => hexCenter(h.col, h.row));
-      if(pts.length < 2) return null;
-      let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
-      for(const p of pts){
-        minX = Math.min(minX, p.x);
-        minY = Math.min(minY, p.y);
-        maxX = Math.max(maxX, p.x);
-        maxY = Math.max(maxY, p.y);
+        .filter(Boolean);
+      if(hs.length < 2) return null;
+
+      let minCol = Infinity, maxCol = -Infinity;
+      let minRow = Infinity, maxRow = -Infinity;
+      for(const h of hs){
+        minCol = Math.min(minCol, h.col);
+        maxCol = Math.max(maxCol, h.col);
+        minRow = Math.min(minRow, h.row);
+        maxRow = Math.max(maxRow, h.row);
       }
-      // Expand by our agreed rules:
-      // - X expands by quarter column-step (vertical walls centered on boundary hex column)
-      // - Y expands by half row-step (horizontal walls use the bottom-half convention)
+
       const s = GRID.size;
-      const expandX = s * 0.375;               // quarter of (1.5*s)  (align vertical walls to mid-hex column)
-      const expandY = s * Math.sqrt(3) * 0.5;  // half of (sqrt3*s)   (align horizontal walls to bottom-half rule)
-      return { x: minX - expandX, y: minY - expandY, w: (maxX-minX) + 2*expandX, h: (maxY-minY) + 2*expandY };
+      const colStep = 1.5 * s;
+      const rowStep = Math.sqrt(3) * s;
+
+      // Expand by our agreed rules:
+      // - X expands by quarter column-step (align vertical walls to boundary hex column)
+      // - Y expands by half row-step (align horizontal walls to bottom-half convention)
+      const expandX = 0.25 * colStep; // = 0.375*s
+      const expandY = 0.5 * rowStep;  // = sqrt3*s/2
+
+      // X bounds are independent of row parity.
+      const minX = GRID.originX + colStep * minCol;
+      const maxX = GRID.originX + colStep * maxCol;
+
+      // Y bounds: enforce the "lower-half" snap by always using odd-column parity (+0.5).
+      // (Odd columns are shifted downward by +0.5 in our flat-top odd-q layout.)
+      const snapParity = 1; // 0=upper half, 1=lower half
+
+      function snappedCenterY(row){
+        const rowFromTop = (WORLD.rows - row);
+        return GRID.originY + rowStep * (rowFromTop + 0.5 * snapParity);
+      }
+
+      // Higher row numbers are higher up (smaller y) in our flipped coordinate system.
+      const topY = snappedCenterY(maxRow);
+      const botY = snappedCenterY(minRow);
+      const minY = Math.min(topY, botY);
+      const maxY = Math.max(topY, botY);
+
+      return {
+        x: minX - expandX,
+        // Top outer boundary should originate at the hex centerline ("lower half" convention).
+        y: minY,
+        w: (maxX - minX) + 2 * expandX,
+        // Keep the bottom outer boundary where it was (maxY + expandY).
+        h: (maxY - minY) + expandY,
+      };
     }
 
     // ---------------------------
@@ -857,7 +963,7 @@
       const c2 = hexCenter(labelToCol('D'), 11);
       const r = cornersToRect(['D1','D11']);
       console.assert(r && Math.abs(r.x - (Math.min(c1.x,c2.x) - expectedExpandX)) < 1e-6, '[Test] cornersToRect expandX');
-      console.assert(r && Math.abs(r.y - (Math.min(c1.y,c2.y) - expectedExpandY)) < 1e-6, '[Test] cornersToRect expandY');
+      console.assert(r && Math.abs(r.y - Math.min(c1.y,c2.y)) < 1e-6, '[Test] cornersToRect topY aligns to hex centerline');
     }
 
     // Self-checks (lightweight "tests")
