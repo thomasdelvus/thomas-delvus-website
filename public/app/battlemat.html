@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Battlemat - V4
-  Version 4.38
+  Version 4.40
 
   Rewrite notes (v4.32):
   - Fixes a JS SyntaxError caused by an unescaped newline inside a string literal.
@@ -192,7 +192,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.38</div>
+        <div class="pill" id="versionLine">v4.40</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -245,6 +245,14 @@
     view: { camera_hex: 'K6' },
 
     rooms: [
+      {
+        id: 'test',
+        corners: ['AM10','AT10','AT3','AM3'],
+        thickness: 150,
+        color: '#555',
+        floor: { kind: 'wood' },
+        wall: { kind: 'brick' },
+      },
       {
         id: 'CrossKeysUpperFloor',
         corners: ['B11','Z11','Z2','B2'],
@@ -561,56 +569,76 @@
     return segs;
   }
 
-  function fillBrickRectScreen(rect, color) {
-    // Small, stable brick fill that NEVER bleeds outside the wall rect.
-    // The previous implementation could draw mortar 1px beyond an edge due to rounding,
-    // which showed up as faint dotted/dashed lines beside walls.
+  function fillBrickRectScreen(rect, color, worldX = 0, worldY = 0) {
+    // Rounded "block" brick pattern (chunky masonry).
+    // Anchored in WORLD space so it doesn't "swim" when the camera pans.
+    // Fully clipped to the wall rectangle to avoid any edge bleed/ghost lines.
 
-    const brickW = 18;
-    const brickH = 10;
-    const mortar = 2;
+    // Tunables to match the reference style.
+    // Shrunk to ~1/5 original size (was 44x20 w/ 6px gap).
+    const brickW = 9;
+    const brickH = 4;
+    const gap = 1.2;
+    const radius = 1.5;
+    const strokeW = 0.8;
+
+    const pitchX = brickW + gap;
+    const pitchY = brickH + gap;
+
+    // Color helpers (hex -> rgb) so we can create subtle mortar/brick contrast.
+    const hexToRgb = (hex) => {
+      const m = String(hex).trim().match(/^#?([0-9a-fA-F]{6})$/);
+      if (!m) return { r: 102, g: 102, b: 102 };
+      const n = parseInt(m[1], 16);
+      return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+    };
+
+    const clamp = (v) => Math.max(0, Math.min(255, v));
+
+    const shade = (hex, amt) => {
+      const { r, g, b } = hexToRgb(hex);
+      return `rgb(${clamp(Math.round(r + 255 * amt))}, ${clamp(Math.round(g + 255 * amt))}, ${clamp(Math.round(b + 255 * amt))})`;
+    };
+
+    const mortarColor = shade(color, -0.10);
+    const brickFill = shade(color, +0.06);
 
     ctx.save();
 
-    // Hard clip: nothing we draw can escape the wall rectangle.
+    // Hard clip.
     ctx.beginPath();
     ctx.rect(rect.x, rect.y, rect.w, rect.h);
     ctx.clip();
 
-    // Base fill.
-    ctx.fillStyle = color;
+    // Mortar base.
+    ctx.fillStyle = mortarColor;
     ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
 
-    // Mortar color.
-    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    // Stable world-anchored phase.
+    const mod = (a, m) => ((a % m) + m) % m;
+    const phaseX = mod(worldX, pitchX);
+    const phaseY = mod(worldY, pitchY);
 
-    // Phase anchor: bias slightly *inside* the rect so mortar seams don't land exactly on an edge.
-    // (This prevents an edge from looking "stitched" when the mortar happens to align with it.)
-    const originX = rect.x + brickW * 0.37;
-    const originY = rect.y + brickH * 0.41;
+    const startY = rect.y - (phaseY + pitchY); // start slightly above
 
-    // Horizontal mortar seams.
-    {
-      const firstY = originY - Math.ceil((originY - rect.y) / brickH) * brickH - brickH;
-      for (let y = firstY; y <= rect.y + rect.h + brickH; y += brickH) {
-        const yy = Math.round(y - mortar / 2);
-        ctx.fillRect(rect.x, yy, rect.w, mortar);
-      }
-    }
+    ctx.fillStyle = brickFill;
+    ctx.strokeStyle = 'rgba(0,0,0,0.14)';
+    ctx.lineWidth = strokeW;
 
-    // Vertical mortar seams (staggered per row).
-    {
-      const rows = Math.ceil(rect.h / brickH) + 2;
-      for (let r = -1; r <= rows; r++) {
-        const y = rect.y + r * brickH;
-        const rowOffset = (r & 1) ? (brickW / 2) : 0;
-        const phaseX = originX + rowOffset;
-        const firstX = phaseX - Math.ceil((phaseX - rect.x) / brickW) * brickW - brickW;
+    const rows = Math.ceil((rect.h + pitchY * 2) / pitchY);
+    for (let r = 0; r < rows; r++) {
+      const y = startY + r * pitchY;
+      const rowOffset = (r & 1) ? (pitchX / 2) : 0;
 
-        for (let x = firstX; x <= rect.x + rect.w + brickW; x += brickW) {
-          const xx = Math.round(x - mortar / 2);
-          ctx.fillRect(xx, y, mortar, brickH);
-        }
+      const startX = rect.x - (phaseX + pitchX) + rowOffset;
+      const cols = Math.ceil((rect.w + pitchX * 2) / pitchX);
+
+      for (let c = 0; c < cols; c++) {
+        const x = startX + c * pitchX;
+        ctx.beginPath();
+        ctx.roundRect(x, y, brickW, brickH, radius);
+        ctx.fill();
+        ctx.stroke();
       }
     }
 
@@ -629,10 +657,10 @@
     const t = box.thickness;
 
     // Wall ring
-    fillBrickRectScreen({ x: o1.x, y: o1.y, w: o2.x - o1.x, h: t }, wallColor);
-    fillBrickRectScreen({ x: o1.x, y: o2.y - t, w: o2.x - o1.x, h: t }, wallColor);
-    fillBrickRectScreen({ x: o1.x, y: o1.y + t, w: t, h: (o2.y - o1.y) - 2*t }, wallColor);
-    fillBrickRectScreen({ x: o2.x - t, y: o1.y + t, w: t, h: (o2.y - o1.y) - 2*t }, wallColor);
+    fillBrickRectScreen({ x: o1.x, y: o1.y, w: o2.x - o1.x, h: t }, wallColor, box.outer.x1, box.outer.y1);
+    fillBrickRectScreen({ x: o1.x, y: o2.y - t, w: o2.x - o1.x, h: t }, wallColor, box.outer.x1, box.outer.y2 - t);
+    fillBrickRectScreen({ x: o1.x, y: o1.y + t, w: t, h: (o2.y - o1.y) - 2*t }, wallColor, box.outer.x1, box.outer.y1 + t);
+    fillBrickRectScreen({ x: o2.x - t, y: o1.y + t, w: t, h: (o2.y - o1.y) - 2*t }, wallColor, box.outer.x2 - t, box.outer.y1 + t);
 
     // Floor
     const floorKind = room.floor?.kind ?? 'stone';
