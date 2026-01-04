@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Battlemat - V4
-  Version 4.16
+  Version 4.19
 
   Notes:
   - Restores full room/wall rendering pipeline (walls/floors/doors/windows) while keeping the grid + labels drawn on top.
@@ -97,7 +97,7 @@
       <div class="panel">
         <div class="row">
           <div class="panel-title" style="margin:0;">Status</div>
-          <div class="pill" style="border:none; background:transparent; cursor:default;" id="versionLine">v4.16</div>
+          <div class="pill" style="border:none; background:transparent; cursor:default;" id="versionLine">v4.19</div>
         </div>
         <div class="row subtle" style="margin-top:6px;">
           <div id="roundLine">Round 1</div>
@@ -295,13 +295,29 @@
         { id: 'door_room1', kind: 'door', at: 'F9', facing: 'E', widthPx: 70 },
         { id: 'door_room2', kind: 'door', at: 'F6', facing: 'E', widthPx: 70 },
         { id: 'door_room3', kind: 'door', at: 'F3', facing: 'E', widthPx: 70 },
-        { id: 'door_room4', kind: 'door', at: 'J5', facing: 'E', widthPx: 70, Rot: 90 },
-        { id: 'door_room5', kind: 'door', at: 'K6', facing: 'E', widthPx: 70, Rot: 90 },
-        { id: 'door_room6', kind: 'door', at: 'Q6', facing: 'E', widthPx: 70, Rot: 90 },
-        { id: 'door_room7', kind: 'door', at: 'S4', facing: 'E', widthPx: 70, Rot: 90 },
-        { id: 'door_room8', kind: 'door', at: 'V3', facing: 'E', widthPx: 70 },
-        { id: 'door_room9', kind: 'door', at: 'V6', facing: 'E', widthPx: 70 },
-        { id: 'door_room1', kind: 'door', at: 'V10', facing: 'E', widthPx: 70 },
+        { id: 'door_room4', kind: 'door', at: 'J5', facing: 'N', widthPx: 70 },
+        { id: 'door_room5', kind: 'door', at: 'K6', facing: 'S', widthPx: 70 },
+        { id: 'door_room6', kind: 'door', at: 'Q6', facing: 'D', widthPx: 70 },
+        { id: 'door_room7', kind: 'door', at: 'S4', facing: 'N', widthPx: 70 },
+        { id: 'door_room8', kind: 'door', at: 'V3', facing: 'W', widthPx: 70 },
+        { id: 'door_room9', kind: 'door', at: 'V6', facing: 'W', widthPx: 70 },
+        { id: 'door_room1', kind: 'door', at: 'V10', facing: 'W', widthPx: 70 },
+        { id: 'west_window1', kind: 'window', at: 'B10', facing: 'W', widthPx: 70 },
+        { id: 'west_window2', kind: 'window', at: 'B9', facing: 'W', widthPx: 70 },
+        { id: 'west_window3', kind: 'window', at: 'B7', facing: 'W', widthPx: 70 },
+        { id: 'west_window4', kind: 'window', at: 'B6', facing: 'W', widthPx: 70 },
+        { id: 'west_window5', kind: 'window', at: 'B4', facing: 'W', widthPx: 70 },
+        { id: 'west_window6', kind: 'window', at: 'B3', facing: 'W', widthPx: 70 },
+        { id: 'south_window1', kind: 'window', at: 'C1', facing: 'S', widthPx: 70 },
+        { id: 'south_window2', kind: 'window', at: 'D2', facing: 'S', widthPx: 70 },
+        { id: 'south_window3', kind: 'window', at: 'G1', facing: 'S', widthPx: 70 },
+        { id: 'south_window4', kind: 'window', at: 'J2', facing: 'S', widthPx: 70 },
+        { id: 'south_window5', kind: 'window', at: 'K1', facing: 'S', widthPx: 70 },
+        { id: 'south_window6', kind: 'window', at: 'Q1', facing: 'S', widthPx: 70 },
+        { id: 'south_window7', kind: 'window', at: 'R2', facing: 'S', widthPx: 70 },
+        { id: 'south_window8', kind: 'window', at: 'U1', facing: 'S', widthPx: 70 },
+        { id: 'south_window9', kind: 'window', at: 'X2', facing: 'S', widthPx: 70 },
+
 
       ],
       actors: [
@@ -663,7 +679,6 @@
     function drawOpening(o){
       const h = parseHexId(o.at);
       if(!h) return;
-      const c = hexCenter(h.col, h.row);
       const w = Number(o.widthPx || 70);
       const thick = 18;
 
@@ -675,6 +690,59 @@
       const facingDeg = (facing === 'E' || facing === 'W') ? 90 : 0;
       const rotDeg = Number(o.rot ?? o.Rot ?? 0);
       const angle = (facingDeg + rotDeg) * Math.PI / 180;
+
+      // Horizontal openings (doors/windows laid along the E-W axis) must ignore odd-q column parity.
+      // Our room/wall convention snaps horizontal bands to the "lower half" family, so we compute
+      // their anchor Y from row only (fixed +0.5), otherwise they alternate by column and look wrong.
+      const orientDegRaw = ((facingDeg + rotDeg) % 180 + 180) % 180; // 0..179
+      const orientDeg = (Math.round(orientDegRaw / 90) * 90) % 180;  // snap to 0/90
+      const isHorizontal = (orientDeg === 0);
+
+      let c;
+      if(isHorizontal){
+        // For horizontal openings, we want them centered *inside the nearest horizontal wall band*
+        // (could be the top wall band or the bottom wall band), and we do NOT want odd-q parity
+        // to make them alternate by column.
+        const s = GRID.size;
+        const colStep = (s * 1.5);
+        const x = GRID.originX + colStep * h.col;
+
+        // Probe Y: use the raw hex center (may include parity), only for choosing the nearest band.
+        const probeY = hexCenter(h.col, h.row).y;
+
+        let bestY = null;
+        let bestDist = Infinity;
+        const rowStep = (s * Math.sqrt(3));
+
+        for(const r of (SCENE.rooms || [])){
+          const rect = cornersToRect(r.corners);
+          if(!rect) continue;
+          if(x < rect.x || x > (rect.x + rect.w)) continue;
+
+          const wallT = Number(o.wallThicknessPx ?? o.wallT ?? r.thickness ?? 30);
+          if(!(wallT > 0)) continue;
+
+          const yTop = rect.y + (wallT / 2);
+          const yBot = (rect.y + rect.h) - (wallT / 2);
+
+          const dTop = Math.abs(probeY - yTop);
+          const dBot = Math.abs(probeY - yBot);
+
+          if(dTop < bestDist){ bestDist = dTop; bestY = yTop; }
+          if(dBot < bestDist){ bestDist = dBot; bestY = yBot; }
+        }
+
+        // If we found a plausible nearby wall band, use it; otherwise fall back to a stable "lower-half" snap.
+        if(bestY !== null && bestDist <= rowStep){
+          c = { x, y: bestY };
+        } else {
+          const rowFromTop = (WORLD.rows - h.row);
+          const yStable = GRID.originY + rowStep * (rowFromTop + 0.5);
+          c = { x, y: yStable };
+        }
+      } else {
+        c = hexCenter(h.col, h.row);
+      }
 
       ctx.save();
       if(o.kind === 'window'){
