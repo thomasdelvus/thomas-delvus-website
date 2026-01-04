@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Battlemat - V4
-  Version 4.36
+  Version 4.38
 
   Rewrite notes (v4.32):
   - Fixes a JS SyntaxError caused by an unescaped newline inside a string literal.
@@ -42,7 +42,7 @@
     .app {
       height: 100%;
       display: grid;
-      grid-template-columns: 1fr 470px;
+      grid-template-columns: 1fr 370px;
       gap: 12px;
       padding: 12px;
       box-sizing: border-box;
@@ -192,7 +192,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.36</div>
+        <div class="pill" id="versionLine">v4.38</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -562,20 +562,59 @@
   }
 
   function fillBrickRectScreen(rect, color) {
+    // Small, stable brick fill that NEVER bleeds outside the wall rect.
+    // The previous implementation could draw mortar 1px beyond an edge due to rounding,
+    // which showed up as faint dotted/dashed lines beside walls.
+
     const brickW = 18;
     const brickH = 10;
     const mortar = 2;
 
+    ctx.save();
+
+    // Hard clip: nothing we draw can escape the wall rectangle.
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
+
+    // Base fill.
     ctx.fillStyle = color;
     ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
 
+    // Mortar color.
     ctx.fillStyle = 'rgba(0,0,0,0.08)';
-    for (let y = rect.y; y < rect.y + rect.h; y += brickH) ctx.fillRect(rect.x, y, rect.w, mortar);
 
-    for (let row = 0, y = rect.y; y < rect.y + rect.h; row++, y += brickH) {
-      const offset = (row % 2) ? (brickW / 2) : 0;
-      for (let x = rect.x - offset; x < rect.x + rect.w; x += brickW) ctx.fillRect(x, y, mortar, brickH);
+    // Phase anchor: bias slightly *inside* the rect so mortar seams don't land exactly on an edge.
+    // (This prevents an edge from looking "stitched" when the mortar happens to align with it.)
+    const originX = rect.x + brickW * 0.37;
+    const originY = rect.y + brickH * 0.41;
+
+    // Horizontal mortar seams.
+    {
+      const firstY = originY - Math.ceil((originY - rect.y) / brickH) * brickH - brickH;
+      for (let y = firstY; y <= rect.y + rect.h + brickH; y += brickH) {
+        const yy = Math.round(y - mortar / 2);
+        ctx.fillRect(rect.x, yy, rect.w, mortar);
+      }
     }
+
+    // Vertical mortar seams (staggered per row).
+    {
+      const rows = Math.ceil(rect.h / brickH) + 2;
+      for (let r = -1; r <= rows; r++) {
+        const y = rect.y + r * brickH;
+        const rowOffset = (r & 1) ? (brickW / 2) : 0;
+        const phaseX = originX + rowOffset;
+        const firstX = phaseX - Math.ceil((phaseX - rect.x) / brickW) * brickW - brickW;
+
+        for (let x = firstX; x <= rect.x + rect.w + brickW; x += brickW) {
+          const xx = Math.round(x - mortar / 2);
+          ctx.fillRect(xx, y, mortar, brickH);
+        }
+      }
+    }
+
+    ctx.restore();
   }
 
   function drawRoom(room) {
@@ -763,9 +802,42 @@
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
+  function escapeHtml(s) {
+    return String(s)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
   function updateSidebar(state) {
     const kvs = document.getElementById('kvs');
-}
+    if (!kvs) return;
+
+    const meta = state.meta || {};
+    const rooms = Array.isArray(state.rooms) ? state.rooms.length : 0;
+    const openings = Array.isArray(state.openings) ? state.openings.length : 0;
+    const tokens = Array.isArray(state.tokens) ? state.tokens.length : 0;
+
+    const camHex = state.view?.camera_hex || hexId(VIEW.camera.col, VIEW.camera.row);
+    const round = Number(meta.round ?? 1);
+
+    const flatToFlatPx = rowStep();
+
+    const lines = [
+      ['Round', round],
+      ['Camera', camHex],
+      ['Rooms', rooms],
+      ['Openings', openings],
+      ['Tokens', tokens],
+      ['Hex px (flat↕︎)', flatToFlatPx.toFixed(1)],
+    ];
+
+    kvs.innerHTML = lines
+      .map(([k, v]) => `<div>${escapeHtml(k)}</div><div style="color:var(--text); text-align:right;">${escapeHtml(v)}</div>`)
+      .join('');
+  }
 
   function redraw() {
     const state = getState();
