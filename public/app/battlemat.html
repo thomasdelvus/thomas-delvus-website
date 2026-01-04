@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Battlemat - V4
-  Version 4.19
+  Version 4.21
 
   Notes:
   - Restores full room/wall rendering pipeline (walls/floors/doors/windows) while keeping the grid + labels drawn on top.
@@ -97,7 +97,7 @@
       <div class="panel">
         <div class="row">
           <div class="panel-title" style="margin:0;">Status</div>
-          <div class="pill" style="border:none; background:transparent; cursor:default;" id="versionLine">v4.19</div>
+          <div class="pill" style="border:none; background:transparent; cursor:default;" id="versionLine">v4.21</div>
         </div>
         <div class="row subtle" style="margin-top:6px;">
           <div id="roundLine">Round 1</div>
@@ -204,7 +204,7 @@
         {
           id: 'CrossKeysUpperFloor',
           corners: ['B11','Z11','Z2','B2'],
-          thickness: 30,
+          thickness: 20,
           color: '#555',
           floor: { kind: 'wood' },
           wall: { kind: 'brick' },
@@ -212,7 +212,7 @@
         {
           id: 'Bedroom1',
           corners: ['B11','F11','F8','B8'],
-          thickness: 30,
+          thickness: 20,
           color: '#555',
           floor: { kind: 'wood' },
           wall: { kind: 'brick' },
@@ -220,7 +220,7 @@
         {
           id: 'Bedroom2',
           corners: ['B8','F8','F5','B5'],
-          thickness: 30,
+          thickness: 20,
           color: '#555',
           floor: { kind: 'wood' },
           wall: { kind: 'brick' },
@@ -228,7 +228,7 @@
         {
           id: 'Bedroom3',
           corners: ['B5','F5','F2','B2'],
-          thickness: 30,
+          thickness: 20,
           color: '#555',
           floor: { kind: 'wood' },
           wall: { kind: 'brick' },
@@ -236,7 +236,7 @@
         {
           id: 'Bedroom4',
           corners: ['H5','N5','N2','H2'],
-          thickness: 30,
+          thickness: 36,
           color: '#555',
           floor: { kind: 'wood' },
           wall: { kind: 'brick' },
@@ -244,7 +244,7 @@
         {
           id: 'Bedroom5',
           corners: ['H11','N11','N7','H7'],
-          thickness: 30,
+          thickness: 36,
           color: '#555',
           floor: { kind: 'wood' },
           wall: { kind: 'brick' },
@@ -252,7 +252,7 @@
         {
           id: 'Bedroom6',
           corners: ['N9','T9','T7','N7'],
-          thickness: 30,
+          thickness: 36,
           color: '#555',
           floor: { kind: 'wood' },
           wall: { kind: 'brick' },
@@ -260,7 +260,7 @@
         {
           id: 'Bedroom7',
           corners: ['N5','T5','T2','N2'],
-          thickness: 30,
+          thickness: 26,
           color: '#555',
           floor: { kind: 'wood' },
           wall: { kind: 'brick' },
@@ -268,7 +268,7 @@
         {
           id: 'Bedroom8',
           corners: ['V5','Z5','Z2','V2'],
-          thickness: 30,
+          thickness: 26,
           color: '#555',
           floor: { kind: 'wood' },
           wall: { kind: 'brick' },
@@ -276,7 +276,7 @@
         {
           id: 'Bedroom9',
           corners: ['V8','Z8','Z5','V5'],
-          thickness: 30,
+          thickness: 26,
           color: '#555',
           floor: { kind: 'wood' },
           wall: { kind: 'brick' },
@@ -284,7 +284,7 @@
         {
           id: 'Bedroom10',
           corners: ['V11','Z11','Z8','V8'],
-          thickness: 30,
+          thickness: 36,
           color: '#555',
           floor: { kind: 'wood' },
           wall: { kind: 'brick' },
@@ -409,7 +409,7 @@
 
     // Convert a corners array into a pixel-space bounding box rectangle.
     // NOTE: This is the simple rectangle mode you've been using for now.
-    function cornersToRect(corners){
+    function cornersToRect(corners, thicknessPx = 30){
       // IMPORTANT: cornersToRect is a rectangle approximation on a hex grid.
       // To keep the "horizontal walls snap to lower-half" convention stable even when
       // corners span both even/odd columns (which have different center Y offsets),
@@ -436,7 +436,11 @@
       // Expand by our agreed rules:
       // - X expands by quarter column-step (align vertical walls to boundary hex column)
       // - Y expands by half row-step (align horizontal walls to bottom-half convention)
-      const expandX = 0.25 * colStep; // = 0.375*s
+      // X expansion depends on wall thickness so the *centerline* of vertical walls stays
+      // centered on the hex center X regardless of thickness.
+      // (Outer edge shifts by thickness/2, inner edge shifts by thickness/2 in the other direction.)
+      const tPx = Number(thicknessPx || 0);
+      const expandX = (tPx > 0) ? (tPx / 2) : (0.25 * colStep); // fallback if no thickness provided
       const expandY = 0.5 * rowStep;  // = sqrt3*s/2
 
       // X bounds are independent of row parity.
@@ -635,7 +639,7 @@
     // Drawing: rooms (walls + floors)
     // ---------------------------
     function drawRoom(room){
-      const rect = cornersToRect(room.corners);
+      const rect = cornersToRect(room.corners, room.thickness);
       if(!rect) return;
 
       const t = Number(room.thickness || 0);
@@ -691,31 +695,30 @@
       const rotDeg = Number(o.rot ?? o.Rot ?? 0);
       const angle = (facingDeg + rotDeg) * Math.PI / 180;
 
-      // Horizontal openings (doors/windows laid along the E-W axis) must ignore odd-q column parity.
-      // Our room/wall convention snaps horizontal bands to the "lower half" family, so we compute
-      // their anchor Y from row only (fixed +0.5), otherwise they alternate by column and look wrong.
+      // Determine whether the opening is drawn horizontally (E-W) or vertically (N-S).
+      // We snap to the nearest wall-band centerline in the matching orientation.
       const orientDegRaw = ((facingDeg + rotDeg) % 180 + 180) % 180; // 0..179
       const orientDeg = (Math.round(orientDegRaw / 90) * 90) % 180;  // snap to 0/90
       const isHorizontal = (orientDeg === 0);
 
-      let c;
-      if(isHorizontal){
-        // For horizontal openings, we want them centered *inside the nearest horizontal wall band*
-        // (could be the top wall band or the bottom wall band), and we do NOT want odd-q parity
-        // to make them alternate by column.
-        const s = GRID.size;
-        const colStep = (s * 1.5);
-        const x = GRID.originX + colStep * h.col;
+      const s = GRID.size;
+      const colStep = (s * 1.5);
+      const rowStep = (s * Math.sqrt(3));
+      const probe = hexCenter(h.col, h.row);
 
-        // Probe Y: use the raw hex center (may include parity), only for choosing the nearest band.
-        const probeY = hexCenter(h.col, h.row).y;
+      let c;
+
+      if(isHorizontal){
+        // Horizontal openings: center inside the nearest horizontal wall band (top or bottom).
+        // Use hex X without parity concerns; use probeY only to choose the nearest band.
+        const x = GRID.originX + colStep * h.col;
+        const probeY = probe.y;
 
         let bestY = null;
         let bestDist = Infinity;
-        const rowStep = (s * Math.sqrt(3));
 
         for(const r of (SCENE.rooms || [])){
-          const rect = cornersToRect(r.corners);
+          const rect = cornersToRect(r.corners, r.thickness);
           if(!rect) continue;
           if(x < rect.x || x > (rect.x + rect.w)) continue;
 
@@ -741,7 +744,37 @@
           c = { x, y: yStable };
         }
       } else {
-        c = hexCenter(h.col, h.row);
+        // Vertical openings: snap X to the nearest vertical wall band (left or right).
+        // Keep Y at the probed hex center (parity is expected for vertical placement).
+        const probeX = probe.x;
+        const probeY = probe.y;
+
+        let bestX = null;
+        let bestDist = Infinity;
+
+        for(const r of (SCENE.rooms || [])){
+          const rect = cornersToRect(r.corners, r.thickness);
+          if(!rect) continue;
+          if(probeY < rect.y || probeY > (rect.y + rect.h)) continue;
+
+          const wallT = Number(o.wallThicknessPx ?? o.wallT ?? r.thickness ?? 30);
+          if(!(wallT > 0)) continue;
+
+          const xLeft  = rect.x + (wallT / 2);
+          const xRight = (rect.x + rect.w) - (wallT / 2);
+
+          const dLeft = Math.abs(probeX - xLeft);
+          const dRight = Math.abs(probeX - xRight);
+
+          if(dLeft < bestDist){ bestDist = dLeft; bestX = xLeft; }
+          if(dRight < bestDist){ bestDist = dRight; bestX = xRight; }
+        }
+
+        if(bestX !== null && bestDist <= colStep){
+          c = { x: bestX, y: probe.y };
+        } else {
+          c = probe;
+        }
       }
 
       ctx.save();
@@ -765,7 +798,8 @@
       ctx.restore();
     }
 
-    function drawOpenings(){
+    function drawOpenings(
+){
       if(!Array.isArray(SCENE.openings)) return;
       for(const o of SCENE.openings) drawOpening(o);
     }
@@ -832,7 +866,7 @@
       ctx.globalCompositeOperation = 'destination-out';
       for(const r of (SCENE.rooms || [])){
         if(!visible.has(r.id)) continue;
-        const rect = cornersToRect(r.corners);
+        const rect = cornersToRect(r.corners, r.thickness);
         if(!rect) continue;
         const t = Number(r.thickness || 0);
         ctx.fillRect(rect.x + t, rect.y + t, rect.w - 2*t, rect.h - 2*t);
@@ -1024,7 +1058,7 @@
 
       // Expansion math: quarter column-step & half row-step
       const s = GRID.size;
-      const expectedExpandX = 0.25 * (1.5 * s);
+      const expectedExpandX = 30 / 2; // cornersToRect default thicknessPx is 30, so expandX = t/2
       const expectedExpandY = 0.5 * (Math.sqrt(3) * s);
 
       const c1 = hexCenter(labelToCol('D'), 1);
