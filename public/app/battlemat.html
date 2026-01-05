@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Battlemat
-  Version 4.50
+  Version 4.52
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -15,6 +15,12 @@
   or AI/training workflow without prior written permission from the copyright holder.
 
   Unauthorized use is prohibited.
+
+  Rewrite notes (v4.52):
+  - Feature: wood floors now render as staggered E/W planks (brick-like joints) with darker seams between boards; still deterministic per-room (seeded; variant #3).
+
+Rewrite notes (v4.51):
+  - Feature: wood floors now render as east/west plank boards (procedural), with deterministic per-room imperfections (seeded; variant #3).
 
   Rewrite notes (v4.50):
   - UI: shrink Status panel back down (about 25% narrower) now that debug output is removed.
@@ -214,7 +220,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.50</div>
+        <div class="pill" id="versionLine">v4.52</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -664,6 +670,214 @@
     targetCtx.restore();
   }
 
+  function mulberry32(seed) {
+    // Deterministic RNG in [0,1).
+    let a = (seed >>> 0) || 0;
+    return function() {
+      a |= 0;
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function hashStringToSeed(s) {
+    // FNV-1a-ish 32-bit hash.
+    const str = String(s || '');
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function hexToRgbStrict(hex, fallback = { r: 193, g: 146, b: 86 }) {
+    const m = String(hex).trim().match(/^#?([0-9a-fA-F]{6})$/);
+    if (!m) return fallback;
+    const n = parseInt(m[1], 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+
+  function shadeRgba(hex, amt, alpha) {
+    const rgb = hexToRgbStrict(hex);
+    const clamp = (v) => Math.max(0, Math.min(255, v));
+    const r = clamp(Math.round(rgb.r + 255 * amt));
+    const g = clamp(Math.round(rgb.g + 255 * amt));
+    const b = clamp(Math.round(rgb.b + 255 * amt));
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+  }
+
+  function fillWoodPlanksRectScreenOn(targetCtx, rect, opts) {
+    // Procedural E/W floor boards (planks run along +X), clipped to the room.
+    // Anchored in WORLD space so seams/joints don't "swim" when panning.
+    // Style: long planks with staggered end joints (brick-like), plus darker gaps.
+
+    const base = (opts && opts.baseHex) ? opts.baseHex : '#c19256';
+    const alpha = (opts && Number.isFinite(opts.alpha)) ? opts.alpha : 0.78;
+    const worldX = (opts && Number.isFinite(opts.worldX)) ? opts.worldX : 0;
+    const worldY = (opts && Number.isFinite(opts.worldY)) ? opts.worldY : 0;
+    const seed = (opts && Number.isFinite(opts.seed)) ? opts.seed : 12345;
+    const variant = (opts && Number.isFinite(opts.variant)) ? opts.variant : 3;
+
+    // Variant #3: "rustic" — more contrast and small imperfections.
+    const contrast = (variant >= 3) ? 0.16 : 0.11;
+    const seamAlpha = (variant >= 3) ? 0.22 : 0.16; // darker gaps
+    const grainAlpha = (variant >= 3) ? 0.12 : 0.08;
+    const knotChance = (variant >= 3) ? 0.20 : 0.12;
+
+    const plankH = (opts && Number.isFinite(opts.plankH)) ? opts.plankH : 18;
+    const gapY = (opts && Number.isFinite(opts.gapY)) ? opts.gapY : 2.2;  // between rows
+    const gapX = (opts && Number.isFinite(opts.gapX)) ? opts.gapX : 1.8;  // between plank ends
+
+    // Long planks, but not infinite.
+    const minL = (opts && Number.isFinite(opts.minL)) ? opts.minL : 110;
+    const maxL = (opts && Number.isFinite(opts.maxL)) ? opts.maxL : 240;
+
+    const pitchY = plankH + gapY;
+
+    const mod = (a, m) => ((a % m) + m) % m;
+
+    // World-anchored vertical phase.
+    const phaseY = mod(worldY, pitchY);
+    const startY = rect.y - (phaseY + pitchY);
+
+    // World-anchored horizontal phase (drives the stagger so joints stay put while panning).
+    // Use a large-ish period so you don't see repetition.
+    const phasePeriodX = 600;
+    const phaseX = mod(worldX, phasePeriodX);
+
+    targetCtx.save();
+
+    // Clip to interior rect.
+    targetCtx.beginPath();
+    targetCtx.rect(rect.x, rect.y, rect.w, rect.h);
+    targetCtx.clip();
+
+    // Base "undercoat" that shows through gaps (dark patches between boards).
+    targetCtx.fillStyle = shadeRgba(base, -0.14, alpha);
+    targetCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
+
+    const rows = Math.ceil((rect.h + pitchY * 2) / pitchY);
+
+    for (let r = 0; r < rows; r++) {
+      const y = startY + r * pitchY;
+
+      // Stable per-row RNG.
+      const rowSeed = (seed + r * 1013) >>> 0;
+      const rrnd = mulberry32(rowSeed);
+
+      // Alternate row offset (brick-like), plus a small deterministic wobble.
+      const baseOffset = (r & 1) ? (minL * 0.42) : 0;
+      const wobble = (rrnd() - 0.5) * 30;
+      const rowOffset = baseOffset + wobble + (phaseX * 0.12);
+
+      // Fill plank segments across X.
+      let x = rect.x - rowOffset;
+      const xEnd = rect.x + rect.w + maxL;
+
+      // Seam line beneath each plank row.
+      targetCtx.fillStyle = 'rgba(0,0,0,' + seamAlpha + ')';
+      targetCtx.fillRect(rect.x, y + plankH, rect.w, gapY);
+
+      while (x < xEnd) {
+        // Pick a length.
+        const len = Math.floor(minL + rrnd() * (maxL - minL));
+
+        // Per-plank shade variation.
+        const v = (rrnd() - 0.5) * 2; // [-1,1]
+        const shadeAmt = v * contrast;
+
+        // Compute visible portion.
+        const px1 = x;
+        const px2 = x + len;
+        const visX1 = Math.max(px1, rect.x);
+        const visX2 = Math.min(px2, rect.x + rect.w);
+        const visW = visX2 - visX1;
+
+        if (visW > 0) {
+          // Plank body.
+          targetCtx.fillStyle = shadeRgba(base, shadeAmt, alpha);
+          targetCtx.fillRect(visX1, y, visW, plankH);
+
+          // Subtle grain lines (few strokes across the board).
+          const grainCount = 1 + Math.floor(rrnd() * 3);
+          targetCtx.strokeStyle = 'rgba(0,0,0,' + grainAlpha + ')';
+          targetCtx.lineWidth = 1;
+          for (let g = 0; g < grainCount; g++) {
+            const yy = y + 2 + rrnd() * (plankH - 4);
+            const amp = 1.3 + rrnd() * 2.0;
+            const freq = 0.008 + rrnd() * 0.01;
+            const ph = rrnd() * Math.PI * 2;
+
+            targetCtx.beginPath();
+            const gx0 = visX1 - 10;
+            const gx1 = visX1 + visW + 10;
+            targetCtx.moveTo(gx0, yy);
+            const step = 28;
+            for (let gx = gx0; gx <= gx1; gx += step) {
+              const wob = Math.sin((gx + worldX) * freq + ph) * amp;
+              targetCtx.lineTo(gx, yy + wob);
+            }
+            targetCtx.stroke();
+          }
+
+          // End-joint line (dark) at the start of this plank, unless it's beyond the visible left edge.
+          // (We draw this AFTER the plank body so it reads as a seam.)
+          if (px1 >= rect.x - 1 && px1 <= rect.x + rect.w + 1) {
+            targetCtx.fillStyle = 'rgba(0,0,0,' + (seamAlpha * 0.85) + ')';
+            targetCtx.fillRect(px1 - (gapX / 2), y + 1, gapX, plankH - 2);
+          }
+
+          // Occasional knots.
+          if (rrnd() < knotChance) {
+            const kx = visX1 + rrnd() * visW;
+            const ky = y + 3 + rrnd() * (plankH - 6);
+            const kr = 2.2 + rrnd() * 4.2;
+
+            targetCtx.fillStyle = 'rgba(0,0,0,0.10)';
+            targetCtx.beginPath();
+            targetCtx.ellipse(kx, ky, kr * 1.15, kr * 0.85, rrnd() * Math.PI, 0, Math.PI * 2);
+            targetCtx.fill();
+
+            targetCtx.strokeStyle = 'rgba(0,0,0,0.10)';
+            targetCtx.beginPath();
+            targetCtx.ellipse(kx, ky, kr * 0.9, kr * 0.65, rrnd() * Math.PI, 0, Math.PI * 2);
+            targetCtx.stroke();
+          }
+
+          // Tiny scuffs (very light, sparse).
+          if (variant >= 3 && rrnd() < 0.22) {
+            const sc = 1 + Math.floor(rrnd() * 3);
+            targetCtx.strokeStyle = 'rgba(255,255,255,0.10)';
+            targetCtx.lineWidth = 1;
+            for (let s = 0; s < sc; s++) {
+              const sx = visX1 + rrnd() * visW;
+              const sy = y + 2 + rrnd() * (plankH - 4);
+              const slen = 18 + rrnd() * 40;
+              targetCtx.beginPath();
+              targetCtx.moveTo(sx, sy);
+              targetCtx.lineTo(sx + slen, sy + (rrnd() - 0.5) * 2);
+              targetCtx.stroke();
+            }
+          }
+        }
+
+        // Advance to next plank, leaving a visible dark gap between ends.
+        x += len + gapX;
+      }
+
+      // A light top-edge highlight per row helps read the plank separation.
+      if (variant >= 3) {
+        targetCtx.fillStyle = 'rgba(255,255,255,0.06)';
+        targetCtx.fillRect(rect.x, y, rect.w, 1);
+      }
+    }
+
+    targetCtx.restore();
+  }
+
   // Floors only.
   function drawRoom(room) {
     const box = roomToWallBox(room);
@@ -672,12 +886,29 @@
     const i2 = worldToScreen({ x: box.inner.x2, y: box.inner.y2 });
 
     const floorKind = (room.floor && room.floor.kind) ? room.floor.kind : 'stone';
-    if (floorKind !== 'none') {
-      ctx.fillStyle = (floorKind === 'stone') ? COLORS.floorStone
-        : (floorKind === 'wood') ? COLORS.floorWood
-        : 'rgba(255,255,255,0)';
-      ctx.fillRect(i1.x, i1.y, i2.x - i1.x, i2.y - i1.y);
+    if (floorKind === 'none') return;
+
+    const rect = { x: i1.x, y: i1.y, w: (i2.x - i1.x), h: (i2.y - i1.y) };
+
+    if (floorKind === 'wood') {
+      // E/W planks (run along X) with deterministic, per-room imperfections.
+      const seed = hashStringToSeed(room.id || JSON.stringify(room.corners || []));
+      fillWoodPlanksRectScreenOn(ctx, rect, {
+        baseHex: '#c19256',
+        alpha: 0.78,
+        worldX: box.inner.x1,
+        worldY: box.inner.y1,
+        seed,
+        variant: 3,
+        plankH: 18,
+        gap: 2,
+      });
+      return;
     }
+
+    // Stone (simple fill for now).
+    ctx.fillStyle = COLORS.floorStone;
+    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
   }
 
   // Walls (brick ring) to targetCtx (offscreen layer).
@@ -1202,6 +1433,13 @@
 
       const p = parseHexId('AA27');
       if (hexId(p.col, p.row) !== 'AA27') throw new Error('parseHexId/hexId mismatch for AA27');
+
+      // RNG determinism sanity.
+      const r1 = mulberry32(123);
+      const r2 = mulberry32(123);
+      const a = r1();
+      const b = r2();
+      if (Math.abs(a - b) > 1e-12) throw new Error('mulberry32 not deterministic');
 
       // Geometry sanity: Bedroom1 south wall should be shifted 1/4-hex SOUTH of the declared south-corner hex centers.
       const testRoom = { id: 'Bedroom1', corners: ['B11','F11','F8','B8'], thickness: 20 };
