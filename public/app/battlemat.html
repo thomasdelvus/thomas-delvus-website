@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Battlemat
-  Version 4.48
+  Version 4.50
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -15,6 +15,12 @@
   or AI/training workflow without prior written permission from the copyright holder.
 
   Unauthorized use is prohibited.
+
+  Rewrite notes (v4.50):
+  - UI: shrink Status panel back down (about 25% narrower) now that debug output is removed.
+
+  Rewrite notes (v4.49):
+  - Feature: windows now support open/ajar/closed rendering as split casements (two leaves) using opensTo + openPct.
 
   Rewrite notes (v4.48):
   - Fix: prevent "drawImage: Passed-in canvas is empty" by ensuring the offscreen wall canvas is sized BEFORE any redraw.
@@ -51,7 +57,7 @@
     .app {
       height: 100%;
       display: grid;
-      grid-template-columns: 1fr 370px;
+      grid-template-columns: 1fr 280px;
       gap: 12px;
       padding: 12px;
       box-sizing: border-box;
@@ -208,7 +214,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.48</div>
+        <div class="pill" id="versionLine">v4.50</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -373,14 +379,14 @@
       { id: 'door_room9', kind: 'door', hex: 'V6',  orientation: 'v', state: 'open', opensTo: 'E', hingeEnd: 'N' },
       { id: 'door_room10',kind: 'door', hex: 'V10', orientation: 'v', state: 'open', opensTo: 'E', hingeEnd: 'N' },
 
-      { id: 'west_window1', kind: 'window', hex: 'B10', orientation: 'v' },
+      { id: 'west_window1', kind: 'window', hex: 'B10', orientation: 'v', state: 'open', opensTo: 'W' },
       { id: 'west_window2', kind: 'window', hex: 'B9',  orientation: 'v' },
       { id: 'west_window3', kind: 'window', hex: 'B7',  orientation: 'v' },
       { id: 'west_window4', kind: 'window', hex: 'B6',  orientation: 'v' },
       { id: 'west_window5', kind: 'window', hex: 'B4',  orientation: 'v' },
       { id: 'west_window6', kind: 'window', hex: 'B3',  orientation: 'v' },
 
-      { id: 'south_window1', kind: 'window', hex: 'C1', orientation: 'h' },
+      { id: 'south_window1', kind: 'window', hex: 'C1', orientation: 'h', state: 'open', opensTo: 'S' },
       { id: 'south_window2', kind: 'window', hex: 'D2', orientation: 'h' },
       { id: 'south_window3', kind: 'window', hex: 'G1', orientation: 'h' },
       { id: 'south_window4', kind: 'window', hex: 'J2', orientation: 'h' },
@@ -746,6 +752,31 @@
     return { state, opensTo, hingeEnd, openPct };
   }
 
+  function normalizeWindowParams(opening, orient) {
+    let state = String(opening && opening.state ? opening.state : '').toLowerCase();
+    if (!state) {
+      if (opening && opening.open === true) state = 'open';
+      else if (opening && opening.open === false) state = 'closed';
+      else state = 'closed';
+    }
+    if (state !== 'open' && state !== 'closed' && state !== 'ajar') state = 'closed';
+
+    const isV = orient === 'v';
+    const validOpensTo = isV ? new Set(['E', 'W']) : new Set(['N', 'S']);
+
+    let opensTo = String(opening && opening.opensTo ? opening.opensTo : '').toUpperCase();
+    // Defaults chosen to match the sample map's exterior walls (west + south).
+    if (!validOpensTo.has(opensTo)) opensTo = isV ? 'W' : 'S';
+
+    let openPct = Number(opening && (opening.openPct ?? opening.openPercent ?? opening.openAmount));
+    if (!Number.isFinite(openPct)) {
+      openPct = (state === 'open') ? 1 : (state === 'ajar') ? 0.5 : 0;
+    }
+    openPct = Math.max(0, Math.min(1, openPct));
+
+    return { state, opensTo, openPct };
+  }
+
   function cutOpeningHole(targetCtx, opening, wallSegs) {
     const kind = String(opening.kind || 'door').toLowerCase();
     const orient = openingOrientation(opening);
@@ -862,18 +893,82 @@
         ctx.restore();
       }
     } else {
-      ctx.fillStyle = fill;
-      ctx.strokeStyle = stroke;
+      const wv = normalizeWindowParams(opening, orient);
 
-      roundRectPath(ctx, -w / 2, -openingH / 2, w, openingH, Math.max(2, Math.min(openingH / 2, 999)));
-      ctx.fill();
-      ctx.stroke();
+      // Closed: classic "pill" window with a center mullion.
+      if (wv.openPct <= 0.001) {
+        ctx.fillStyle = fill;
+        ctx.strokeStyle = stroke;
 
-      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-      ctx.beginPath();
-      ctx.moveTo(0, -openingH / 2 + 2);
-      ctx.lineTo(0, openingH / 2 - 2);
-      ctx.stroke();
+        roundRectPath(ctx, -w / 2, -openingH / 2, w, openingH, Math.max(2, Math.min(openingH / 2, 999)));
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+        ctx.beginPath();
+        ctx.moveTo(0, -openingH / 2 + 2);
+        ctx.lineTo(0, openingH / 2 - 2);
+        ctx.stroke();
+      } else {
+        // Open/Ajar: split casement (two leaves), both swing "out" to opensTo.
+        const desiredY = (orient === 'h')
+          ? (wv.opensTo === 'S' ? 1 : -1)
+          : (wv.opensTo === 'W' ? 1 : -1);
+
+        const maxAngle = (Math.PI / 3); // 60° looks good for casement windows.
+
+        const leafLen = w / 2;
+        const leafThick = Math.max(5, openingH * 0.88);
+        const leafR = Math.max(2, Math.min(leafThick / 2, 999));
+
+        ctx.fillStyle = fill;
+        ctx.strokeStyle = stroke;
+
+        // Left leaf: hinged on the left end (-w/2), extends right.
+        {
+          const hingeSide = 'left';
+          const hingeX = -w / 2;
+          const rotSign = desiredY * (hingeSide === 'left' ? 1 : -1);
+          const angle = maxAngle * wv.openPct * rotSign;
+
+          ctx.save();
+          ctx.translate(hingeX, 0);
+          ctx.rotate(angle);
+          roundRectPath(ctx, 0, -leafThick / 2, leafLen, leafThick, leafR);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = 'rgba(0,0,0,0.18)';
+          ctx.beginPath();
+          ctx.arc(0, 0, 2.1, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+
+          ctx.fillStyle = fill;
+          ctx.strokeStyle = stroke;
+        }
+
+        // Right leaf: hinged on the right end (+w/2), extends left.
+        {
+          const hingeSide = 'right';
+          const hingeX = w / 2;
+          const rotSign = desiredY * (hingeSide === 'left' ? 1 : -1);
+          const angle = maxAngle * wv.openPct * rotSign;
+
+          ctx.save();
+          ctx.translate(hingeX, 0);
+          ctx.rotate(angle);
+          roundRectPath(ctx, -leafLen, -leafThick / 2, leafLen, leafThick, leafR);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = 'rgba(0,0,0,0.18)';
+          ctx.beginPath();
+          ctx.arc(0, 0, 2.1, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
     }
 
     ctx.restore();
@@ -1128,6 +1223,16 @@
       if (d1.opensTo !== 'E' || d1.hingeEnd !== 'N' || d1.openPct !== 0) throw new Error('Door defaults (v) unexpected');
       const d2 = normalizeDoorParams({ kind: 'door' }, 'h');
       if (d2.opensTo !== 'N' || d2.hingeEnd !== 'W' || d2.openPct !== 0) throw new Error('Door defaults (h) unexpected');
+
+      // Window defaults sanity
+      const w1 = normalizeWindowParams({ kind: 'window' }, 'v');
+      if (w1.opensTo !== 'W' || w1.openPct !== 0) throw new Error('Window defaults (v) unexpected');
+      const w2 = normalizeWindowParams({ kind: 'window' }, 'h');
+      if (w2.opensTo !== 'S' || w2.openPct !== 0) throw new Error('Window defaults (h) unexpected');
+
+      // Window openPct mapping via state
+      const w3 = normalizeWindowParams({ kind: 'window', state: 'ajar' }, 'v');
+      if (Math.abs(w3.openPct - 0.5) > 0.0001) throw new Error('Window ajar openPct unexpected');
 
       console.log('[Battlemat] self-tests: OK');
     } catch (e) {
