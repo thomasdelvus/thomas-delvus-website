@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v4.80
+  v4.82
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -14,6 +14,13 @@
   or AI/training workflow without prior written permission from the copyright holder.
 
   Unauthorized use is prohibited.
+
+  Rewrite notes (v4.82):
+  - Fog: restored drawing of walls for base "fog" rooms (e.g., CrossKeysUpperFloor) so exterior building outlines remain visible.
+
+  Rewrite notes (v4.81):
+  - Added floor kind "fog" (solid mid-gray) for base-layer floors.
+  - When Fog is enabled, only visible rooms are rendered (plus any "fog" base rooms). Walls/openings are rendered only for those drawn rooms, hiding unexplored geometry.
 
   Rewrite notes (v4.80):
   - Fog: switched overlay to solid mid-gray fills (no transparency) to avoid color buildup where floors overlap.
@@ -245,6 +252,7 @@
             <option value="cobble">Cobble</option>
             <option value="stairs.wood">Stairs</option>
             <option value="none">None</option>
+            <option value="fog">Fog</option>
           </select>
         </label>
 
@@ -269,7 +277,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.80</div>
+        <div class="pill" id="versionLine">v4.81</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -384,16 +392,7 @@
         floor: { kind: 'wood' },
         wall: { kind: 'brick' },
       },
-      {
-        id: 'CrossKeysUpperFloor',
-        corners: ['L21','AJ21','AJ12','L12'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'none' },
-        wall: { kind: 'brick' },
-      },
-
-      // --- Spaces (hallways / open areas): floors only, no walls ---
+       // --- Spaces (hallways / open areas): floors only, no walls ---
       {
         id: 'StairsDown',
         corners: ['Z21','AD21','AD19','Z19'],
@@ -402,27 +401,36 @@
         wall: { kind: 'none' },
         stairsDown: 'W'  // 'N'|'S'|'E'|'W' (direction the stairs go DOWN)
       },
-
+      
+      
+      {
+        id: 'CrossKeysUpperFloor',
+        corners: ['L21','AJ21','AJ12','L12'],
+        thickness: 20,
+        color: '#555',
+        floor: { kind: 'fog' },
+        wall: { kind: 'brick' },
+      },
       {
         id: 'Hallway1',
         corners: ['AD21','AF21','AF12','AD12'],
         thickness: 20,
         floor: { kind: 'wood' },
-        wall: { kind: 'none' },
+        wall: { kind: 'brick' },
       },
       {
         id: 'Hallway2',
         corners: ['R17','AD17','AD15','R15'],
         thickness: 20,
         floor: { kind: 'wood' },
-        wall: { kind: 'none' },
+        wall: { kind: 'brick' },
       },
       {
         id: 'Hallway3',
         corners: ['P21','R21','R12','P12'],
         thickness: 20,
         floor: { kind: 'wood' },
-        wall: { kind: 'none' },
+        wall: { kind: 'brick' },
       },
 
       {
@@ -559,7 +567,7 @@
       { id: 'w3',   name: 'Wraith 3', side: 'ENEMY', hex: 'N17', label: 'W3', init: 10, hp: 67 },
       { id: 'a',    name: 'Aelar', side: 'PC', hex: 'T13', label: 'A', init: 14, hp: 42 },
       { id: 'b',    name: 'Brunna', side: 'PC', hex: 'U13', label: 'B', init: 13, hp: 55 },
-      { id: 'c',    name: 'Caelin', side: 'PC', hex: 'V20', label: 'C', init: 12, hp: 38 },
+      { id: 'c',    name: 'Caelin', side: 'PC', hex: 'U16', label: 'C', init: 12, hp: 38 },
     ],
   };
 
@@ -676,6 +684,36 @@
     }
 
     return false;
+  }
+
+  function openingTouchingRoomIds(opening, roomMeta) {
+    if (!opening || !opening.hex) return { a: null, b: null };
+    let p;
+    try { p = parseHexId(opening.hex); } catch { return { a: null, b: null }; }
+
+    const orient = openingOrientation(opening);
+
+    // Sample 1 hex on each side of the opening.
+    let a = null;
+    let b = null;
+    if (orient === 'v') {
+      a = pickMostSpecificRoomIdAt(roomMeta, p.col - 1, p.row);
+      b = pickMostSpecificRoomIdAt(roomMeta, p.col + 1, p.row);
+    } else {
+      a = pickMostSpecificRoomIdAt(roomMeta, p.col, p.row + 1);
+      b = pickMostSpecificRoomIdAt(roomMeta, p.col, p.row - 1);
+    }
+
+    return { a, b };
+  }
+
+  function isRenderableOpening(opening, roomMeta, renderableRoomIds) {
+    const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
+    // thresholds/portals/connectors affect fog logic only; never render or cut walls.
+    if (kind === 'threshold' || kind === 'portal' || kind === 'connector') return false;
+
+    const { a, b } = openingTouchingRoomIds(opening, roomMeta);
+    return (a && renderableRoomIds.has(a)) || (b && renderableRoomIds.has(b));
   }
 
   function buildAdjacency(roomMeta, openings) {
@@ -1608,15 +1646,11 @@
 
     const rect = { x: f1.x, y: f1.y, w: (f2.x - f1.x), h: (f2.y - f1.y) };
 
-    // Fog of War: replace non-visible floors with fog (walls remain visible).
-    if (RENDER_FOG && RENDER_FOG.enabled) {
-      const roomId = String(room.id || '');
-      if (roomId && !RENDER_FOG.visible.has(roomId)) {
-        const isExplored = RENDER_FOG.explored.has(roomId);
-        ctx.fillStyle = isExplored ? COLORS.fogExplored : COLORS.fogUnseen;
-        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-        return;
-      }
+    // Explicit fog floor kind (used as a base layer).
+    if (String(floorKind).toLowerCase() === 'fog') {
+      ctx.fillStyle = COLORS.fogUnseen;
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      return;
     }
 
     if (floorKind === 'wood') {
@@ -2127,11 +2161,50 @@
     // Compute Fog of War sets for this frame.
     RENDER_FOG = computeRenderFog(state, rooms, openings);
 
-    for (const r of rooms) drawRoom(r);
+    // When fog is enabled, render ONLY what's in view, plus any base "fog" floor rooms.
+    let roomsToDraw = rooms;
+    let openingsToDraw = openings;
 
-    const wallSegs = buildWallSegments(rooms);
+    if (RENDER_FOG && RENDER_FOG.enabled) {
+      const roomMeta = buildRoomMeta(rooms);
 
-    for (const o of openings) paintDoorUnderlay(o, rooms, wallSegs);
+      const baseFogRoomIds = new Set();
+      for (const r of rooms) {
+        const k = r && r.floor && r.floor.kind ? String(r.floor.kind).toLowerCase() : '';
+        if (k === 'fog' && r && r.id) baseFogRoomIds.add(String(r.id));
+      }
+
+      const geometryRoomIds = new Set([...RENDER_FOG.visible]);
+
+      roomsToDraw = rooms.filter(r => {
+        const id = r && r.id ? String(r.id) : '';
+        if (!id) return true;
+        if (baseFogRoomIds.has(id)) return true; // base fog floor always
+        return geometryRoomIds.has(id);
+      });
+
+      openingsToDraw = openings.filter(o => isRenderableOpening(o, roomMeta, geometryRoomIds));
+    }
+
+    // Floors.
+    for (const r of roomsToDraw) drawRoom(r);
+
+    // Walls are drawn only for rooms that contribute geometry this frame.
+    const roomsForWalls = (RENDER_FOG && RENDER_FOG.enabled)
+      ? roomsToDraw.filter(r => {
+          const k = r && r.floor && r.floor.kind ? String(r.floor.kind).toLowerCase() : '';
+
+          // Base fog "container" rooms (like the whole building rectangle) should still draw their walls
+          // so the exterior outline remains visible even when the interior is hidden.
+          if (k === 'fog') return roomHasWalls(r);
+
+          return true;
+        })
+      : roomsToDraw;
+
+    const wallSegs = buildWallSegments(roomsForWalls);
+
+    for (const o of openingsToDraw) paintDoorUnderlay(o, roomsToDraw, wallSegs);
 
     wallCtx.save();
     wallCtx.setTransform(1, 0, 0, 1, 0, 0);
@@ -2140,7 +2213,7 @@
 
     wallCtx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
 
-    for (const r of rooms) drawRoomWalls(wallCtx, r);
+    for (const r of roomsForWalls) drawRoomWalls(wallCtx, r);
 
     wallCtx.save();
     wallCtx.globalCompositeOperation = 'destination-out';
@@ -2152,7 +2225,7 @@
       return (k === 'window') ? 0.25 : 1;
     };
 
-    for (const o of openings) {
+    for (const o of openingsToDraw) {
       wallCtx.globalAlpha = knockoutAlphaFor(o);
       cutOpeningHole(wallCtx, o, wallSegs);
     }
@@ -2166,7 +2239,7 @@
 
     ctx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
 
-    for (const o of openings) drawOpening(o, wallSegs);
+    for (const o of openingsToDraw) drawOpening(o, wallSegs);
 
     for (const t of tokens) {
       if (shouldDrawToken(t, rooms)) drawToken(t);
@@ -2225,6 +2298,19 @@
         const aN = neigh.get('A');
         if (!aN || !aN.has('B')) throw new Error('threshold should connect spaces for adjacency');
       }
+
+      // Render filter: a door should be considered renderable if at least one side touches a renderable room.
+      {
+        const dummyRooms = [
+          { id: 'Hall', corners: ['B3','D3','D1','B1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id: 'Hidden', corners: ['D3','F3','F1','D1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+        ];
+        const rm = buildRoomMeta(dummyRooms);
+        const o = { id: 'd', kind: 'door', hex: 'D2', orientation: 'v', state: 'closed' };
+        const renderable = new Set(['Hall']);
+        if (!isRenderableOpening(o, rm, renderable)) throw new Error('door adjacent to renderable room should be renderable');
+      }
+
       // Fog defaults: when maxDepth is omitted, normalizeFog should default to 1 (no multi-hop chaining).
       {
         const f = normalizeFog({ fog: { enabled: true, mode: 'room' } });
