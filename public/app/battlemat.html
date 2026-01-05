@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Battlemat
-  Version 4.65
+  Version 4.66
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -16,6 +16,9 @@
 
   Unauthorized use is prohibited.
 
+
+  Rewrite notes (v4.66):
+  - Streets: added cobblestone floor pattern for exterior spaces; reduced cobble stone size for better scale.
 
   Rewrite notes (v4.65):
   - Data: baked a +10E/+10N shift directly into DEFAULT_STATE hex coordinates (rooms/spaces/openings/tokens/camera) so there is real empty space for streets.
@@ -210,7 +213,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.65</div>
+        <div class="pill" id="versionLine">v4.66</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -290,8 +293,7 @@
         floor: { kind: 'cobble' },
         wall: { kind: 'none' },
       },
-      
-      
+         
       
       {
         id: 'CrossKeysUpperFloor',
@@ -303,6 +305,14 @@
       },
 
       // --- Spaces (hallways / open areas): floors only, no walls ---
+      {
+        id: 'StairsDown',
+        corners: ['Z21','AD21','AD19','Z19'],
+        thickness: 20,
+        floor: { kind: 'stairs.wood' },
+        wall: { kind: 'none' },
+      },
+      
       {
         id: 'Hallway1',
         corners: ['AD21','AF21','AF12','AD12'],
@@ -428,22 +438,22 @@
       { id: 'door_room10',kind: 'door', hex: 'AF20', orientation: 'v', state: 'open', opensTo: 'E', hingeEnd: 'N' },
       { id: 'door_room5closet', kind: 'door', hex: 'X20',  orientation: 'v', state: 'open', opensTo: 'W', hingeEnd: 'N' },
 
-      { id: 'west_window1', kind: 'window', hex: 'L20', orientation: 'v', state: 'open', opensTo: 'W' },
-      { id: 'west_window2', kind: 'window', hex: 'L19',  orientation: 'v', state: 'open', opensTo: 'W' },
-      { id: 'west_window3', kind: 'window', hex: 'L17',  orientation: 'v', state: 'open', opensTo: 'W' },
-      { id: 'west_window4', kind: 'window', hex: 'L16',  orientation: 'v', state: 'open', opensTo: 'W' },
-      { id: 'west_window5', kind: 'window', hex: 'L14',  orientation: 'v', state: 'open', opensTo: 'W' },
-      { id: 'west_window6', kind: 'window', hex: 'L13',  orientation: 'v', state: 'open', opensTo: 'W' },
+      { id: 'west_window1', kind: 'window', hex: 'L20', orientation: 'v', state: 'closed', opensTo: 'W' },
+      { id: 'west_window2', kind: 'window', hex: 'L19',  orientation: 'v', state: 'closed', opensTo: 'W' },
+      { id: 'west_window3', kind: 'window', hex: 'L17',  orientation: 'v', state: 'closed', opensTo: 'W' },
+      { id: 'west_window4', kind: 'window', hex: 'L16',  orientation: 'v', state: 'closed', opensTo: 'W' },
+      { id: 'west_window5', kind: 'window', hex: 'L14',  orientation: 'v', state: 'closed', opensTo: 'W' },
+      { id: 'west_window6', kind: 'window', hex: 'L13',  orientation: 'v', state: 'closed', opensTo: 'W' },
 
-      { id: 'south_window1', kind: 'window', hex: 'M11', orientation: 'h', state: 'open', opensTo: 'S' },
-      { id: 'south_window2', kind: 'window', hex: 'N12', orientation: 'h', state: 'open', opensTo: 'S' },
-      { id: 'south_window3', kind: 'window', hex: 'Q11', orientation: 'h', state: 'open', opensTo: 'S' },
-      { id: 'south_window4', kind: 'window', hex: 'T12', orientation: 'h', state: 'open', opensTo: 'S' },
-      { id: 'south_window5', kind: 'window', hex: 'U11', orientation: 'h', state: 'open', opensTo: 'S' },
-      { id: 'south_window6', kind: 'window', hex: 'AA11', orientation: 'h', state: 'open', opensTo: 'S' },
-      { id: 'south_window7', kind: 'window', hex: 'AB12', orientation: 'h', state: 'open', opensTo: 'S' },
-      { id: 'south_window8', kind: 'window', hex: 'AE11', orientation: 'h', state: 'open', opensTo: 'S' },
-      { id: 'south_window9', kind: 'window', hex: 'AH12', orientation: 'h', state: 'open', opensTo: 'S' },
+      { id: 'south_window1', kind: 'window', hex: 'M11', orientation: 'h', state: 'closed', opensTo: 'S' },
+      { id: 'south_window2', kind: 'window', hex: 'N12', orientation: 'h', state: 'closed', opensTo: 'S' },
+      { id: 'south_window3', kind: 'window', hex: 'Q11', orientation: 'h', state: 'closed', opensTo: 'S' },
+      { id: 'south_window4', kind: 'window', hex: 'T12', orientation: 'h', state: 'closed', opensTo: 'S' },
+      { id: 'south_window5', kind: 'window', hex: 'U11', orientation: 'h', state: 'closed', opensTo: 'S' },
+      { id: 'south_window6', kind: 'window', hex: 'AA11', orientation: 'h', state: 'closed', opensTo: 'S' },
+      { id: 'south_window7', kind: 'window', hex: 'AB12', orientation: 'h', state: 'closed', opensTo: 'S' },
+      { id: 'south_window8', kind: 'window', hex: 'AE11', orientation: 'h', state: 'closed', opensTo: 'S' },
+      { id: 'south_window9', kind: 'window', hex: 'AH12', orientation: 'h', state: 'closed', opensTo: 'S' },
     ],
 
     tokens: [
@@ -785,16 +795,17 @@ function drawHexLabel(col, row) {
     const worldY = (opts && Number.isFinite(opts.worldY)) ? opts.worldY : 0;
     const seed = (opts && Number.isFinite(opts.seed)) ? opts.seed : 12345;
 
-    const stoneMin = (opts && Number.isFinite(opts.stoneMin)) ? opts.stoneMin : 14;
-    const stoneMax = (opts && Number.isFinite(opts.stoneMax)) ? opts.stoneMax : 26;
-    const gap = (opts && Number.isFinite(opts.gap)) ? opts.gap : 2.4;
+    const stoneMin = (opts && Number.isFinite(opts.stoneMin)) ? opts.stoneMin : 4;
+    const stoneMax = (opts && Number.isFinite(opts.stoneMax)) ? opts.stoneMax : 7;
+    const gap = (opts && Number.isFinite(opts.gap)) ? opts.gap : 0.8;
 
     const pitch = stoneMax + gap;
     const mod = (a, m) => ((a % m) + m) % m;
 
     // Mortar + stones palettes.
-    const mortar = shadeRgba(base, +0.18, alpha);
-    const edge = 'rgba(0,0,0,0.18)';
+    const mortar = shadeRgba(base, +0.20, alpha);
+    // Slightly lighter edges so the stones don't read too dark overall.
+    const edge = 'rgba(0,0,0,0.14)';
 
     targetCtx.save();
 
@@ -838,7 +849,9 @@ function drawHexLabel(col, row) {
         const x = cellX + (pitch / 2) + ox;
         const y = cellY + (pitch / 2) + oy;
 
-        const shadeAmt = (rnd() - 0.5) * 0.10; // low contrast
+        // Lighten stones substantially so the overall cobble reads closer to the mortar tone.
+        // (Keeps variation, but biases brighter.)
+        const shadeAmt = +0.12 + (rnd() - 0.5) * 0.06; // ~50% lighter overall
         const fill = shadeRgba(base, shadeAmt, alpha);
 
         const rr = 2.5 + rnd() * 4.0;
@@ -853,7 +866,7 @@ function drawHexLabel(col, row) {
         targetCtx.stroke();
 
         // Tiny highlight for depth (very subtle).
-        targetCtx.strokeStyle = 'rgba(255,255,255,0.10)';
+        targetCtx.strokeStyle = 'rgba(255,255,255,0.08)';
         targetCtx.beginPath();
         targetCtx.moveTo(-w / 2 + rr, -h / 2 + 1);
         targetCtx.lineTo(w / 2 - rr, -h / 2 + 1);
@@ -1223,9 +1236,9 @@ function drawHexLabel(col, row) {
         worldX: f.x1,
         worldY: f.y1,
         seed,
-        stoneMin: 14,
-        stoneMax: 26,
-        gap: 2.4,
+        stoneMin: 4,
+        stoneMax: 7,
+        gap: 0.8,
       });
       return;
     }
