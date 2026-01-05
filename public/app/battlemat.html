@@ -1,7 +1,6 @@
 <!doctype html>
 <!--
-  Battlemat
-  Version 4.72
+  v4.80
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -16,6 +15,33 @@
 
   Unauthorized use is prohibited.
 
+  Rewrite notes (v4.80):
+  - Fog: switched overlay to solid mid-gray fills (no transparency) to avoid color buildup where floors overlap.
+
+  Rewrite notes (v4.79):
+  - Fog: changed fog overlay from black to mid-gray (50% gray) while keeping the same alpha behavior.
+
+  Rewrite notes (v4.78):
+  - Fog: stop hallway chaining by default by setting fog.maxDepth to 1 (doors/windows/thresholds reveal only 1 hop beyond any PC-occupied room).
+
+  Rewrite notes (v4.77):
+  - Fix: removed an accidental function declaration inserted into DEFAULT_STATE.openings (was causing “missing ] after element list”).
+  - Data: added invisible threshold openings (R16, AD16, AD20) correctly as objects in openings[] (not drawn; see-through for fog BFS).
+  - Fog: openingIsSeeThrough() now treats threshold/portal/connector as always see-through.
+
+  Rewrite notes (v4.76):
+  - Fog adjacency: removed auto-connection for wall-less spaces (hallways/streets no longer chain by touching bounds).
+  - Added invisible 'threshold' openings (always see-through, not rendered) to explicitly connect hallway segments.
+
+  Rewrite notes (v4.75):
+  - Fix: restored the missing #floorKind dropdown (was causing "addEventListener ... is null").
+  - Fix: made UI wiring resilient (null-safe) so missing optional controls won’t crash.
+  - UI: floor override dropdown now has a “Mixed” option that applies no changes.
+
+  Rewrite notes (v4.74):
+  - Fog of War (room-based): draw fog over room floors when not visible/explored; keep walls visible.
+  - Fog of War: hide non-PC tokens in non-visible rooms.
+  - UI: added a Fog toggle.
 
   Rewrite notes (v4.72):
   - Fix: corrected a malformed function declaration (roomFloorRectWorld) that caused “missing { before function body”.
@@ -210,12 +236,22 @@
           <span><span class="sw" style="background:#666"></span>Wall</span>
         </label>
 
-        <select id="floorKind">
-          <option value="wood">Floor: Wood</option>
-          <option value="stone">Floor: Stone</option>
-          <option value="cobble">Floor: Cobble</option>
-          <option value="none">Floor: None</option>
-        </select>
+        <label style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:12px; color:var(--muted);">Floors</span>
+          <select id="floorKind" style="min-width: 140px;">
+            <option value="">Mixed</option>
+            <option value="stone">Stone</option>
+            <option value="wood">Wood</option>
+            <option value="cobble">Cobble</option>
+            <option value="stairs.wood">Stairs</option>
+            <option value="none">None</option>
+          </select>
+        </label>
+
+        <label style="display:flex; align-items:center; gap:6px;">
+          <input type="checkbox" id="fogToggle" />
+          <span style="font-size:12px; color:var(--muted);">Fog</span>
+        </label>
 
         <label style="display:flex; align-items:center; gap:6px;">
           <span style="font-size:12px; color:var(--muted);">Center on</span>
@@ -233,7 +269,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.72</div>
+        <div class="pill" id="versionLine">v4.80</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -274,6 +310,10 @@
     tokenEnemy: '#111',
     tokenTextDark: 'rgba(0,0,0,0.72)',
     tokenTextLight: 'rgba(255,255,255,0.88)',
+
+    // Fog (floor replacement)
+    fogUnseen: 'rgb(128,128,128)',
+    fogExplored: 'rgb(170,170,170)',
   };
 
   const VIEW = {
@@ -295,6 +335,21 @@
   const DEFAULT_STATE = {
     meta: { title: 'Cross Keys Inn — Upper Floor', battleId: 'local', round: 1 },
     view: { camera_hex: 'U16' },
+
+    // Fog of War (room-based)
+    // - visibleRoomIds may be computed locally (autoCompute) or supplied by a rules/DM layer.
+    // - exploredRoomIds will auto-accumulate (autoExplore) in this standalone battlemat.
+    fog: {
+      enabled: true,
+      mode: 'room',
+      visibleRoomIds: [],
+      exploredRoomIds: [],
+      autoCompute: true,
+      autoExplore: true,
+      maxDepth: 1,
+      unseenAlpha: 0.92,
+      exploredAlpha: 0.55,
+    },
 
     rooms: [
       {
@@ -464,27 +519,33 @@
       { id: 'door_room1', kind: 'door', hex: 'P19',  orientation: 'v', state: 'closed', opensTo: 'W', hingeEnd: 'N' },
       { id: 'door_room2', kind: 'door', hex: 'P16',  orientation: 'v', state: 'closed', opensTo: 'W', hingeEnd: 'N' },
       { id: 'door_room3', kind: 'door', hex: 'P13',  orientation: 'v', state: 'closed', opensTo: 'W', hingeEnd: 'N' },
-      { id: 'door_room4', kind: 'door', hex: 'T15',  orientation: 'h', state: 'closed', opensTo: 'S', hingeEnd: 'W' },
-      { id: 'door_room5', kind: 'door', hex: 'U17',  orientation: 'h', state: 'closed', opensTo: 'N', hingeEnd: 'W' },
-      { id: 'door_room6', kind: 'door', hex: 'AA17',  orientation: 'h', state: 'closed', opensTo: 'N', hingeEnd: 'E' },
-      { id: 'door_room7', kind: 'door', hex: 'AC14',  orientation: 'h', state: 'closed', opensTo: 'S', hingeEnd: 'E' },
-      { id: 'door_room8', kind: 'door', hex: 'AF13',  orientation: 'v', state: 'closed', opensTo: 'E', hingeEnd: 'N' },
-      { id: 'door_room9', kind: 'door', hex: 'AF16',  orientation: 'v', state: 'closed', opensTo: 'E', hingeEnd: 'N' },
+      { id: 'door_room4', kind: 'door', hex: 'T15',  orientation: 'h', state: 'open', opensTo: 'S', hingeEnd: 'W' },
+      { id: 'door_room5', kind: 'door', hex: 'U17',  orientation: 'h', state: 'open', opensTo: 'N', hingeEnd: 'W' },
+      { id: 'door_room5_closet', kind: 'door', hex: 'X20',  orientation: 'v', state: 'open', opensTo: 'W', hingeEnd: 'N' },
+      { id: 'door_room6', kind: 'door', hex: 'AA17', orientation: 'h', state: 'closed', opensTo: 'N', hingeEnd: 'E' },
+      { id: 'door_room7', kind: 'door', hex: 'AC14', orientation: 'h', state: 'closed', opensTo: 'S', hingeEnd: 'E' },
+      { id: 'door_room8', kind: 'door', hex: 'AF13', orientation: 'v', state: 'closed', opensTo: 'E', hingeEnd: 'N' },
+      { id: 'door_room9', kind: 'door', hex: 'AF16', orientation: 'v', state: 'closed', opensTo: 'E', hingeEnd: 'N' },
       { id: 'door_room10',kind: 'door', hex: 'AF20', orientation: 'v', state: 'closed', opensTo: 'E', hingeEnd: 'N' },
-      { id: 'door_room5closet', kind: 'door', hex: 'X20',  orientation: 'v', state: 'closed', opensTo: 'W', hingeEnd: 'N' },
+
+      // Invisible connectors between wall-less spaces (hallways, etc.).
+      // Always considered "see-through" for fog visibility, but not drawn and do not cut walls.
+      { id: 'thresh_R16',  kind: 'threshold', hex: 'R16',  orientation: 'v', state: 'open' },
+      { id: 'thresh_AD16', kind: 'threshold', hex: 'AD16', orientation: 'v', state: 'open' },
+      { id: 'thresh_AD20', kind: 'threshold', hex: 'AD20', orientation: 'v', state: 'open' },
 
       { id: 'west_window1', kind: 'window', hex: 'L20', orientation: 'v', state: 'closed', opensTo: 'W' },
-      { id: 'west_window2', kind: 'window', hex: 'L19',  orientation: 'v', state: 'closed', opensTo: 'W' },
-      { id: 'west_window3', kind: 'window', hex: 'L17',  orientation: 'v', state: 'closed', opensTo: 'W' },
-      { id: 'west_window4', kind: 'window', hex: 'L16',  orientation: 'v', state: 'closed', opensTo: 'W' },
-      { id: 'west_window5', kind: 'window', hex: 'L14',  orientation: 'v', state: 'closed', opensTo: 'W' },
-      { id: 'west_window6', kind: 'window', hex: 'L13',  orientation: 'v', state: 'closed', opensTo: 'W' },
+      { id: 'west_window2', kind: 'window', hex: 'L19', orientation: 'v', state: 'closed', opensTo: 'W' },
+      { id: 'west_window3', kind: 'window', hex: 'L17', orientation: 'v', state: 'closed', opensTo: 'W' },
+      { id: 'west_window4', kind: 'window', hex: 'L16', orientation: 'v', state: 'closed', opensTo: 'W' },
+      { id: 'west_window5', kind: 'window', hex: 'L14', orientation: 'v', state: 'closed', opensTo: 'W' },
+      { id: 'west_window6', kind: 'window', hex: 'L13', orientation: 'v', state: 'closed', opensTo: 'W' },
 
-      { id: 'south_window1', kind: 'window', hex: 'M11', orientation: 'h', state: 'closed', opensTo: 'S' },
-      { id: 'south_window2', kind: 'window', hex: 'N12', orientation: 'h', state: 'closed', opensTo: 'S' },
-      { id: 'south_window3', kind: 'window', hex: 'Q11', orientation: 'h', state: 'closed', opensTo: 'S' },
-      { id: 'south_window4', kind: 'window', hex: 'T12', orientation: 'h', state: 'closed', opensTo: 'S' },
-      { id: 'south_window5', kind: 'window', hex: 'U11', orientation: 'h', state: 'closed', opensTo: 'S' },
+      { id: 'south_window1', kind: 'window', hex: 'M11',  orientation: 'h', state: 'closed', opensTo: 'S' },
+      { id: 'south_window2', kind: 'window', hex: 'N12',  orientation: 'h', state: 'closed', opensTo: 'S' },
+      { id: 'south_window3', kind: 'window', hex: 'Q11',  orientation: 'h', state: 'closed', opensTo: 'S' },
+      { id: 'south_window4', kind: 'window', hex: 'T12',  orientation: 'h', state: 'open',   opensTo: 'S' },
+      { id: 'south_window5', kind: 'window', hex: 'U11',  orientation: 'h', state: 'closed', opensTo: 'S' },
       { id: 'south_window6', kind: 'window', hex: 'AA11', orientation: 'h', state: 'closed', opensTo: 'S' },
       { id: 'south_window7', kind: 'window', hex: 'AB12', orientation: 'h', state: 'closed', opensTo: 'S' },
       { id: 'south_window8', kind: 'window', hex: 'AE11', orientation: 'h', state: 'closed', opensTo: 'S' },
@@ -498,12 +559,258 @@
       { id: 'w3',   name: 'Wraith 3', side: 'ENEMY', hex: 'N17', label: 'W3', init: 10, hp: 67 },
       { id: 'a',    name: 'Aelar', side: 'PC', hex: 'T13', label: 'A', init: 14, hp: 42 },
       { id: 'b',    name: 'Brunna', side: 'PC', hex: 'U13', label: 'B', init: 13, hp: 55 },
-      { id: 'c',    name: 'Caelin', side: 'PC', hex: 'V14', label: 'C', init: 12, hp: 38 },
+      { id: 'c',    name: 'Caelin', side: 'PC', hex: 'V20', label: 'C', init: 12, hp: 38 },
     ],
   };
 
   const getState = () => (window.BATTLE_STATE || DEFAULT_STATE);
 
+  // Computed each redraw (never used as canonical data unless state.fog.autoExplore mutates exploredRoomIds).
+  let RENDER_FOG = {
+    enabled: false,
+    visible: new Set(),
+    explored: new Set(),
+    unseenAlpha: 0.92,
+    exploredAlpha: 0.55,
+  };
+
+  // ===== Fog of War (room-based) =====
+  function normalizeFog(state) {
+    const raw = (state && typeof state.fog === 'object' && state.fog) ? state.fog : null;
+
+    const enabled = !!(raw && raw.enabled);
+    const mode = raw && raw.mode ? String(raw.mode) : 'room';
+
+    const maxDepth = Number.isFinite(raw && raw.maxDepth) ? Number(raw.maxDepth) : 1;
+    const autoCompute = (raw && raw.autoCompute === false) ? false : true;
+    const autoExplore = (raw && raw.autoExplore === false) ? false : true;
+
+    const unseenAlpha = Number.isFinite(raw && raw.unseenAlpha) ? Number(raw.unseenAlpha) : 0.92;
+    const exploredAlpha = Number.isFinite(raw && raw.exploredAlpha) ? Number(raw.exploredAlpha) : 0.55;
+
+    const visibleRoomIds = Array.isArray(raw && raw.visibleRoomIds) ? raw.visibleRoomIds.map(x => String(x)) : [];
+    const exploredRoomIds = Array.isArray(raw && raw.exploredRoomIds) ? raw.exploredRoomIds.map(x => String(x)) : [];
+
+    return { enabled, mode, maxDepth, autoCompute, autoExplore, unseenAlpha, exploredAlpha, visibleRoomIds, exploredRoomIds, raw };
+  }
+
+  function roomAreaFromBounds(b) {
+    return (b.maxCol - b.minCol + 1) * (b.maxRow - b.minRow + 1);
+  }
+
+  function boundsTouchOrOverlap(b1, b2) {
+    // Touch/overlap in discrete hex space.
+    const pad = 0;
+    return !(
+      b1.maxCol < (b2.minCol - pad) ||
+      b2.maxCol < (b1.minCol - pad) ||
+      b1.maxRow < (b2.minRow - pad) ||
+      b2.maxRow < (b1.minRow - pad)
+    );
+  }
+
+  function buildRoomMeta(rooms) {
+    const meta = [];
+    for (const r of rooms) {
+      if (!r || !r.id || !Array.isArray(r.corners)) continue;
+      try {
+        const b = cornersToBounds(r.corners);
+        meta.push({
+          id: String(r.id),
+          room: r,
+          bounds: b,
+          area: roomAreaFromBounds(b),
+          hasWalls: roomHasWalls(r),
+        });
+      } catch {
+        // ignore malformed rooms
+      }
+    }
+    return meta;
+  }
+
+  function pickMostSpecificRoomIdAt(roomMeta, col, row) {
+    let best = null;
+    let bestArea = Infinity;
+    let bestWallRank = Infinity;
+
+    for (const m of roomMeta) {
+      const b = m.bounds;
+      if (col < b.minCol || col > b.maxCol || row < b.minRow || row > b.maxRow) continue;
+
+      const wallRank = m.hasWalls ? 0 : 1;
+      if (m.area < bestArea || (m.area === bestArea && wallRank < bestWallRank)) {
+        best = m.id;
+        bestArea = m.area;
+        bestWallRank = wallRank;
+      }
+    }
+
+    return best;
+  }
+
+  function pickMostSpecificRoomIdForHex(roomMeta, hex) {
+    try {
+      const p = parseHexId(hex);
+      return pickMostSpecificRoomIdAt(roomMeta, p.col, p.row);
+    } catch {
+      return null;
+    }
+  }
+
+  function openingIsSeeThrough(opening) {
+    const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
+    const orient = openingOrientation(opening);
+
+    // Invisible connector: always see-through.
+    if (kind === 'threshold' || kind === 'portal' || kind === 'connector') return true;
+
+    if (kind === 'door') {
+      const d = normalizeDoorParams(opening, orient);
+      return d.openPct > 0.05;
+    }
+
+    if (kind === 'window') {
+      const w = normalizeWindowParams(opening, orient);
+      return w.openPct > 0.05;
+    }
+
+    return false;
+  }
+
+  function buildAdjacency(roomMeta, openings) {
+    const neighbors = new Map();
+    const ensure = (id) => {
+      if (!neighbors.has(id)) neighbors.set(id, new Set());
+      return neighbors.get(id);
+    };
+    const addEdge = (a, b) => {
+      if (!a || !b || a === b) return;
+      ensure(a).add(b);
+      ensure(b).add(a);
+    };
+
+    // Initialize.
+    for (const m of roomMeta) ensure(m.id);
+
+    // NOTE: We deliberately do NOT auto-connect wall-less spaces by touching/overlapping bounds.
+    // That was causing hallways/streets to "chain" visibility across multiple segments.
+
+    // Connect through see-through openings (doors/windows/thresholds).
+    for (const o of openings) {
+      if (!o || !o.hex) continue;
+      if (!openingIsSeeThrough(o)) continue;
+
+      let p;
+      try { p = parseHexId(o.hex); } catch { continue; }
+      const orient = openingOrientation(o);
+
+      // Sample 1 hex on each side of the opening.
+      let a = null;
+      let b = null;
+      if (orient === 'v') {
+        a = pickMostSpecificRoomIdAt(roomMeta, p.col - 1, p.row);
+        b = pickMostSpecificRoomIdAt(roomMeta, p.col + 1, p.row);
+      } else {
+        a = pickMostSpecificRoomIdAt(roomMeta, p.col, p.row + 1);
+        b = pickMostSpecificRoomIdAt(roomMeta, p.col, p.row - 1);
+      }
+
+      addEdge(a, b);
+    }
+
+    return neighbors;
+  }
+
+  function computeRenderFog(state, rooms, openings) {
+    const fog = normalizeFog(state);
+    const roomMeta = buildRoomMeta(rooms);
+
+    // Default: fog off.
+    if (!fog.enabled || String(fog.mode).toLowerCase() !== 'room') {
+      return {
+        enabled: false,
+        visible: new Set(),
+        explored: new Set(),
+        unseenAlpha: fog.unseenAlpha,
+        exploredAlpha: fog.exploredAlpha,
+      };
+    }
+
+    let visible = new Set();
+
+    if (!fog.autoCompute && fog.visibleRoomIds.length) {
+      visible = new Set(fog.visibleRoomIds);
+    } else {
+      // Seed from party tokens.
+      const players = getPlayerTokens(state);
+      const q = [];
+      const seed = new Set();
+
+      for (const t of players) {
+        const rid = pickMostSpecificRoomIdForHex(roomMeta, t.hex);
+        if (rid) seed.add(rid);
+      }
+
+      for (const rid of seed) {
+        visible.add(rid);
+        q.push({ id: rid, depth: 0 });
+      }
+
+      const neighbors = buildAdjacency(roomMeta, openings);
+      const maxDepth = fog.maxDepth;
+
+      while (q.length) {
+        const cur = q.shift();
+        if (!cur) break;
+        if (cur.depth >= maxDepth) continue;
+
+        const nbs = neighbors.get(cur.id);
+        if (!nbs) continue;
+
+        for (const nb of nbs) {
+          if (!visible.has(nb)) {
+            visible.add(nb);
+            q.push({ id: nb, depth: cur.depth + 1 });
+          }
+        }
+      }
+
+      // Store back for UI/debugging convenience.
+      if (fog.raw) fog.raw.visibleRoomIds = Array.from(visible).sort();
+    }
+
+    // Explored set.
+    const explored = new Set(fog.exploredRoomIds);
+    if (fog.autoExplore) {
+      for (const rid of visible) explored.add(rid);
+      if (fog.raw) fog.raw.exploredRoomIds = Array.from(explored).sort();
+    }
+
+    return { enabled: true, visible, explored, unseenAlpha: fog.unseenAlpha, exploredAlpha: fog.exploredAlpha };
+  }
+
+  function isPlayerToken(t) {
+    const side = String(t && t.side ? t.side : '').toUpperCase();
+    return side === 'PC' || side === 'PLAYER';
+  }
+
+  function shouldDrawToken(t, rooms) {
+    if (!RENDER_FOG || !RENDER_FOG.enabled) return true;
+    if (isPlayerToken(t)) return true;
+
+    const rid = pickMostSpecificRoomIdForHex(buildRoomMeta(rooms), t.hex);
+    if (!rid) return true;
+
+    return RENDER_FOG.visible.has(rid);
+  }
+
+  function syncFogToggle(state) {
+    const el = document.getElementById('fogToggle');
+    if (!el) return;
+    const enabled = !!(state && state.fog && state.fog.enabled);
+    if (el.checked !== enabled) el.checked = enabled;
+  }
 
   // ===== Path helpers =====
   function roundRectPath(targetCtx, x, y, w, h, r) {
@@ -1301,6 +1608,17 @@
 
     const rect = { x: f1.x, y: f1.y, w: (f2.x - f1.x), h: (f2.y - f1.y) };
 
+    // Fog of War: replace non-visible floors with fog (walls remain visible).
+    if (RENDER_FOG && RENDER_FOG.enabled) {
+      const roomId = String(room.id || '');
+      if (roomId && !RENDER_FOG.visible.has(roomId)) {
+        const isExplored = RENDER_FOG.explored.has(roomId);
+        ctx.fillStyle = isExplored ? COLORS.fogExplored : COLORS.fogUnseen;
+        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+        return;
+      }
+    }
+
     if (floorKind === 'wood') {
       const seed = hashStringToSeed(room.id || JSON.stringify(room.corners || []));
       fillWoodPlanksRectScreenOn(ctx, rect, {
@@ -1448,6 +1766,9 @@
   }
 
   function cutOpeningHole(targetCtx, opening, wallSegs) {
+    const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
+    if (kind === 'threshold' || kind === 'portal' || kind === 'connector') return;
+
     const orient = openingOrientation(opening);
     const p = parseHexId(opening.hex);
 
@@ -1483,6 +1804,10 @@
 
   function drawOpening(opening, wallSegs) {
     const kind = String(opening.kind || 'door').toLowerCase();
+
+    // Invisible connectors: affect fog logic only.
+    if (kind === 'threshold' || kind === 'portal' || kind === 'connector') return;
+
     const orient = openingOrientation(opening);
     const p = parseHexId(opening.hex);
 
@@ -1745,12 +2070,19 @@
 
     const flatToFlatPx = rowStep();
 
+    const fog = normalizeFog(state);
+    const fogLabel = fog.enabled
+      ? ('ON (' + fog.visibleRoomIds.length + ' vis / ' + fog.exploredRoomIds.length + ' exp)')
+      : 'off';
+
     const lines = [
       ['Round', round],
       ['Camera', camHex],
       ['Rooms', rooms],
       ['Openings', openings],
       ['Tokens', tokens],
+      ['Fog', fogLabel],
+      ['Fog maxDepth', String(fog.maxDepth)],
       ['Hex px (flat↕︎)', flatToFlatPx.toFixed(1)],
     ];
 
@@ -1768,6 +2100,7 @@
     }
 
     populateCenterOn(state);
+    syncFogToggle(state);
 
     if (VIEW.followTokenId) {
       const tokens = Array.isArray(state.tokens) ? state.tokens : [];
@@ -1791,6 +2124,9 @@
     const openings = Array.isArray(state.openings) ? state.openings : [];
     const tokens = Array.isArray(state.tokens) ? state.tokens : [];
 
+    // Compute Fog of War sets for this frame.
+    RENDER_FOG = computeRenderFog(state, rooms, openings);
+
     for (const r of rooms) drawRoom(r);
 
     const wallSegs = buildWallSegments(rooms);
@@ -1812,6 +2148,7 @@
 
     const knockoutAlphaFor = (o) => {
       const k = String(o && o.kind ? o.kind : 'door').toLowerCase();
+      if (k === 'threshold' || k === 'portal' || k === 'connector') return 0;
       return (k === 'window') ? 0.25 : 1;
     };
 
@@ -1830,7 +2167,10 @@
     ctx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
 
     for (const o of openings) drawOpening(o, wallSegs);
-    for (const t of tokens) drawToken(t);
+
+    for (const t of tokens) {
+      if (shouldDrawToken(t, rooms)) drawToken(t);
+    }
 
     drawGrid();
     updateSidebar(state);
@@ -1858,6 +2198,38 @@
       const a = r1();
       const b = r2();
       if (Math.abs(a - b) > 1e-12) throw new Error('mulberry32 not deterministic');
+
+      // Adjacency: wall-less spaces must NOT auto-connect by touching bounds.
+      {
+        const dummyRooms = [
+          { id: 'A', corners: ['B3','D3','D1','B1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'none' } },
+          { id: 'B', corners: ['D3','F3','F1','D1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'none' } },
+        ];
+        const rm = buildRoomMeta(dummyRooms);
+        const neigh = buildAdjacency(rm, []);
+        const aN = neigh.get('A');
+        if (aN && aN.has('B')) throw new Error('wall-less spaces should not auto-connect without an opening');
+      }
+
+      // Adjacency: a threshold opening SHOULD connect spaces.
+      {
+        const dummyRooms = [
+          { id: 'A', corners: ['B3','D3','D1','B1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'none' } },
+          { id: 'B', corners: ['D3','F3','F1','D1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'none' } },
+        ];
+        const rm = buildRoomMeta(dummyRooms);
+        const dummyOpenings = [
+          { id: 't', kind: 'threshold', hex: 'D2', orientation: 'v', state: 'open' },
+        ];
+        const neigh = buildAdjacency(rm, dummyOpenings);
+        const aN = neigh.get('A');
+        if (!aN || !aN.has('B')) throw new Error('threshold should connect spaces for adjacency');
+      }
+      // Fog defaults: when maxDepth is omitted, normalizeFog should default to 1 (no multi-hop chaining).
+      {
+        const f = normalizeFog({ fog: { enabled: true, mode: 'room' } });
+        if (f.maxDepth !== 1) throw new Error('normalizeFog default maxDepth should be 1');
+      }
 
       // Stairs fill should not throw (basic smoke test).
       {
@@ -2065,49 +2437,86 @@
   }
 
   function wireUI() {
-    document.getElementById('btnLeft').addEventListener('click', () => pan(-PAN_STEP, 0));
-    document.getElementById('btnRight').addEventListener('click', () => pan(PAN_STEP, 0));
-    document.getElementById('btnUp').addEventListener('click', () => pan(0, PAN_STEP));
-    document.getElementById('btnDown').addEventListener('click', () => pan(0, -PAN_STEP));
+    const req = (id) => {
+      const el = document.getElementById(id);
+      if (!el) console.warn('[Battlemat] missing control #' + id);
+      return el;
+    };
 
-    document.getElementById('btnRedraw').addEventListener('click', redraw);
+    const btnLeft = req('btnLeft');
+    const btnRight = req('btnRight');
+    const btnUp = req('btnUp');
+    const btnDown = req('btnDown');
+    const btnRedraw = req('btnRedraw');
+    const btnJump = req('btnJump');
+    const jumpHex = req('jumpHex');
+    const centerOn = req('centerOn');
+    const floorKind = document.getElementById('floorKind');
+    const fogToggle = document.getElementById('fogToggle');
 
-    document.getElementById('centerOn').addEventListener('change', (e) => {
-      const id = String(e.target.value || '');
-      VIEW.followTokenId = id || null;
+    if (btnLeft) btnLeft.addEventListener('click', () => pan(-PAN_STEP, 0));
+    if (btnRight) btnRight.addEventListener('click', () => pan(PAN_STEP, 0));
+    if (btnUp) btnUp.addEventListener('click', () => pan(0, PAN_STEP));
+    if (btnDown) btnDown.addEventListener('click', () => pan(0, -PAN_STEP));
 
-      if (VIEW.followTokenId) {
-        const state = getState();
-        const tokens = Array.isArray(state.tokens) ? state.tokens : [];
-        const t = tokens.find(x => x.id === VIEW.followTokenId);
-        if (t && t.hex) {
-          try { setCameraToHex(t.hex, { manual: false }); } catch (err) { /* ignore */ }
+    if (btnRedraw) btnRedraw.addEventListener('click', redraw);
+
+    if (centerOn) {
+      centerOn.addEventListener('change', (e) => {
+        const id = String(e.target.value || '');
+        VIEW.followTokenId = id || null;
+
+        if (VIEW.followTokenId) {
+          const state = getState();
+          const tokens = Array.isArray(state.tokens) ? state.tokens : [];
+          const t = tokens.find(x => x.id === VIEW.followTokenId);
+          if (t && t.hex) {
+            try { setCameraToHex(t.hex, { manual: false }); } catch (err) { /* ignore */ }
+          }
+        } else {
+          redraw();
         }
-      } else {
+      });
+    }
+
+    if (btnJump) {
+      btnJump.addEventListener('click', () => {
+        const v = (jumpHex && jumpHex.value) ? jumpHex.value.trim() : '';
+        if (!v) return;
+        try { setCameraToHex(v); } catch (e) { console.warn(e); }
+      });
+    }
+
+    if (jumpHex && btnJump) {
+      jumpHex.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') btnJump.click();
+      });
+    }
+
+    if (floorKind) {
+      // "Mixed" (empty value) makes no changes.
+      floorKind.addEventListener('change', (e) => {
+        const kind = String(e.target.value || '');
+        if (kind === '') return;
+
+        const state = getState();
+        if (!Array.isArray(state.rooms)) return redraw();
+        for (const r of state.rooms) {
+          if (!r.floor) r.floor = {};
+          r.floor.kind = kind;
+        }
         redraw();
-      }
-    });
+      });
+    }
 
-    document.getElementById('btnJump').addEventListener('click', () => {
-      const v = document.getElementById('jumpHex').value.trim();
-      if (!v) return;
-      try { setCameraToHex(v); } catch (e) { console.warn(e); }
-    });
-
-    document.getElementById('jumpHex').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') document.getElementById('btnJump').click();
-    });
-
-    document.getElementById('floorKind').addEventListener('change', (e) => {
-      const state = getState();
-      const kind = e.target.value;
-      if (!Array.isArray(state.rooms)) return redraw();
-      for (const r of state.rooms) {
-        if (!r.floor) r.floor = {};
-        r.floor.kind = kind;
-      }
-      redraw();
-    });
+    if (fogToggle) {
+      fogToggle.addEventListener('change', (e) => {
+        const state = getState();
+        if (!state.fog) state.fog = {};
+        state.fog.enabled = !!e.target.checked;
+        redraw();
+      });
+    }
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowLeft') { e.preventDefault(); pan(-PAN_STEP, 0); }
@@ -2149,6 +2558,10 @@
         // ignore
       }
     }
+
+    // Ensure the floor selector starts in "Mixed" (no override) mode.
+    const fk = document.getElementById('floorKind');
+    if (fk) fk.value = '';
 
     wireUI();
 
