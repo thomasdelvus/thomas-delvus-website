@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Battlemat
-  Version 4.46
+  Version 4.48
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -16,7 +16,7 @@
 
   Unauthorized use is prohibited.
 
-  Rewrite notes (v4.46):
+  Rewrite notes (v4.48):
   - Fix: prevent "drawImage: Passed-in canvas is empty" by ensuring the offscreen wall canvas is sized BEFORE any redraw.
   - Safety: guard redraw if canvases are still 0x0 (should never happen now, but avoids hard crashes).
   - Compatibility: replace ctx.roundRect(...) usage with a small roundRectPath() helper.
@@ -208,7 +208,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.45</div>
+        <div class="pill" id="versionLine">v4.48</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -775,15 +775,10 @@
     targetCtx.translate(centerS.x, centerS.y);
     if (orient === 'v') targetCtx.rotate(Math.PI / 2);
 
-    // Doors: use a simple rectangle knockout (prevents the "pill" silhouette in the wall).
-    // Windows can keep the rounded knockout to look more natural.
+    // Openings knockout: use a simple rectangle for BOTH doors and windows.
+    // This keeps wall holes crisp and avoids any pill/rounded silhouette.
     targetCtx.beginPath();
-    if (kind === 'door') {
-      targetCtx.rect(-cutW / 2, -cutH / 2, cutW, cutH);
-    } else {
-      const r = Math.min(cutH / 2, 999);
-      roundRectPath(targetCtx, -cutW / 2, -cutH / 2, cutW, cutH, r);
-    }
+    targetCtx.rect(-cutW / 2, -cutH / 2, cutW, cutH);
     targetCtx.fill();
 
     targetCtx.restore();
@@ -1058,10 +1053,23 @@
     for (const r of rooms) drawRoomWalls(wallCtx, r);
 
     // 4) Punch openings out.
+    // Doors: full knockout (wall removed completely).
+    // Windows: partial knockout (lets some floor show through, making the wall look "lighter").
     wallCtx.save();
     wallCtx.globalCompositeOperation = 'destination-out';
     wallCtx.fillStyle = '#000';
-    for (const o of openings) cutOpeningHole(wallCtx, o, wallSegs);
+
+    const knockoutAlphaFor = (o) => {
+      const k = String(o && o.kind ? o.kind : 'door').toLowerCase();
+      // "White square @ 75% transparency" ≈ erase 25% of the wall layer.
+      return (k === 'window') ? 0.25 : 1;
+    };
+
+    for (const o of openings) {
+      wallCtx.globalAlpha = knockoutAlphaFor(o);
+      cutOpeningHole(wallCtx, o, wallSegs);
+    }
+
     wallCtx.restore();
 
     // 5) Composite wall layer onto main canvas (in device pixels).
