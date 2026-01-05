@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Battlemat
-  Version 4.56
+  Version 4.59
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -15,6 +15,16 @@
   or AI/training workflow without prior written permission from the copyright holder.
 
   Unauthorized use is prohibited.
+
+  Rewrite notes (v4.59):
+  - Fix: door wall knockouts now paint a small underlay of the local floor, so closed doors no longer reveal a white strip in the wall ring.
+
+  Rewrite notes (v4.58):
+  - Fix: spaces (wall.kind='none') now paint their floor across the full outer rectangle (so hallways no longer leave unpainted/white strips where a wall ring would have been).
+
+  Rewrite notes (v4.57):
+  - Feature: add "spaces" as floor-only rectangles (rooms with wall.kind='none') so we can model hallways/open areas for fog-of-war.
+  - Data: define Hallway1/Hallway2/Hallway3 in DEFAULT_STATE; make the building shell floor 'none' so hallways/rooms own all interior flooring.
 
   Rewrite notes (v4.56):
   - Fix: make floors fully opaque (no alpha blending), and retune base colors so hallways + rooms match the same tone (prevents rooms darkening from layered floor draws).
@@ -229,7 +239,7 @@ Rewrite notes (v4.51):
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.56</div>
+        <div class="pill" id="versionLine">v4.59</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -297,9 +307,33 @@ Rewrite notes (v4.51):
         corners: ['B11','Z11','Z2','B2'],
         thickness: 20,
         color: '#555',
-        floor: { kind: 'wood' },
+        floor: { kind: 'none' },
         wall: { kind: 'brick' },
       },
+
+      // --- Spaces (hallways / open areas): floors only, no walls ---
+      {
+        id: 'Hallway1',
+        corners: ['T11','V11','V2','T2'],
+        thickness: 20,
+        floor: { kind: 'wood' },
+        wall: { kind: 'none' },
+      },
+      {
+        id: 'Hallway2',
+        corners: ['H7','T7','T5','H5'],
+        thickness: 20,
+        floor: { kind: 'wood' },
+        wall: { kind: 'none' },
+      },
+      {
+        id: 'Hallway3',
+        corners: ['F11','H11','H2','F2'],
+        thickness: 20,
+        floor: { kind: 'wood' },
+        wall: { kind: 'none' },
+      },
+
       {
         id: 'Bedroom1',
         corners: ['B11','F11','F8','B8'],
@@ -380,6 +414,14 @@ Rewrite notes (v4.51):
         floor: { kind: 'wood' },
         wall: { kind: 'brick' },
       },
+      {
+        id: 'Room5Closet',
+        corners: ['N11','P11','P9','N9'],
+        thickness: 20,
+        color: '#555',
+        floor: { kind: 'wood' },
+        wall: { kind: 'brick' },
+      },
     ],
 
     openings: [
@@ -393,6 +435,7 @@ Rewrite notes (v4.51):
       { id: 'door_room8', kind: 'door', hex: 'V3',  orientation: 'v', state: 'open', opensTo: 'E', hingeEnd: 'N' },
       { id: 'door_room9', kind: 'door', hex: 'V6',  orientation: 'v', state: 'open', opensTo: 'E', hingeEnd: 'N' },
       { id: 'door_room10',kind: 'door', hex: 'V10', orientation: 'v', state: 'open', opensTo: 'E', hingeEnd: 'N' },
+      { id: 'door_room5closet', kind: 'door', hex: 'N10',  orientation: 'v', state: 'closed', opensTo: 'W', hingeEnd: 'N' },
 
       { id: 'west_window1', kind: 'window', hex: 'B10', orientation: 'v', state: 'open', opensTo: 'W' },
       { id: 'west_window2', kind: 'window', hex: 'B9',  orientation: 'v' },
@@ -589,9 +632,18 @@ Rewrite notes (v4.51):
     return { bounds: b, thickness: thickness, outer: outer, inner: inner, xL: xL, xR: xR, yTop: yTop, yBot: yBot };
   }
 
+  function roomHasWalls(room) {
+    // Rooms default to having walls unless explicitly disabled.
+    const k = room && room.wall && room.wall.kind ? String(room.wall.kind).toLowerCase() : 'brick';
+    if (k === 'none' || k === 'off' || k === 'false') return false;
+    if (room && room.drawWalls === false) return false;
+    return true;
+  }
+
   function buildWallSegments(rooms) {
     const segs = [];
     for (const r of rooms) {
+      if (!roomHasWalls(r)) continue;
       const box = roomToWallBox(r);
       const t = box.thickness;
       segs.push({ orientation: 'h', y: box.yTop, x1: box.xL, x2: box.xR, thickness: t });
@@ -887,17 +939,127 @@ Rewrite notes (v4.51):
     targetCtx.restore();
   }
 
+  function roomFloorRectWorld(room, box) {
+    // If a room has walls, the wall ring occupies the thickness area and the floor starts at the inner face.
+    // If a room has NO walls (spaces/hallways), we want floor everywhere inside its declared rectangle,
+    // including the area where a wall ring *would* have been.
+    const hasWalls = roomHasWalls(room);
+    const src = hasWalls ? box.inner : box.outer;
+    return { x1: src.x1, y1: src.y1, x2: src.x2, y2: src.y2 };
+  }
+
+  function roomBoundsContainsHex(room, hex) {
+    // Inclusive hex-rectangle containment (in hex coords).
+    // Openings often lie *on* a shared boundary between two rooms; inclusive keeps this simple.
+    const b = cornersToBounds(room.corners);
+    const p = parseHexId(hex);
+    return p.col >= b.minCol && p.col <= b.maxCol && p.row >= b.minRow && p.row <= b.maxRow;
+  }
+
+  function pickFloorOwnerRoomForOpening(rooms, openingHex) {
+    // Choose a floor source for an opening underlay.
+    // Prefer spaces (wall.kind='none') so hallway floors win when a door connects hall↔room.
+    const candidates = rooms
+      .filter(r => r && r.floor && r.floor.kind && r.floor.kind !== 'none')
+      .filter(r => {
+        try { return roomBoundsContainsHex(r, openingHex); } catch { return false; }
+      })
+      .sort((a, b) => {
+        const aw = roomHasWalls(a) ? 1 : 0;
+        const bw = roomHasWalls(b) ? 1 : 0;
+        return aw - bw; // spaces first
+      });
+
+    return candidates[0] || null;
+  }
+
+  function paintDoorUnderlay(opening, rooms, wallSegs) {
+    const kind = String(opening.kind || 'door').toLowerCase();
+    if (kind !== 'door') return;
+
+    const orient = openingOrientation(opening);
+    const p = parseHexId(opening.hex);
+
+    const hexWorld = hexCenterWorld(p.col, p.row);
+    const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
+
+    const w = GRID.size * 1.2;
+    let cx = hexWorld.x;
+    let cy = hexWorld.y;
+    let thickness = 28;
+
+    if (seg) {
+      thickness = seg.thickness;
+      if (orient === 'h') cy = seg.y;
+      else cx = seg.x;
+    }
+
+    const centerS = worldToScreen({ x: cx, y: cy });
+
+    // Must match cutOpeningHole() dimensions.
+    const cutH = thickness + 3;
+    const cutW = w + 2;
+
+    // The knockout rotates for vertical walls, so swap width/height to match what gets erased.
+    const rect = (orient === 'h')
+      ? { x: centerS.x - cutW / 2, y: centerS.y - cutH / 2, w: cutW, h: cutH }
+      : { x: centerS.x - cutH / 2, y: centerS.y - cutW / 2, w: cutH, h: cutW };
+
+    const owner = pickFloorOwnerRoomForOpening(rooms, opening.hex);
+    const floorKind = owner && owner.floor && owner.floor.kind ? owner.floor.kind : 'wood';
+
+    if (floorKind === 'stone') {
+      ctx.fillStyle = COLORS.floorStone;
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      return;
+    }
+
+    if (floorKind === 'none') {
+      // As a last resort, avoid a white gap with a subtle neutral fill.
+      ctx.fillStyle = '#f7f1e6';
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      return;
+    }
+
+    // Wood: use the same deterministic plank generator and the same anchor as the owning room,
+    // so the underlay blends into the surrounding floor as much as possible.
+    let worldX = cx;
+    let worldY = cy;
+    let seed = hashStringToSeed(opening.id || opening.hex);
+
+    if (owner) {
+      const box = roomToWallBox(owner);
+      const f = roomFloorRectWorld(owner, box);
+      worldX = f.x1;
+      worldY = f.y1;
+      seed = hashStringToSeed(owner.id || JSON.stringify(owner.corners || []));
+    }
+
+    fillWoodPlanksRectScreenOn(ctx, rect, {
+      baseHex: COLORS.floorWoodBase,
+      alpha: 1.0,
+      worldX,
+      worldY,
+      seed,
+      variant: 3,
+      plankH: 18,
+      gap: 2,
+    });
+  }
+
   // Floors only.
   function drawRoom(room) {
     const box = roomToWallBox(room);
 
-    const i1 = worldToScreen({ x: box.inner.x1, y: box.inner.y1 });
-    const i2 = worldToScreen({ x: box.inner.x2, y: box.inner.y2 });
-
     const floorKind = (room.floor && room.floor.kind) ? room.floor.kind : 'stone';
     if (floorKind === 'none') return;
 
-    const rect = { x: i1.x, y: i1.y, w: (i2.x - i1.x), h: (i2.y - i1.y) };
+    const f = roomFloorRectWorld(room, box);
+
+    const f1 = worldToScreen({ x: f.x1, y: f.y1 });
+    const f2 = worldToScreen({ x: f.x2, y: f.y2 });
+
+    const rect = { x: f1.x, y: f1.y, w: (f2.x - f1.x), h: (f2.y - f1.y) };
 
     if (floorKind === 'wood') {
       // E/W planks (run along X) with deterministic, per-room imperfections.
@@ -905,8 +1067,9 @@ Rewrite notes (v4.51):
       fillWoodPlanksRectScreenOn(ctx, rect, {
         baseHex: COLORS.floorWoodBase,
         alpha: 1.0,
-        worldX: box.inner.x1,
-        worldY: box.inner.y1,
+        // Anchor to the chosen floor rectangle so spaces don't "swim" differently.
+        worldX: f.x1,
+        worldY: f.y1,
         seed,
         variant: 3,
         plankH: 18,
@@ -922,6 +1085,7 @@ Rewrite notes (v4.51):
 
   // Walls (brick ring) to targetCtx (offscreen layer).
   function drawRoomWalls(targetCtx, room) {
+    if (!roomHasWalls(room)) return;
     const box = roomToWallBox(room);
     const wallColor = room.color || COLORS.wall;
 
@@ -1377,6 +1541,10 @@ Rewrite notes (v4.51):
     // 2) Precompute wall segments.
     const wallSegs = buildWallSegments(rooms);
 
+    // 2.5) Door underlays: door knockouts remove the wall ring. Since room floors stop at the inner wall face,
+    // a CLOSED door on an interior wall can otherwise reveal a white strip. Paint a small floor patch under every door.
+    for (const o of openings) paintDoorUnderlay(o, rooms, wallSegs);
+
     // 3) Draw walls to an offscreen layer.
     wallCtx.save();
     wallCtx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1465,6 +1633,15 @@ Rewrite notes (v4.51):
         throw new Error('roomToWallBox yTop mismatch: expected ' + (b11.y + yShift) + ' got ' + box.yTop);
       }
 
+
+      // Space-floor sanity: wall.kind='none' should paint floor across the OUTER rectangle (no unpainted strips).
+      const space = { id: 'HallTest', corners: ['T11','V11','V2','T2'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'none' } };
+      const sbox = roomToWallBox(space);
+      const f = roomFloorRectWorld(space, sbox);
+      if (Math.abs(f.x1 - sbox.outer.x1) > eps || Math.abs(f.y1 - sbox.outer.y1) > eps) {
+        throw new Error('space floor rect should use outer bounds');
+      }
+
       // Door defaults sanity
       const d1 = normalizeDoorParams({ kind: 'door' }, 'v');
       if (d1.opensTo !== 'E' || d1.hingeEnd !== 'N' || d1.openPct !== 0) throw new Error('Door defaults (v) unexpected');
@@ -1480,6 +1657,18 @@ Rewrite notes (v4.51):
       // Window openPct mapping via state
       const w3 = normalizeWindowParams({ kind: 'window', state: 'ajar' }, 'v');
       if (Math.abs(w3.openPct - 0.5) > 0.0001) throw new Error('Window ajar openPct unexpected');
+
+      // Door underlay sizing sanity (orientation swap)
+      {
+        const thickness = 20;
+        const w = GRID.size * 1.2;
+        const cutH = thickness + 3;
+        const cutW = w + 2;
+        const rectH = { w: cutW, h: cutH };
+        const rectV = { w: cutH, h: cutW };
+        if (!(rectH.w > rectH.h)) throw new Error('Expected horizontal cutout to be wider than tall');
+        if (!(rectV.h > rectV.w)) throw new Error('Expected vertical cutout to be taller than wide');
+      }
 
       console.log('[Battlemat] self-tests: OK');
     } catch (e) {
