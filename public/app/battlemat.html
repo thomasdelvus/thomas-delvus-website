@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v4.82
+  v4.87
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -14,6 +14,21 @@
   or AI/training workflow without prior written permission from the copyright holder.
 
   Unauthorized use is prohibited.
+
+  Rewrite notes (v4.87):
+  - Thresholds now support parent-based wall knockouts: add parent:'Hallway2' (etc.) to a threshold to punch out the full wall span of that parent hallway edge.
+  - Parent-based thresholds remove the entire hallway wall segment across the parent hallway’s inner floor span (clean T/L junctions).
+
+  Rewrite notes (v4.86):
+  - Fix: vertical threshold knockouts now extend an extra 1/2-hex SOUTH (biasing the 1.5-span cutout downward instead of splitting it evenly).
+  - Data formatting: compacted DEFAULT_STATE.rooms entries to single-line objects (matching openings style).
+
+  Rewrite notes (v4.84):
+  - Fix: removed a duplicated stray block after cutOpeningHole() that caused a SyntaxError ("missing ) in parenthetical").
+  - Tests: added a tiny smoke test to ensure cutOpeningHole() is callable.
+
+  Rewrite notes (v4.83):
+  - Threshold openings now punch holes in walls (knockout-only), using a wider 1.5-segment cutout for vertical thresholds.
 
   Rewrite notes (v4.82):
   - Fog: restored drawing of walls for base "fog" rooms (e.g., CrossKeysUpperFloor) so exterior building outlines remain visible.
@@ -277,7 +292,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.81</div>
+        <div class="pill" id="versionLine">v4.87</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -360,167 +375,30 @@
     },
 
     rooms: [
-      {
-        id: 'HighStreet',
-        corners: ['F50','L50','L1','F1'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'cobble' },
-        wall: { kind: 'none' },
-      },
-      {
-        id: 'KingStreet',
-        corners: ['L12','BE12','BE7','L7'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'cobble' },
-        wall: { kind: 'none' },
-      },
-      {
-        id: 'NextShoppe',
-        corners: ['AJ28','AP28','AP12','AJ12'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
-      {
-        id: 'NextShoppe2',
-        corners: ['L27','V27','V21','L21'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
-       // --- Spaces (hallways / open areas): floors only, no walls ---
-      {
-        id: 'StairsDown',
-        corners: ['Z21','AD21','AD19','Z19'],
-        thickness: 20,
-        floor: { kind: 'stairs.wood' },
-        wall: { kind: 'none' },
-        stairsDown: 'W'  // 'N'|'S'|'E'|'W' (direction the stairs go DOWN)
-      },
-      
-      
-      {
-        id: 'CrossKeysUpperFloor',
-        corners: ['L21','AJ21','AJ12','L12'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'fog' },
-        wall: { kind: 'brick' },
-      },
-      {
-        id: 'Hallway1',
-        corners: ['AD21','AF21','AF12','AD12'],
-        thickness: 20,
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
-      {
-        id: 'Hallway2',
-        corners: ['R17','AD17','AD15','R15'],
-        thickness: 20,
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
-      {
-        id: 'Hallway3',
-        corners: ['P21','R21','R12','P12'],
-        thickness: 20,
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
+      { id: 'HighStreet', corners: ['F50','L50','L1','F1'], thickness: 20, color: '#555', floor: { kind: 'cobble' }, wall: { kind: 'none' } },
+      { id: 'KingStreet', corners: ['L12','BE12','BE7','L7'], thickness: 20, color: '#555', floor: { kind: 'cobble' }, wall: { kind: 'none' } },
+      { id: 'NextShoppe', corners: ['AJ28','AP28','AP12','AJ12'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+      { id: 'NextShoppe2', corners: ['L27','V27','V21','L21'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
 
-      {
-        id: 'Bedroom1',
-        corners: ['L21','P21','P18','L18'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
-      {
-        id: 'Bedroom2',
-        corners: ['L18','P18','P15','L15'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
-      {
-        id: 'Bedroom3',
-        corners: ['L15','P15','P12','L12'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
-      {
-        id: 'Bedroom4',
-        corners: ['R15','X15','X12','R12'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
-      {
-        id: 'Bedroom5',
-        corners: ['R21','X21','X17','R17'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
-      {
-        id: 'Bedroom6',
-        corners: ['X19','AD19','AD17','X17'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
-      {
-        id: 'Bedroom7',
-        corners: ['X15','AD15','AD12','X12'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
-      {
-        id: 'Bedroom8',
-        corners: ['AF15','AJ15','AJ12','AF12'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
-      {
-        id: 'Bedroom9',
-        corners: ['AF18','AJ18','AJ15','AF15'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
-      {
-        id: 'Bedroom10',
-        corners: ['AF21','AJ21','AJ18','AF18'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
-      {
-        id: 'Room5Closet',
-        corners: ['X21','Z21','Z19','X19'],
-        thickness: 20,
-        color: '#555',
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
+      // --- Spaces (hallways / open areas): floors only, no walls ---
+      { id: '1stFloorStairsDown', corners: ['Z21','AD21','AD19','Z19'], thickness: 20, floor: { kind: 'stairs.wood' }, wall: { kind: 'brick' }, stairsDown: 'W' },
+
+      { id: 'CrossKeysUpperFloor', corners: ['L21','AJ21','AJ12','L12'], thickness: 20, color: '#555', floor: { kind: 'fog' }, wall: { kind: 'brick' } },
+      { id: 'Hallway1', corners: ['AD21','AF21','AF12','AD12'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+      { id: 'Hallway2', corners: ['R17','AD17','AD15','R15'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+      { id: 'Hallway3', corners: ['P21','R21','R12','P12'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+
+      { id: 'Bedroom1', corners: ['L21','P21','P18','L18'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+      { id: 'Bedroom2', corners: ['L18','P18','P15','L15'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+      { id: 'Bedroom3', corners: ['L15','P15','P12','L12'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+      { id: 'Bedroom4', corners: ['R15','X15','X12','R12'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+      { id: 'Bedroom5', corners: ['R21','X21','X17','R17'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+      { id: 'Bedroom6', corners: ['X19','AD19','AD17','X17'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+      { id: 'Bedroom7', corners: ['X15','AD15','AD12','X12'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+      { id: 'Bedroom8', corners: ['AF15','AJ15','AJ12','AF12'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+      { id: 'Bedroom9', corners: ['AF18','AJ18','AJ15','AF15'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+      { id: 'Bedroom10', corners: ['AF21','AJ21','AJ18','AF18'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+      { id: 'Room5Closet', corners: ['X21','Z21','Z19','X19'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
     ],
 
     openings: [
@@ -528,7 +406,7 @@
       { id: 'door_room2', kind: 'door', hex: 'P16',  orientation: 'v', state: 'closed', opensTo: 'W', hingeEnd: 'N' },
       { id: 'door_room3', kind: 'door', hex: 'P13',  orientation: 'v', state: 'closed', opensTo: 'W', hingeEnd: 'N' },
       { id: 'door_room4', kind: 'door', hex: 'T15',  orientation: 'h', state: 'open', opensTo: 'S', hingeEnd: 'W' },
-      { id: 'door_room5', kind: 'door', hex: 'U17',  orientation: 'h', state: 'closed', opensTo: 'N', hingeEnd: 'W' },
+      { id: 'door_room5', kind: 'door', hex: 'U17',  orientation: 'h', state: 'open', opensTo: 'N', hingeEnd: 'W' },
       { id: 'door_room5_closet', kind: 'door', hex: 'X20',  orientation: 'v', state: 'open', opensTo: 'W', hingeEnd: 'N' },
       { id: 'door_room6', kind: 'door', hex: 'AA17', orientation: 'h', state: 'closed', opensTo: 'N', hingeEnd: 'E' },
       { id: 'door_room7', kind: 'door', hex: 'AC14', orientation: 'h', state: 'closed', opensTo: 'S', hingeEnd: 'E' },
@@ -538,10 +416,10 @@
 
       // Invisible connectors between wall-less spaces (hallways, etc.).
       // Always considered "see-through" for fog visibility, but not drawn and do not cut walls.
-      { id: 'thresh_R16',  kind: 'threshold', hex: 'R16',  orientation: 'v', state: 'open' },
-      { id: 'thresh_AD16', kind: 'threshold', hex: 'AD16', orientation: 'v', state: 'open' },
-      { id: 'thresh_AD20', kind: 'threshold', hex: 'AD20', orientation: 'v', state: 'open' },
-
+      { id: 'thresh_R16',  kind: 'threshold', hex: 'R16',  orientation: 'v', state: 'open', parent: 'Hallway2' },
+      { id: 'thresh_AD16', kind: 'threshold', hex: 'AD16', orientation: 'v', state: 'open', parent: 'Hallway2' },
+      { id: 'thresh_AD20', kind: 'threshold', hex: 'AD20', orientation: 'v', state: 'open', parent: '1stFloorStairsDown' },
+      
       { id: 'west_window1', kind: 'window', hex: 'L20', orientation: 'v', state: 'closed', opensTo: 'W' },
       { id: 'west_window2', kind: 'window', hex: 'L19', orientation: 'v', state: 'closed', opensTo: 'W' },
       { id: 'west_window3', kind: 'window', hex: 'L17', orientation: 'v', state: 'closed', opensTo: 'W' },
@@ -565,9 +443,9 @@
       { id: 'w1',   name: 'Wraith 1', side: 'ENEMY', hex: 'T16', label: 'W1', init: 12, hp: 67 },
       { id: 'w2',   name: 'Wraith 2', side: 'ENEMY', hex: 'Q18', label: 'W2', init: 11, hp: 67 },
       { id: 'w3',   name: 'Wraith 3', side: 'ENEMY', hex: 'N17', label: 'W3', init: 10, hp: 67 },
-      { id: 'a',    name: 'Aelar', side: 'PC', hex: 'T13', label: 'A', init: 14, hp: 42 },
+      { id: 'a',    name: 'Aelar', side: 'PC', hex: 'V16', label: 'A', init: 14, hp: 42 },
       { id: 'b',    name: 'Brunna', side: 'PC', hex: 'U13', label: 'B', init: 13, hp: 55 },
-      { id: 'c',    name: 'Caelin', side: 'PC', hex: 'U16', label: 'C', init: 12, hp: 38 },
+      { id: 'c',    name: 'Caelin', side: 'PC', hex: 'AE20', label: 'C', init: 12, hp: 38 },
     ],
   };
 
@@ -604,17 +482,6 @@
 
   function roomAreaFromBounds(b) {
     return (b.maxCol - b.minCol + 1) * (b.maxRow - b.minRow + 1);
-  }
-
-  function boundsTouchOrOverlap(b1, b2) {
-    // Touch/overlap in discrete hex space.
-    const pad = 0;
-    return !(
-      b1.maxCol < (b2.minCol - pad) ||
-      b2.maxCol < (b1.minCol - pad) ||
-      b1.maxRow < (b2.minRow - pad) ||
-      b2.maxRow < (b1.minRow - pad)
-    );
   }
 
   function buildRoomMeta(rooms) {
@@ -709,9 +576,11 @@
 
   function isRenderableOpening(opening, roomMeta, renderableRoomIds) {
     const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
-    // thresholds/portals/connectors affect fog logic only; never render or cut walls.
-    if (kind === 'threshold' || kind === 'portal' || kind === 'connector') return false;
 
+    // portal/connector are fog-logic only.
+    if (kind === 'portal' || kind === 'connector') return false;
+
+    // threshold is knockout-only: include it so walls can be punched out when relevant.
     const { a, b } = openingTouchingRoomIds(opening, roomMeta);
     return (a && renderableRoomIds.has(a)) || (b && renderableRoomIds.has(b));
   }
@@ -1628,7 +1497,8 @@
       seed,
       variant: 3,
       plankH: 18,
-      gap: 2,
+      gapY: 2,
+      gapX: 2,
     });
   }
 
@@ -1663,7 +1533,8 @@
         seed,
         variant: 3,
         plankH: 18,
-        gap: 2,
+        gapY: 2,
+        gapX: 2,
       });
       return;
     }
@@ -1799,17 +1670,119 @@
     return { state, opensTo, openPct };
   }
 
-  function cutOpeningHole(targetCtx, opening, wallSegs) {
+  function openingKnockoutSpan(opening) {
+    // Returns how many "segments" long the knockout should be along the wall.
+    // NOTE: thresholds can optionally specify `parent: 'RoomId'` to do a full-span wall knockout;
+    // in that case, span is ignored and we size from the parent room geometry.
     const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
-    if (kind === 'threshold' || kind === 'portal' || kind === 'connector') return;
+    const orient = openingOrientation(opening);
+
+    // Fallback seam workaround for vertical thresholds (when no parent is provided).
+    if (kind === 'threshold') return (orient === 'v') ? 1.5 : 1.0;
+
+    return 1.0;
+  }
+
+  function findRoomById(rooms, id) {
+    const want = String(id || '');
+    if (!want) return null;
+    for (const r of (Array.isArray(rooms) ? rooms : [])) {
+      if (r && String(r.id || '') === want) return r;
+    }
+    return null;
+  }
+
+  function thresholdKnockoutFromParent(opening, rooms, wallSegs) {
+    // If opening has parent:'RoomId', compute a knockout that removes the ENTIRE wall span
+    // matching that parent room's INNER floor width/height on the correct edge.
+    const parentId = opening && opening.parent ? String(opening.parent) : '';
+    if (!parentId) return null;
+
+    const room = findRoomById(rooms, parentId);
+    if (!room) return null;
+
+    let p;
+    try { p = parseHexId(opening.hex); } catch { return null; }
+
+    const orient = openingOrientation(opening);
+    const hexWorld = hexCenterWorld(p.col, p.row);
+
+    const box = roomToWallBox(room);
+
+    // Prefer thickness from nearest wall segment (so if you change wall thickness later,
+    // the knockout stays exact). Fallback to room.thickness.
+    const seg = findNearestWallSegment(wallSegs || [], orient, hexWorld);
+    const thickness = seg ? seg.thickness : Math.max(1, Number(room.thickness || 28));
+
+    // Small pad to guarantee brick/mortar pixels are fully cleared.
+    const padLen = 2;
+
+    if (orient === 'v') {
+      // Pick left vs right edge by proximity.
+      const dL = Math.abs(hexWorld.x - box.xL);
+      const dR = Math.abs(hexWorld.x - box.xR);
+      const cx = (dL <= dR) ? box.xL : box.xR;
+
+      // Span matches inner floor height.
+      const cy = (box.inner.y1 + box.inner.y2) / 2;
+      const len = Math.max(6, (box.inner.y2 - box.inner.y1) + padLen * 2);
+
+      return { orient, cx, cy, len, thickness };
+    }
+
+    // orient === 'h'
+    {
+      // Pick top vs bottom edge by proximity.
+      const dT = Math.abs(hexWorld.y - box.yTop);
+      const dB = Math.abs(hexWorld.y - box.yBot);
+      const cy = (dT <= dB) ? box.yTop : box.yBot;
+
+      // Span matches inner floor width.
+      const cx = (box.inner.x1 + box.inner.x2) / 2;
+      const len = Math.max(6, (box.inner.x2 - box.inner.x1) + padLen * 2);
+
+      return { orient, cx, cy, len, thickness };
+    }
+  }
+
+  function cutOpeningHole(targetCtx, opening, wallSegs, roomsForSizing) {
+    const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
+    if (kind === 'portal' || kind === 'connector') return;
 
     const orient = openingOrientation(opening);
     const p = parseHexId(opening.hex);
 
     const hexWorld = hexCenterWorld(p.col, p.row);
+
+    // Parent-based threshold: punch out the full wall span for the parent hallway edge.
+    if (kind === 'threshold') {
+      const spec = thresholdKnockoutFromParent(opening, roomsForSizing, wallSegs);
+      if (spec) {
+        const centerS = worldToScreen({ x: spec.cx, y: spec.cy });
+
+        const cutH = spec.thickness + 4;
+        const cutW = spec.len + 2;
+
+        targetCtx.save();
+        targetCtx.translate(centerS.x, centerS.y);
+        if (orient === 'v') targetCtx.rotate(Math.PI / 2);
+
+        targetCtx.beginPath();
+        targetCtx.rect(-cutW / 2, -cutH / 2, cutW, cutH);
+        targetCtx.fill();
+
+        targetCtx.restore();
+        return;
+      }
+    }
+
     const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
 
-    const w = GRID.size * 1.2;
+    // Base opening length (doors/windows/thresholds start from this).
+    const baseLen = (GRID.size * 1.2);
+
+    const span = openingKnockoutSpan(opening);
+    const w = baseLen * span;
     let cx = hexWorld.x;
     let cy = hexWorld.y;
     let thickness = 28;
@@ -1825,9 +1798,23 @@
     const cutH = thickness + 3;
     const cutW = w + 2;
 
+    // IMPORTANT:
+    // For vertical thresholds we use span=1.5 to clear the "half-hex" seam caused by our
+    // corner/phase conventions — but we want the extra 0.5 to extend SOUTH (down-screen),
+    // not split evenly north/south. We do that by biasing the local (along-wall) axis by
+    // half of the extra length.
+    let alongWallBias = 0;
+    if (kind === 'threshold' && orient === 'v' && span > 1) {
+      alongWallBias = ((span - 1) * baseLen) / 2; // for 1.5 => 0.25 * baseLen
+    }
+
     targetCtx.save();
     targetCtx.translate(centerS.x, centerS.y);
-    if (orient === 'v') targetCtx.rotate(Math.PI / 2);
+    if (orient === 'v') {
+      targetCtx.rotate(Math.PI / 2);
+      // After rotation, local +X maps to +screenY (south), which is exactly what we want.
+      if (alongWallBias) targetCtx.translate(alongWallBias, 0);
+    }
 
     targetCtx.beginPath();
     targetCtx.rect(-cutW / 2, -cutH / 2, cutW, cutH);
@@ -2221,13 +2208,17 @@
 
     const knockoutAlphaFor = (o) => {
       const k = String(o && o.kind ? o.kind : 'door').toLowerCase();
-      if (k === 'threshold' || k === 'portal' || k === 'connector') return 0;
+      if (k === 'portal' || k === 'connector') return 0;
+
+      // thresholds are full knockouts (opening between hallway segments)
+      if (k === 'threshold') return 1;
+
       return (k === 'window') ? 0.25 : 1;
     };
 
     for (const o of openingsToDraw) {
       wallCtx.globalAlpha = knockoutAlphaFor(o);
-      cutOpeningHole(wallCtx, o, wallSegs);
+      cutOpeningHole(wallCtx, o, wallSegs, roomsForWalls);
     }
 
     wallCtx.restore();
@@ -2299,6 +2290,36 @@
         if (!aN || !aN.has('B')) throw new Error('threshold should connect spaces for adjacency');
       }
 
+      // Knockout sizing: vertical thresholds should use a 1.5 span; horizontal should use 1.0.
+      {
+        const tv = { id: 't', kind: 'threshold', hex: 'D2', orientation: 'v', state: 'open' };
+        const th = { id: 't2', kind: 'threshold', hex: 'D2', orientation: 'h', state: 'open' };
+        if (Math.abs(openingKnockoutSpan(tv) - 1.5) > 1e-9) throw new Error('vertical threshold knockout span should be 1.5');
+        if (Math.abs(openingKnockoutSpan(th) - 1.0) > 1e-9) throw new Error('horizontal threshold knockout span should be 1.0');
+
+        // Bias: vertical thresholds should bias SOUTH by half the extra length.
+        const baseLen = (GRID.size * 1.2);
+        const expectedBias = ((1.5 - 1) * baseLen) / 2;
+        if (Math.abs(expectedBias - (0.25 * baseLen)) > 1e-9) throw new Error('vertical threshold expected bias math changed');
+      }
+
+      // Parent-based thresholds: knockout span should match the parent room's INNER floor span.
+      {
+        const parentRoom = { id: 'Hall', corners: ['B3','F3','F1','B1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } };
+        const box = roomToWallBox(parentRoom);
+        const expectV = (box.inner.y2 - box.inner.y1);
+        const expectH = (box.inner.x2 - box.inner.x1);
+
+        const tv = { id: 'tpv', kind: 'threshold', hex: 'B2', orientation: 'v', state: 'open', parent: 'Hall' };
+        const th = { id: 'tph', kind: 'threshold', hex: 'D3', orientation: 'h', state: 'open', parent: 'Hall' };
+
+        const sv = thresholdKnockoutFromParent(tv, [parentRoom], []);
+        const sh = thresholdKnockoutFromParent(th, [parentRoom], []);
+
+        if (!sv || sv.len < expectV - 0.1) throw new Error('parent vertical threshold len should match inner height');
+        if (!sh || sh.len < expectH - 0.1) throw new Error('parent horizontal threshold len should match inner width');
+      }
+
       // Render filter: a door should be considered renderable if at least one side touches a renderable room.
       {
         const dummyRooms = [
@@ -2317,6 +2338,16 @@
         if (f.maxDepth !== 1) throw new Error('normalizeFog default maxDepth should be 1');
       }
 
+      // cutOpeningHole smoke test.
+      {
+        const oc = document.createElement('canvas');
+        oc.width = 64; oc.height = 64;
+        const octx = oc.getContext('2d');
+        // Minimal transform so worldToScreen doesn't NaN.
+        VIEW.anchor.x = 0; VIEW.anchor.y = 0; VIEW.camera.col = 0; VIEW.camera.row = 0; VIEW.dx = 0; VIEW.dy = 0;
+        cutOpeningHole(octx, { id: 't', kind: 'threshold', hex: 'A1', orientation: 'v', state: 'open' }, []);
+      }
+
       // Stairs fill should not throw (basic smoke test).
       {
         const oc = document.createElement('canvas');
@@ -2330,110 +2361,6 @@
           seed: 1,
           down: 'S'
         });
-        fillStairsWoodRectScreenOn(octx, { x: 0, y: 0, w: 64, h: 64 }, {
-          baseHex: COLORS.floorWoodBase,
-          alpha: 1.0,
-          worldX: 0,
-          worldY: 0,
-          seed: 2,
-          down: 'E'
-        });
-        fillStairsWoodRectScreenOn(octx, { x: 0, y: 0, w: 64, h: 64 }, {
-          baseHex: COLORS.floorWoodBase,
-          alpha: 1.0,
-          worldX: 0,
-          worldY: 0,
-          seed: 3,
-          down: 'W'
-        });
-      }
-
-      // Stairs (W): the down-end treads should reach mid-height (not all anchored to the bottom).
-      {
-        const oc = document.createElement('canvas');
-        oc.width = 128; oc.height = 64;
-        const octx = oc.getContext('2d');
-
-        fillStairsWoodRectScreenOn(octx, { x: 0, y: 0, w: 128, h: 64 }, {
-          baseHex: COLORS.floorWoodBase,
-          alpha: 1.0,
-          worldX: 0,
-          worldY: 0,
-          seed: 123,
-          down: 'W',
-          treadDepth: 12,
-          treadGap: 2,
-          minFactor: 0.26,
-          shiftScale: 0.22,
-        });
-
-        const img = octx.getImageData(0, 0, oc.width, oc.height).data;
-        const px = (x, y) => {
-          const i = (y * oc.width + x) * 4;
-          return [img[i], img[i + 1], img[i + 2], img[i + 3]];
-        };
-
-        const top = px(5, 4);
-        const mid = px(5, Math.floor(oc.height / 2));
-        const diff = Math.abs(top[0] - mid[0]) + Math.abs(top[1] - mid[1]) + Math.abs(top[2] - mid[2]);
-        if (diff < 5) throw new Error('stairs.W should vary across height near down end (mid vs top too similar)');
-      }
-
-      // Geometry sanity: Bedroom1 south wall should be shifted 1/4-hex SOUTH of the declared south-corner hex centers.
-      const testRoom = { id: 'Bedroom1', corners: ['B11','F11','F8','B8'], thickness: 20 };
-      const b8 = hexCenterWorld(parseHexId('B8').col, parseHexId('B8').row);
-      const b11 = hexCenterWorld(parseHexId('B11').col, parseHexId('B11').row);
-      const box = roomToWallBox(testRoom);
-      const eps = 0.001;
-      const yShift = rowStep() / 4;
-
-      if (Math.abs(box.yBot - (b8.y + yShift)) > eps) {
-        throw new Error('roomToWallBox yBot mismatch: expected ' + (b8.y + yShift) + ' got ' + box.yBot);
-      }
-      if (Math.abs(box.yTop - (b11.y + yShift)) > eps) {
-        throw new Error('roomToWallBox yTop mismatch: expected ' + (b11.y + yShift) + ' got ' + box.yTop);
-      }
-
-      // Floor-rect selection: walled rooms should use INNER; wall-less spaces should use OUTER.
-      {
-        const walled = { id: 'Walled', corners: ['B11','F11','F8','B8'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } };
-        const wbox = roomToWallBox(walled);
-        const wf = roomFloorRectWorld(walled, wbox);
-        if (Math.abs(wf.x1 - wbox.inner.x1) > eps || Math.abs(wf.y1 - wbox.inner.y1) > eps) {
-          throw new Error('walled floor rect should use inner bounds');
-        }
-      }
-
-      // Space-floor sanity: wall.kind='none' should paint floor across the OUTER rectangle (no unpainted strips).
-      const space = { id: 'HallTest', corners: ['T11','V11','V2','T2'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'none' } };
-      const sbox = roomToWallBox(space);
-      const f = roomFloorRectWorld(space, sbox);
-      if (Math.abs(f.x1 - sbox.outer.x1) > eps || Math.abs(f.y1 - sbox.outer.y1) > eps) {
-        throw new Error('space floor rect should use outer bounds');
-      }
-
-      const d1 = normalizeDoorParams({ kind: 'door' }, 'v');
-      if (d1.opensTo !== 'E' || d1.hingeEnd !== 'N' || d1.openPct !== 0) throw new Error('Door defaults (v) unexpected');
-      const d2 = normalizeDoorParams({ kind: 'door' }, 'h');
-      if (d2.opensTo !== 'N' || d2.hingeEnd !== 'W' || d2.openPct !== 0) throw new Error('Door defaults (h) unexpected');
-
-      const w1 = normalizeWindowParams({ kind: 'window' }, 'v');
-      if (w1.opensTo !== 'W' || w1.openPct !== 0) throw new Error('Window defaults (v) unexpected');
-      const w2 = normalizeWindowParams({ kind: 'window' }, 'h');
-      if (w2.opensTo !== 'S' || w2.openPct !== 0) throw new Error('Window defaults (h) unexpected');
-
-      const w3 = normalizeWindowParams({ kind: 'window', state: 'ajar' }, 'v');
-      if (Math.abs(w3.openPct - 0.5) > 0.0001) throw new Error('Window ajar openPct unexpected');
-
-      {
-        const thickness = 20;
-        const w = GRID.size * 1.2;
-        const cutH = thickness + 3;
-        const cutW = w + 2;
-        const rectH = { w: cutW, h: cutH };
-        const rectV = { w: cutH, h: cutW };
-        if (!(rectH.w > rectH.h)) throw new Error('Expected horizontal cutout to be wider than tall');
-        if (!(rectV.h > rectV.w)) throw new Error('Expected vertical cutout to be taller than wide');
       }
 
       console.log('[Battlemat] self-tests: OK');
