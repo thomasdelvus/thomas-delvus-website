@@ -1,7 +1,22 @@
 <!doctype html>
 <!--
-  Battlemat - V4
-  Version 4.40
+  Battlemat
+  Version 4.43
+
+
+  Copyright © 2025 Thomas Delvus. All rights reserved.
+
+  This HTML document and its contents (including the code, layout, text, data structures, and embedded/linked assets)
+  are protected by copyright law.
+
+  Permission is granted to access and use this file for personal, non-commercial tabletop gameplay and reference.
+
+  You may NOT copy, reproduce, modify, translate, redistribute, publish, sell, sublicense, or incorporate this work
+  (in whole or in part) into any software product, service, website, platform, “system,” template library, dataset,
+  or AI/training workflow without prior written permission from the copyright holder.
+
+  Unauthorized use is prohibited.
+
 
   Rewrite notes (v4.32):
   - Fixes a JS SyntaxError caused by an unescaped newline inside a string literal.
@@ -183,6 +198,13 @@
           <option value="none">Floor: None</option>
         </select>
 
+        <label style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:12px; color:var(--muted);">Center on</span>
+          <select id="centerOn" style="min-width: 150px;">
+            <option value="">None</option>
+          </select>
+        </label>
+
         <input id="jumpHex" placeholder="Jump to (e.g., H6)" style="width: 140px;" />
         <button id="btnJump">Jump</button>
         <button id="btnRedraw">Redraw</button>
@@ -192,7 +214,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.40</div>
+        <div class="pill" id="versionLine">v4.43</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -236,6 +258,9 @@
     anchor: { x: 0, y: 0 },
     dx: 0,
     dy: 0,
+
+    // If set, camera will automatically follow that token (by id).
+    followTokenId: null,
   };
 
   const PAN_STEP = 2;
@@ -245,15 +270,7 @@
     view: { camera_hex: 'K6' },
 
     rooms: [
-      {
-        id: 'test',
-        corners: ['AM10','AT10','AT3','AM3'],
-        thickness: 150,
-        color: '#555',
-        floor: { kind: 'wood' },
-        wall: { kind: 'brick' },
-      },
-      {
+           {
         id: 'CrossKeysUpperFloor',
         corners: ['B11','Z11','Z2','B2'],
         thickness: 20,
@@ -264,7 +281,7 @@
       {
         id: 'Bedroom1',
         corners: ['B11','F11','F8','B8'],
-        thickness: 20,
+        thickness: 10,
         color: '#555',
         floor: { kind: 'wood' },
         wall: { kind: 'brick' },
@@ -346,33 +363,33 @@
 
     // Converted: at -> hex, facing -> orientation (E/W => v, N/S/D => h)
     openings: [
-      { id: 'door_room1', kind: 'door', hex: 'F9', orientation: 'v', widthPx: 70 },
-      { id: 'door_room2', kind: 'door', hex: 'F6', orientation: 'v', widthPx: 70 },
-      { id: 'door_room3', kind: 'door', hex: 'F3', orientation: 'v', widthPx: 70 },
-      { id: 'door_room4', kind: 'door', hex: 'J5', orientation: 'h', widthPx: 70 },
-      { id: 'door_room5', kind: 'door', hex: 'K7', orientation: 'h', widthPx: 70 },
-      { id: 'door_room6', kind: 'door', hex: 'Q7', orientation: 'h', widthPx: 70 },
-      { id: 'door_room7', kind: 'door', hex: 'S4', orientation: 'h', widthPx: 70 },
-      { id: 'door_room8', kind: 'door', hex: 'V3', orientation: 'v', widthPx: 70 },
-      { id: 'door_room9', kind: 'door', hex: 'V6', orientation: 'v', widthPx: 70 },
-      { id: 'door_room10', kind: 'door', hex: 'V10', orientation: 'v', widthPx: 70 },
+      { id: 'door_room1', kind: 'door', hex: 'F9', orientation: 'v', state:'open', opensTo:'E', hingeEnd:'N' },
+      { id: 'door_room2', kind: 'door', hex: 'F6', orientation: 'v', state:'open', opensTo:'E', hingeEnd:'N' },
+      { id: 'door_room3', kind: 'door', hex: 'F3', orientation: 'v', state:'open', opensTo:'E', hingeEnd:'N' },
+      { id: 'door_room4', kind: 'door', hex: 'J5', orientation: 'h', state:'open', opensTo:'N', hingeEnd:'E' },
+      { id: 'door_room5', kind: 'door', hex: 'K7', orientation: 'h', opensTo:'N', hingeEnd:'W'  },
+      { id: 'door_room6', kind: 'door', hex: 'Q7', orientation: 'h', opensTo:'N', hingeEnd:'W'  },
+      { id: 'door_room7', kind: 'door', hex: 'S4', orientation: 'h', opensTo:'N', hingeEnd:'W'  },
+      { id: 'door_room8', kind: 'door', hex: 'V3', orientation: 'v', state:'open', opensTo:'E', hingeEnd:'N' },
+      { id: 'door_room9', kind: 'door', hex: 'V6', orientation: 'v', state:'open', opensTo:'E', hingeEnd:'N' },
+      { id: 'door_room10', kind: 'door', hex: 'V10', orientation: 'v', state:'open', opensTo:'E', hingeEnd:'N' },
 
-      { id: 'west_window1', kind: 'window', hex: 'B10', orientation: 'v', widthPx: 70 },
-      { id: 'west_window2', kind: 'window', hex: 'B9', orientation: 'v', widthPx: 70 },
-      { id: 'west_window3', kind: 'window', hex: 'B7', orientation: 'v', widthPx: 70 },
-      { id: 'west_window4', kind: 'window', hex: 'B6', orientation: 'v', widthPx: 70 },
-      { id: 'west_window5', kind: 'window', hex: 'B4', orientation: 'v', widthPx: 70 },
-      { id: 'west_window6', kind: 'window', hex: 'B3', orientation: 'v', widthPx: 70 },
+      { id: 'west_window1', kind: 'window', hex: 'B10', orientation: 'v' },
+      { id: 'west_window2', kind: 'window', hex: 'B9', orientation: 'v' },
+      { id: 'west_window3', kind: 'window', hex: 'B7', orientation: 'v' },
+      { id: 'west_window4', kind: 'window', hex: 'B6', orientation: 'v' },
+      { id: 'west_window5', kind: 'window', hex: 'B4', orientation: 'v' },
+      { id: 'west_window6', kind: 'window', hex: 'B3', orientation: 'v' },
 
-      { id: 'south_window1', kind: 'window', hex: 'C1', orientation: 'h', widthPx: 70 },
-      { id: 'south_window2', kind: 'window', hex: 'D2', orientation: 'h', widthPx: 70 },
-      { id: 'south_window3', kind: 'window', hex: 'G1', orientation: 'h', widthPx: 70 },
-      { id: 'south_window4', kind: 'window', hex: 'J2', orientation: 'h', widthPx: 70 },
-      { id: 'south_window5', kind: 'window', hex: 'K1', orientation: 'h', widthPx: 70 },
-      { id: 'south_window6', kind: 'window', hex: 'Q1', orientation: 'h', widthPx: 70 },
-      { id: 'south_window7', kind: 'window', hex: 'R2', orientation: 'h', widthPx: 70 },
-      { id: 'south_window8', kind: 'window', hex: 'U1', orientation: 'h', widthPx: 70 },
-      { id: 'south_window9', kind: 'window', hex: 'X2', orientation: 'h', widthPx: 70 },
+      { id: 'south_window1', kind: 'window', hex: 'C1', orientation: 'h' },
+      { id: 'south_window2', kind: 'window', hex: 'D2', orientation: 'h' },
+      { id: 'south_window3', kind: 'window', hex: 'G1', orientation: 'h' },
+      { id: 'south_window4', kind: 'window', hex: 'J2', orientation: 'h' },
+      { id: 'south_window5', kind: 'window', hex: 'K1', orientation: 'h' },
+      { id: 'south_window6', kind: 'window', hex: 'Q1', orientation: 'h' },
+      { id: 'south_window7', kind: 'window', hex: 'R2', orientation: 'h' },
+      { id: 'south_window8', kind: 'window', hex: 'U1', orientation: 'h' },
+      { id: 'south_window9', kind: 'window', hex: 'X2', orientation: 'h' },
     ],
 
     // Converted: actors[] -> tokens[] (at -> hex). Kept init/hp for later UI.
@@ -699,6 +716,42 @@
     return best;
   }
 
+  function normalizeDoorParams(opening, orient) {
+    // Door state: default closed.
+    // Accepts: state: 'open'|'closed'|'ajar', or open: true/false.
+    let state = String(opening.state ?? '').toLowerCase();
+    if (!state) {
+      if (opening.open === true) state = 'open';
+      else if (opening.open === false) state = 'closed';
+      else state = 'closed';
+    }
+    if (state !== 'open' && state !== 'closed' && state !== 'ajar') state = 'closed';
+
+    // Author-friendly swing intent:
+    // opensTo is the side the leaf swings toward.
+    // hingeEnd is which end of the door segment is hinged.
+    // Defaults are simple + deterministic.
+    const isV = orient === 'v';
+
+    const validOpensTo = isV ? new Set(['E', 'W']) : new Set(['N', 'S']);
+    const validHinge = isV ? new Set(['N', 'S']) : new Set(['W', 'E']);
+
+    let opensTo = String(opening.opensTo ?? '').toUpperCase();
+    if (!validOpensTo.has(opensTo)) opensTo = isV ? 'E' : 'N';
+
+    let hingeEnd = String(opening.hingeEnd ?? '').toUpperCase();
+    if (!validHinge.has(hingeEnd)) hingeEnd = isV ? 'N' : 'W';
+
+    // How far open (0..1). Defaults: open=1, ajar=0.5, closed=0.
+    let openPct = Number(opening.openPct ?? opening.openPercent ?? opening.openAmount);
+    if (!Number.isFinite(openPct)) {
+      openPct = (state === 'open') ? 1 : (state === 'ajar') ? 0.5 : 0;
+    }
+    openPct = Math.max(0, Math.min(1, openPct));
+
+    return { state, opensTo, hingeEnd, openPct };
+  }
+
   function drawOpening(opening, wallSegs) {
     const kind = String(opening.kind ?? 'door').toLowerCase();
     const orient = openingOrientation(opening);
@@ -730,20 +783,82 @@
     const stroke = 'rgba(0,0,0,0.35)';
     const openingH = Math.min(thickness * 0.72, fallbackH);
 
-    ctx.fillStyle = fill;
-    ctx.strokeStyle = stroke;
     ctx.lineWidth = 2;
 
-    ctx.beginPath();
-    ctx.roundRect(-w/2, -openingH/2, w, openingH, 6);
-    ctx.fill();
-    ctx.stroke();
+    if (kind === 'door') {
+      const d = normalizeDoorParams(opening, orient);
 
-    if (kind === 'window') {
+      // Hinge side in LOCAL coordinates (after our optional rotation above).
+      // - For horizontal openings: hingeEnd W/E maps to left/right.
+      // - For vertical openings: hingeEnd N/S maps to left/right (because local +x points SOUTH).
+      const hingeSide = ((orient === 'h' && d.hingeEnd === 'W') || (orient === 'v' && d.hingeEnd === 'N')) ? 'left' : 'right';
+      const hingeX = (hingeSide === 'left') ? (-w / 2) : (w / 2);
+
+      // Desired swing side in LOCAL Y (positive = +y). Note: canvas +y is down.
+      // - For horizontal openings: opensTo S => +y, N => -y.
+      // - For vertical openings: opensTo W => +y, E => -y (because we rotate 90° for v).
+      let desiredY = 1;
+      if (orient === 'h') desiredY = (d.opensTo === 'S') ? 1 : -1;
+      else desiredY = (d.opensTo === 'W') ? 1 : -1;
+
+      // Rotation sign so the leaf swings into desiredY.
+      // Left hinge: +angle swings to +y; Right hinge: +angle swings to -y.
+      const rotSign = desiredY * (hingeSide === 'left' ? 1 : -1);
+      const angle = (Math.PI / 2) * d.openPct * rotSign;
+
+      // Closed door slab (as before).
+      if (d.openPct <= 0.001) {
+        ctx.fillStyle = fill;
+        ctx.strokeStyle = stroke;
+        ctx.beginPath();
+        const doorRadiusClosed = Math.max(2, Math.min(openingH / 2, 999));
+        ctx.roundRect(-w / 2, -openingH / 2, w, openingH, doorRadiusClosed);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        // Door leaf (keep thickness consistent when open) rotated around hinge.
+        const leafLen = w;
+        // Previously we made the open door look like a thin "edge"; for our top-down battlemat
+        // we want it to retain roughly the same apparent thickness as when closed.
+        const leafThick = Math.max(6, openingH * 0.92);
+
+        ctx.save();
+        ctx.translate(hingeX, 0);
+        ctx.rotate(angle);
+
+        ctx.fillStyle = fill;
+        ctx.strokeStyle = stroke;
+
+        const x0 = (hingeSide === 'left') ? 0 : -leafLen;
+        ctx.beginPath();
+        const doorRadiusOpen = Math.max(2, Math.min(leafThick / 2, 999));
+        ctx.roundRect(x0, -leafThick / 2, leafLen, leafThick, doorRadiusOpen);
+        ctx.fill();
+        ctx.stroke();
+
+        // Hinge dot.
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.beginPath();
+        ctx.arc(0, 0, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+
+    } else {
+      // Window (unchanged)
+      ctx.fillStyle = fill;
+      ctx.strokeStyle = stroke;
+
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -openingH / 2, w, openingH, 6);
+      ctx.fill();
+      ctx.stroke();
+
       ctx.strokeStyle = 'rgba(0,0,0,0.25)';
       ctx.beginPath();
-      ctx.moveTo(0, -openingH/2 + 2);
-      ctx.lineTo(0, openingH/2 - 2);
+      ctx.moveTo(0, -openingH / 2 + 2);
+      ctx.lineTo(0, openingH / 2 - 2);
       ctx.stroke();
     }
 
@@ -870,6 +985,26 @@
   function redraw() {
     const state = getState();
 
+    // Keep "Center on" list synced to current token set.
+    populateCenterOn(state);
+
+    // If we're following, lock camera to the followed token before drawing.
+    if (VIEW.followTokenId) {
+      const tokens = Array.isArray(state.tokens) ? state.tokens : [];
+      const t = tokens.find(x => x.id === VIEW.followTokenId);
+      if (t && t.hex) {
+        try {
+          const p = parseHexId(t.hex);
+          VIEW.camera.col = p.col;
+          VIEW.camera.row = p.row;
+        } catch (e) {
+          VIEW.followTokenId = null;
+          const sel = document.getElementById('centerOn');
+          if (sel) sel.value = '';
+        }
+      }
+    }
+
     clear();
 
     const rooms = Array.isArray(state.rooms) ? state.rooms : [];
@@ -924,6 +1059,14 @@
         throw new Error(`roomToWallBox yTop mismatch: expected ${b11.y + yShift} got ${box.yTop}`);
       }
 
+      // Door defaults sanity (no throws, deterministic defaults)
+      {
+        const d1 = normalizeDoorParams({ kind: 'door' }, 'v');
+        if (d1.opensTo !== 'E' || d1.hingeEnd !== 'N' || d1.openPct !== 0) throw new Error('Door defaults (v) unexpected');
+        const d2 = normalizeDoorParams({ kind: 'door' }, 'h');
+        if (d2.opensTo !== 'N' || d2.hingeEnd !== 'W' || d2.openPct !== 0) throw new Error('Door defaults (h) unexpected');
+      }
+
       console.log('[Battlemat] self-tests: OK');
     } catch (e) {
       console.warn('[Battlemat] self-tests: FAIL', e);
@@ -931,16 +1074,84 @@
   }
 
   // ===== UI =====
+  function getPlayerTokens(state) {
+    const tokens = Array.isArray(state.tokens) ? state.tokens : [];
+    return tokens.filter(t => {
+      const side = String(t.side ?? '').toUpperCase();
+      return side === 'PC' || side === 'PLAYER';
+    });
+  }
+
+  function populateCenterOn(state) {
+    const sel = document.getElementById('centerOn');
+    if (!sel) return;
+
+    const players = getPlayerTokens(state);
+    const wanted = VIEW.followTokenId ?? '';
+
+    const opts = ['<option value="">None</option>'];
+    for (const t of players) {
+      const label = t.name ? t.name : t.id;
+      opts.push(`<option value="${escapeHtml(t.id)}">${escapeHtml(label)}</option>`);
+    }
+    sel.innerHTML = opts.join('');
+
+    sel.value = players.some(t => t.id === wanted) ? wanted : '';
+    if (sel.value === '') VIEW.followTokenId = null;
+  }
+
+  function followCameraTick() {
+    const state = getState();
+    if (VIEW.followTokenId) {
+      const tokens = Array.isArray(state.tokens) ? state.tokens : [];
+      const t = tokens.find(x => x.id === VIEW.followTokenId);
+      if (t && t.hex) {
+        try {
+          const p = parseHexId(t.hex);
+          if (p.col !== VIEW.camera.col || p.row !== VIEW.camera.row) {
+            VIEW.camera.col = p.col;
+            VIEW.camera.row = p.row;
+            redraw();
+          }
+        } catch (e) {
+          VIEW.followTokenId = null;
+          const sel = document.getElementById('centerOn');
+          if (sel) sel.value = '';
+        }
+      } else {
+        VIEW.followTokenId = null;
+        const sel = document.getElementById('centerOn');
+        if (sel) sel.value = '';
+      }
+    }
+    requestAnimationFrame(followCameraTick);
+  }
+
   function pan(dc, dr) {
+    // Manual panning cancels follow mode.
+    if (VIEW.followTokenId) {
+      VIEW.followTokenId = null;
+      const sel = document.getElementById('centerOn');
+      if (sel) sel.value = '';
+    }
     VIEW.camera.col += dc;
     VIEW.camera.row += dr;
     redraw();
   }
 
-  function setCameraToHex(hex) {
+  function setCameraToHex(hex, opts = {}) {
+    const { manual = true } = opts;
     const p = parseHexId(hex);
     VIEW.camera.col = p.col;
     VIEW.camera.row = p.row;
+
+    // Manual camera moves cancel follow mode (so panning/jump doesn't immediately snap back).
+    if (manual) {
+      VIEW.followTokenId = null;
+      const sel = document.getElementById('centerOn');
+      if (sel) sel.value = '';
+    }
+
     redraw();
   }
 
@@ -951,6 +1162,22 @@
     document.getElementById('btnDown').addEventListener('click', () => pan(0, -PAN_STEP));
 
     document.getElementById('btnRedraw').addEventListener('click', redraw);
+
+    document.getElementById('centerOn').addEventListener('change', (e) => {
+      const id = String(e.target.value || '');
+      VIEW.followTokenId = id || null;
+
+      if (VIEW.followTokenId) {
+        const state = getState();
+        const tokens = Array.isArray(state.tokens) ? state.tokens : [];
+        const t = tokens.find(x => x.id === VIEW.followTokenId);
+        if (t && t.hex) {
+          try { setCameraToHex(t.hex, { manual: false }); } catch (err) { /* ignore */ }
+        }
+      } else {
+        redraw();
+      }
+    });
 
     document.getElementById('btnJump').addEventListener('click', () => {
       const v = document.getElementById('jumpHex').value.trim();
@@ -997,6 +1224,9 @@
   function init() {
     wireUI();
     runSelfTests();
+
+    // Start a lightweight follow loop (only redraws when camera position changes).
+    requestAnimationFrame(followCameraTick);
 
     const state = getState();
     const hex = state.view?.camera_hex;
