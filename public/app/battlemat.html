@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Battlemat
-  Version 4.64
+  Version 4.65
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -17,7 +17,7 @@
   Unauthorized use is prohibited.
 
 
-  Rewrite notes (v4.64):
+  Rewrite notes (v4.65):
   - Data: baked a +10E/+10N shift directly into DEFAULT_STATE hex coordinates (rooms/spaces/openings/tokens/camera) so there is real empty space for streets.
   - Cleanup: removed the runtime one-time scene-shift helper (no more phase shift).
 
@@ -190,6 +190,7 @@
         <select id="floorKind">
           <option value="wood">Floor: Wood</option>
           <option value="stone">Floor: Stone</option>
+          <option value="cobble">Floor: Cobble</option>
           <option value="none">Floor: None</option>
         </select>
 
@@ -209,7 +210,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.64</div>
+        <div class="pill" id="versionLine">v4.65</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -245,6 +246,7 @@
     window: '#bfe2ff',
     floorStone: 'rgb(223, 208, 165)',
     floorWoodBase: '#d5b58c',
+    floorCobbleBase: '#9aa0a6',
     tokenHero: '#4aa3ff',
     tokenEnemy: '#111',
     tokenTextDark: 'rgba(0,0,0,0.72)',
@@ -427,21 +429,21 @@
       { id: 'door_room5closet', kind: 'door', hex: 'X20',  orientation: 'v', state: 'open', opensTo: 'W', hingeEnd: 'N' },
 
       { id: 'west_window1', kind: 'window', hex: 'L20', orientation: 'v', state: 'open', opensTo: 'W' },
-      { id: 'west_window2', kind: 'window', hex: 'L19',  orientation: 'v' },
-      { id: 'west_window3', kind: 'window', hex: 'L17',  orientation: 'v' },
-      { id: 'west_window4', kind: 'window', hex: 'L16',  orientation: 'v' },
-      { id: 'west_window5', kind: 'window', hex: 'L14',  orientation: 'v' },
-      { id: 'west_window6', kind: 'window', hex: 'L13',  orientation: 'v' },
+      { id: 'west_window2', kind: 'window', hex: 'L19',  orientation: 'v', state: 'open', opensTo: 'W' },
+      { id: 'west_window3', kind: 'window', hex: 'L17',  orientation: 'v', state: 'open', opensTo: 'W' },
+      { id: 'west_window4', kind: 'window', hex: 'L16',  orientation: 'v', state: 'open', opensTo: 'W' },
+      { id: 'west_window5', kind: 'window', hex: 'L14',  orientation: 'v', state: 'open', opensTo: 'W' },
+      { id: 'west_window6', kind: 'window', hex: 'L13',  orientation: 'v', state: 'open', opensTo: 'W' },
 
       { id: 'south_window1', kind: 'window', hex: 'M11', orientation: 'h', state: 'open', opensTo: 'S' },
-      { id: 'south_window2', kind: 'window', hex: 'N12', orientation: 'h' },
-      { id: 'south_window3', kind: 'window', hex: 'Q11', orientation: 'h' },
-      { id: 'south_window4', kind: 'window', hex: 'T12', orientation: 'h' },
-      { id: 'south_window5', kind: 'window', hex: 'U11', orientation: 'h' },
-      { id: 'south_window6', kind: 'window', hex: 'AA11', orientation: 'h' },
-      { id: 'south_window7', kind: 'window', hex: 'AB12', orientation: 'h' },
-      { id: 'south_window8', kind: 'window', hex: 'AE11', orientation: 'h' },
-      { id: 'south_window9', kind: 'window', hex: 'AH12', orientation: 'h' },
+      { id: 'south_window2', kind: 'window', hex: 'N12', orientation: 'h', state: 'open', opensTo: 'S' },
+      { id: 'south_window3', kind: 'window', hex: 'Q11', orientation: 'h', state: 'open', opensTo: 'S' },
+      { id: 'south_window4', kind: 'window', hex: 'T12', orientation: 'h', state: 'open', opensTo: 'S' },
+      { id: 'south_window5', kind: 'window', hex: 'U11', orientation: 'h', state: 'open', opensTo: 'S' },
+      { id: 'south_window6', kind: 'window', hex: 'AA11', orientation: 'h', state: 'open', opensTo: 'S' },
+      { id: 'south_window7', kind: 'window', hex: 'AB12', orientation: 'h', state: 'open', opensTo: 'S' },
+      { id: 'south_window8', kind: 'window', hex: 'AE11', orientation: 'h', state: 'open', opensTo: 'S' },
+      { id: 'south_window9', kind: 'window', hex: 'AH12', orientation: 'h', state: 'open', opensTo: 'S' },
     ],
 
     tokens: [
@@ -767,6 +769,99 @@ function drawHexLabel(col, row) {
         roundRectPath(targetCtx, x, y, brickW, brickH, radius);
         targetCtx.fill();
         targetCtx.stroke();
+      }
+    }
+
+    targetCtx.restore();
+  }
+
+  function fillCobbleRectScreenOn(targetCtx, rect, opts) {
+    // Procedural cobblestone: chunky, slightly irregular stones with light mortar.
+    // Anchored in WORLD space so the pattern doesn't swim while panning.
+
+    const base = (opts && opts.baseHex) ? opts.baseHex : COLORS.floorCobbleBase;
+    const alpha = (opts && Number.isFinite(opts.alpha)) ? opts.alpha : 1.0;
+    const worldX = (opts && Number.isFinite(opts.worldX)) ? opts.worldX : 0;
+    const worldY = (opts && Number.isFinite(opts.worldY)) ? opts.worldY : 0;
+    const seed = (opts && Number.isFinite(opts.seed)) ? opts.seed : 12345;
+
+    const stoneMin = (opts && Number.isFinite(opts.stoneMin)) ? opts.stoneMin : 14;
+    const stoneMax = (opts && Number.isFinite(opts.stoneMax)) ? opts.stoneMax : 26;
+    const gap = (opts && Number.isFinite(opts.gap)) ? opts.gap : 2.4;
+
+    const pitch = stoneMax + gap;
+    const mod = (a, m) => ((a % m) + m) % m;
+
+    // Mortar + stones palettes.
+    const mortar = shadeRgba(base, +0.18, alpha);
+    const edge = 'rgba(0,0,0,0.18)';
+
+    targetCtx.save();
+
+    // Clip.
+    targetCtx.beginPath();
+    targetCtx.rect(rect.x, rect.y, rect.w, rect.h);
+    targetCtx.clip();
+
+    // Mortar base.
+    targetCtx.fillStyle = mortar;
+    targetCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
+
+    // Stable world phase.
+    const phaseX = mod(worldX, pitch);
+    const phaseY = mod(worldY, pitch);
+
+    const startX = rect.x - (phaseX + pitch);
+    const startY = rect.y - (phaseY + pitch);
+
+    const cols = Math.ceil((rect.w + pitch * 2) / pitch);
+    const rows = Math.ceil((rect.h + pitch * 2) / pitch);
+
+    targetCtx.strokeStyle = edge;
+    targetCtx.lineWidth = 1;
+
+    for (let ry = 0; ry < rows; ry++) {
+      for (let cx = 0; cx < cols; cx++) {
+        const cellX = startX + cx * pitch;
+        const cellY = startY + ry * pitch;
+
+        const cellSeed = (seed + cx * 131 + ry * 977) >>> 0;
+        const rnd = mulberry32(cellSeed);
+
+        const w = stoneMin + rnd() * (stoneMax - stoneMin);
+        const h = stoneMin + rnd() * (stoneMax - stoneMin);
+
+        const ox = (rnd() - 0.5) * (gap * 1.6);
+        const oy = (rnd() - 0.5) * (gap * 1.6);
+        const rot = (rnd() - 0.5) * 0.25; // subtle
+
+        const x = cellX + (pitch / 2) + ox;
+        const y = cellY + (pitch / 2) + oy;
+
+        const shadeAmt = (rnd() - 0.5) * 0.10; // low contrast
+        const fill = shadeRgba(base, shadeAmt, alpha);
+
+        const rr = 2.5 + rnd() * 4.0;
+
+        targetCtx.save();
+        targetCtx.translate(x, y);
+        targetCtx.rotate(rot);
+
+        targetCtx.fillStyle = fill;
+        roundRectPath(targetCtx, -w / 2, -h / 2, w, h, rr);
+        targetCtx.fill();
+        targetCtx.stroke();
+
+        // Tiny highlight for depth (very subtle).
+        targetCtx.strokeStyle = 'rgba(255,255,255,0.10)';
+        targetCtx.beginPath();
+        targetCtx.moveTo(-w / 2 + rr, -h / 2 + 1);
+        targetCtx.lineTo(w / 2 - rr, -h / 2 + 1);
+        targetCtx.stroke();
+
+        targetCtx.restore();
+
+        targetCtx.strokeStyle = edge;
       }
     }
 
@@ -1116,6 +1211,21 @@ function drawHexLabel(col, row) {
         variant: 3,
         plankH: 18,
         gap: 2,
+      });
+      return;
+    }
+
+    if (floorKind === 'cobble') {
+      const seed = hashStringToSeed('cobble:' + (room.id || JSON.stringify(room.corners || [])));
+      fillCobbleRectScreenOn(ctx, rect, {
+        baseHex: COLORS.floorCobbleBase,
+        alpha: 1.0,
+        worldX: f.x1,
+        worldY: f.y1,
+        seed,
+        stoneMin: 14,
+        stoneMax: 26,
+        gap: 2.4,
       });
       return;
     }
