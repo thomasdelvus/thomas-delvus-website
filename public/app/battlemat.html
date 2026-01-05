@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Battlemat
-  Version 4.52
+  Version 4.56
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -16,7 +16,16 @@
 
   Unauthorized use is prohibited.
 
-  Rewrite notes (v4.52):
+  Rewrite notes (v4.56):
+  - Fix: make floors fully opaque (no alpha blending), and retune base colors so hallways + rooms match the same tone (prevents rooms darkening from layered floor draws).
+
+Rewrite notes (v4.55):$1Rewrite notes (v4.54):
+  - Tweak: further softened wood floor contrast + seams + imperfections so the pattern reads as a subtle backdrop.
+
+Rewrite notes (v4.53):
+  - Tweak: toned down wood floor contrast + seam darkness (less distracting dark patches), while keeping the rustic plank look.
+
+Rewrite notes (v4.52):
   - Feature: wood floors now render as staggered E/W planks (brick-like joints) with darker seams between boards; still deterministic per-room (seeded; variant #3).
 
 Rewrite notes (v4.51):
@@ -220,7 +229,7 @@ Rewrite notes (v4.51):
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.52</div>
+        <div class="pill" id="versionLine">v4.56</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -254,8 +263,8 @@ Rewrite notes (v4.51):
     wall: '#666',
     door: '#b67a2c',
     window: '#bfe2ff',
-    floorStone: 'rgba(214, 195, 140, 0.78)',
-    floorWood: 'rgba(193, 146, 86, 0.78)',
+    floorStone: 'rgb(223, 208, 165)',
+    floorWoodBase: '#d5b58c',
     tokenHero: '#4aa3ff',
     tokenEnemy: '#111',
     tokenTextDark: 'rgba(0,0,0,0.72)',
@@ -715,17 +724,17 @@ Rewrite notes (v4.51):
     // Style: long planks with staggered end joints (brick-like), plus darker gaps.
 
     const base = (opts && opts.baseHex) ? opts.baseHex : '#c19256';
-    const alpha = (opts && Number.isFinite(opts.alpha)) ? opts.alpha : 0.78;
+    const alpha = (opts && Number.isFinite(opts.alpha)) ? opts.alpha : 1.0;
     const worldX = (opts && Number.isFinite(opts.worldX)) ? opts.worldX : 0;
     const worldY = (opts && Number.isFinite(opts.worldY)) ? opts.worldY : 0;
     const seed = (opts && Number.isFinite(opts.seed)) ? opts.seed : 12345;
     const variant = (opts && Number.isFinite(opts.variant)) ? opts.variant : 3;
 
     // Variant #3: "rustic" — more contrast and small imperfections.
-    const contrast = (variant >= 3) ? 0.16 : 0.11;
-    const seamAlpha = (variant >= 3) ? 0.22 : 0.16; // darker gaps
-    const grainAlpha = (variant >= 3) ? 0.12 : 0.08;
-    const knotChance = (variant >= 3) ? 0.20 : 0.12;
+    const contrast = (variant >= 3) ? 0.04 : 0.07;
+    const seamAlpha = (variant >= 3) ? 0.06 : 0.10; // darker gaps
+    const grainAlpha = (variant >= 3) ? 0.04 : 0.06;
+    const knotChance = (variant >= 3) ? 0.06 : 0.10;
 
     const plankH = (opts && Number.isFinite(opts.plankH)) ? opts.plankH : 18;
     const gapY = (opts && Number.isFinite(opts.gapY)) ? opts.gapY : 2.2;  // between rows
@@ -756,7 +765,7 @@ Rewrite notes (v4.51):
     targetCtx.clip();
 
     // Base "undercoat" that shows through gaps (dark patches between boards).
-    targetCtx.fillStyle = shadeRgba(base, -0.14, alpha);
+    targetCtx.fillStyle = shadeRgba(base, -0.03, alpha);
     targetCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
 
     const rows = Math.ceil((rect.h + pitchY * 2) / pitchY);
@@ -826,7 +835,7 @@ Rewrite notes (v4.51):
           // End-joint line (dark) at the start of this plank, unless it's beyond the visible left edge.
           // (We draw this AFTER the plank body so it reads as a seam.)
           if (px1 >= rect.x - 1 && px1 <= rect.x + rect.w + 1) {
-            targetCtx.fillStyle = 'rgba(0,0,0,' + (seamAlpha * 0.85) + ')';
+            targetCtx.fillStyle = 'rgba(0,0,0,' + (seamAlpha * 0.50) + ')';
             targetCtx.fillRect(px1 - (gapX / 2), y + 1, gapX, plankH - 2);
           }
 
@@ -848,7 +857,7 @@ Rewrite notes (v4.51):
           }
 
           // Tiny scuffs (very light, sparse).
-          if (variant >= 3 && rrnd() < 0.22) {
+          if (variant >= 3 && rrnd() < 0.06) {
             const sc = 1 + Math.floor(rrnd() * 3);
             targetCtx.strokeStyle = 'rgba(255,255,255,0.10)';
             targetCtx.lineWidth = 1;
@@ -870,7 +879,7 @@ Rewrite notes (v4.51):
 
       // A light top-edge highlight per row helps read the plank separation.
       if (variant >= 3) {
-        targetCtx.fillStyle = 'rgba(255,255,255,0.06)';
+        targetCtx.fillStyle = 'rgba(255,255,255,0.02)';
         targetCtx.fillRect(rect.x, y, rect.w, 1);
       }
     }
@@ -894,8 +903,8 @@ Rewrite notes (v4.51):
       // E/W planks (run along X) with deterministic, per-room imperfections.
       const seed = hashStringToSeed(room.id || JSON.stringify(room.corners || []));
       fillWoodPlanksRectScreenOn(ctx, rect, {
-        baseHex: '#c19256',
-        alpha: 0.78,
+        baseHex: COLORS.floorWoodBase,
+        alpha: 1.0,
         worldX: box.inner.x1,
         worldY: box.inner.y1,
         seed,
