@@ -1,8 +1,7 @@
 <!doctype html>
 <!--
   Battlemat
-  Version 4.43
-
+  Version 4.46
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -17,18 +16,13 @@
 
   Unauthorized use is prohibited.
 
+  Rewrite notes (v4.46):
+  - Fix: prevent "drawImage: Passed-in canvas is empty" by ensuring the offscreen wall canvas is sized BEFORE any redraw.
+  - Safety: guard redraw if canvases are still 0x0 (should never happen now, but avoids hard crashes).
+  - Compatibility: replace ctx.roundRect(...) usage with a small roundRectPath() helper.
 
-  Rewrite notes (v4.32):
-  - Fixes a JS SyntaxError caused by an unescaped newline inside a string literal.
-  - Adds a tiny console self-test for hex label parsing/roundtrips.
-
-  Rewrite notes (v4.31):
-  - Single, explicit geometry model for flat-top hexes (odd-q offset).
-  - One authoritative wall pipeline: rooms -> wall centerlines -> wall rings (thickness-aware).
-  - Horizontal walls use the "lower-half rule" by anchoring to a consistent parity phase,
-    then shifting by 1/4 rowStep to land in the gap between alternating flat tops.
-  - Doors/windows snap to the nearest precomputed wall segment (no parity hacks in openings).
-  - Camera pan + jump-to-hex preserved.
+  Rewrite notes (v4.44):
+  - Walls drawn to an offscreen layer; openings punch holes out; doors/windows drawn on top.
 -->
 <html lang="en">
 <head>
@@ -214,7 +208,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.43</div>
+        <div class="pill" id="versionLine">v4.45</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -230,6 +224,10 @@
 (() => {
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
+
+  // Offscreen wall layer (we punch openings out of walls here, then composite onto main canvas).
+  const wallCanvas = document.createElement('canvas');
+  const wallCtx = wallCanvas.getContext('2d');
 
   // Flat-top hex geometry: size is center-to-vertex.
   const GRID = {
@@ -261,6 +259,9 @@
 
     // If set, camera will automatically follow that token (by id).
     followTokenId: null,
+
+    // Device pixel ratio (set in resize()).
+    dpr: 1,
   };
 
   const PAN_STEP = 2;
@@ -270,7 +271,7 @@
     view: { camera_hex: 'K6' },
 
     rooms: [
-           {
+      {
         id: 'CrossKeysUpperFloor',
         corners: ['B11','Z11','Z2','B2'],
         thickness: 20,
@@ -358,28 +359,26 @@
         floor: { kind: 'wood' },
         wall: { kind: 'brick' },
       },
-
     ],
 
-    // Converted: at -> hex, facing -> orientation (E/W => v, N/S/D => h)
     openings: [
-      { id: 'door_room1', kind: 'door', hex: 'F9', orientation: 'v', state:'open', opensTo:'E', hingeEnd:'N' },
-      { id: 'door_room2', kind: 'door', hex: 'F6', orientation: 'v', state:'open', opensTo:'E', hingeEnd:'N' },
-      { id: 'door_room3', kind: 'door', hex: 'F3', orientation: 'v', state:'open', opensTo:'E', hingeEnd:'N' },
-      { id: 'door_room4', kind: 'door', hex: 'J5', orientation: 'h', state:'open', opensTo:'N', hingeEnd:'E' },
-      { id: 'door_room5', kind: 'door', hex: 'K7', orientation: 'h', opensTo:'N', hingeEnd:'W'  },
-      { id: 'door_room6', kind: 'door', hex: 'Q7', orientation: 'h', opensTo:'N', hingeEnd:'W'  },
-      { id: 'door_room7', kind: 'door', hex: 'S4', orientation: 'h', opensTo:'N', hingeEnd:'W'  },
-      { id: 'door_room8', kind: 'door', hex: 'V3', orientation: 'v', state:'open', opensTo:'E', hingeEnd:'N' },
-      { id: 'door_room9', kind: 'door', hex: 'V6', orientation: 'v', state:'open', opensTo:'E', hingeEnd:'N' },
-      { id: 'door_room10', kind: 'door', hex: 'V10', orientation: 'v', state:'open', opensTo:'E', hingeEnd:'N' },
+      { id: 'door_room1', kind: 'door', hex: 'F9',  orientation: 'v', state: 'open', opensTo: 'E', hingeEnd: 'N' },
+      { id: 'door_room2', kind: 'door', hex: 'F6',  orientation: 'v', state: 'open', opensTo: 'E', hingeEnd: 'N' },
+      { id: 'door_room3', kind: 'door', hex: 'F3',  orientation: 'v', state: 'open', opensTo: 'E', hingeEnd: 'N' },
+      { id: 'door_room4', kind: 'door', hex: 'J5',  orientation: 'h', state: 'open', opensTo: 'N', hingeEnd: 'E' },
+      { id: 'door_room5', kind: 'door', hex: 'K7',  orientation: 'h', opensTo: 'N', hingeEnd: 'W' },
+      { id: 'door_room6', kind: 'door', hex: 'Q7',  orientation: 'h', opensTo: 'N', hingeEnd: 'W' },
+      { id: 'door_room7', kind: 'door', hex: 'S4',  orientation: 'h', opensTo: 'N', hingeEnd: 'W' },
+      { id: 'door_room8', kind: 'door', hex: 'V3',  orientation: 'v', state: 'open', opensTo: 'E', hingeEnd: 'N' },
+      { id: 'door_room9', kind: 'door', hex: 'V6',  orientation: 'v', state: 'open', opensTo: 'E', hingeEnd: 'N' },
+      { id: 'door_room10',kind: 'door', hex: 'V10', orientation: 'v', state: 'open', opensTo: 'E', hingeEnd: 'N' },
 
       { id: 'west_window1', kind: 'window', hex: 'B10', orientation: 'v' },
-      { id: 'west_window2', kind: 'window', hex: 'B9', orientation: 'v' },
-      { id: 'west_window3', kind: 'window', hex: 'B7', orientation: 'v' },
-      { id: 'west_window4', kind: 'window', hex: 'B6', orientation: 'v' },
-      { id: 'west_window5', kind: 'window', hex: 'B4', orientation: 'v' },
-      { id: 'west_window6', kind: 'window', hex: 'B3', orientation: 'v' },
+      { id: 'west_window2', kind: 'window', hex: 'B9',  orientation: 'v' },
+      { id: 'west_window3', kind: 'window', hex: 'B7',  orientation: 'v' },
+      { id: 'west_window4', kind: 'window', hex: 'B6',  orientation: 'v' },
+      { id: 'west_window5', kind: 'window', hex: 'B4',  orientation: 'v' },
+      { id: 'west_window6', kind: 'window', hex: 'B3',  orientation: 'v' },
 
       { id: 'south_window1', kind: 'window', hex: 'C1', orientation: 'h' },
       { id: 'south_window2', kind: 'window', hex: 'D2', orientation: 'h' },
@@ -392,19 +391,35 @@
       { id: 'south_window9', kind: 'window', hex: 'X2', orientation: 'h' },
     ],
 
-    // Converted: actors[] -> tokens[] (at -> hex). Kept init/hp for later UI.
     tokens: [
       { id: 'lich', name: 'Lich', side: 'ENEMY', hex: 'K9', label: 'L', init: 15, hp: 135 },
-      { id: 'w1', name: 'Wraith 1', side: 'ENEMY', hex: 'J6', label: 'W1', init: 12, hp: 67 },
-      { id: 'w2', name: 'Wraith 2', side: 'ENEMY', hex: 'G8', label: 'W2', init: 11, hp: 67 },
-      { id: 'w3', name: 'Wraith 3', side: 'ENEMY', hex: 'D7', label: 'W3', init: 10, hp: 67 },
-      { id: 'a', name: 'Aelar', side: 'PC', hex: 'J3', label: 'A', init: 14, hp: 42 },
-      { id: 'b', name: 'Brunna', side: 'PC', hex: 'K3', label: 'B', init: 13, hp: 55 },
-      { id: 'c', name: 'Caelin', side: 'PC', hex: 'L4', label: 'C', init: 12, hp: 38 },
+      { id: 'w1',   name: 'Wraith 1', side: 'ENEMY', hex: 'J6', label: 'W1', init: 12, hp: 67 },
+      { id: 'w2',   name: 'Wraith 2', side: 'ENEMY', hex: 'G8', label: 'W2', init: 11, hp: 67 },
+      { id: 'w3',   name: 'Wraith 3', side: 'ENEMY', hex: 'D7', label: 'W3', init: 10, hp: 67 },
+      { id: 'a',    name: 'Aelar', side: 'PC', hex: 'J3', label: 'A', init: 14, hp: 42 },
+      { id: 'b',    name: 'Brunna', side: 'PC', hex: 'K3', label: 'B', init: 13, hp: 55 },
+      { id: 'c',    name: 'Caelin', side: 'PC', hex: 'L4', label: 'C', init: 12, hp: 38 },
     ],
   };
 
-  const getState = () => (window.BATTLE_STATE ?? DEFAULT_STATE);
+  const getState = () => (window.BATTLE_STATE || DEFAULT_STATE);
+
+  // ===== Path helpers =====
+  function roundRectPath(targetCtx, x, y, w, h, r) {
+    // Pure path helper (no reliance on CanvasRenderingContext2D.roundRect support).
+    const rr = Math.max(0, Math.min(r, Math.min(Math.abs(w), Math.abs(h)) / 2));
+    targetCtx.beginPath();
+    targetCtx.moveTo(x + rr, y);
+    targetCtx.lineTo(x + w - rr, y);
+    targetCtx.quadraticCurveTo(x + w, y, x + w, y + rr);
+    targetCtx.lineTo(x + w, y + h - rr);
+    targetCtx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+    targetCtx.lineTo(x + rr, y + h);
+    targetCtx.quadraticCurveTo(x, y + h, x, y + h - rr);
+    targetCtx.lineTo(x, y + rr);
+    targetCtx.quadraticCurveTo(x, y, x + rr, y);
+    targetCtx.closePath();
+  }
 
   // ===== Hex helpers =====
   function colToLetters(col) {
@@ -451,25 +466,6 @@
     return { x, y };
   }
 
-  function snappedCenterY(row, phase) {
-    const p = phase ? 1 : 0;
-    return -(row * rowStep() + p * (rowStep() / 2));
-  }
-
-  // Horizontal walls baseline (test): use the *upper-phase* gap.
-  // Anchor to even-column phase (phase 0) and shift DOWN by 1/4 rowStep to hit the mid-gap.
-  function horizontalGapY_forTopOfRow(row) {
-    const half = rowStep() / 2;
-    const quarter = rowStep() / 4;
-    return (snappedCenterY(row, 0) - half) + quarter;
-  }
-
-  function horizontalGapY_forBottomOfRow(row) {
-    const half = rowStep() / 2;
-    const quarter = rowStep() / 4;
-    return (snappedCenterY(row, 0) + half) + quarter;
-  }
-
   // ===== Camera transform =====
   function cameraWorld() {
     return hexCenterWorld(VIEW.camera.col, VIEW.camera.row);
@@ -488,13 +484,15 @@
   // ===== Grid drawing =====
   function hexCornersWorld(center) {
     const s = GRID.size;
+    const hs = s / 2;
+    const hh = (sqrt3 * s) / 2;
     return [
-      { x: center.x + s,   y: center.y },
-      { x: center.x + s/2, y: center.y + (sqrt3*s)/2 },
-      { x: center.x - s/2, y: center.y + (sqrt3*s)/2 },
-      { x: center.x - s,   y: center.y },
-      { x: center.x - s/2, y: center.y - (sqrt3*s)/2 },
-      { x: center.x + s/2, y: center.y - (sqrt3*s)/2 },
+      { x: center.x + s,  y: center.y },
+      { x: center.x + hs, y: center.y + hh },
+      { x: center.x - hs, y: center.y + hh },
+      { x: center.x - s,  y: center.y },
+      { x: center.x - hs, y: center.y - hh },
+      { x: center.x + hs, y: center.y - hh },
     ];
   }
 
@@ -511,7 +509,6 @@
     const c = worldToScreen(hexCenterWorld(col, row));
     const text = hexId(col, row);
 
-    // Outline helps labels stay readable over floors/walls.
     ctx.save();
     ctx.lineWidth = 3;
     ctx.strokeStyle = 'rgba(255,255,255,0.75)';
@@ -525,21 +522,22 @@
     const pts = corners.map(parseHexId);
     const cols = pts.map(p => p.col);
     const rows = pts.map(p => p.row);
-    return { minCol: Math.min.apply(null, cols), maxCol: Math.max.apply(null, cols), minRow: Math.min.apply(null, rows), maxRow: Math.max.apply(null, rows) };
+    return {
+      minCol: Math.min.apply(null, cols),
+      maxCol: Math.max.apply(null, cols),
+      minRow: Math.min.apply(null, rows),
+      maxRow: Math.max.apply(null, rows)
+    };
   }
 
   function roomToWallBox(room) {
-    const thickness = Math.max(1, Number(room.thickness ?? 30));
+    const thickness = Math.max(1, Number(room.thickness || 30));
 
     if (!Array.isArray(room.corners) || room.corners.length < 4) {
       throw new Error('Room missing 4 corners');
     }
 
-    // Corner order (by convention in our scenes):
-    // [top-left, top-right, bottom-right, bottom-left]
-    // IMPORTANT: We anchor horizontal/vertical wall *centerlines* to the declared corner hex CENTERS.
-    // That means a room with corners [..., 'B8', ...] will have its south wall centerline at the
-    // world-space Y of hex B8 (not "one row lower" via gap math).
+    // Corner order: [top-left, top-right, bottom-right, bottom-left]
     const p0 = parseHexId(room.corners[0]);
     const p1 = parseHexId(room.corners[1]);
     const p2 = parseHexId(room.corners[2]);
@@ -550,7 +548,6 @@
     const c2 = hexCenterWorld(p2.col, p2.row);
     const c3 = hexCenterWorld(p3.col, p3.row);
 
-    // Robust averaging keeps things stable even if a user accidentally mixes parities.
     const xL = (c0.x + c3.x) / 2;
     const xR = (c1.x + c2.x) / 2;
     let yTop = (c0.y + c1.y) / 2;
@@ -558,12 +555,10 @@
 
     // Horizontal wall phase tweak: shift all horizontal room edges 1/4-hex SOUTH so
     // horizontal walls land in the gap between alternating flat tops.
-    // NOTE: world Y increases downward (south).
     const yShift = rowStep() / 4;
     yTop += yShift;
     yBot += yShift;
 
-    // Keep bounds around for debug/inspection.
     const b = cornersToBounds(room.corners);
 
     const halfT = thickness / 2;
@@ -586,13 +581,12 @@
     return segs;
   }
 
-  function fillBrickRectScreen(rect, color, worldX = 0, worldY = 0) {
+  function fillBrickRectScreenOn(targetCtx, rect, color, worldX = 0, worldY = 0) {
     // Rounded "block" brick pattern (chunky masonry).
     // Anchored in WORLD space so it doesn't "swim" when the camera pans.
     // Fully clipped to the wall rectangle to avoid any edge bleed/ghost lines.
 
-    // Tunables to match the reference style.
-    // Shrunk to ~1/5 original size (was 44x20 w/ 6px gap).
+    // Shrunk bricks (about 1/5 of earlier).
     const brickW = 9;
     const brickH = 4;
     const gap = 1.2;
@@ -602,7 +596,6 @@
     const pitchX = brickW + gap;
     const pitchY = brickH + gap;
 
-    // Color helpers (hex -> rgb) so we can create subtle mortar/brick contrast.
     const hexToRgb = (hex) => {
       const m = String(hex).trim().match(/^#?([0-9a-fA-F]{6})$/);
       if (!m) return { r: 102, g: 102, b: 102 };
@@ -613,74 +606,66 @@
     const clamp = (v) => Math.max(0, Math.min(255, v));
 
     const shade = (hex, amt) => {
-      const { r, g, b } = hexToRgb(hex);
-      return `rgb(${clamp(Math.round(r + 255 * amt))}, ${clamp(Math.round(g + 255 * amt))}, ${clamp(Math.round(b + 255 * amt))})`;
+      const rgb = hexToRgb(hex);
+      return 'rgb(' +
+        clamp(Math.round(rgb.r + 255 * amt)) + ',' +
+        clamp(Math.round(rgb.g + 255 * amt)) + ',' +
+        clamp(Math.round(rgb.b + 255 * amt)) +
+      ')';
     };
 
     const mortarColor = shade(color, -0.10);
     const brickFill = shade(color, +0.06);
 
-    ctx.save();
+    targetCtx.save();
 
-    // Hard clip.
-    ctx.beginPath();
-    ctx.rect(rect.x, rect.y, rect.w, rect.h);
-    ctx.clip();
+    // Clip to the wall rectangle.
+    targetCtx.beginPath();
+    targetCtx.rect(rect.x, rect.y, rect.w, rect.h);
+    targetCtx.clip();
 
     // Mortar base.
-    ctx.fillStyle = mortarColor;
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+    targetCtx.fillStyle = mortarColor;
+    targetCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
 
     // Stable world-anchored phase.
     const mod = (a, m) => ((a % m) + m) % m;
     const phaseX = mod(worldX, pitchX);
     const phaseY = mod(worldY, pitchY);
 
-    const startY = rect.y - (phaseY + pitchY); // start slightly above
+    const startY = rect.y - (phaseY + pitchY);
 
-    ctx.fillStyle = brickFill;
-    ctx.strokeStyle = 'rgba(0,0,0,0.14)';
-    ctx.lineWidth = strokeW;
+    targetCtx.fillStyle = brickFill;
+    targetCtx.strokeStyle = 'rgba(0,0,0,0.14)';
+    targetCtx.lineWidth = strokeW;
 
     const rows = Math.ceil((rect.h + pitchY * 2) / pitchY);
-    for (let r = 0; r < rows; r++) {
-      const y = startY + r * pitchY;
-      const rowOffset = (r & 1) ? (pitchX / 2) : 0;
+    for (let rr = 0; rr < rows; rr++) {
+      const y = startY + rr * pitchY;
+      const rowOffset = (rr & 1) ? (pitchX / 2) : 0;
 
       const startX = rect.x - (phaseX + pitchX) + rowOffset;
       const cols = Math.ceil((rect.w + pitchX * 2) / pitchX);
 
-      for (let c = 0; c < cols; c++) {
-        const x = startX + c * pitchX;
-        ctx.beginPath();
-        ctx.roundRect(x, y, brickW, brickH, radius);
-        ctx.fill();
-        ctx.stroke();
+      for (let cc = 0; cc < cols; cc++) {
+        const x = startX + cc * pitchX;
+        roundRectPath(targetCtx, x, y, brickW, brickH, radius);
+        targetCtx.fill();
+        targetCtx.stroke();
       }
     }
 
-    ctx.restore();
+    targetCtx.restore();
   }
 
+  // Floors only.
   function drawRoom(room) {
     const box = roomToWallBox(room);
-    const wallColor = room.color ?? COLORS.wall;
 
-    const o1 = worldToScreen({ x: box.outer.x1, y: box.outer.y1 });
-    const o2 = worldToScreen({ x: box.outer.x2, y: box.outer.y2 });
     const i1 = worldToScreen({ x: box.inner.x1, y: box.inner.y1 });
     const i2 = worldToScreen({ x: box.inner.x2, y: box.inner.y2 });
 
-    const t = box.thickness;
-
-    // Wall ring
-    fillBrickRectScreen({ x: o1.x, y: o1.y, w: o2.x - o1.x, h: t }, wallColor, box.outer.x1, box.outer.y1);
-    fillBrickRectScreen({ x: o1.x, y: o2.y - t, w: o2.x - o1.x, h: t }, wallColor, box.outer.x1, box.outer.y2 - t);
-    fillBrickRectScreen({ x: o1.x, y: o1.y + t, w: t, h: (o2.y - o1.y) - 2*t }, wallColor, box.outer.x1, box.outer.y1 + t);
-    fillBrickRectScreen({ x: o2.x - t, y: o1.y + t, w: t, h: (o2.y - o1.y) - 2*t }, wallColor, box.outer.x2 - t, box.outer.y1 + t);
-
-    // Floor
-    const floorKind = room.floor?.kind ?? 'stone';
+    const floorKind = (room.floor && room.floor.kind) ? room.floor.kind : 'stone';
     if (floorKind !== 'none') {
       ctx.fillStyle = (floorKind === 'stone') ? COLORS.floorStone
         : (floorKind === 'wood') ? COLORS.floorWood
@@ -689,10 +674,26 @@
     }
   }
 
+  // Walls (brick ring) to targetCtx (offscreen layer).
+  function drawRoomWalls(targetCtx, room) {
+    const box = roomToWallBox(room);
+    const wallColor = room.color || COLORS.wall;
+
+    const o1 = worldToScreen({ x: box.outer.x1, y: box.outer.y1 });
+    const o2 = worldToScreen({ x: box.outer.x2, y: box.outer.y2 });
+
+    const t = box.thickness;
+
+    fillBrickRectScreenOn(targetCtx, { x: o1.x, y: o1.y,     w: o2.x - o1.x, h: t }, wallColor, box.outer.x1, box.outer.y1);
+    fillBrickRectScreenOn(targetCtx, { x: o1.x, y: o2.y - t, w: o2.x - o1.x, h: t }, wallColor, box.outer.x1, box.outer.y2 - t);
+    fillBrickRectScreenOn(targetCtx, { x: o1.x, y: o1.y + t, w: t, h: (o2.y - o1.y) - 2 * t }, wallColor, box.outer.x1, box.outer.y1 + t);
+    fillBrickRectScreenOn(targetCtx, { x: o2.x - t, y: o1.y + t, w: t, h: (o2.y - o1.y) - 2 * t }, wallColor, box.outer.x2 - t, box.outer.y1 + t);
+  }
+
   // ===== Openings =====
   function openingOrientation(o) {
-    if (o.orientation === 'h' || o.orientation === 'v') return o.orientation;
-    const rot = Number(o.rot ?? 0) % 180;
+    if (o && (o.orientation === 'h' || o.orientation === 'v')) return o.orientation;
+    const rot = Number((o && o.rot) ? o.rot : 0) % 180;
     return (rot === 90) ? 'h' : 'v';
   }
 
@@ -717,33 +718,26 @@
   }
 
   function normalizeDoorParams(opening, orient) {
-    // Door state: default closed.
-    // Accepts: state: 'open'|'closed'|'ajar', or open: true/false.
-    let state = String(opening.state ?? '').toLowerCase();
+    let state = String(opening && opening.state ? opening.state : '').toLowerCase();
     if (!state) {
-      if (opening.open === true) state = 'open';
-      else if (opening.open === false) state = 'closed';
+      if (opening && opening.open === true) state = 'open';
+      else if (opening && opening.open === false) state = 'closed';
       else state = 'closed';
     }
     if (state !== 'open' && state !== 'closed' && state !== 'ajar') state = 'closed';
 
-    // Author-friendly swing intent:
-    // opensTo is the side the leaf swings toward.
-    // hingeEnd is which end of the door segment is hinged.
-    // Defaults are simple + deterministic.
     const isV = orient === 'v';
 
     const validOpensTo = isV ? new Set(['E', 'W']) : new Set(['N', 'S']);
     const validHinge = isV ? new Set(['N', 'S']) : new Set(['W', 'E']);
 
-    let opensTo = String(opening.opensTo ?? '').toUpperCase();
+    let opensTo = String(opening && opening.opensTo ? opening.opensTo : '').toUpperCase();
     if (!validOpensTo.has(opensTo)) opensTo = isV ? 'E' : 'N';
 
-    let hingeEnd = String(opening.hingeEnd ?? '').toUpperCase();
+    let hingeEnd = String(opening && opening.hingeEnd ? opening.hingeEnd : '').toUpperCase();
     if (!validHinge.has(hingeEnd)) hingeEnd = isV ? 'N' : 'W';
 
-    // How far open (0..1). Defaults: open=1, ajar=0.5, closed=0.
-    let openPct = Number(opening.openPct ?? opening.openPercent ?? opening.openAmount);
+    let openPct = Number(opening && (opening.openPct ?? opening.openPercent ?? opening.openAmount));
     if (!Number.isFinite(openPct)) {
       openPct = (state === 'open') ? 1 : (state === 'ajar') ? 0.5 : 0;
     }
@@ -752,8 +746,51 @@
     return { state, opensTo, hingeEnd, openPct };
   }
 
+  function cutOpeningHole(targetCtx, opening, wallSegs) {
+    const kind = String(opening.kind || 'door').toLowerCase();
+    const orient = openingOrientation(opening);
+    const p = parseHexId(opening.hex);
+
+    const hexWorld = hexCenterWorld(p.col, p.row);
+    const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
+
+    const w = GRID.size * 1.2;
+    let cx = hexWorld.x;
+    let cy = hexWorld.y;
+    let thickness = 28;
+
+    if (seg) {
+      thickness = seg.thickness;
+      if (orient === 'h') cy = seg.y;
+      else cx = seg.x;
+    }
+
+    const centerS = worldToScreen({ x: cx, y: cy });
+
+    // Cutout should fully cover wall thickness with a tiny bleed to prevent edge artifacts.
+    const cutH = thickness + 3;
+    const cutW = w + 2;
+
+    targetCtx.save();
+    targetCtx.translate(centerS.x, centerS.y);
+    if (orient === 'v') targetCtx.rotate(Math.PI / 2);
+
+    // Doors: use a simple rectangle knockout (prevents the "pill" silhouette in the wall).
+    // Windows can keep the rounded knockout to look more natural.
+    targetCtx.beginPath();
+    if (kind === 'door') {
+      targetCtx.rect(-cutW / 2, -cutH / 2, cutW, cutH);
+    } else {
+      const r = Math.min(cutH / 2, 999);
+      roundRectPath(targetCtx, -cutW / 2, -cutH / 2, cutW, cutH, r);
+    }
+    targetCtx.fill();
+
+    targetCtx.restore();
+  }
+
   function drawOpening(opening, wallSegs) {
-    const kind = String(opening.kind ?? 'door').toLowerCase();
+    const kind = String(opening.kind || 'door').toLowerCase();
     const orient = openingOrientation(opening);
     const p = parseHexId(opening.hex);
 
@@ -788,38 +825,25 @@
     if (kind === 'door') {
       const d = normalizeDoorParams(opening, orient);
 
-      // Hinge side in LOCAL coordinates (after our optional rotation above).
-      // - For horizontal openings: hingeEnd W/E maps to left/right.
-      // - For vertical openings: hingeEnd N/S maps to left/right (because local +x points SOUTH).
       const hingeSide = ((orient === 'h' && d.hingeEnd === 'W') || (orient === 'v' && d.hingeEnd === 'N')) ? 'left' : 'right';
       const hingeX = (hingeSide === 'left') ? (-w / 2) : (w / 2);
 
-      // Desired swing side in LOCAL Y (positive = +y). Note: canvas +y is down.
-      // - For horizontal openings: opensTo S => +y, N => -y.
-      // - For vertical openings: opensTo W => +y, E => -y (because we rotate 90° for v).
       let desiredY = 1;
       if (orient === 'h') desiredY = (d.opensTo === 'S') ? 1 : -1;
       else desiredY = (d.opensTo === 'W') ? 1 : -1;
 
-      // Rotation sign so the leaf swings into desiredY.
-      // Left hinge: +angle swings to +y; Right hinge: +angle swings to -y.
       const rotSign = desiredY * (hingeSide === 'left' ? 1 : -1);
       const angle = (Math.PI / 2) * d.openPct * rotSign;
 
-      // Closed door slab (as before).
       if (d.openPct <= 0.001) {
         ctx.fillStyle = fill;
         ctx.strokeStyle = stroke;
-        ctx.beginPath();
         const doorRadiusClosed = Math.max(2, Math.min(openingH / 2, 999));
-        ctx.roundRect(-w / 2, -openingH / 2, w, openingH, doorRadiusClosed);
+        roundRectPath(ctx, -w / 2, -openingH / 2, w, openingH, doorRadiusClosed);
         ctx.fill();
         ctx.stroke();
       } else {
-        // Door leaf (keep thickness consistent when open) rotated around hinge.
         const leafLen = w;
-        // Previously we made the open door look like a thin "edge"; for our top-down battlemat
-        // we want it to retain roughly the same apparent thickness as when closed.
         const leafThick = Math.max(6, openingH * 0.92);
 
         ctx.save();
@@ -830,13 +854,11 @@
         ctx.strokeStyle = stroke;
 
         const x0 = (hingeSide === 'left') ? 0 : -leafLen;
-        ctx.beginPath();
         const doorRadiusOpen = Math.max(2, Math.min(leafThick / 2, 999));
-        ctx.roundRect(x0, -leafThick / 2, leafLen, leafThick, doorRadiusOpen);
+        roundRectPath(ctx, x0, -leafThick / 2, leafLen, leafThick, doorRadiusOpen);
         ctx.fill();
         ctx.stroke();
 
-        // Hinge dot.
         ctx.fillStyle = 'rgba(0,0,0,0.22)';
         ctx.beginPath();
         ctx.arc(0, 0, 2.2, 0, Math.PI * 2);
@@ -844,14 +866,11 @@
 
         ctx.restore();
       }
-
     } else {
-      // Window (unchanged)
       ctx.fillStyle = fill;
       ctx.strokeStyle = stroke;
 
-      ctx.beginPath();
-      ctx.roundRect(-w / 2, -openingH / 2, w, openingH, 6);
+      roundRectPath(ctx, -w / 2, -openingH / 2, w, openingH, Math.max(2, Math.min(openingH / 2, 999)));
       ctx.fill();
       ctx.stroke();
 
@@ -882,7 +901,7 @@
     ctx.strokeStyle = 'rgba(0,0,0,0.2)';
     ctx.stroke();
 
-    const label = t.label ?? (t.name ? t.name[0] : '?');
+    const label = (t.label != null) ? t.label : (t.name ? t.name[0] : '?');
     ctx.font = 'bold 14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -908,7 +927,12 @@
     const minRow = Math.floor(-Math.max(topLeftW.y, botRightW.y) / rowStep()) - 4;
     const maxRow = Math.ceil(-Math.min(topLeftW.y, botRightW.y) / rowStep()) + 4;
 
-    return { minCol: Math.max(-10, minCol), maxCol: Math.min(400, maxCol), minRow: Math.max(-10, minRow), maxRow: Math.min(400, maxRow) };
+    return {
+      minCol: Math.max(-10, minCol),
+      maxCol: Math.min(400, maxCol),
+      minRow: Math.max(-10, minRow),
+      maxRow: Math.min(400, maxRow)
+    };
   }
 
   function drawGrid() {
@@ -963,8 +987,8 @@
     const openings = Array.isArray(state.openings) ? state.openings.length : 0;
     const tokens = Array.isArray(state.tokens) ? state.tokens.length : 0;
 
-    const camHex = state.view?.camera_hex || hexId(VIEW.camera.col, VIEW.camera.row);
-    const round = Number(meta.round ?? 1);
+    const camHex = (state.view && state.view.camera_hex) ? state.view.camera_hex : hexId(VIEW.camera.col, VIEW.camera.row);
+    const round = Number(meta.round != null ? meta.round : 1);
 
     const flatToFlatPx = rowStep();
 
@@ -978,12 +1002,18 @@
     ];
 
     kvs.innerHTML = lines
-      .map(([k, v]) => `<div>${escapeHtml(k)}</div><div style="color:var(--text); text-align:right;">${escapeHtml(v)}</div>`)
+      .map(([k, v]) => '<div>' + escapeHtml(k) + '</div><div style="color:var(--text); text-align:right;">' + escapeHtml(v) + '</div>')
       .join('');
   }
 
   function redraw() {
     const state = getState();
+
+    // Safety guard: if canvases haven't been sized yet, don't crash.
+    if (!canvas.width || !canvas.height || !wallCanvas.width || !wallCanvas.height) {
+      console.warn('[Battlemat] redraw skipped: canvas not sized yet');
+      return;
+    }
 
     // Keep "Center on" list synced to current token set.
     populateCenterOn(state);
@@ -1008,14 +1038,45 @@
     clear();
 
     const rooms = Array.isArray(state.rooms) ? state.rooms : [];
+    const openings = Array.isArray(state.openings) ? state.openings : [];
+    const tokens = Array.isArray(state.tokens) ? state.tokens : [];
+
+    // 1) Floors first.
     for (const r of rooms) drawRoom(r);
 
+    // 2) Precompute wall segments.
     const wallSegs = buildWallSegments(rooms);
 
-    const openings = Array.isArray(state.openings) ? state.openings : [];
+    // 3) Draw walls to an offscreen layer.
+    wallCtx.save();
+    wallCtx.setTransform(1, 0, 0, 1, 0, 0);
+    wallCtx.clearRect(0, 0, wallCanvas.width, wallCanvas.height);
+    wallCtx.restore();
+
+    wallCtx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
+
+    for (const r of rooms) drawRoomWalls(wallCtx, r);
+
+    // 4) Punch openings out.
+    wallCtx.save();
+    wallCtx.globalCompositeOperation = 'destination-out';
+    wallCtx.fillStyle = '#000';
+    for (const o of openings) cutOpeningHole(wallCtx, o, wallSegs);
+    wallCtx.restore();
+
+    // 5) Composite wall layer onto main canvas (in device pixels).
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(wallCanvas, 0, 0);
+    ctx.restore();
+
+    // Restore main transform for CSS pixel drawing.
+    ctx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
+
+    // 6) Doors/windows.
     for (const o of openings) drawOpening(o, wallSegs);
 
-    const tokens = Array.isArray(state.tokens) ? state.tokens : [];
+    // 7) Tokens + grid.
     for (const t of tokens) drawToken(t);
 
     drawGrid();
@@ -1025,21 +1086,16 @@
   // ===== Tiny self-tests (console only) =====
   function runSelfTests() {
     try {
-      const a = 'A';
-      const z = 'Z';
-      const aa = 'AA';
-      const dz = 'DZ';
-
       const checkRoundTrip = (letters) => {
         const col = lettersToCol(letters);
         const back = colToLetters(col);
-        if (back !== letters) throw new Error(`Roundtrip failed: ${letters} -> ${col} -> ${back}`);
+        if (back !== letters) throw new Error('Roundtrip failed: ' + letters + ' -> ' + col + ' -> ' + back);
       };
 
-      checkRoundTrip(a);
-      checkRoundTrip(z);
-      checkRoundTrip(aa);
-      checkRoundTrip(dz);
+      checkRoundTrip('A');
+      checkRoundTrip('Z');
+      checkRoundTrip('AA');
+      checkRoundTrip('DZ');
 
       const p = parseHexId('AA27');
       if (hexId(p.col, p.row) !== 'AA27') throw new Error('parseHexId/hexId mismatch for AA27');
@@ -1053,19 +1109,17 @@
       const yShift = rowStep() / 4;
 
       if (Math.abs(box.yBot - (b8.y + yShift)) > eps) {
-        throw new Error(`roomToWallBox yBot mismatch: expected ${b8.y + yShift} got ${box.yBot}`);
+        throw new Error('roomToWallBox yBot mismatch: expected ' + (b8.y + yShift) + ' got ' + box.yBot);
       }
       if (Math.abs(box.yTop - (b11.y + yShift)) > eps) {
-        throw new Error(`roomToWallBox yTop mismatch: expected ${b11.y + yShift} got ${box.yTop}`);
+        throw new Error('roomToWallBox yTop mismatch: expected ' + (b11.y + yShift) + ' got ' + box.yTop);
       }
 
-      // Door defaults sanity (no throws, deterministic defaults)
-      {
-        const d1 = normalizeDoorParams({ kind: 'door' }, 'v');
-        if (d1.opensTo !== 'E' || d1.hingeEnd !== 'N' || d1.openPct !== 0) throw new Error('Door defaults (v) unexpected');
-        const d2 = normalizeDoorParams({ kind: 'door' }, 'h');
-        if (d2.opensTo !== 'N' || d2.hingeEnd !== 'W' || d2.openPct !== 0) throw new Error('Door defaults (h) unexpected');
-      }
+      // Door defaults sanity
+      const d1 = normalizeDoorParams({ kind: 'door' }, 'v');
+      if (d1.opensTo !== 'E' || d1.hingeEnd !== 'N' || d1.openPct !== 0) throw new Error('Door defaults (v) unexpected');
+      const d2 = normalizeDoorParams({ kind: 'door' }, 'h');
+      if (d2.opensTo !== 'N' || d2.hingeEnd !== 'W' || d2.openPct !== 0) throw new Error('Door defaults (h) unexpected');
 
       console.log('[Battlemat] self-tests: OK');
     } catch (e) {
@@ -1077,7 +1131,7 @@
   function getPlayerTokens(state) {
     const tokens = Array.isArray(state.tokens) ? state.tokens : [];
     return tokens.filter(t => {
-      const side = String(t.side ?? '').toUpperCase();
+      const side = String(t.side || '').toUpperCase();
       return side === 'PC' || side === 'PLAYER';
     });
   }
@@ -1087,12 +1141,12 @@
     if (!sel) return;
 
     const players = getPlayerTokens(state);
-    const wanted = VIEW.followTokenId ?? '';
+    const wanted = VIEW.followTokenId || '';
 
     const opts = ['<option value="">None</option>'];
     for (const t of players) {
       const label = t.name ? t.name : t.id;
-      opts.push(`<option value="${escapeHtml(t.id)}">${escapeHtml(label)}</option>`);
+      opts.push('<option value="' + escapeHtml(t.id) + '">' + escapeHtml(label) + '</option>');
     }
     sel.innerHTML = opts.join('');
 
@@ -1128,7 +1182,6 @@
   }
 
   function pan(dc, dr) {
-    // Manual panning cancels follow mode.
     if (VIEW.followTokenId) {
       VIEW.followTokenId = null;
       const sel = document.getElementById('centerOn');
@@ -1140,12 +1193,11 @@
   }
 
   function setCameraToHex(hex, opts = {}) {
-    const { manual = true } = opts;
+    const manual = (opts.manual !== false);
     const p = parseHexId(hex);
     VIEW.camera.col = p.col;
     VIEW.camera.row = p.row;
 
-    // Manual camera moves cancel follow mode (so panning/jump doesn't immediately snap back).
     if (manual) {
       VIEW.followTokenId = null;
       const sel = document.getElementById('centerOn');
@@ -1210,10 +1262,18 @@
 
   function resize() {
     const dpr = Math.max(1, window.devicePixelRatio || 1);
+    VIEW.dpr = dpr;
+
     const rect = canvas.getBoundingClientRect();
+
     canvas.width = Math.floor(rect.width * dpr);
     canvas.height = Math.floor(rect.height * dpr);
+
+    wallCanvas.width = canvas.width;
+    wallCanvas.height = canvas.height;
+
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    wallCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     VIEW.anchor.x = rect.width / 2;
     VIEW.anchor.y = rect.height / 2;
@@ -1222,20 +1282,29 @@
   }
 
   function init() {
-    wireUI();
-    runSelfTests();
-
-    // Start a lightweight follow loop (only redraws when camera position changes).
-    requestAnimationFrame(followCameraTick);
-
+    // Apply initial camera BEFORE the first resize/redraw so the first frame is correct.
     const state = getState();
-    const hex = state.view?.camera_hex;
-    if (hex) {
-      try { setCameraToHex(hex); } catch (e) { /* ignore */ }
+    if (state.view && state.view.camera_hex) {
+      try {
+        const p = parseHexId(state.view.camera_hex);
+        VIEW.camera.col = p.col;
+        VIEW.camera.row = p.row;
+      } catch (e) {
+        // ignore
+      }
     }
 
+    wireUI();
+
+    // Size canvases FIRST (this triggers the first redraw).
     window.addEventListener('resize', resize);
     resize();
+
+    // Tests after geometry is ready.
+    runSelfTests();
+
+    // Start follow loop.
+    requestAnimationFrame(followCameraTick);
   }
 
   init();
