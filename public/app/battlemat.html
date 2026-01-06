@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v4.109
+  v4.114
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -14,6 +14,16 @@
   or AI/training workflow without prior written permission from the copyright holder.
 
   Unauthorized use is prohibited.
+
+  Bugfix notes (v4.114):
+  - Fix crash: added missing parseHex() helper (multi-hex object footprint path used it).
+
+  Bugfix notes (v4.113):
+  - Tables: add fallback table shapes (round/square/rect) supporting multi-hex footprints via `hexes: []`.
+  - Beds: slightly toned down (lighter) fallback bed colors.
+
+  Bugfix notes (v4.110):
+  - Objects: support per-object hex shift offsets (e.g., shift:"N0.5") for fallback furniture like beds.
 
   Bugfix notes (v4.109):
   - Fix crash: removed accidental "$1ctx" token and rewrote remembered-room overlay to use RENDER_FOG sets safely.
@@ -240,7 +250,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.109</div>
+        <div class="pill" id="versionLine">v4.114</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -395,9 +405,31 @@
     ],
 
     objects: [
-      { id: 'room2_bed1', kind: 'bed.single', hex: 'M16', orientation: 'h', head: 'W' },
-      { id: 'room2_bed2', kind: 'bed.single', hex: 'M17', orientation: 'h', head: 'W' },
-      { id: 'room5_bed', kind: 'bed.double', hex: 'S19', orientation: 'h', head: 'W' },
+      { id: 'bedroom1_bed1', kind: 'bed.single', hex: 'M19', orientation: 'h', head: 'W'},
+      { id: 'bedroom1_bed2', kind: 'bed.single', hex: 'M20', orientation: 'h', head: 'W', shift: "N0.5" },
+      { id: 'bedroom2_bed1', kind: 'bed.single', hex: 'M16', orientation: 'h', head: 'W'},
+      { id: 'bedroom2_bed2', kind: 'bed.single', hex: 'M17', orientation: 'h', head: 'W', shift: "N0.5" },
+      { id: 'bedroom3_bed1', kind: 'bed.single', hex: 'M13', orientation: 'h', head: 'W'},
+      { id: 'bedroom3_bed2', kind: 'bed.single', hex: 'M14', orientation: 'h', head: 'W', shift: "N0.5" },
+      { id: 'bedroom10_bed1', kind: 'bed.single', hex: 'AI19', orientation: 'h', head: 'E'},
+      { id: 'bedroom10_bed2', kind: 'bed.single', hex: 'AI20', orientation: 'h', head: 'E', shift: "N0.5" },
+      { id: 'bedroom9_bed1', kind: 'bed.single', hex: 'AI16', orientation: 'h', head: 'E'},
+      { id: 'bedroom9_bed2', kind: 'bed.single', hex: 'AI17', orientation: 'h', head: 'E', shift: "N0.5" },
+      { id: 'bedroom8_bed1', kind: 'bed.single', hex: 'AI13', orientation: 'h', head: 'E'},
+      { id: 'bedroom8_bed2', kind: 'bed.single', hex: 'AI14', orientation: 'h', head: 'E', shift: "N0.5" },
+      { id: 'bedroom5_bed', kind: 'bed.double', hex: 'S19', orientation: 'h', head: 'W' },
+      { id: 'bedroom4_bed', kind: 'bed.double', hex: 'V13', orientation: 'h', head: 'E', shift: "E0.75"  },
+      { id: 'bedroom7_bed', kind: 'bed.double', hex: 'Z13', orientation: 'h', head: 'W', shift: "W0.75"  },
+
+      { id: 'bedroom4_table', kind:'table.round', hex:'T13' },
+      { id: 'bedroom4_table', kind:'table.round', hex:'V20' },
+      { id:'t_sq', kind:'table.square', hex:'U23', shift:'E0.0' },
+
+      { id:'t_big', kind:'table.round', hexes:['N25','O25','O26'] },
+
+      { id:' t_rect', kind:'table.rect', hexes:['P25','P24'] },
+
+
     ],
 
     tokens: [
@@ -459,6 +491,12 @@
     const m = String(hex).trim().toUpperCase().match(/^([A-Z]+)([0-9]+)$/);
     if (!m) throw new Error('Bad hex: ' + hex);
     return { col: lettersToCol(m[1]), row: parseInt(m[2], 10) - 1 };
+  }
+
+  // NOTE: Some helper paths (e.g., multi-hex object footprints) want a non-throwing parser.
+  // This wrapper is intentionally permissive: returns null if the hex string is invalid.
+  function parseHex(hex) {
+    try { return parseHexId(hex); } catch { return null; }
   }
 
   function hexId(col, row) {
@@ -2147,6 +2185,133 @@
   // ===== Objects =====
   // Fallback furniture objects (simple D&D-style symbols). These are intentionally cheap to draw.
 
+  // Object shift parsing:
+  // - shift: "N0.5" / "S0.25" / "E1" / "W0.5" (can be comma/space separated, e.g. "N0.5,E0.25")
+  // - dxHex / dyHex (dyHex is +North)
+  // - offsetHex: { n, s, e, w }
+  // All values are in "hex flat-to-flat" units.
+  function getObjectShiftPx(o) {
+    if (!o) return { dx: 0, dy: 0 };
+
+    const hexFlatX = 2 * GRID.size;  // flat-to-flat horizontally
+    const hexFlatY = rowStep();      // flat-to-flat vertically
+
+    let dxHex = 0;
+    let dyHexNorth = 0;
+
+    if (Number.isFinite(o.dxHex)) dxHex += Number(o.dxHex);
+    if (Number.isFinite(o.dyHex)) dyHexNorth += Number(o.dyHex);
+
+    if (o.offsetHex && typeof o.offsetHex === 'object') {
+      const oh = o.offsetHex;
+      if (Number.isFinite(oh.e)) dxHex += Number(oh.e);
+      if (Number.isFinite(oh.w)) dxHex -= Number(oh.w);
+      if (Number.isFinite(oh.n)) dyHexNorth += Number(oh.n);
+      if (Number.isFinite(oh.s)) dyHexNorth -= Number(oh.s);
+    }
+
+    if (typeof o.shift === 'string' && o.shift.trim()) {
+      const parts = o.shift.trim().toUpperCase().split(/[ ,]+/).filter(Boolean);
+      for (const part of parts) {
+        const m = part.match(/^([NSEW])(-?[0-9]+(?:[.][0-9]+)?)$/);
+        if (!m) continue;
+        const dir = m[1];
+        const amt = Number(m[2]);
+        if (!Number.isFinite(amt)) continue;
+        if (dir === 'E') dxHex += amt;
+        else if (dir === 'W') dxHex -= amt;
+        else if (dir === 'N') dyHexNorth += amt;
+        else if (dir === 'S') dyHexNorth -= amt;
+      }
+    }
+
+    return {
+      dx: dxHex * hexFlatX,
+      dy: -dyHexNorth * hexFlatY, // screen Y increases downward
+    };
+  }
+
+  function getObjectOccupiedHexes(o) {
+    if (!o) return [];
+    if (Array.isArray(o.hexes) && o.hexes.length) return o.hexes.slice();
+    if (typeof o.hex === 'string' && o.hex.trim()) return [o.hex.trim()];
+    return [];
+  }
+
+  function getScreenPointsForHexes(hexes) {
+    const pts = [];
+    for (const hx of (hexes || [])) {
+      const p = parseHex(hx);
+      if (!p) continue;
+      pts.push(worldToScreen(hexCenterWorld(p.col, p.row)));
+    }
+    return pts;
+  }
+
+  function centroidOfPoints(pts) {
+    if (!pts.length) return { x: 0, y: 0 };
+    let sx = 0;
+    let sy = 0;
+    for (const p of pts) { sx += p.x; sy += p.y; }
+    return { x: sx / pts.length, y: sy / pts.length };
+  }
+
+  function boundsOfPoints(pts) {
+    if (!pts.length) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+    let minX = pts[0].x, maxX = pts[0].x, minY = pts[0].y, maxY = pts[0].y;
+    for (const p of pts) {
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y);
+      maxY = Math.max(maxY, p.y);
+    }
+    return { minX, minY, maxX, maxY };
+  }
+
+  function expandBounds(b, pad) {
+    return { minX: b.minX - pad, minY: b.minY - pad, maxX: b.maxX + pad, maxY: b.maxY + pad };
+  }
+
+  function drawTableRound(ctx, center, radius, opts = {}) {
+    const fill = opts.fill ?? '#9a7b4b';
+    const stroke = opts.stroke ?? 'rgba(0,0,0,0.35)';
+    const ring = opts.ring ?? 'rgba(255,255,255,0.08)';
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, Math.max(2, radius * 0.72), 0, Math.PI * 2);
+    ctx.strokeStyle = ring;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawTableRect(ctx, rect, opts = {}) {
+    const fill = opts.fill ?? '#9a7b4b';
+    const stroke = opts.stroke ?? 'rgba(0,0,0,0.35)';
+
+    ctx.save();
+    ctx.fillStyle = fill;
+    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, Math.max(0, rect.w - 1), Math.max(0, rect.h - 1));
+
+    ctx.restore();
+  }
+
   function objectShouldDraw(o, rooms) {
     // Fog OFF: draw normally.
     if (!RENDER_FOG || !RENDER_FOG.enabled) return true;
@@ -2230,15 +2395,59 @@
   }
 
   function drawObject(o) {
-    if (!o || !o.hex) return;
+    // Note: multi-hex objects (e.g., tables) may omit `hex` and use `hexes: []` instead.
+    if (!o) return;
 
     const kind = String(o.kind || '').toLowerCase();
+
+    // Support multi-hex objects (e.g., rectangular/large tables)
+    const occHexes = getObjectOccupiedHexes(o);
+    if (!occHexes.length) return;
+
+    // Tables (fallback shapes). Uses occHexes for footprint; does NOT require o.hex.
+    if (kind === 'table.round' || kind === 'table.square' || kind === 'table.rect') {
+      const occCenters = getScreenPointsForHexes(occHexes);
+      const baseCenter = centroidOfPoints(occCenters);
+      const sh = getObjectShiftPx(o);
+      const center = { x: baseCenter.x + sh.dx, y: baseCenter.y + sh.dy };
+
+      const b0 = boundsOfPoints(occCenters);
+      const pad = GRID.size * 0.95;
+      const b = expandBounds(b0, pad);
+      const footRect = { x: b.minX, y: b.minY, w: (b.maxX - b.minX), h: (b.maxY - b.minY) };
+
+      const style = o.style || {};
+      if (kind === 'table.round') {
+        const r = Math.max(8, Math.min(footRect.w, footRect.h) * 0.42);
+        drawTableRound(ctx, center, r, style);
+        return;
+      }
+      if (kind === 'table.square') {
+        const side = Math.max(10, Math.min(footRect.w, footRect.h) * 0.70);
+        drawTableRect(ctx, { x: center.x - side / 2, y: center.y - side / 2, w: side, h: side }, style);
+        return;
+      }
+      // kind === 'table.rect'
+      const inset = GRID.size * 0.35;
+      const r = {
+        x: footRect.x + inset,
+        y: footRect.y + inset,
+        w: Math.max(6, footRect.w - inset * 2),
+        h: Math.max(6, footRect.h - inset * 2),
+      };
+      drawTableRect(ctx, r, style);
+      return;
+    }
     if (kind !== 'bed.single' && kind !== 'bed.double') return;
 
     let p;
     try { p = parseHexId(o.hex); } catch { return; }
 
-    const cS = worldToScreen(hexCenterWorld(p.col, p.row));
+    const cS0 = worldToScreen(hexCenterWorld(p.col, p.row));
+
+    // Optional per-object shift in hex units (e.g., shift:"N0.5").
+    const sh = getObjectShiftPx(o);
+    const cS = { x: cS0.x + sh.dx, y: cS0.y + sh.dy };
 
     // Hex flat-to-flat distances in screen space.
     const hexFlatX = 2 * GRID.size;
@@ -2265,8 +2474,8 @@
     drawBedSquare(ctx, rect, {
       head: o.head || 'W',
       double: (kind === 'bed.double'),
-      mattressFill: '#9a6a33',
-      pillowFill: '#7a4f22',
+      mattressFill: '#ae7e47',
+      pillowFill: '#a0733c',
       stroke: 'rgba(0,0,0,0.60)'
     });
   }
@@ -2639,6 +2848,14 @@
       const p = parseHexId('AA27');
       if (hexId(p.col, p.row) !== 'AA27') throw new Error('parseHexId/hexId mismatch for AA27');
 
+      // parseHex() should be non-throwing.
+      {
+        const ok = parseHex('B12');
+        if (!ok || ok.col !== lettersToCol('B') || ok.row !== 11) throw new Error('parseHex should parse valid ids');
+        const bad = parseHex('not-a-hex');
+        if (bad !== null) throw new Error('parseHex should return null for invalid ids');
+      }
+
       const r1 = mulberry32(123);
       const r2 = mulberry32(123);
       if (Math.abs(r1() - r2()) > 1e-12) throw new Error('mulberry32 not deterministic');
@@ -2733,7 +2950,13 @@
       {
         const savedFog = RENDER_FOG;
         RENDER_FOG = { enabled: false, visible: new Set(), explored: new Set(), unseenAlpha: 0.9, exploredAlpha: 0.5 };
+
+        // Bed (single-hex)
         drawObjects([{ id: 'x', kind: 'bed.single', hex: 'A1', orientation: 'h', head: 'W' }], []);
+
+        // Table (multi-hex footprint, no `hex` field)
+        drawObjects([{ id: 't', kind: 'table.rect', hexes: ['B2', 'B3'] }], []);
+
         RENDER_FOG = savedFog;
       }
 
