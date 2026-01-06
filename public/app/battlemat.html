@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v4.87
+  v4.95
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -15,86 +15,17 @@
 
   Unauthorized use is prohibited.
 
-  Rewrite notes (v4.87):
-  - Thresholds now support parent-based wall knockouts: add parent:'Hallway2' (etc.) to a threshold to punch out the full wall span of that parent hallway edge.
-  - Parent-based thresholds remove the entire hallway wall segment across the parent hallway’s inner floor span (clean T/L junctions).
+  Refactor notes (v4.95):
+  - Cleanup-only refactor: remove obsolete/accidental comment artifacts, align version display, and group code by section.
+  - No functional changes intended.
 
-  Rewrite notes (v4.86):
-  - Fix: vertical threshold knockouts now extend an extra 1/2-hex SOUTH (biasing the 1.5-span cutout downward instead of splitting it evenly).
-  - Data formatting: compacted DEFAULT_STATE.rooms entries to single-line objects (matching openings style).
+  Feature notes (v4.94):
+  - Stairs: tread taper symmetric around the midline (even cascade) and add an end landing pad (default 25px).
 
-  Rewrite notes (v4.84):
-  - Fix: removed a duplicated stray block after cutOpeningHole() that caused a SyntaxError ("missing ) in parenthetical").
-  - Tests: added a tiny smoke test to ensure cutOpeningHole() is callable.
-
-  Rewrite notes (v4.83):
-  - Threshold openings now punch holes in walls (knockout-only), using a wider 1.5-segment cutout for vertical thresholds.
-
-  Rewrite notes (v4.82):
-  - Fog: restored drawing of walls for base "fog" rooms (e.g., CrossKeysUpperFloor) so exterior building outlines remain visible.
-
-  Rewrite notes (v4.81):
-  - Added floor kind "fog" (solid mid-gray) for base-layer floors.
-  - When Fog is enabled, only visible rooms are rendered (plus any "fog" base rooms). Walls/openings are rendered only for those drawn rooms, hiding unexplored geometry.
-
-  Rewrite notes (v4.80):
-  - Fog: switched overlay to solid mid-gray fills (no transparency) to avoid color buildup where floors overlap.
-
-  Rewrite notes (v4.79):
-  - Fog: changed fog overlay from black to mid-gray (50% gray) while keeping the same alpha behavior.
-
-  Rewrite notes (v4.78):
-  - Fog: stop hallway chaining by default by setting fog.maxDepth to 1 (doors/windows/thresholds reveal only 1 hop beyond any PC-occupied room).
-
-  Rewrite notes (v4.77):
-  - Fix: removed an accidental function declaration inserted into DEFAULT_STATE.openings (was causing “missing ] after element list”).
-  - Data: added invisible threshold openings (R16, AD16, AD20) correctly as objects in openings[] (not drawn; see-through for fog BFS).
-  - Fog: openingIsSeeThrough() now treats threshold/portal/connector as always see-through.
-
-  Rewrite notes (v4.76):
-  - Fog adjacency: removed auto-connection for wall-less spaces (hallways/streets no longer chain by touching bounds).
-  - Added invisible 'threshold' openings (always see-through, not rendered) to explicitly connect hallway segments.
-
-  Rewrite notes (v4.75):
-  - Fix: restored the missing #floorKind dropdown (was causing "addEventListener ... is null").
-  - Fix: made UI wiring resilient (null-safe) so missing optional controls won’t crash.
-  - UI: floor override dropdown now has a “Mixed” option that applies no changes.
-
-  Rewrite notes (v4.74):
-  - Fog of War (room-based): draw fog over room floors when not visible/explored; keep walls visible.
-  - Fog of War: hide non-PC tokens in non-visible rooms.
-  - UI: added a Fog toggle.
-
-  Rewrite notes (v4.72):
-  - Fix: corrected a malformed function declaration (roomFloorRectWorld) that caused “missing { before function body”.
-  - Tests: added a self-test to assert inner-vs-outer floor rect selection for walled vs non-walled spaces.
-
-  Rewrite notes (v4.71):
-  - Stairs: fix tapered stairs so both top and bottom edges cascade (matches the reference sketch better).
-
-  Rewrite notes (v4.70):
-  - Fix: removed a stray brace in runSelfTests() that caused “missing catch or finally after try”.
-  - Tweak: cobblestone stones brightened so the street reads closer to the mortar tone.
-
-  Rewrite notes (v4.69):
-  - Stairs: stairs.wood now draws a tapered stair-run (smaller treads at the down end) to match the new top-down style.
-
-  Rewrite notes (v4.68):
-  - Stairs: stairs.wood now supports descent directions N/S/E/W via room.stairsDown.
-
-  Rewrite notes (v4.67):
-  - Stairs: added procedural stairs floor kind (stairs.wood) using the wood palette.
-
-  Rewrite notes (v4.66):
-  - Streets: added cobblestone floor pattern for exterior spaces; reduced cobble stone size for better scale.
-
-  Rewrite notes (v4.65):
-  - Data: baked a +10E/+10N shift directly into DEFAULT_STATE hex coordinates (rooms/spaces/openings/tokens/camera) so there is real empty space for streets.
-  - Cleanup: removed the runtime one-time scene-shift helper (no more phase shift).
-
-  Rewrite notes (v4.62):
-  - Tweak: reduce rendered door/window thickness (minor dimension) by ~25% so openings look less chunky.
-
+  Feature notes (v4.91–v4.93):
+  - Thresholds: parent-based wall knockout + floor underlay so hallway junctions read as continuous.
+  - Stairs: replaced tapered renderer with a simpler tread-rectangle implementation.
+  - Defensive: bind a harmless `$1` identifier to avoid rare paste/editor artifacts crashing runtime.
 -->
 <html lang="en">
 <head>
@@ -292,7 +223,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.87</div>
+        <div class="pill" id="versionLine">v4.95</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -306,6 +237,13 @@
 
 <script>
 (() => {
+  // ===== Safety shim =====
+  // Some editors/snippets accidentally paste a bare "$1" token into JS. In JS, `$1` is a valid
+  // identifier; a stray reference crashes with "ReferenceError: $1 is not defined". Binding it here
+  // makes any accidental stray usage a harmless no-op.
+  const $1 = undefined;
+
+  // ===== DOM / Canvas =====
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
 
@@ -313,8 +251,9 @@
   const wallCanvas = document.createElement('canvas');
   const wallCtx = wallCanvas.getContext('2d');
 
-  // Flat-top hex geometry: size is center-to-vertex.
+  // ===== Constants =====
   const GRID = {
+    // Flat-top hex geometry: size is center-to-vertex.
     size: 42,
     lineWidth: 2,
     lineAlpha: 0.09,
@@ -355,6 +294,7 @@
 
   const PAN_STEP = 2;
 
+  // ===== Canonical state (demo) =====
   const DEFAULT_STATE = {
     meta: { title: 'Cross Keys Inn — Upper Floor', battleId: 'local', round: 1 },
     view: { camera_hex: 'U16' },
@@ -415,11 +355,11 @@
       { id: 'door_room10',kind: 'door', hex: 'AF20', orientation: 'v', state: 'closed', opensTo: 'E', hingeEnd: 'N' },
 
       // Invisible connectors between wall-less spaces (hallways, etc.).
-      // Always considered "see-through" for fog visibility, but not drawn and do not cut walls.
+      // Always considered "see-through" for fog visibility, but not drawn and do not cut walls unless threshold.
       { id: 'thresh_R16',  kind: 'threshold', hex: 'R16',  orientation: 'v', state: 'open', parent: 'Hallway2' },
       { id: 'thresh_AD16', kind: 'threshold', hex: 'AD16', orientation: 'v', state: 'open', parent: 'Hallway2' },
       { id: 'thresh_AD20', kind: 'threshold', hex: 'AD20', orientation: 'v', state: 'open', parent: '1stFloorStairsDown' },
-      
+
       { id: 'west_window1', kind: 'window', hex: 'L20', orientation: 'v', state: 'closed', opensTo: 'W' },
       { id: 'west_window2', kind: 'window', hex: 'L19', orientation: 'v', state: 'closed', opensTo: 'W' },
       { id: 'west_window3', kind: 'window', hex: 'L17', orientation: 'v', state: 'closed', opensTo: 'W' },
@@ -445,7 +385,7 @@
       { id: 'w3',   name: 'Wraith 3', side: 'ENEMY', hex: 'N17', label: 'W3', init: 10, hp: 67 },
       { id: 'a',    name: 'Aelar', side: 'PC', hex: 'V16', label: 'A', init: 14, hp: 42 },
       { id: 'b',    name: 'Brunna', side: 'PC', hex: 'U13', label: 'B', init: 13, hp: 55 },
-      { id: 'c',    name: 'Caelin', side: 'PC', hex: 'AE20', label: 'C', init: 12, hp: 38 },
+      { id: 'c',    name: 'Caelin', side: 'PC', hex: 'AA20', label: 'C', init: 12, hp: 38 },
     ],
   };
 
@@ -460,281 +400,15 @@
     exploredAlpha: 0.55,
   };
 
-  // ===== Fog of War (room-based) =====
-  function normalizeFog(state) {
-    const raw = (state && typeof state.fog === 'object' && state.fog) ? state.fog : null;
+  // Non-destructive render overrides (UI helpers).
+  const RENDER_OVERRIDES = {
+    floorKind: '', // '' => use each room's own floor.kind
+  };
 
-    const enabled = !!(raw && raw.enabled);
-    const mode = raw && raw.mode ? String(raw.mode) : 'room';
-
-    const maxDepth = Number.isFinite(raw && raw.maxDepth) ? Number(raw.maxDepth) : 1;
-    const autoCompute = (raw && raw.autoCompute === false) ? false : true;
-    const autoExplore = (raw && raw.autoExplore === false) ? false : true;
-
-    const unseenAlpha = Number.isFinite(raw && raw.unseenAlpha) ? Number(raw.unseenAlpha) : 0.92;
-    const exploredAlpha = Number.isFinite(raw && raw.exploredAlpha) ? Number(raw.exploredAlpha) : 0.55;
-
-    const visibleRoomIds = Array.isArray(raw && raw.visibleRoomIds) ? raw.visibleRoomIds.map(x => String(x)) : [];
-    const exploredRoomIds = Array.isArray(raw && raw.exploredRoomIds) ? raw.exploredRoomIds.map(x => String(x)) : [];
-
-    return { enabled, mode, maxDepth, autoCompute, autoExplore, unseenAlpha, exploredAlpha, visibleRoomIds, exploredRoomIds, raw };
-  }
-
-  function roomAreaFromBounds(b) {
-    return (b.maxCol - b.minCol + 1) * (b.maxRow - b.minRow + 1);
-  }
-
-  function buildRoomMeta(rooms) {
-    const meta = [];
-    for (const r of rooms) {
-      if (!r || !r.id || !Array.isArray(r.corners)) continue;
-      try {
-        const b = cornersToBounds(r.corners);
-        meta.push({
-          id: String(r.id),
-          room: r,
-          bounds: b,
-          area: roomAreaFromBounds(b),
-          hasWalls: roomHasWalls(r),
-        });
-      } catch {
-        // ignore malformed rooms
-      }
-    }
-    return meta;
-  }
-
-  function pickMostSpecificRoomIdAt(roomMeta, col, row) {
-    let best = null;
-    let bestArea = Infinity;
-    let bestWallRank = Infinity;
-
-    for (const m of roomMeta) {
-      const b = m.bounds;
-      if (col < b.minCol || col > b.maxCol || row < b.minRow || row > b.maxRow) continue;
-
-      const wallRank = m.hasWalls ? 0 : 1;
-      if (m.area < bestArea || (m.area === bestArea && wallRank < bestWallRank)) {
-        best = m.id;
-        bestArea = m.area;
-        bestWallRank = wallRank;
-      }
-    }
-
-    return best;
-  }
-
-  function pickMostSpecificRoomIdForHex(roomMeta, hex) {
-    try {
-      const p = parseHexId(hex);
-      return pickMostSpecificRoomIdAt(roomMeta, p.col, p.row);
-    } catch {
-      return null;
-    }
-  }
-
-  function openingIsSeeThrough(opening) {
-    const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
-    const orient = openingOrientation(opening);
-
-    // Invisible connector: always see-through.
-    if (kind === 'threshold' || kind === 'portal' || kind === 'connector') return true;
-
-    if (kind === 'door') {
-      const d = normalizeDoorParams(opening, orient);
-      return d.openPct > 0.05;
-    }
-
-    if (kind === 'window') {
-      const w = normalizeWindowParams(opening, orient);
-      return w.openPct > 0.05;
-    }
-
-    return false;
-  }
-
-  function openingTouchingRoomIds(opening, roomMeta) {
-    if (!opening || !opening.hex) return { a: null, b: null };
-    let p;
-    try { p = parseHexId(opening.hex); } catch { return { a: null, b: null }; }
-
-    const orient = openingOrientation(opening);
-
-    // Sample 1 hex on each side of the opening.
-    let a = null;
-    let b = null;
-    if (orient === 'v') {
-      a = pickMostSpecificRoomIdAt(roomMeta, p.col - 1, p.row);
-      b = pickMostSpecificRoomIdAt(roomMeta, p.col + 1, p.row);
-    } else {
-      a = pickMostSpecificRoomIdAt(roomMeta, p.col, p.row + 1);
-      b = pickMostSpecificRoomIdAt(roomMeta, p.col, p.row - 1);
-    }
-
-    return { a, b };
-  }
-
-  function isRenderableOpening(opening, roomMeta, renderableRoomIds) {
-    const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
-
-    // portal/connector are fog-logic only.
-    if (kind === 'portal' || kind === 'connector') return false;
-
-    // threshold is knockout-only: include it so walls can be punched out when relevant.
-    const { a, b } = openingTouchingRoomIds(opening, roomMeta);
-    return (a && renderableRoomIds.has(a)) || (b && renderableRoomIds.has(b));
-  }
-
-  function buildAdjacency(roomMeta, openings) {
-    const neighbors = new Map();
-    const ensure = (id) => {
-      if (!neighbors.has(id)) neighbors.set(id, new Set());
-      return neighbors.get(id);
-    };
-    const addEdge = (a, b) => {
-      if (!a || !b || a === b) return;
-      ensure(a).add(b);
-      ensure(b).add(a);
-    };
-
-    // Initialize.
-    for (const m of roomMeta) ensure(m.id);
-
-    // NOTE: We deliberately do NOT auto-connect wall-less spaces by touching/overlapping bounds.
-    // That was causing hallways/streets to "chain" visibility across multiple segments.
-
-    // Connect through see-through openings (doors/windows/thresholds).
-    for (const o of openings) {
-      if (!o || !o.hex) continue;
-      if (!openingIsSeeThrough(o)) continue;
-
-      let p;
-      try { p = parseHexId(o.hex); } catch { continue; }
-      const orient = openingOrientation(o);
-
-      // Sample 1 hex on each side of the opening.
-      let a = null;
-      let b = null;
-      if (orient === 'v') {
-        a = pickMostSpecificRoomIdAt(roomMeta, p.col - 1, p.row);
-        b = pickMostSpecificRoomIdAt(roomMeta, p.col + 1, p.row);
-      } else {
-        a = pickMostSpecificRoomIdAt(roomMeta, p.col, p.row + 1);
-        b = pickMostSpecificRoomIdAt(roomMeta, p.col, p.row - 1);
-      }
-
-      addEdge(a, b);
-    }
-
-    return neighbors;
-  }
-
-  function computeRenderFog(state, rooms, openings) {
-    const fog = normalizeFog(state);
-    const roomMeta = buildRoomMeta(rooms);
-
-    // Default: fog off.
-    if (!fog.enabled || String(fog.mode).toLowerCase() !== 'room') {
-      return {
-        enabled: false,
-        visible: new Set(),
-        explored: new Set(),
-        unseenAlpha: fog.unseenAlpha,
-        exploredAlpha: fog.exploredAlpha,
-      };
-    }
-
-    let visible = new Set();
-
-    if (!fog.autoCompute && fog.visibleRoomIds.length) {
-      visible = new Set(fog.visibleRoomIds);
-    } else {
-      // Seed from party tokens.
-      const players = getPlayerTokens(state);
-      const q = [];
-      const seed = new Set();
-
-      for (const t of players) {
-        const rid = pickMostSpecificRoomIdForHex(roomMeta, t.hex);
-        if (rid) seed.add(rid);
-      }
-
-      for (const rid of seed) {
-        visible.add(rid);
-        q.push({ id: rid, depth: 0 });
-      }
-
-      const neighbors = buildAdjacency(roomMeta, openings);
-      const maxDepth = fog.maxDepth;
-
-      while (q.length) {
-        const cur = q.shift();
-        if (!cur) break;
-        if (cur.depth >= maxDepth) continue;
-
-        const nbs = neighbors.get(cur.id);
-        if (!nbs) continue;
-
-        for (const nb of nbs) {
-          if (!visible.has(nb)) {
-            visible.add(nb);
-            q.push({ id: nb, depth: cur.depth + 1 });
-          }
-        }
-      }
-
-      // Store back for UI/debugging convenience.
-      if (fog.raw) fog.raw.visibleRoomIds = Array.from(visible).sort();
-    }
-
-    // Explored set.
-    const explored = new Set(fog.exploredRoomIds);
-    if (fog.autoExplore) {
-      for (const rid of visible) explored.add(rid);
-      if (fog.raw) fog.raw.exploredRoomIds = Array.from(explored).sort();
-    }
-
-    return { enabled: true, visible, explored, unseenAlpha: fog.unseenAlpha, exploredAlpha: fog.exploredAlpha };
-  }
-
-  function isPlayerToken(t) {
-    const side = String(t && t.side ? t.side : '').toUpperCase();
-    return side === 'PC' || side === 'PLAYER';
-  }
-
-  function shouldDrawToken(t, rooms) {
-    if (!RENDER_FOG || !RENDER_FOG.enabled) return true;
-    if (isPlayerToken(t)) return true;
-
-    const rid = pickMostSpecificRoomIdForHex(buildRoomMeta(rooms), t.hex);
-    if (!rid) return true;
-
-    return RENDER_FOG.visible.has(rid);
-  }
-
-  function syncFogToggle(state) {
-    const el = document.getElementById('fogToggle');
-    if (!el) return;
-    const enabled = !!(state && state.fog && state.fog.enabled);
-    if (el.checked !== enabled) el.checked = enabled;
-  }
-
-  // ===== Path helpers =====
-  function roundRectPath(targetCtx, x, y, w, h, r) {
-    // Pure path helper (no reliance on CanvasRenderingContext2D.roundRect support).
-    const rr = Math.max(0, Math.min(r, Math.min(Math.abs(w), Math.abs(h)) / 2));
-    targetCtx.beginPath();
-    targetCtx.moveTo(x + rr, y);
-    targetCtx.lineTo(x + w - rr, y);
-    targetCtx.quadraticCurveTo(x + w, y, x + w, y + rr);
-    targetCtx.lineTo(x + w, y + h - rr);
-    targetCtx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
-    targetCtx.lineTo(x + rr, y + h);
-    targetCtx.quadraticCurveTo(x, y + h, x, y + h - rr);
-    targetCtx.lineTo(x, y + rr);
-    targetCtx.quadraticCurveTo(x, y, x + rr, y);
-    targetCtx.closePath();
-  }
+  // ===== Math helpers =====
+  const sqrt3 = Math.sqrt(3);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const mod = (a, m) => ((a % m) + m) % m;
 
   // ===== Hex helpers =====
   function colToLetters(col) {
@@ -770,7 +444,6 @@
   }
 
   // ===== Geometry (world coords) =====
-  const sqrt3 = Math.sqrt(3);
   function colStep() { return 1.5 * GRID.size; }
   function rowStep() { return sqrt3 * GRID.size; }
 
@@ -782,9 +455,7 @@
   }
 
   // ===== Camera transform =====
-  function cameraWorld() {
-    return hexCenterWorld(VIEW.camera.col, VIEW.camera.row);
-  }
+  function cameraWorld() { return hexCenterWorld(VIEW.camera.col, VIEW.camera.row); }
 
   function worldToScreen(p) {
     const cam = cameraWorld();
@@ -794,6 +465,22 @@
   function screenToWorld(p) {
     const cam = cameraWorld();
     return { x: (p.x - VIEW.anchor.x) + cam.x - VIEW.dx, y: (p.y - VIEW.anchor.y) + cam.y - VIEW.dy };
+  }
+
+  // ===== Path helpers =====
+  function roundRectPath(targetCtx, x, y, w, h, r) {
+    const rr = Math.max(0, Math.min(r, Math.min(Math.abs(w), Math.abs(h)) / 2));
+    targetCtx.beginPath();
+    targetCtx.moveTo(x + rr, y);
+    targetCtx.lineTo(x + w - rr, y);
+    targetCtx.quadraticCurveTo(x + w, y, x + w, y + rr);
+    targetCtx.lineTo(x + w, y + h - rr);
+    targetCtx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+    targetCtx.lineTo(x + rr, y + h);
+    targetCtx.quadraticCurveTo(x, y + h, x, y + h - rr);
+    targetCtx.lineTo(x, y + rr);
+    targetCtx.quadraticCurveTo(x, y, x + rr, y);
+    targetCtx.closePath();
   }
 
   // ===== Grid drawing =====
@@ -822,14 +509,10 @@
 
   function drawHexLabel(col, row) {
     const c = worldToScreen(hexCenterWorld(col, row));
-    const text = hexId(col, row);
-
-    ctx.save();
-    ctx.fillText(text, c.x, c.y + 30);
-    ctx.restore();
+    ctx.fillText(hexId(col, row), c.x, c.y + 30);
   }
 
-  // ===== Rooms =====
+  // ===== Room geometry =====
   function cornersToBounds(corners) {
     const pts = corners.map(parseHexId);
     const cols = pts.map(p => p.col);
@@ -877,11 +560,10 @@
     const outer = { x1: xL - halfT, x2: xR + halfT, y1: yTop - halfT, y2: yBot + halfT, thickness: thickness };
     const inner = { x1: outer.x1 + thickness, x2: outer.x2 - thickness, y1: outer.y1 + thickness, y2: outer.y2 - thickness };
 
-    return { bounds: b, thickness: thickness, outer: outer, inner: inner, xL: xL, xR: xR, yTop: yTop, yBot: yBot };
+    return { bounds: b, thickness, outer, inner, xL, xR, yTop, yBot };
   }
 
   function roomHasWalls(room) {
-    // Rooms default to having walls unless explicitly disabled.
     const k = room && room.wall && room.wall.kind ? String(room.wall.kind).toLowerCase() : 'brick';
     if (k === 'none' || k === 'off' || k === 'false') return false;
     if (room && room.drawWalls === false) return false;
@@ -902,12 +584,46 @@
     return segs;
   }
 
-  function fillBrickRectScreenOn(targetCtx, rect, color, worldX = 0, worldY = 0) {
-    // Rounded "block" brick pattern (chunky masonry).
-    // Anchored in WORLD space so it doesn't "swim" when the camera pans.
-    // Fully clipped to the wall rectangle to avoid any edge bleed/ghost lines.
+  // ===== Deterministic RNG / hashing =====
+  function mulberry32(seed) {
+    let a = (seed >>> 0) || 0;
+    return function() {
+      a |= 0;
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
 
-    // Shrunk bricks (about 1/5 of earlier).
+  function hashStringToSeed(s) {
+    const str = String(s || '');
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function hexToRgbStrict(hex, fallback = { r: 193, g: 146, b: 86 }) {
+    const m = String(hex).trim().match(/^#?([0-9a-fA-F]{6})$/);
+    if (!m) return fallback;
+    const n = parseInt(m[1], 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+
+  function shadeRgba(hex, amt, alpha) {
+    const rgb = hexToRgbStrict(hex);
+    const r = clamp(Math.round(rgb.r + 255 * amt), 0, 255);
+    const g = clamp(Math.round(rgb.g + 255 * amt), 0, 255);
+    const b = clamp(Math.round(rgb.b + 255 * amt), 0, 255);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+  }
+
+  // ===== Floor patterns =====
+  function fillBrickRectScreenOn(targetCtx, rect, color, worldX = 0, worldY = 0) {
+    // Chunky masonry, WORLD-anchored.
     const brickW = 9;
     const brickH = 4;
     const gap = 1.2;
@@ -924,14 +640,14 @@
       return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
     };
 
-    const clamp = (v) => Math.max(0, Math.min(255, v));
+    const clamp255 = (v) => Math.max(0, Math.min(255, v));
 
     const shade = (hex, amt) => {
       const rgb = hexToRgb(hex);
       return 'rgb(' +
-        clamp(Math.round(rgb.r + 255 * amt)) + ',' +
-        clamp(Math.round(rgb.g + 255 * amt)) + ',' +
-        clamp(Math.round(rgb.b + 255 * amt)) +
+        clamp255(Math.round(rgb.r + 255 * amt)) + ',' +
+        clamp255(Math.round(rgb.g + 255 * amt)) + ',' +
+        clamp255(Math.round(rgb.b + 255 * amt)) +
       ')';
     };
 
@@ -940,17 +656,13 @@
 
     targetCtx.save();
 
-    // Clip to the wall rectangle.
     targetCtx.beginPath();
     targetCtx.rect(rect.x, rect.y, rect.w, rect.h);
     targetCtx.clip();
 
-    // Mortar base.
     targetCtx.fillStyle = mortarColor;
     targetCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
 
-    // Stable world-anchored phase.
-    const mod = (a, m) => ((a % m) + m) % m;
     const phaseX = mod(worldX, pitchX);
     const phaseY = mod(worldY, pitchY);
 
@@ -979,49 +691,7 @@
     targetCtx.restore();
   }
 
-  function mulberry32(seed) {
-    // Deterministic RNG in [0,1).
-    let a = (seed >>> 0) || 0;
-    return function() {
-      a |= 0;
-      a = (a + 0x6D2B79F5) | 0;
-      let t = Math.imul(a ^ (a >>> 15), 1 | a);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-
-  function hashStringToSeed(s) {
-    // FNV-1a-ish 32-bit hash.
-    const str = String(s || '');
-    let h = 2166136261 >>> 0;
-    for (let i = 0; i < str.length; i++) {
-      h ^= str.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return h >>> 0;
-  }
-
-  function hexToRgbStrict(hex, fallback = { r: 193, g: 146, b: 86 }) {
-    const m = String(hex).trim().match(/^#?([0-9a-fA-F]{6})$/);
-    if (!m) return fallback;
-    const n = parseInt(m[1], 16);
-    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-  }
-
-  function shadeRgba(hex, amt, alpha) {
-    const rgb = hexToRgbStrict(hex);
-    const clamp = (v) => Math.max(0, Math.min(255, v));
-    const r = clamp(Math.round(rgb.r + 255 * amt));
-    const g = clamp(Math.round(rgb.g + 255 * amt));
-    const b = clamp(Math.round(rgb.b + 255 * amt));
-    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
-  }
-
   function fillCobbleRectScreenOn(targetCtx, rect, opts) {
-    // Procedural cobblestone: chunky, slightly irregular stones with light mortar.
-    // Anchored in WORLD space so the pattern doesn't swim while panning.
-
     const base = (opts && opts.baseHex) ? opts.baseHex : COLORS.floorCobbleBase;
     const alpha = (opts && Number.isFinite(opts.alpha)) ? opts.alpha : 1.0;
     const worldX = (opts && Number.isFinite(opts.worldX)) ? opts.worldX : 0;
@@ -1033,24 +703,19 @@
     const gap = (opts && Number.isFinite(opts.gap)) ? opts.gap : 0.8;
 
     const pitch = stoneMax + gap;
-    const mod = (a, m) => ((a % m) + m) % m;
 
-    // Mortar + stones palettes.
     const mortar = shadeRgba(base, +0.28, alpha);
     const edge = 'rgba(0,0,0,0.10)';
 
     targetCtx.save();
 
-    // Clip.
     targetCtx.beginPath();
     targetCtx.rect(rect.x, rect.y, rect.w, rect.h);
     targetCtx.clip();
 
-    // Mortar base.
     targetCtx.fillStyle = mortar;
     targetCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
 
-    // Stable world phase.
     const phaseX = mod(worldX, pitch);
     const phaseY = mod(worldY, pitch);
 
@@ -1076,12 +741,11 @@
 
         const ox = (rnd() - 0.5) * (gap * 1.6);
         const oy = (rnd() - 0.5) * (gap * 1.6);
-        const rot = (rnd() - 0.5) * 0.25; // subtle
+        const rot = (rnd() - 0.5) * 0.25;
 
         const x = cellX + (pitch / 2) + ox;
         const y = cellY + (pitch / 2) + oy;
 
-        // Brighten stones so they sit closer to the mortar tone.
         const shadeAmt = +0.20 + (rnd() - 0.5) * 0.06;
         const fill = shadeRgba(base, shadeAmt, alpha);
 
@@ -1096,7 +760,6 @@
         targetCtx.fill();
         targetCtx.stroke();
 
-        // Tiny highlight for depth (very subtle).
         targetCtx.strokeStyle = 'rgba(255,255,255,0.06)';
         targetCtx.beginPath();
         targetCtx.moveTo(-w / 2 + rr, -h / 2 + 1);
@@ -1113,9 +776,6 @@
   }
 
   function fillWoodPlanksRectScreenOn(targetCtx, rect, opts) {
-    // Procedural E/W floor boards (planks run along +X), clipped to the room.
-    // Anchored in WORLD space so seams/joints don't "swim" when panning.
-
     const base = (opts && opts.baseHex) ? opts.baseHex : '#c19256';
     const alpha = (opts && Number.isFinite(opts.alpha)) ? opts.alpha : 1.0;
     const worldX = (opts && Number.isFinite(opts.worldX)) ? opts.worldX : 0;
@@ -1123,7 +783,6 @@
     const seed = (opts && Number.isFinite(opts.seed)) ? opts.seed : 12345;
     const variant = (opts && Number.isFinite(opts.variant)) ? opts.variant : 3;
 
-    // Variant #3: rustic but subdued.
     const contrast = 0.04;
     const seamAlpha = 0.06;
     const grainAlpha = 0.04;
@@ -1137,7 +796,6 @@
     const maxL = (opts && Number.isFinite(opts.maxL)) ? opts.maxL : 240;
 
     const pitchY = plankH + gapY;
-    const mod = (a, m) => ((a % m) + m) % m;
 
     const phaseY = mod(worldY, pitchY);
     const startY = rect.y - (phaseY + pitchY);
@@ -1260,34 +918,48 @@
 
   function fillStairsWoodRectScreenOn(targetCtx, rect, opts) {
     // Procedural top-down stairs "going down".
-    // Style: tapered run — treads get smaller toward the down end (matches the reference sketch).
-    // Supports N/S/E/W.
-    //
-    // Fix (v4.71): center each tread on a diagonal centerline so BOTH the top and bottom edges cascade.
+    // Treads along the run axis; tread cross-size shrinks toward the down end.
+    //  - symmetric taper around the midline
+    //  - end landing pad (default 25px)
+    //  - WORLD-anchored phase on run axis so it doesn’t “swim” while panning
 
     const base = (opts && opts.baseHex) ? opts.baseHex : COLORS.floorWoodBase;
     const alpha = (opts && Number.isFinite(opts.alpha)) ? opts.alpha : 1.0;
+
     const worldX = (opts && Number.isFinite(opts.worldX)) ? opts.worldX : 0;
     const worldY = (opts && Number.isFinite(opts.worldY)) ? opts.worldY : 0;
-    const seed = (opts && Number.isFinite(opts.seed)) ? opts.seed : 24680;
 
     let down = (opts && opts.down) ? String(opts.down).toUpperCase() : 'S';
     if (!['N','S','E','W'].includes(down)) down = 'S';
 
+    // Back-compat param names.
+    const tread = Number.isFinite(opts && opts.tread) ? opts.tread
+      : Number.isFinite(opts && opts.treadDepth) ? opts.treadDepth
+      : 10;
+
+    const gap = Number.isFinite(opts && opts.gap) ? opts.gap
+      : Number.isFinite(opts && opts.treadGap) ? opts.treadGap
+      : 2;
+
+    const pitch = tread + gap;
+
+    const minFactor = Number.isFinite(opts && opts.minFactor) ? opts.minFactor : 0.26;
+    const maxFactor = Number.isFinite(opts && opts.maxFactor) ? opts.maxFactor : 1.00;
+
+    const endPadRaw = Number.isFinite(opts && opts.endPad) ? opts.endPad : 25;
+
     const axis = (down === 'E' || down === 'W') ? 'x' : 'y';
-    const descendPositive = (down === 'S' || down === 'E');
+    const runLen = (axis === 'x') ? rect.w : rect.h;
+    const crossSpan = (axis === 'x') ? rect.h : rect.w;
 
-    const treadDepth = (opts && Number.isFinite(opts.treadDepth)) ? opts.treadDepth : 10;
-    const treadGap = (opts && Number.isFinite(opts.treadGap)) ? opts.treadGap : 1.2;
-    const pitch = treadDepth + treadGap;
+    const endPad = clamp(endPadRaw, 0, Math.max(0, (runLen / 2) - 1));
 
-    const minFactor = (opts && Number.isFinite(opts.minFactor)) ? opts.minFactor : 0.26;
-    const maxFactor = (opts && Number.isFinite(opts.maxFactor)) ? opts.maxFactor : 1.00;
+    const runStart = (axis === 'x' ? rect.x : rect.y) + endPad;
+    const runEnd   = (axis === 'x' ? (rect.x + rect.w) : (rect.y + rect.h)) - endPad;
+    const runLenEff = Math.max(1, runEnd - runStart);
 
-    // How much the run "leans" across the cross-axis.
-    const shiftScale = (opts && Number.isFinite(opts.shiftScale)) ? opts.shiftScale : 0.22;
-
-    const mod = (a, m) => ((a % m) + m) % m;
+    // 0 at UP end, 1 at DOWN end.
+    const tDownFromU = (u) => (down === 'E' || down === 'S') ? u : (1 - u);
 
     targetCtx.save();
 
@@ -1295,218 +967,411 @@
     targetCtx.rect(rect.x, rect.y, rect.w, rect.h);
     targetCtx.clip();
 
-    // Base tone.
     targetCtx.fillStyle = shadeRgba(base, -0.015, alpha);
     targetCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
 
-    // Outline.
-    targetCtx.strokeStyle = 'rgba(0,0,0,0.22)';
+    targetCtx.strokeStyle = 'rgba(0,0,0,0.18)';
     targetCtx.lineWidth = 1;
     targetCtx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.w - 1, rect.h - 1);
 
-    const phase = mod((axis === 'y') ? worldY : worldX, pitch);
-    const rnd = mulberry32(seed ^ 0xA5A5A5A5);
+    const phase = mod((axis === 'x') ? worldX : worldY, pitch);
+    const start = runStart - (phase + pitch);
 
-    const start = (axis === 'y')
-      ? (rect.y - (phase + pitch))
-      : (rect.x - (phase + pitch));
+    const steps = Math.max(1, Math.ceil((runLenEff + pitch * 2) / pitch));
 
-    const span = (axis === 'y') ? rect.h : rect.w;
-    const steps = Math.ceil((span + pitch * 2) / pitch);
+    const stroke = (opts && opts.stroke != null) ? String(opts.stroke) : 'rgba(0,0,0,0.55)';
+    const lineWidth = Number.isFinite(opts && opts.lineWidth) ? opts.lineWidth : 1;
 
-    const crossSpan = (axis === 'y') ? rect.w : rect.h;
-    const maxShift = crossSpan * shiftScale;
+    targetCtx.lineWidth = lineWidth;
 
     for (let i = 0; i < steps; i++) {
       const pos = start + i * pitch;
 
-      const mid = pos + treadDepth / 2;
-      const uMid = (mid - ((axis === 'y') ? rect.y : rect.x)) / Math.max(1, span);
-      const u = Math.max(0, Math.min(1, uMid));
+      // Enforce end landing pad.
+      if (pos < runStart) continue;
+      if ((pos + tread) > runEnd) continue;
 
-      // t = 0 at UP end, 1 at DOWN end.
-      const t = descendPositive ? u : (1 - u);
+      const treadCenter = pos + tread / 2;
+      const u = clamp((treadCenter - runStart) / runLenEff, 0, 1);
+      const tDown = tDownFromU(u);
 
-      // Smaller toward the down end.
-      const factor = minFactor + (maxFactor - minFactor) * (1 - t);
-      const crossLen = Math.max(3, Math.min(crossSpan, crossSpan * factor));
+      const factor = maxFactor + (minFactor - maxFactor) * tDown;
+      const crossSize = clamp(crossSpan * factor, 2, crossSpan);
 
-      // Diagonal cascade: 0 at DOWN end, max at UP end, centered about 0.
-      const diagShift = (1 - t) * maxShift;
-      const centerShift = diagShift - (maxShift / 2);
-
-      const depthShade = -0.02 - t * 0.06;
-      const v = (rnd() - 0.5) * 0.02;
-
-      let cx1, cy1, cw, ch;
-
-      if (axis === 'y') {
-        const cx = rect.x + (rect.w / 2) + centerShift;
-        cx1 = cx - (crossLen / 2);
-        cy1 = pos;
-        cw = crossLen;
-        ch = treadDepth;
+      let x, y, w, h;
+      if (axis === 'x') {
+        x = pos;
+        y = rect.y + (rect.h - crossSize) / 2;
+        w = tread;
+        h = crossSize;
       } else {
-        const cy = rect.y + (rect.h / 2) + centerShift;
-        cx1 = pos;
-        cy1 = cy - (crossLen / 2);
-        cw = treadDepth;
-        ch = crossLen;
+        x = rect.x + (rect.w - crossSize) / 2;
+        y = pos;
+        w = crossSize;
+        h = tread;
       }
 
-      targetCtx.fillStyle = shadeRgba(base, 0.02 + v + depthShade, alpha);
-      targetCtx.fillRect(cx1, cy1, cw, ch);
+      const shadeAmt = 0.02 - tDown * 0.08;
+      targetCtx.fillStyle = shadeRgba(base, shadeAmt, alpha);
+      targetCtx.fillRect(x, y, w, h);
 
-      // Riser/shadow.
-      targetCtx.fillStyle = 'rgba(0,0,0,0.16)';
-      if (axis === 'y') targetCtx.fillRect(cx1, cy1 + treadDepth, cw, treadGap);
-      else targetCtx.fillRect(cx1 + treadDepth, cy1, treadGap, ch);
+      if (gap > 0.2) {
+        targetCtx.fillStyle = 'rgba(0,0,0,0.14)';
+        if (axis === 'x') targetCtx.fillRect(x + w, y, Math.min(gap, 3), h);
+        else targetCtx.fillRect(x, y + h, w, Math.min(gap, 3));
+      }
 
-      // Highlight.
+      targetCtx.strokeStyle = stroke;
+      targetCtx.strokeRect(x + 0.5, y + 0.5, Math.max(0, w - 1), Math.max(0, h - 1));
+
       targetCtx.fillStyle = 'rgba(255,255,255,0.06)';
-      if (axis === 'y') targetCtx.fillRect(cx1, cy1 + 1, cw, 1);
-      else targetCtx.fillRect(cx1 + 1, cy1, 1, ch);
-
-      if (rnd() < 0.10) {
-        targetCtx.strokeStyle = 'rgba(255,255,255,0.08)';
-        targetCtx.lineWidth = 1;
-
-        if (axis === 'y') {
-          const sx = cx1 + rnd() * cw;
-          const sy = cy1 + 2 + rnd() * Math.max(1, treadDepth - 4);
-          const sl = 10 + rnd() * 22;
-          targetCtx.beginPath();
-          targetCtx.moveTo(sx, sy);
-          targetCtx.lineTo(sx + sl, sy + (rnd() - 0.5) * 1.2);
-          targetCtx.stroke();
-        } else {
-          const sx = cx1 + 2 + rnd() * Math.max(1, treadDepth - 4);
-          const sy = cy1 + rnd() * ch;
-          const sl = 10 + rnd() * 22;
-          targetCtx.beginPath();
-          targetCtx.moveTo(sx, sy);
-          targetCtx.lineTo(sx + (rnd() - 0.5) * 1.2, sy + sl);
-          targetCtx.stroke();
-        }
-      }
-    }
-
-    // Edge shadow.
-    targetCtx.fillStyle = 'rgba(0,0,0,0.10)';
-    if (axis === 'y') {
-      targetCtx.fillRect(rect.x, rect.y, 3, rect.h);
-      targetCtx.fillRect(rect.x + rect.w - 3, rect.y, 3, rect.h);
-    } else {
-      targetCtx.fillRect(rect.x, rect.y, rect.w, 3);
-      targetCtx.fillRect(rect.x, rect.y + rect.h - 3, rect.w, 3);
+      if (axis === 'x') targetCtx.fillRect(x + 1, y + 1, Math.max(0, w - 2), 1);
+      else targetCtx.fillRect(x + 1, y + 1, 1, Math.max(0, h - 2));
     }
 
     targetCtx.restore();
   }
 
   function roomFloorRectWorld(room, box) {
-    // If the room has walls, floors paint to the INNER rectangle; otherwise use the OUTER rectangle.
     const hasWalls = roomHasWalls(room);
     const src = hasWalls ? box.inner : box.outer;
     return { x1: src.x1, y1: src.y1, x2: src.x2, y2: src.y2 };
   }
 
-  function roomBoundsContainsHex(room, hex) {
-    const b = cornersToBounds(room.corners);
-    const p = parseHexId(hex);
-    return p.col >= b.minCol && p.col <= b.maxCol && p.row >= b.minRow && p.row <= b.maxRow;
+  // ===== Fog of War (room-based) =====
+  function normalizeFog(state) {
+    const raw = (state && typeof state.fog === 'object' && state.fog) ? state.fog : null;
+
+    const enabled = !!(raw && raw.enabled);
+    const mode = raw && raw.mode ? String(raw.mode) : 'room';
+
+    const maxDepth = Number.isFinite(raw && raw.maxDepth) ? Number(raw.maxDepth) : 1;
+    const autoCompute = (raw && raw.autoCompute === false) ? false : true;
+    const autoExplore = (raw && raw.autoExplore === false) ? false : true;
+
+    const unseenAlpha = Number.isFinite(raw && raw.unseenAlpha) ? Number(raw.unseenAlpha) : 0.92;
+    const exploredAlpha = Number.isFinite(raw && raw.exploredAlpha) ? Number(raw.exploredAlpha) : 0.55;
+
+    const visibleRoomIds = Array.isArray(raw && raw.visibleRoomIds) ? raw.visibleRoomIds.map(x => String(x)) : [];
+    const exploredRoomIds = Array.isArray(raw && raw.exploredRoomIds) ? raw.exploredRoomIds.map(x => String(x)) : [];
+
+    return { enabled, mode, maxDepth, autoCompute, autoExplore, unseenAlpha, exploredAlpha, visibleRoomIds, exploredRoomIds, raw };
   }
 
-  function pickFloorOwnerRoomForOpening(rooms, openingHex) {
-    const candidates = rooms
-      .filter(r => r && r.floor && r.floor.kind && r.floor.kind !== 'none')
-      .filter(r => {
-        try { return roomBoundsContainsHex(r, openingHex); } catch { return false; }
-      })
-      .sort((a, b) => {
-        const aw = roomHasWalls(a) ? 1 : 0;
-        const bw = roomHasWalls(b) ? 1 : 0;
-        return aw - bw;
-      });
-
-    return candidates[0] || null;
+  function roomAreaFromBounds(b) {
+    return (b.maxCol - b.minCol + 1) * (b.maxRow - b.minRow + 1);
   }
 
-  function paintDoorUnderlay(opening, rooms, wallSegs) {
-    const kind = String(opening.kind || 'door').toLowerCase();
-    if (kind !== 'door') return;
+  function buildRoomMeta(rooms) {
+    const meta = [];
+    for (const r of rooms) {
+      if (!r || !r.id || !Array.isArray(r.corners)) continue;
+      try {
+        const b = cornersToBounds(r.corners);
+        meta.push({
+          id: String(r.id),
+          room: r,
+          bounds: b,
+          area: roomAreaFromBounds(b),
+          hasWalls: roomHasWalls(r),
+        });
+      } catch {
+        // ignore malformed rooms
+      }
+    }
+    return meta;
+  }
 
-    const orient = openingOrientation(opening);
-    const p = parseHexId(opening.hex);
+  function pickMostSpecificRoomIdAt(roomMeta, col, row) {
+    let best = null;
+    let bestArea = Infinity;
+    let bestWallRank = Infinity;
 
-    const hexWorld = hexCenterWorld(p.col, p.row);
-    const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
+    for (const m of roomMeta) {
+      const b = m.bounds;
+      if (col < b.minCol || col > b.maxCol || row < b.minRow || row > b.maxRow) continue;
 
-    const w = GRID.size * 1.2;
-    let cx = hexWorld.x;
-    let cy = hexWorld.y;
-    let thickness = 28;
-
-    if (seg) {
-      thickness = seg.thickness;
-      if (orient === 'h') cy = seg.y;
-      else cx = seg.x;
+      const wallRank = m.hasWalls ? 0 : 1;
+      if (m.area < bestArea || (m.area === bestArea && wallRank < bestWallRank)) {
+        best = m.id;
+        bestArea = m.area;
+        bestWallRank = wallRank;
+      }
     }
 
-    const centerS = worldToScreen({ x: cx, y: cy });
+    return best;
+  }
 
-    const cutH = thickness + 3;
-    const cutW = w + 2;
-
-    const rect = (orient === 'h')
-      ? { x: centerS.x - cutW / 2, y: centerS.y - cutH / 2, w: cutW, h: cutH }
-      : { x: centerS.x - cutH / 2, y: centerS.y - cutW / 2, w: cutH, h: cutW };
-
-    const owner = pickFloorOwnerRoomForOpening(rooms, opening.hex);
-    const floorKind = owner && owner.floor && owner.floor.kind ? owner.floor.kind : 'wood';
-
-    if (floorKind === 'stone') {
-      ctx.fillStyle = COLORS.floorStone;
-      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-      return;
+  function pickMostSpecificRoomIdForHex(roomMeta, hex) {
+    try {
+      const p = parseHexId(hex);
+      return pickMostSpecificRoomIdAt(roomMeta, p.col, p.row);
+    } catch {
+      return null;
     }
+  }
 
-    if (floorKind === 'none') {
-      ctx.fillStyle = '#f7f1e6';
-      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-      return;
-    }
+  function isPlayerToken(t) {
+    const side = String(t && t.side ? t.side : '').toUpperCase();
+    return side === 'PC' || side === 'PLAYER';
+  }
 
-    let worldX = cx;
-    let worldY = cy;
-    let seed = hashStringToSeed(opening.id || opening.hex);
-
-    if (owner) {
-      const box = roomToWallBox(owner);
-      const f = roomFloorRectWorld(owner, box);
-      worldX = f.x1;
-      worldY = f.y1;
-      seed = hashStringToSeed(owner.id || JSON.stringify(owner.corners || []));
-    }
-
-    fillWoodPlanksRectScreenOn(ctx, rect, {
-      baseHex: COLORS.floorWoodBase,
-      alpha: 1.0,
-      worldX,
-      worldY,
-      seed,
-      variant: 3,
-      plankH: 18,
-      gapY: 2,
-      gapX: 2,
+  function getPlayerTokens(state) {
+    const tokens = Array.isArray(state.tokens) ? state.tokens : [];
+    return tokens.filter(t => {
+      const side = String(t.side || '').toUpperCase();
+      return side === 'PC' || side === 'PLAYER';
     });
   }
 
-  // Floors only.
-  function drawRoom(room) {
+  function openingOrientation(o) {
+    if (o && (o.orientation === 'h' || o.orientation === 'v')) return o.orientation;
+    const rot = Number((o && o.rot) ? o.rot : 0) % 180;
+    return (rot === 90) ? 'h' : 'v';
+  }
+
+  function normalizeDoorParams(opening, orient) {
+    let state = String(opening && opening.state ? opening.state : '').toLowerCase();
+    if (!state) {
+      if (opening && opening.open === true) state = 'open';
+      else if (opening && opening.open === false) state = 'closed';
+      else state = 'closed';
+    }
+    if (state !== 'open' && state !== 'closed' && state !== 'ajar') state = 'closed';
+
+    const isV = orient === 'v';
+
+    const validOpensTo = isV ? new Set(['E', 'W']) : new Set(['N', 'S']);
+    const validHinge = isV ? new Set(['N', 'S']) : new Set(['W', 'E']);
+
+    let opensTo = String(opening && opening.opensTo ? opening.opensTo : '').toUpperCase();
+    if (!validOpensTo.has(opensTo)) opensTo = isV ? 'E' : 'N';
+
+    let hingeEnd = String(opening && opening.hingeEnd ? opening.hingeEnd : '').toUpperCase();
+    if (!validHinge.has(hingeEnd)) hingeEnd = isV ? 'N' : 'W';
+
+    let openPct = Number(opening && (opening.openPct ?? opening.openPercent ?? opening.openAmount));
+    if (!Number.isFinite(openPct)) {
+      openPct = (state === 'open') ? 1 : (state === 'ajar') ? 0.5 : 0;
+    }
+    openPct = clamp(openPct, 0, 1);
+
+    return { state, opensTo, hingeEnd, openPct };
+  }
+
+  function normalizeWindowParams(opening, orient) {
+    let state = String(opening && opening.state ? opening.state : '').toLowerCase();
+    if (!state) {
+      if (opening && opening.open === true) state = 'open';
+      else if (opening && opening.open === false) state = 'closed';
+      else state = 'closed';
+    }
+    if (state !== 'open' && state !== 'closed' && state !== 'ajar') state = 'closed';
+
+    const isV = orient === 'v';
+    const validOpensTo = isV ? new Set(['E', 'W']) : new Set(['N', 'S']);
+
+    let opensTo = String(opening && opening.opensTo ? opening.opensTo : '').toUpperCase();
+    if (!validOpensTo.has(opensTo)) opensTo = isV ? 'W' : 'S';
+
+    let openPct = Number(opening && (opening.openPct ?? opening.openPercent ?? opening.openAmount));
+    if (!Number.isFinite(openPct)) {
+      openPct = (state === 'open') ? 1 : (state === 'ajar') ? 0.5 : 0;
+    }
+    openPct = clamp(openPct, 0, 1);
+
+    return { state, opensTo, openPct };
+  }
+
+  function openingIsSeeThrough(opening) {
+    const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
+    const orient = openingOrientation(opening);
+
+    if (kind === 'threshold' || kind === 'portal' || kind === 'connector') return true;
+
+    if (kind === 'door') {
+      const d = normalizeDoorParams(opening, orient);
+      return d.openPct > 0.05;
+    }
+
+    if (kind === 'window') {
+      const w = normalizeWindowParams(opening, orient);
+      return w.openPct > 0.05;
+    }
+
+    return false;
+  }
+
+  function openingTouchingRoomIds(opening, roomMeta) {
+    if (!opening || !opening.hex) return { a: null, b: null };
+    let p;
+    try { p = parseHexId(opening.hex); } catch { return { a: null, b: null }; }
+
+    const orient = openingOrientation(opening);
+
+    let a = null;
+    let b = null;
+    if (orient === 'v') {
+      a = pickMostSpecificRoomIdAt(roomMeta, p.col - 1, p.row);
+      b = pickMostSpecificRoomIdAt(roomMeta, p.col + 1, p.row);
+    } else {
+      a = pickMostSpecificRoomIdAt(roomMeta, p.col, p.row + 1);
+      b = pickMostSpecificRoomIdAt(roomMeta, p.col, p.row - 1);
+    }
+
+    return { a, b };
+  }
+
+  function isRenderableOpening(opening, roomMeta, renderableRoomIds) {
+    const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
+
+    if (kind === 'portal' || kind === 'connector') return false;
+
+    const { a, b } = openingTouchingRoomIds(opening, roomMeta);
+    return (a && renderableRoomIds.has(a)) || (b && renderableRoomIds.has(b));
+  }
+
+  function buildAdjacency(roomMeta, openings) {
+    const neighbors = new Map();
+
+    const ensure = (id) => {
+      if (!neighbors.has(id)) neighbors.set(id, new Set());
+      return neighbors.get(id);
+    };
+
+    const addEdge = (a, b) => {
+      if (!a || !b || a === b) return;
+      ensure(a).add(b);
+      ensure(b).add(a);
+    };
+
+    for (const m of roomMeta) ensure(m.id);
+
+    // Connect through see-through openings.
+    for (const o of openings) {
+      if (!o || !o.hex) continue;
+      if (!openingIsSeeThrough(o)) continue;
+
+      let p;
+      try { p = parseHexId(o.hex); } catch { continue; }
+      const orient = openingOrientation(o);
+
+      let a = null;
+      let b = null;
+      if (orient === 'v') {
+        a = pickMostSpecificRoomIdAt(roomMeta, p.col - 1, p.row);
+        b = pickMostSpecificRoomIdAt(roomMeta, p.col + 1, p.row);
+      } else {
+        a = pickMostSpecificRoomIdAt(roomMeta, p.col, p.row + 1);
+        b = pickMostSpecificRoomIdAt(roomMeta, p.col, p.row - 1);
+      }
+
+      addEdge(a, b);
+    }
+
+    return neighbors;
+  }
+
+  function computeRenderFog(state, rooms, openings) {
+    const fog = normalizeFog(state);
+    const roomMeta = buildRoomMeta(rooms);
+
+    if (!fog.enabled || String(fog.mode).toLowerCase() !== 'room') {
+      return {
+        enabled: false,
+        visible: new Set(),
+        explored: new Set(),
+        unseenAlpha: fog.unseenAlpha,
+        exploredAlpha: fog.exploredAlpha,
+      };
+    }
+
+    let visible = new Set();
+
+    if (!fog.autoCompute && fog.visibleRoomIds.length) {
+      visible = new Set(fog.visibleRoomIds);
+    } else {
+      const players = getPlayerTokens(state);
+      const q = [];
+      const seed = new Set();
+
+      for (const t of players) {
+        const rid = pickMostSpecificRoomIdForHex(roomMeta, t.hex);
+        if (rid) seed.add(rid);
+      }
+
+      for (const rid of seed) {
+        visible.add(rid);
+        q.push({ id: rid, depth: 0 });
+      }
+
+      const neighbors = buildAdjacency(roomMeta, openings);
+      const maxDepth = fog.maxDepth;
+
+      while (q.length) {
+        const cur = q.shift();
+        if (!cur) break;
+        if (cur.depth >= maxDepth) continue;
+
+        const nbs = neighbors.get(cur.id);
+        if (!nbs) continue;
+
+        for (const nb of nbs) {
+          if (!visible.has(nb)) {
+            visible.add(nb);
+            q.push({ id: nb, depth: cur.depth + 1 });
+          }
+        }
+      }
+
+      if (fog.raw) fog.raw.visibleRoomIds = Array.from(visible).sort();
+    }
+
+    const explored = new Set(fog.exploredRoomIds);
+    if (fog.autoExplore) {
+      for (const rid of visible) explored.add(rid);
+      if (fog.raw) fog.raw.exploredRoomIds = Array.from(explored).sort();
+    }
+
+    return { enabled: true, visible, explored, unseenAlpha: fog.unseenAlpha, exploredAlpha: fog.exploredAlpha };
+  }
+
+  function shouldDrawToken(t, rooms) {
+    if (!RENDER_FOG || !RENDER_FOG.enabled) return true;
+    if (isPlayerToken(t)) return true;
+
+    const rid = pickMostSpecificRoomIdForHex(buildRoomMeta(rooms), t.hex);
+    if (!rid) return true;
+
+    return RENDER_FOG.visible.has(rid);
+  }
+
+  // ===== Floors / Rooms =====
+  function isFogFloorRoom(room) {
+    const k = room && room.floor && room.floor.kind ? String(room.floor.kind).toLowerCase() : '';
+    return k === 'fog';
+  }
+
+  function drawFloorsLayered(roomsToDraw) {
+    const fogRooms = [];
+    const otherRooms = [];
+
+    for (const r of (Array.isArray(roomsToDraw) ? roomsToDraw : [])) {
+      (isFogFloorRoom(r) ? fogRooms : otherRooms).push(r);
+    }
+
+    for (const r of fogRooms) drawRoomFloor(r);
+    for (const r of otherRooms) drawRoomFloor(r);
+  }
+
+  function drawRoomFloor(room) {
     const box = roomToWallBox(room);
 
-    const floorKind = (room.floor && room.floor.kind) ? room.floor.kind : 'stone';
+    const rawFloorKind = (room.floor && room.floor.kind) ? room.floor.kind : 'stone';
+    const floorKind = (RENDER_OVERRIDES.floorKind && String(RENDER_OVERRIDES.floorKind).length)
+      ? RENDER_OVERRIDES.floorKind
+      : rawFloorKind;
+
     if (floorKind === 'none') return;
 
     const f = roomFloorRectWorld(room, box);
@@ -1516,8 +1381,9 @@
 
     const rect = { x: f1.x, y: f1.y, w: (f2.x - f1.x), h: (f2.y - f1.y) };
 
-    // Explicit fog floor kind (used as a base layer).
+    // Fog-floor rooms are a base layer for Fog of War. If fog is OFF, skip them.
     if (String(floorKind).toLowerCase() === 'fog') {
+      if (!(RENDER_FOG && RENDER_FOG.enabled)) return;
       ctx.fillStyle = COLORS.fogUnseen;
       ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
       return;
@@ -1573,7 +1439,7 @@
     ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
   }
 
-  // Walls (brick ring) to targetCtx (offscreen layer).
+  // ===== Walls =====
   function drawRoomWalls(targetCtx, room) {
     if (!roomHasWalls(room)) return;
     const box = roomToWallBox(room);
@@ -1590,13 +1456,7 @@
     fillBrickRectScreenOn(targetCtx, { x: o2.x - t, y: o1.y + t, w: t, h: (o2.y - o1.y) - 2 * t }, wallColor, box.outer.x2 - t, box.outer.y1 + t);
   }
 
-  // ===== Openings =====
-  function openingOrientation(o) {
-    if (o && (o.orientation === 'h' || o.orientation === 'v')) return o.orientation;
-    const rot = Number((o && o.rot) ? o.rot : 0) % 180;
-    return (rot === 90) ? 'h' : 'v';
-  }
-
+  // ===== Openings: placement helpers =====
   function findNearestWallSegment(segs, orient, worldPoint) {
     let best = null;
     let bestD = Infinity;
@@ -1617,69 +1477,10 @@
     return best;
   }
 
-  function normalizeDoorParams(opening, orient) {
-    let state = String(opening && opening.state ? opening.state : '').toLowerCase();
-    if (!state) {
-      if (opening && opening.open === true) state = 'open';
-      else if (opening && opening.open === false) state = 'closed';
-      else state = 'closed';
-    }
-    if (state !== 'open' && state !== 'closed' && state !== 'ajar') state = 'closed';
-
-    const isV = orient === 'v';
-
-    const validOpensTo = isV ? new Set(['E', 'W']) : new Set(['N', 'S']);
-    const validHinge = isV ? new Set(['N', 'S']) : new Set(['W', 'E']);
-
-    let opensTo = String(opening && opening.opensTo ? opening.opensTo : '').toUpperCase();
-    if (!validOpensTo.has(opensTo)) opensTo = isV ? 'E' : 'N';
-
-    let hingeEnd = String(opening && opening.hingeEnd ? opening.hingeEnd : '').toUpperCase();
-    if (!validHinge.has(hingeEnd)) hingeEnd = isV ? 'N' : 'W';
-
-    let openPct = Number(opening && (opening.openPct ?? opening.openPercent ?? opening.openAmount));
-    if (!Number.isFinite(openPct)) {
-      openPct = (state === 'open') ? 1 : (state === 'ajar') ? 0.5 : 0;
-    }
-    openPct = Math.max(0, Math.min(1, openPct));
-
-    return { state, opensTo, hingeEnd, openPct };
-  }
-
-  function normalizeWindowParams(opening, orient) {
-    let state = String(opening && opening.state ? opening.state : '').toLowerCase();
-    if (!state) {
-      if (opening && opening.open === true) state = 'open';
-      else if (opening && opening.open === false) state = 'closed';
-      else state = 'closed';
-    }
-    if (state !== 'open' && state !== 'closed' && state !== 'ajar') state = 'closed';
-
-    const isV = orient === 'v';
-    const validOpensTo = isV ? new Set(['E', 'W']) : new Set(['N', 'S']);
-
-    let opensTo = String(opening && opening.opensTo ? opening.opensTo : '').toUpperCase();
-    if (!validOpensTo.has(opensTo)) opensTo = isV ? 'W' : 'S';
-
-    let openPct = Number(opening && (opening.openPct ?? opening.openPercent ?? opening.openAmount));
-    if (!Number.isFinite(openPct)) {
-      openPct = (state === 'open') ? 1 : (state === 'ajar') ? 0.5 : 0;
-    }
-    openPct = Math.max(0, Math.min(1, openPct));
-
-    return { state, opensTo, openPct };
-  }
-
   function openingKnockoutSpan(opening) {
-    // Returns how many "segments" long the knockout should be along the wall.
-    // NOTE: thresholds can optionally specify `parent: 'RoomId'` to do a full-span wall knockout;
-    // in that case, span is ignored and we size from the parent room geometry.
     const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
     const orient = openingOrientation(opening);
-
-    // Fallback seam workaround for vertical thresholds (when no parent is provided).
     if (kind === 'threshold') return (orient === 'v') ? 1.5 : 1.0;
-
     return 1.0;
   }
 
@@ -1693,8 +1494,6 @@
   }
 
   function thresholdKnockoutFromParent(opening, rooms, wallSegs) {
-    // If opening has parent:'RoomId', compute a knockout that removes the ENTIRE wall span
-    // matching that parent room's INNER floor width/height on the correct edge.
     const parentId = opening && opening.parent ? String(opening.parent) : '';
     if (!parentId) return null;
 
@@ -1709,40 +1508,116 @@
 
     const box = roomToWallBox(room);
 
-    // Prefer thickness from nearest wall segment (so if you change wall thickness later,
-    // the knockout stays exact). Fallback to room.thickness.
     const seg = findNearestWallSegment(wallSegs || [], orient, hexWorld);
     const thickness = seg ? seg.thickness : Math.max(1, Number(room.thickness || 28));
 
-    // Small pad to guarantee brick/mortar pixels are fully cleared.
-    const padLen = 2;
-
     if (orient === 'v') {
-      // Pick left vs right edge by proximity.
       const dL = Math.abs(hexWorld.x - box.xL);
       const dR = Math.abs(hexWorld.x - box.xR);
       const cx = (dL <= dR) ? box.xL : box.xR;
 
-      // Span matches inner floor height.
       const cy = (box.inner.y1 + box.inner.y2) / 2;
-      const len = Math.max(6, (box.inner.y2 - box.inner.y1) + padLen * 2);
+      const len = Math.max(6, (box.inner.y2 - box.inner.y1));
 
       return { orient, cx, cy, len, thickness };
     }
 
     // orient === 'h'
-    {
-      // Pick top vs bottom edge by proximity.
-      const dT = Math.abs(hexWorld.y - box.yTop);
-      const dB = Math.abs(hexWorld.y - box.yBot);
-      const cy = (dT <= dB) ? box.yTop : box.yBot;
+    const dT = Math.abs(hexWorld.y - box.yTop);
+    const dB = Math.abs(hexWorld.y - box.yBot);
+    const cy = (dT <= dB) ? box.yTop : box.yBot;
 
-      // Span matches inner floor width.
-      const cx = (box.inner.x1 + box.inner.x2) / 2;
-      const len = Math.max(6, (box.inner.x2 - box.inner.x1) + padLen * 2);
+    const cx = (box.inner.x1 + box.inner.x2) / 2;
+    const len = Math.max(6, (box.inner.x2 - box.inner.x1));
 
-      return { orient, cx, cy, len, thickness };
+    return { orient, cx, cy, len, thickness };
+  }
+
+  function paintThresholdUnderlay(opening, rooms, wallSegs) {
+    const kind = String(opening && opening.kind ? opening.kind : '').toLowerCase();
+    if (kind !== 'threshold') return;
+
+    const parentId = opening && opening.parent ? String(opening.parent) : '';
+    if (!parentId) return;
+
+    const parentRoom = findRoomById(rooms, parentId);
+    if (!parentRoom) return;
+
+    const spec = thresholdKnockoutFromParent(opening, rooms, wallSegs);
+    if (!spec) return;
+
+    const orient = openingOrientation(opening);
+    const centerS = worldToScreen({ x: spec.cx, y: spec.cy });
+
+    // Must match the knockout rect in cutOpeningHole() so the revealed span reads as continuous floor.
+    const cutH = spec.thickness + 6; // pad across thickness only
+    const cutW = spec.len;           // no end-padding
+
+    const rect = (orient === 'h')
+      ? { x: centerS.x - cutW / 2, y: centerS.y - cutH / 2, w: cutW, h: cutH }
+      : { x: centerS.x - cutH / 2, y: centerS.y - cutW / 2, w: cutH, h: cutW };
+
+    const floorKind = (parentRoom.floor && parentRoom.floor.kind) ? String(parentRoom.floor.kind).toLowerCase() : 'wood';
+
+    // Use the parent room’s floor anchoring so patterns line up with the hallway.
+    const box = roomToWallBox(parentRoom);
+    const f = roomFloorRectWorld(parentRoom, box);
+    const worldX = f.x1;
+    const worldY = f.y1;
+    const seed = hashStringToSeed(parentRoom.id || JSON.stringify(parentRoom.corners || []));
+
+    if (floorKind === 'stone') {
+      ctx.fillStyle = COLORS.floorStone;
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      return;
     }
+
+    if (floorKind === 'cobble') {
+      fillCobbleRectScreenOn(ctx, rect, {
+        baseHex: COLORS.floorCobbleBase,
+        alpha: 1.0,
+        worldX,
+        worldY,
+        seed,
+        stoneMin: 4,
+        stoneMax: 7,
+        gap: 0.8,
+      });
+      return;
+    }
+
+    if (floorKind === 'stairs.wood') {
+      fillStairsWoodRectScreenOn(ctx, rect, {
+        baseHex: COLORS.floorWoodBase,
+        alpha: 1.0,
+        worldX,
+        worldY,
+        seed,
+        down: parentRoom.stairsDown || 'S',
+        treadDepth: 10,
+        treadGap: 1.2,
+      });
+      return;
+    }
+
+    if (floorKind === 'none') {
+      ctx.fillStyle = '#f7f1e6';
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      return;
+    }
+
+    // Default: wood
+    fillWoodPlanksRectScreenOn(ctx, rect, {
+      baseHex: COLORS.floorWoodBase,
+      alpha: 1.0,
+      worldX,
+      worldY,
+      seed,
+      variant: 3,
+      plankH: 18,
+      gapY: 2,
+      gapX: 2,
+    });
   }
 
   function cutOpeningHole(targetCtx, opening, wallSegs, roomsForSizing) {
@@ -1760,8 +1635,8 @@
       if (spec) {
         const centerS = worldToScreen({ x: spec.cx, y: spec.cy });
 
-        const cutH = spec.thickness + 4;
-        const cutW = spec.len + 2;
+        const cutH = spec.thickness + 6;
+        const cutW = spec.len;
 
         targetCtx.save();
         targetCtx.translate(centerS.x, centerS.y);
@@ -1778,11 +1653,10 @@
 
     const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
 
-    // Base opening length (doors/windows/thresholds start from this).
     const baseLen = (GRID.size * 1.2);
-
     const span = openingKnockoutSpan(opening);
     const w = baseLen * span;
+
     let cx = hexWorld.x;
     let cy = hexWorld.y;
     let thickness = 28;
@@ -1798,21 +1672,16 @@
     const cutH = thickness + 3;
     const cutW = w + 2;
 
-    // IMPORTANT:
-    // For vertical thresholds we use span=1.5 to clear the "half-hex" seam caused by our
-    // corner/phase conventions — but we want the extra 0.5 to extend SOUTH (down-screen),
-    // not split evenly north/south. We do that by biasing the local (along-wall) axis by
-    // half of the extra length.
+    // For vertical thresholds: extend extra SOUTH (down-screen), not split north/south.
     let alongWallBias = 0;
     if (kind === 'threshold' && orient === 'v' && span > 1) {
-      alongWallBias = ((span - 1) * baseLen) / 2; // for 1.5 => 0.25 * baseLen
+      alongWallBias = ((span - 1) * baseLen) / 2;
     }
 
     targetCtx.save();
     targetCtx.translate(centerS.x, centerS.y);
     if (orient === 'v') {
       targetCtx.rotate(Math.PI / 2);
-      // After rotation, local +X maps to +screenY (south), which is exactly what we want.
       if (alongWallBias) targetCtx.translate(alongWallBias, 0);
     }
 
@@ -2061,7 +1930,7 @@
     ctx.restore();
   }
 
-  // ===== Render =====
+  // ===== Render pipeline =====
   function clear() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#fff';
@@ -2112,6 +1981,31 @@
       .join('');
   }
 
+  function syncFogToggle(state) {
+    const el = document.getElementById('fogToggle');
+    if (!el) return;
+    const enabled = !!(state && state.fog && state.fog.enabled);
+    if (el.checked !== enabled) el.checked = enabled;
+  }
+
+  function populateCenterOn(state) {
+    const sel = document.getElementById('centerOn');
+    if (!sel) return;
+
+    const players = getPlayerTokens(state);
+    const wanted = VIEW.followTokenId || '';
+
+    const opts = ['<option value="">None</option>'];
+    for (const t of players) {
+      const label = t.name ? t.name : t.id;
+      opts.push('<option value="' + escapeHtml(t.id) + '">' + escapeHtml(label) + '</option>');
+    }
+    sel.innerHTML = opts.join('');
+
+    sel.value = players.some(t => t.id === wanted) ? wanted : '';
+    if (sel.value === '') VIEW.followTokenId = null;
+  }
+
   function redraw() {
     const state = getState();
 
@@ -2131,7 +2025,7 @@
           const p = parseHexId(t.hex);
           VIEW.camera.col = p.col;
           VIEW.camera.row = p.row;
-        } catch (e) {
+        } catch {
           VIEW.followTokenId = null;
           const sel = document.getElementById('centerOn');
           if (sel) sel.value = '';
@@ -2166,7 +2060,7 @@
       roomsToDraw = rooms.filter(r => {
         const id = r && r.id ? String(r.id) : '';
         if (!id) return true;
-        if (baseFogRoomIds.has(id)) return true; // base fog floor always
+        if (baseFogRoomIds.has(id)) return true;
         return geometryRoomIds.has(id);
       });
 
@@ -2174,25 +2068,23 @@
     }
 
     // Floors.
-    for (const r of roomsToDraw) drawRoom(r);
+    drawFloorsLayered(roomsToDraw);
 
     // Walls are drawn only for rooms that contribute geometry this frame.
     const roomsForWalls = (RENDER_FOG && RENDER_FOG.enabled)
       ? roomsToDraw.filter(r => {
           const k = r && r.floor && r.floor.kind ? String(r.floor.kind).toLowerCase() : '';
-
-          // Base fog "container" rooms (like the whole building rectangle) should still draw their walls
-          // so the exterior outline remains visible even when the interior is hidden.
           if (k === 'fog') return roomHasWalls(r);
-
           return true;
         })
       : roomsToDraw;
 
     const wallSegs = buildWallSegments(roomsForWalls);
 
-    for (const o of openingsToDraw) paintDoorUnderlay(o, roomsToDraw, wallSegs);
+    // Floor underlays for thresholds (to avoid “fog gray” showing through the knockout).
+    for (const o of openingsToDraw) paintThresholdUnderlay(o, rooms, wallSegs);
 
+    // Build walls into offscreen.
     wallCtx.save();
     wallCtx.setTransform(1, 0, 0, 1, 0, 0);
     wallCtx.clearRect(0, 0, wallCanvas.width, wallCanvas.height);
@@ -2202,6 +2094,7 @@
 
     for (const r of roomsForWalls) drawRoomWalls(wallCtx, r);
 
+    // Punch openings out.
     wallCtx.save();
     wallCtx.globalCompositeOperation = 'destination-out';
     wallCtx.fillStyle = '#000';
@@ -2209,10 +2102,7 @@
     const knockoutAlphaFor = (o) => {
       const k = String(o && o.kind ? o.kind : 'door').toLowerCase();
       if (k === 'portal' || k === 'connector') return 0;
-
-      // thresholds are full knockouts (opening between hallway segments)
       if (k === 'threshold') return 1;
-
       return (k === 'window') ? 0.25 : 1;
     };
 
@@ -2223,6 +2113,7 @@
 
     wallCtx.restore();
 
+    // Composite walls.
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(wallCanvas, 0, 0);
@@ -2230,19 +2121,25 @@
 
     ctx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
 
+    // Visible openings.
     for (const o of openingsToDraw) drawOpening(o, wallSegs);
 
+    // Tokens.
     for (const t of tokens) {
       if (shouldDrawToken(t, rooms)) drawToken(t);
     }
 
+    // Grid.
     drawGrid();
+
     updateSidebar(state);
   }
 
   // ===== Tiny self-tests (console only) =====
   function runSelfTests() {
     try {
+      if (typeof $1 === 'undefined') throw new Error('$1 defensive binding missing');
+
       const checkRoundTrip = (letters) => {
         const col = lettersToCol(letters);
         const back = colToLetters(col);
@@ -2259,9 +2156,7 @@
 
       const r1 = mulberry32(123);
       const r2 = mulberry32(123);
-      const a = r1();
-      const b = r2();
-      if (Math.abs(a - b) > 1e-12) throw new Error('mulberry32 not deterministic');
+      if (Math.abs(r1() - r2()) > 1e-12) throw new Error('mulberry32 not deterministic');
 
       // Adjacency: wall-less spaces must NOT auto-connect by touching bounds.
       {
@@ -2297,7 +2192,6 @@
         if (Math.abs(openingKnockoutSpan(tv) - 1.5) > 1e-9) throw new Error('vertical threshold knockout span should be 1.5');
         if (Math.abs(openingKnockoutSpan(th) - 1.0) > 1e-9) throw new Error('horizontal threshold knockout span should be 1.0');
 
-        // Bias: vertical thresholds should bias SOUTH by half the extra length.
         const baseLen = (GRID.size * 1.2);
         const expectedBias = ((1.5 - 1) * baseLen) / 2;
         if (Math.abs(expectedBias - (0.25 * baseLen)) > 1e-9) throw new Error('vertical threshold expected bias math changed');
@@ -2316,8 +2210,11 @@
         const sv = thresholdKnockoutFromParent(tv, [parentRoom], []);
         const sh = thresholdKnockoutFromParent(th, [parentRoom], []);
 
-        if (!sv || sv.len < expectV - 0.1) throw new Error('parent vertical threshold len should match inner height');
-        if (!sh || sh.len < expectH - 0.1) throw new Error('parent horizontal threshold len should match inner width');
+        if (!sv) throw new Error('parent vertical threshold spec missing');
+        if (!sh) throw new Error('parent horizontal threshold spec missing');
+
+        if (Math.abs(sv.len - expectV) > 0.001) throw new Error('parent vertical threshold len should equal inner height');
+        if (Math.abs(sh.len - expectH) > 0.001) throw new Error('parent horizontal threshold len should equal inner width');
       }
 
       // Render filter: a door should be considered renderable if at least one side touches a renderable room.
@@ -2332,7 +2229,7 @@
         if (!isRenderableOpening(o, rm, renderable)) throw new Error('door adjacent to renderable room should be renderable');
       }
 
-      // Fog defaults: when maxDepth is omitted, normalizeFog should default to 1 (no multi-hop chaining).
+      // Fog defaults: when maxDepth is omitted, normalizeFog should default to 1.
       {
         const f = normalizeFog({ fog: { enabled: true, mode: 'room' } });
         if (f.maxDepth !== 1) throw new Error('normalizeFog default maxDepth should be 1');
@@ -2343,24 +2240,50 @@
         const oc = document.createElement('canvas');
         oc.width = 64; oc.height = 64;
         const octx = oc.getContext('2d');
-        // Minimal transform so worldToScreen doesn't NaN.
         VIEW.anchor.x = 0; VIEW.anchor.y = 0; VIEW.camera.col = 0; VIEW.camera.row = 0; VIEW.dx = 0; VIEW.dy = 0;
         cutOpeningHole(octx, { id: 't', kind: 'threshold', hex: 'A1', orientation: 'v', state: 'open' }, []);
       }
 
-      // Stairs fill should not throw (basic smoke test).
+      // Stairs fill should not throw.
       {
         const oc = document.createElement('canvas');
         oc.width = 64; oc.height = 64;
         const octx = oc.getContext('2d');
+
         fillStairsWoodRectScreenOn(octx, { x: 0, y: 0, w: 64, h: 64 }, {
           baseHex: COLORS.floorWoodBase,
           alpha: 1.0,
           worldX: 0,
           worldY: 0,
-          seed: 1,
+          tread: 10,
+          gap: 2,
           down: 'S'
         });
+
+        fillStairsWoodRectScreenOn(octx, { x: 0, y: 0, w: 64, h: 64 }, {
+          baseHex: COLORS.floorWoodBase,
+          alpha: 1.0,
+          worldX: 13,
+          worldY: 29,
+          seed: 1,
+          treadDepth: 10,
+          treadGap: 2,
+          down: 'W'
+        });
+      }
+
+      // Floor ordering: fog-floor rooms must be drawn first.
+      {
+        const fogRoom = { id: 'Fog', corners: ['B3','F3','F1','B1'], thickness: 20, floor: { kind: 'fog' }, wall: { kind: 'brick' } };
+        const stairsRoom = { id: 'Stairs', corners: ['B3','F3','F1','B1'], thickness: 20, floor: { kind: 'stairs.wood' }, wall: { kind: 'brick' } };
+        const woodRoom = { id: 'Wood', corners: ['B3','F3','F1','B1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } };
+
+        const fogRooms = [];
+        const otherRooms = [];
+        for (const r of [woodRoom, stairsRoom, fogRoom]) (isFogFloorRoom(r) ? fogRooms : otherRooms).push(r);
+        const ordered = fogRooms.concat(otherRooms).map(r => r.id);
+
+        if (ordered[0] !== 'Fog') throw new Error('fog floor rooms should be first in floor render order');
       }
 
       console.log('[Battlemat] self-tests: OK');
@@ -2370,59 +2293,6 @@
   }
 
   // ===== UI =====
-  function getPlayerTokens(state) {
-    const tokens = Array.isArray(state.tokens) ? state.tokens : [];
-    return tokens.filter(t => {
-      const side = String(t.side || '').toUpperCase();
-      return side === 'PC' || side === 'PLAYER';
-    });
-  }
-
-  function populateCenterOn(state) {
-    const sel = document.getElementById('centerOn');
-    if (!sel) return;
-
-    const players = getPlayerTokens(state);
-    const wanted = VIEW.followTokenId || '';
-
-    const opts = ['<option value="">None</option>'];
-    for (const t of players) {
-      const label = t.name ? t.name : t.id;
-      opts.push('<option value="' + escapeHtml(t.id) + '">' + escapeHtml(label) + '</option>');
-    }
-    sel.innerHTML = opts.join('');
-
-    sel.value = players.some(t => t.id === wanted) ? wanted : '';
-    if (sel.value === '') VIEW.followTokenId = null;
-  }
-
-  function followCameraTick() {
-    const state = getState();
-    if (VIEW.followTokenId) {
-      const tokens = Array.isArray(state.tokens) ? state.tokens : [];
-      const t = tokens.find(x => x.id === VIEW.followTokenId);
-      if (t && t.hex) {
-        try {
-          const p = parseHexId(t.hex);
-          if (p.col !== VIEW.camera.col || p.row !== VIEW.camera.row) {
-            VIEW.camera.col = p.col;
-            VIEW.camera.row = p.row;
-            redraw();
-          }
-        } catch (e) {
-          VIEW.followTokenId = null;
-          const sel = document.getElementById('centerOn');
-          if (sel) sel.value = '';
-        }
-      } else {
-        VIEW.followTokenId = null;
-        const sel = document.getElementById('centerOn');
-        if (sel) sel.value = '';
-      }
-    }
-    requestAnimationFrame(followCameraTick);
-  }
-
   function pan(dc, dr) {
     if (VIEW.followTokenId) {
       VIEW.followTokenId = null;
@@ -2484,7 +2354,7 @@
           const tokens = Array.isArray(state.tokens) ? state.tokens : [];
           const t = tokens.find(x => x.id === VIEW.followTokenId);
           if (t && t.hex) {
-            try { setCameraToHex(t.hex, { manual: false }); } catch (err) { /* ignore */ }
+            try { setCameraToHex(t.hex, { manual: false }); } catch { /* ignore */ }
           }
         } else {
           redraw();
@@ -2507,17 +2377,9 @@
     }
 
     if (floorKind) {
-      // "Mixed" (empty value) makes no changes.
       floorKind.addEventListener('change', (e) => {
         const kind = String(e.target.value || '');
-        if (kind === '') return;
-
-        const state = getState();
-        if (!Array.isArray(state.rooms)) return redraw();
-        for (const r of state.rooms) {
-          if (!r.floor) r.floor = {};
-          r.floor.kind = kind;
-        }
+        RENDER_OVERRIDES.floorKind = kind;
         redraw();
       });
     }
@@ -2537,6 +2399,33 @@
       if (e.key === 'ArrowUp') { e.preventDefault(); pan(0, PAN_STEP); }
       if (e.key === 'ArrowDown') { e.preventDefault(); pan(0, -PAN_STEP); }
     });
+  }
+
+  function followCameraTick() {
+    const state = getState();
+    if (VIEW.followTokenId) {
+      const tokens = Array.isArray(state.tokens) ? state.tokens : [];
+      const t = tokens.find(x => x.id === VIEW.followTokenId);
+      if (t && t.hex) {
+        try {
+          const p = parseHexId(t.hex);
+          if (p.col !== VIEW.camera.col || p.row !== VIEW.camera.row) {
+            VIEW.camera.col = p.col;
+            VIEW.camera.row = p.row;
+            redraw();
+          }
+        } catch {
+          VIEW.followTokenId = null;
+          const sel = document.getElementById('centerOn');
+          if (sel) sel.value = '';
+        }
+      } else {
+        VIEW.followTokenId = null;
+        const sel = document.getElementById('centerOn');
+        if (sel) sel.value = '';
+      }
+    }
+    requestAnimationFrame(followCameraTick);
   }
 
   function resize() {
@@ -2567,14 +2456,17 @@
         const p = parseHexId(state.view.camera_hex);
         VIEW.camera.col = p.col;
         VIEW.camera.row = p.row;
-      } catch (e) {
+      } catch {
         // ignore
       }
     }
 
     // Ensure the floor selector starts in "Mixed" (no override) mode.
-    const fk = document.getElementById('floorKind');
-    if (fk) fk.value = '';
+    {
+      const fk = document.getElementById('floorKind');
+      if (fk) fk.value = '';
+      RENDER_OVERRIDES.floorKind = '';
+    }
 
     wireUI();
 
