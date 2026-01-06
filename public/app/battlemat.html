@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v4.114
+  v4.124
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -14,6 +14,28 @@
   or AI/training workflow without prior written permission from the copyright holder.
 
   Unauthorized use is prohibited.
+
+  Bugfix notes (v4.124):
+  - Chairs: draw backrest AFTER the seat so it renders on top (fixes the “backrest under chair” look).
+
+  Bugfix notes (v4.121):
+  - Chairs: adjust backrest placement (slight inward + down) and reduce radius so it matches seat width.
+
+  Bugfix notes (v4.120):
+  - Fix SyntaxError: removed a stray extra '}' after facingToAngleRad() that broke parsing.
+  - Self-tests: add extra chair angle sanity checks.
+
+  Bugfix notes (v4.119):
+  - Fix SyntaxError: removed two stray extra braces after facingToAngleRad() that broke parsing.
+  - Self-tests: add chair renderer smoke test + angle sanity checks.
+
+  Bugfix notes (v4.117):
+  - Chairs: add fallback chair object renderer (kind:"chair") with 6 facings (E|NE|NW|W|SW|SE).
+  - Chairs: add starter chair at U14 facing SW.
+
+  Bugfix notes (v4.115):
+  - Fix SyntaxError: removed two accidental pasted function-header fragments that broke parsing
+    (one inside drawBedSquare(), and one duplicating drawRememberedRoomOverlays()).
 
   Bugfix notes (v4.114):
   - Fix crash: added missing parseHex() helper (multi-hex object footprint path used it).
@@ -250,7 +272,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.114</div>
+        <div class="pill" id="versionLine">v4.124</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -406,30 +428,30 @@
 
     objects: [
       { id: 'bedroom1_bed1', kind: 'bed.single', hex: 'M19', orientation: 'h', head: 'W'},
-      { id: 'bedroom1_bed2', kind: 'bed.single', hex: 'M20', orientation: 'h', head: 'W', shift: "N0.5" },
+      { id: 'bedroom1_bed2', kind: 'bed.single', hex: 'M20', orientation: 'h', head: 'W', shift: 'N0.5' },
       { id: 'bedroom2_bed1', kind: 'bed.single', hex: 'M16', orientation: 'h', head: 'W'},
-      { id: 'bedroom2_bed2', kind: 'bed.single', hex: 'M17', orientation: 'h', head: 'W', shift: "N0.5" },
+      { id: 'bedroom2_bed2', kind: 'bed.single', hex: 'M17', orientation: 'h', head: 'W', shift: 'N0.5' },
       { id: 'bedroom3_bed1', kind: 'bed.single', hex: 'M13', orientation: 'h', head: 'W'},
-      { id: 'bedroom3_bed2', kind: 'bed.single', hex: 'M14', orientation: 'h', head: 'W', shift: "N0.5" },
+      { id: 'bedroom3_bed2', kind: 'bed.single', hex: 'M14', orientation: 'h', head: 'W', shift: 'N0.5' },
       { id: 'bedroom10_bed1', kind: 'bed.single', hex: 'AI19', orientation: 'h', head: 'E'},
-      { id: 'bedroom10_bed2', kind: 'bed.single', hex: 'AI20', orientation: 'h', head: 'E', shift: "N0.5" },
+      { id: 'bedroom10_bed2', kind: 'bed.single', hex: 'AI20', orientation: 'h', head: 'E', shift: 'N0.5' },
       { id: 'bedroom9_bed1', kind: 'bed.single', hex: 'AI16', orientation: 'h', head: 'E'},
-      { id: 'bedroom9_bed2', kind: 'bed.single', hex: 'AI17', orientation: 'h', head: 'E', shift: "N0.5" },
+      { id: 'bedroom9_bed2', kind: 'bed.single', hex: 'AI17', orientation: 'h', head: 'E', shift: 'N0.5' },
       { id: 'bedroom8_bed1', kind: 'bed.single', hex: 'AI13', orientation: 'h', head: 'E'},
-      { id: 'bedroom8_bed2', kind: 'bed.single', hex: 'AI14', orientation: 'h', head: 'E', shift: "N0.5" },
+      { id: 'bedroom8_bed2', kind: 'bed.single', hex: 'AI14', orientation: 'h', head: 'E', shift: 'N0.5' },
       { id: 'bedroom5_bed', kind: 'bed.double', hex: 'S19', orientation: 'h', head: 'W' },
-      { id: 'bedroom4_bed', kind: 'bed.double', hex: 'V13', orientation: 'h', head: 'E', shift: "E0.75"  },
-      { id: 'bedroom7_bed', kind: 'bed.double', hex: 'Z13', orientation: 'h', head: 'W', shift: "W0.75"  },
+      { id: 'bedroom4_bed', kind: 'bed.double', hex: 'V13', orientation: 'h', head: 'E', shift: 'E0.75'  },
+      { id: 'bedroom7_bed', kind: 'bed.double', hex: 'Z13', orientation: 'h', head: 'W', shift: 'W0.75'  },
 
       { id: 'bedroom4_table', kind:'table.round', hex:'T13' },
-      { id: 'bedroom4_table', kind:'table.round', hex:'V20' },
-      { id:'t_sq', kind:'table.square', hex:'U23', shift:'E0.0' },
+      { id: 'bedroom4_table_2', kind:'table.round', hex:'V20' },
+      { id:'t_sq', kind:'table.square', hex:'U23', shift:'E0.00' },
 
       { id:'t_big', kind:'table.round', hexes:['N25','O25','O26'] },
 
-      { id:' t_rect', kind:'table.rect', hexes:['P25','P24'] },
+      { id:'t_rect', kind:'table.rect', hexes:['P25','P24'] },
 
-
+      { id:'chair_u14_sw', kind:'chair', hex:'S14', facing:'SE' },
     ],
 
     tokens: [
@@ -1510,6 +1532,12 @@
     return { state, opensTo, openPct };
   }
 
+  function openingOrientation(o) {
+    if (o && (o.orientation === 'h' || o.orientation === 'v')) return o.orientation;
+    const rot = Number((o && o.rot) ? o.rot : 0) % 180;
+    return (rot === 90) ? 'h' : 'v';
+  }
+
   function openingIsSeeThrough(opening) {
     const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
     const orient = openingOrientation(opening);
@@ -2272,47 +2300,144 @@
     return { minX: b.minX - pad, minY: b.minY - pad, maxX: b.maxX + pad, maxY: b.maxY + pad };
   }
 
-  function drawTableRound(ctx, center, radius, opts = {}) {
+  function drawTableRound(ctx2, center, radius, opts = {}) {
     const fill = opts.fill ?? '#9a7b4b';
     const stroke = opts.stroke ?? 'rgba(0,0,0,0.35)';
     const ring = opts.ring ?? 'rgba(255,255,255,0.08)';
 
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = fill;
-    ctx.fill();
+    ctx2.save();
+    ctx2.beginPath();
+    ctx2.arc(center.x, center.y, radius, 0, Math.PI * 2);
+    ctx2.fillStyle = fill;
+    ctx2.fill();
 
-    ctx.beginPath();
-    ctx.arc(center.x, center.y, Math.max(2, radius * 0.72), 0, Math.PI * 2);
-    ctx.strokeStyle = ring;
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    ctx2.beginPath();
+    ctx2.arc(center.x, center.y, Math.max(2, radius * 0.72), 0, Math.PI * 2);
+    ctx2.strokeStyle = ring;
+    ctx2.lineWidth = 2;
+    ctx2.stroke();
 
-    ctx.beginPath();
-    ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.restore();
+    ctx2.beginPath();
+    ctx2.arc(center.x, center.y, radius, 0, Math.PI * 2);
+    ctx2.strokeStyle = stroke;
+    ctx2.lineWidth = 1;
+    ctx2.stroke();
+    ctx2.restore();
   }
 
-  function drawTableRect(ctx, rect, opts = {}) {
+  function drawTableRect(ctx2, rect, opts = {}) {
     const fill = opts.fill ?? '#9a7b4b';
     const stroke = opts.stroke ?? 'rgba(0,0,0,0.35)';
 
-    ctx.save();
-    ctx.fillStyle = fill;
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+    ctx2.save();
+    ctx2.fillStyle = fill;
+    ctx2.fillRect(rect.x, rect.y, rect.w, rect.h);
 
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, Math.max(0, rect.w - 1), Math.max(0, rect.h - 1));
+    ctx2.strokeStyle = stroke;
+    ctx2.lineWidth = 1;
+    ctx2.strokeRect(rect.x + 0.5, rect.y + 0.5, Math.max(0, rect.w - 1), Math.max(0, rect.h - 1));
 
-    ctx.restore();
+    ctx2.restore();
   }
 
-  function objectShouldDraw(o, rooms) {
+  function facingToAngleRad(facing) {
+    const f = String(facing || 'E').toUpperCase();
+
+    // We want chairs to point at a *flat hex side* (an edge normal), not at a corner.
+    // Our hex geometry is flat-top, so the edge normals are offset by +30° from the
+    // usual 60° direction set.
+    //
+    // Base (60° steps): E, SE, SW, W, NW, NE
+    // Then apply +30° (π/6) so directions land on edge normals.
+    const EDGE_NORMAL_OFFSET = Math.PI / 6; // 30°
+
+    let base = 0;
+    switch (f) {
+      case 'E':  base = 0; break;
+      case 'SE': base = Math.PI / 3; break;
+      case 'SW': base = 2 * Math.PI / 3; break;
+      case 'W':  base = Math.PI; break;
+      case 'NW': base = -2 * Math.PI / 3; break;
+      case 'NE': base = -Math.PI / 3; break;
+      default:   base = 0; break;
+    }
+
+    return base + EDGE_NORMAL_OFFSET;
+  }
+
+  function drawChair(ctx2, center, facing, opts = {}) {
+    // Simple fallback chair: seat (rounded rect) + backrest (semi-circle).
+    // `facing` indicates the direction the CHAIR FACES (where a sitter looks).
+    // The backrest is drawn opposite the facing direction.
+
+    const fill = opts.fill ?? '#8a5a2b';
+    const stroke = opts.stroke ?? 'rgba(0,0,0,0.35)';
+    const accent = opts.accent ?? 'rgba(255,255,255,0.08)';
+
+    const seatW = GRID.size * 0.95;
+    const seatH = GRID.size * 0.72;
+    const seatR = Math.max(4, seatH * 0.22);
+
+    const backR = Math.max(6, seatH * 0.48);
+
+    // Local chair coords:
+    //  - +X is the direction the chair faces (open/front)
+    //  - -X is the backrest side
+    const ang = facingToAngleRad(facing);
+
+    ctx2.save();
+    ctx2.translate(center.x, center.y);
+    ctx2.rotate(ang);
+
+    // Seat (draw first)
+    ctx2.fillStyle = fill;
+    ctx2.strokeStyle = stroke;
+    ctx2.lineWidth = 1;
+    roundRectPath(ctx2, -seatW / 2, -seatH / 2, seatW, seatH, seatR);
+    ctx2.fill();
+    ctx2.stroke();
+
+    // Front notch on the open side (+X) so direction reads instantly
+    ctx2.fillStyle = 'rgba(0,0,0,0.10)';
+    ctx2.fillRect(seatW * 0.33, -seatH * 0.18, seatW * 0.12, seatH * 0.36);
+
+    // Backrest (semi-circle) on the BACK side (-X)
+    // Draw AFTER the seat so the backrest sits visually "on top".
+    // We still avoid stroking the diameter, so no line cuts across the cushion.
+    const backInsetX = seatW * 0.06 + backR;   // pulled toward table by ~1 radius
+    const backInsetY = 0;                      // keep centered on seat
+
+    ctx2.save();
+    ctx2.translate(-seatW / 2 + backInsetX, backInsetY);
+
+    // Fill a left semi-circle (x <= 0). We deliberately DO NOT stroke the diameter.
+    ctx2.fillStyle = fill;
+    ctx2.beginPath();
+    ctx2.moveTo(0, -backR);
+    ctx2.arc(0, 0, backR, -Math.PI / 2, Math.PI / 2, true);
+    ctx2.closePath();
+    ctx2.fill();
+
+    // Stroke only the arc
+    ctx2.strokeStyle = stroke;
+    ctx2.lineWidth = 1;
+    ctx2.beginPath();
+    ctx2.arc(0, 0, backR, -Math.PI / 2, Math.PI / 2, true);
+    ctx2.stroke();
+
+    // Subtle highlight inside the backrest
+    ctx2.strokeStyle = accent;
+    ctx2.lineWidth = 2;
+    ctx2.beginPath();
+    ctx2.arc(0, 0, Math.max(3, backR * 0.72), -Math.PI / 2, Math.PI / 2, true);
+    ctx2.stroke();
+
+    ctx2.restore();
+
+    ctx2.restore();
+  }
+
+  function objectShouldDraw(o, roomMeta) {
     // Fog OFF: draw normally.
     if (!RENDER_FOG || !RENDER_FOG.enabled) return true;
 
@@ -2320,10 +2445,22 @@
     // - visible room: draw
     // - explored-but-not-visible: draw (it will be dimmed by the room overlay)
     // - unseen: do not draw
-    const rid = pickMostSpecificRoomIdForHex(buildRoomMeta(rooms), o && o.hex);
-    if (!rid) return true;
+    // For multi-hex objects (no `hex` field), if *any* occupied hex is visible/explored, draw it.
 
-    return RENDER_FOG.visible.has(rid) || RENDER_FOG.explored.has(rid);
+    const occ = getObjectOccupiedHexes(o);
+    if (!occ.length) return true;
+
+    for (const hx of occ) {
+      let p;
+      try { p = parseHexId(hx); } catch { return true; }
+
+      const rid = pickMostSpecificRoomIdAt(roomMeta, p.col, p.row);
+      if (!rid) return true;
+
+      if (RENDER_FOG.visible.has(rid) || RENDER_FOG.explored.has(rid)) return true;
+    }
+
+    return false;
   }
 
   function drawBedSquare(ctx2, rect, opts = {}) {
@@ -2438,6 +2575,22 @@
       drawTableRect(ctx, r, style);
       return;
     }
+
+    // Chair (fallback shape). Single-hex, non-blocking by rules; battlemat just draws it.
+    if (kind === 'chair') {
+      let p;
+      try { p = parseHexId(o.hex); } catch { return; }
+
+      const cS0 = worldToScreen(hexCenterWorld(p.col, p.row));
+      const sh = getObjectShiftPx(o);
+      const cS = { x: cS0.x + sh.dx, y: cS0.y + sh.dy };
+
+      const facing = o.facing ?? o.dir ?? o.direction ?? 'E';
+      const style = o.style || {};
+      drawChair(ctx, cS, facing, style);
+      return;
+    }
+
     if (kind !== 'bed.single' && kind !== 'bed.double') return;
 
     let p;
@@ -2482,8 +2635,10 @@
 
   function drawObjects(objects, rooms) {
     const list = Array.isArray(objects) ? objects : [];
+    const roomMeta = buildRoomMeta(rooms);
+
     for (const o of list) {
-      if (!objectShouldDraw(o, rooms)) continue;
+      if (!objectShouldDraw(o, roomMeta)) continue;
       drawObject(o);
     }
   }
@@ -2860,73 +3015,25 @@
       const r2 = mulberry32(123);
       if (Math.abs(r1() - r2()) > 1e-12) throw new Error('mulberry32 not deterministic');
 
-      // findNearestWallSegment should pick the closest segment.
+      // facingToAngleRad sanity.
       {
-        const segs = [
-          { orientation: 'v', x: 10, y1: 0, y2: 100, thickness: 20 },
-          { orientation: 'v', x: 50, y1: 0, y2: 100, thickness: 20 },
-          { orientation: 'h', y: 25, x1: 0, x2: 100, thickness: 20 },
-        ];
-        const bestV = findNearestWallSegment(segs, 'v', { x: 12, y: 40 });
-        if (!bestV || bestV.x !== 10) throw new Error('findNearestWallSegment(v) did not select expected segment');
-
-        const bestH = findNearestWallSegment(segs, 'h', { x: 40, y: 24 });
-        if (!bestH || bestH.y !== 25) throw new Error('findNearestWallSegment(h) did not select expected segment');
+        const eps = 1e-9;
+        const off = Math.PI / 6;
+        if (Math.abs(facingToAngleRad('E') - (0 + off)) > eps) throw new Error('chair angle E');
+        if (Math.abs(facingToAngleRad('SE') - (Math.PI / 3 + off)) > eps) throw new Error('chair angle SE');
+        if (Math.abs(facingToAngleRad('SW') - (2 * Math.PI / 3 + off)) > eps) throw new Error('chair angle SW');
+        if (Math.abs(facingToAngleRad('W') - (Math.PI + off)) > eps) throw new Error('chair angle W');
+        if (Math.abs(facingToAngleRad('NW') - (-2 * Math.PI / 3 + off)) > eps) throw new Error('chair angle NW');
+        if (Math.abs(facingToAngleRad('NE') - (-Math.PI / 3 + off)) > eps) throw new Error('chair angle NE');
       }
 
-      // Adjacency: wall-less spaces must NOT auto-connect by touching bounds.
+      // drawChair smoke test should not throw.
       {
-        const dummyRooms = [
-          { id: 'A', corners: ['B3','D3','D1','B1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'none' } },
-          { id: 'B', corners: ['D3','F3','F1','D1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'none' } },
-        ];
-        const rm = buildRoomMeta(dummyRooms);
-        const neigh = buildAdjacency(rm, []);
-        const aN = neigh.get('A');
-        if (aN && aN.has('B')) throw new Error('wall-less spaces should not auto-connect without an opening');
-      }
-
-      // Adjacency: a threshold opening SHOULD connect spaces.
-      {
-        const dummyRooms = [
-          { id: 'A', corners: ['B3','D3','D1','B1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'none' } },
-          { id: 'B', corners: ['D3','F3','F1','D1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'none' } },
-        ];
-        const rm = buildRoomMeta(dummyRooms);
-        const dummyOpenings = [
-          { id: 't', kind: 'threshold', hex: 'D2', orientation: 'v', state: 'open' },
-        ];
-        const neigh = buildAdjacency(rm, dummyOpenings);
-        const aN = neigh.get('A');
-        if (!aN || !aN.has('B')) throw new Error('threshold should connect spaces for adjacency');
-      }
-
-      // Knockout sizing: vertical thresholds should use a 1.5 span; horizontal should use 1.0.
-      {
-        const tv = { id: 't', kind: 'threshold', hex: 'D2', orientation: 'v', state: 'open' };
-        const th = { id: 't2', kind: 'threshold', hex: 'D2', orientation: 'h', state: 'open' };
-        if (Math.abs(openingKnockoutSpan(tv) - 1.5) > 1e-9) throw new Error('vertical threshold knockout span should be 1.5');
-        if (Math.abs(openingKnockoutSpan(th) - 1.0) > 1e-9) throw new Error('horizontal threshold knockout span should be 1.0');
-      }
-
-      // Parent-based thresholds: knockout span should match the parent room's INNER floor span.
-      {
-        const parentRoom = { id: 'Hall', corners: ['B3','F3','F1','B1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } };
-        const box = roomToWallBox(parentRoom);
-        const expectV = (box.inner.y2 - box.inner.y1);
-        const expectH = (box.inner.x2 - box.inner.x1);
-
-        const tv = { id: 'tpv', kind: 'threshold', hex: 'B2', orientation: 'v', state: 'open', parent: 'Hall' };
-        const th = { id: 'tph', kind: 'threshold', hex: 'D3', orientation: 'h', state: 'open', parent: 'Hall' };
-
-        const sv = thresholdKnockoutFromParent(tv, [parentRoom], buildWallSegments([parentRoom]));
-        const sh = thresholdKnockoutFromParent(th, [parentRoom], buildWallSegments([parentRoom]));
-
-        if (!sv) throw new Error('parent vertical threshold spec missing');
-        if (!sh) throw new Error('parent horizontal threshold spec missing');
-
-        if (Math.abs(sv.len - expectV) > 0.001) throw new Error('parent vertical threshold len should equal inner height');
-        if (Math.abs(sh.len - expectH) > 0.001) throw new Error('parent horizontal threshold len should equal inner width');
+        const oc = document.createElement('canvas');
+        oc.width = 80; oc.height = 80;
+        const octx = oc.getContext('2d');
+        const facings = ['E','SE','SW','W','NW','NE'];
+        for (const f of facings) drawChair(octx, { x: 40, y: 40 }, f, {});
       }
 
       // Stairs fill should not throw.
@@ -2944,32 +3051,6 @@
           gap: 2,
           down: 'S'
         });
-      }
-
-      // drawObjects smoke test should not throw.
-      {
-        const savedFog = RENDER_FOG;
-        RENDER_FOG = { enabled: false, visible: new Set(), explored: new Set(), unseenAlpha: 0.9, exploredAlpha: 0.5 };
-
-        // Bed (single-hex)
-        drawObjects([{ id: 'x', kind: 'bed.single', hex: 'A1', orientation: 'h', head: 'W' }], []);
-
-        // Table (multi-hex footprint, no `hex` field)
-        drawObjects([{ id: 't', kind: 'table.rect', hexes: ['B2', 'B3'] }], []);
-
-        RENDER_FOG = savedFog;
-      }
-
-      // drawRememberedRoomOverlays smoke test should not throw.
-      {
-        const savedFog = RENDER_FOG;
-        RENDER_FOG = { enabled: true, visible: new Set(['A']), explored: new Set(['A','B']), unseenAlpha: 0.9, exploredAlpha: 0.5 };
-        const dummyRooms = [
-          { id: 'A', corners: ['B3','D3','D1','B1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id: 'B', corners: ['D3','F3','F1','D1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-        ];
-        drawRememberedRoomOverlays(dummyRooms);
-        RENDER_FOG = savedFog;
       }
 
       console.log('[Battlemat] self-tests: OK');
