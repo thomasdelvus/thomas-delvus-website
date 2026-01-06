@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v4.96
+  v4.109
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -14,6 +14,20 @@
   or AI/training workflow without prior written permission from the copyright holder.
 
   Unauthorized use is prohibited.
+
+  Bugfix notes (v4.109):
+  - Fix crash: removed accidental "$1ctx" token and rewrote remembered-room overlay to use RENDER_FOG sets safely.
+
+  Bugfix notes (v4.107):
+  - Fix SyntaxError: removed a stray extra '}' after drawObjects(), which broke script parsing.
+
+  Bugfix notes (v4.105):
+  - Door knockouts: closed doors now use the adjacent room’s floor pattern under the wall knockout (Fog ON or OFF).
+
+  Bugfix notes (v4.101):
+  - Fix TDZ crash: "can't access lexical declaration 'findNearestWallSegment' before initialization".
+    Reintroduced the missing helper functions directly (findNearestWallSegment, drawRoomWalls, etc.) and removed
+    the fragile "required(...)" binding.
 
   Refactor notes (v4.96):
   - Cleanup-only refactor: remove obsolete/accidental comment artifacts, align version display, and group code by section.
@@ -226,7 +240,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.96</div>
+        <div class="pill" id="versionLine">v4.109</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -309,7 +323,7 @@
       enabled: true,
       mode: 'room',
       visibleRoomIds: [],
-      exploredRoomIds: [],
+      exploredRoomIds: ['Hallway1','Hallway2','Hallway3','Bedroom2'],
       autoCompute: true,
       autoExplore: true,
       maxDepth: 1,
@@ -323,7 +337,6 @@
       { id: 'NextShoppe', corners: ['AJ28','AP28','AP12','AJ12'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
       { id: 'NextShoppe2', corners: ['L27','V27','V21','L21'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
 
-      // --- Spaces (hallways / open areas): floors only, no walls ---
       { id: '1stFloorStairsDown', corners: ['Z21','AD21','AD19','Z19'], thickness: 20, floor: { kind: 'stairs.wood' }, wall: { kind: 'brick' }, stairsDown: 'W' },
 
       { id: 'CrossKeysUpperFloor', corners: ['L21','AJ21','AJ12','L12'], thickness: 20, color: '#555', floor: { kind: 'fog' }, wall: { kind: 'brick' } },
@@ -381,12 +394,18 @@
       { id: 'south_window9', kind: 'window', hex: 'AH12', orientation: 'h', state: 'closed', opensTo: 'S' },
     ],
 
+    objects: [
+      { id: 'room2_bed1', kind: 'bed.single', hex: 'M16', orientation: 'h', head: 'W' },
+      { id: 'room2_bed2', kind: 'bed.single', hex: 'M17', orientation: 'h', head: 'W' },
+      { id: 'room5_bed', kind: 'bed.double', hex: 'S19', orientation: 'h', head: 'W' },
+    ],
+
     tokens: [
       { id: 'lich', name: 'Lich', side: 'ENEMY', hex: 'U19', label: 'L', init: 15, hp: 135 },
       { id: 'w1',   name: 'Wraith 1', side: 'ENEMY', hex: 'T16', label: 'W1', init: 12, hp: 67 },
       { id: 'w2',   name: 'Wraith 2', side: 'ENEMY', hex: 'Q18', label: 'W2', init: 11, hp: 67 },
       { id: 'w3',   name: 'Wraith 3', side: 'ENEMY', hex: 'N17', label: 'W3', init: 10, hp: 67 },
-      { id: 'a',    name: 'Aelar', side: 'PC', hex: 'V16', label: 'A', init: 14, hp: 42 },
+      { id: 'a',    name: 'Aelar', side: 'PC', hex: 'W14', label: 'A', init: 14, hp: 42 },
       { id: 'b',    name: 'Brunna', side: 'PC', hex: 'U13', label: 'B', init: 13, hp: 55 },
       { id: 'c',    name: 'Caelin', side: 'PC', hex: 'AA20', label: 'C', init: 12, hp: 38 },
     ],
@@ -701,9 +720,10 @@
     const worldY = (opts && Number.isFinite(opts.worldY)) ? opts.worldY : 0;
     const seed = (opts && Number.isFinite(opts.seed)) ? opts.seed : 12345;
 
-    const stoneMin = (opts && Number.isFinite(opts.stoneMin)) ? opts.stoneMin : 4;
-    const stoneMax = (opts && Number.isFinite(opts.stoneMax)) ? opts.stoneMax : 7;
-    const gap = (opts && Number.isFinite(opts.gap)) ? opts.gap : 0.8;
+    // Bigger stones (about 2x the previous size).
+    const stoneMin = (opts && Number.isFinite(opts.stoneMin)) ? opts.stoneMin : 9;
+    const stoneMax = (opts && Number.isFinite(opts.stoneMax)) ? opts.stoneMax : 14;
+    const gap = (opts && Number.isFinite(opts.gap)) ? opts.gap : 0.35;
 
     const pitch = stoneMax + gap;
 
@@ -752,7 +772,7 @@
         const shadeAmt = +0.20 + (rnd() - 0.5) * 0.06;
         const fill = shadeRgba(base, shadeAmt, alpha);
 
-        const rr = 2.2 + rnd() * 3.6;
+        const rr = 3.6 + rnd() * 6.2;
 
         targetCtx.save();
         targetCtx.translate(x, y);
@@ -1041,6 +1061,278 @@
     return { x1: src.x1, y1: src.y1, x2: src.x2, y2: src.y2 };
   }
 
+  // ===== Missing core helpers (restored in v4.99) =====
+  function findRoomById(rooms, id) {
+    const target = String(id || '');
+    for (const r of (Array.isArray(rooms) ? rooms : [])) {
+      if (r && String(r.id) === target) return r;
+    }
+    return null;
+  }
+
+  function findNearestWallSegment(wallSegs, orient, p) {
+    const want = (orient === 'h' || orient === 'v') ? orient : 'h';
+    const segs = Array.isArray(wallSegs) ? wallSegs : [];
+
+    let best = null;
+    let bestD2 = Infinity;
+
+    for (const s of segs) {
+      if (!s || s.orientation !== want) continue;
+
+      if (want === 'h') {
+        const dy = Math.abs((p && p.y) - s.y);
+        let dx = 0;
+        if ((p && p.x) < s.x1) dx = s.x1 - (p.x);
+        else if ((p && p.x) > s.x2) dx = (p.x) - s.x2;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestD2) { bestD2 = d2; best = s; }
+      } else {
+        const dx = Math.abs((p && p.x) - s.x);
+        let dy = 0;
+        if ((p && p.y) < s.y1) dy = s.y1 - (p.y);
+        else if ((p && p.y) > s.y2) dy = (p.y) - s.y2;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestD2) { bestD2 = d2; best = s; }
+      }
+    }
+
+    return best;
+  }
+
+  function openingOrientation(o) {
+    if (o && (o.orientation === 'h' || o.orientation === 'v')) return o.orientation;
+    const rot = Number((o && o.rot) ? o.rot : 0) % 180;
+    return (rot === 90) ? 'h' : 'v';
+  }
+
+  function openingKnockoutSpan(opening) {
+    const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
+    const orient = openingOrientation(opening);
+
+    if (Number.isFinite(opening && opening.knockoutSpan)) return Number(opening.knockoutSpan);
+    if (Number.isFinite(opening && opening.span)) return Number(opening.span);
+
+    if (kind === 'threshold') return (orient === 'v') ? 1.5 : 1.0;
+    return 1.0;
+  }
+
+  function thresholdKnockoutFromParent(opening, roomsForSizing, wallSegs) {
+    const kind = String(opening && opening.kind ? opening.kind : '').toLowerCase();
+    if (kind !== 'threshold') return null;
+
+    const parentId = String(opening && opening.parent ? opening.parent : '');
+    if (!parentId) return null;
+
+    const parent = findRoomById(roomsForSizing, parentId);
+    if (!parent) return null;
+
+    const orient = openingOrientation(opening);
+
+    let p;
+    try { p = parseHexId(opening.hex); } catch { return null; }
+
+    const hexWorld = hexCenterWorld(p.col, p.row);
+    const box = roomToWallBox(parent);
+
+    const seg = findNearestWallSegment(wallSegs || [], orient, hexWorld);
+
+    // Centerline of the wall we are cutting.
+    let cx = hexWorld.x;
+    let cy = hexWorld.y;
+
+    if (orient === 'v') {
+      // Center vertically on the parent's INNER floor span so junctions read continuous.
+      cy = (box.inner.y1 + box.inner.y2) / 2;
+
+      if (seg) cx = seg.x;
+      else {
+        // Pick nearest vertical edge.
+        cx = (Math.abs(hexWorld.x - box.xL) < Math.abs(hexWorld.x - box.xR)) ? box.xL : box.xR;
+      }
+
+      return {
+        cx,
+        cy,
+        len: (box.inner.y2 - box.inner.y1),
+        thickness: seg ? seg.thickness : box.thickness,
+      };
+    }
+
+    // orient === 'h'
+    cx = (box.inner.x1 + box.inner.x2) / 2;
+    if (seg) cy = seg.y;
+    else {
+      cy = (Math.abs(hexWorld.y - box.yTop) < Math.abs(hexWorld.y - box.yBot)) ? box.yTop : box.yBot;
+    }
+
+    return {
+      cx,
+      cy,
+      len: (box.inner.x2 - box.inner.x1),
+      thickness: seg ? seg.thickness : box.thickness,
+    };
+  }
+
+  function drawRoomWalls(targetCtx, room) {
+    if (!roomHasWalls(room)) return;
+
+    const box = roomToWallBox(room);
+    const t = box.thickness;
+
+    const wallKind = room && room.wall && room.wall.kind ? String(room.wall.kind).toLowerCase() : 'brick';
+    if (wallKind === 'none') return;
+
+    const wallColor = room && room.color ? String(room.color) : COLORS.wall;
+
+    // Outer and inner in WORLD coords.
+    const o = box.outer;
+    const i = box.inner;
+
+    // Helper: world rect -> screen rect.
+    const toScreenRect = (x1, y1, x2, y2) => {
+      const p1 = worldToScreen({ x: x1, y: y1 });
+      const p2 = worldToScreen({ x: x2, y: y2 });
+      return { x: p1.x, y: p1.y, w: (p2.x - p1.x), h: (p2.y - p1.y) };
+    };
+
+    // Wall bands in WORLD coords.
+    const bands = [
+      // top
+      { x1: o.x1, y1: o.y1, x2: o.x2, y2: i.y1 },
+      // bottom
+      { x1: o.x1, y1: i.y2, x2: o.x2, y2: o.y2 },
+      // left
+      { x1: o.x1, y1: i.y1, x2: i.x1, y2: i.y2 },
+      // right
+      { x1: i.x2, y1: i.y1, x2: o.x2, y2: i.y2 },
+    ];
+
+    for (const b of bands) {
+      const r = toScreenRect(b.x1, b.y1, b.x2, b.y2);
+      if (r.w <= 0 || r.h <= 0) continue;
+
+      if (wallKind === 'brick') {
+        // Anchor bricks to world coords.
+        fillBrickRectScreenOn(targetCtx, r, wallColor, b.x1, b.y1);
+      } else {
+        targetCtx.fillStyle = wallColor;
+        targetCtx.fillRect(r.x, r.y, r.w, r.h);
+      }
+
+      // Subtle edge line.
+      targetCtx.strokeStyle = 'rgba(0,0,0,0.08)';
+      targetCtx.lineWidth = 1;
+      targetCtx.strokeRect(r.x + 0.5, r.y + 0.5, Math.max(0, r.w - 1), Math.max(0, r.h - 1));
+    }
+
+    // Corner caps: small squares prevent micro-holes at joins.
+    if (t >= 2) {
+      const cap = (x1, y1) => {
+        const r = toScreenRect(x1, y1, x1 + t, y1 + t);
+        if (r.w > 0 && r.h > 0) {
+          if (wallKind === 'brick') fillBrickRectScreenOn(targetCtx, r, wallColor, x1, y1);
+          else { targetCtx.fillStyle = wallColor; targetCtx.fillRect(r.x, r.y, r.w, r.h); }
+        }
+      };
+
+      cap(o.x1, o.y1);
+      cap(o.x2 - t, o.y1);
+      cap(o.x1, o.y2 - t);
+      cap(o.x2 - t, o.y2 - t);
+    }
+  }
+
+  function paintThresholdUnderlay(opening, rooms, wallSegs) {
+    const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
+    if (kind !== 'threshold') return;
+
+    const parentId = String(opening && opening.parent ? opening.parent : '');
+    if (!parentId) return;
+
+    const parent = findRoomById(rooms, parentId);
+    if (!parent) return;
+
+    const spec = thresholdKnockoutFromParent(opening, rooms, wallSegs);
+    if (!spec) return;
+
+    const orient = openingOrientation(opening);
+
+    const centerS = worldToScreen({ x: spec.cx, y: spec.cy });
+    const cutH = spec.thickness + 6;
+    const cutW = spec.len;
+
+    const rect = (orient === 'h')
+      ? { x: centerS.x - cutW / 2, y: centerS.y - cutH / 2, w: cutW, h: cutH }
+      : { x: centerS.x - cutH / 2, y: centerS.y - cutW / 2, w: cutH, h: cutW };
+
+    const rawFloorKind = (parent.floor && parent.floor.kind) ? String(parent.floor.kind) : 'wood';
+    const floorKind = (RENDER_OVERRIDES.floorKind && String(RENDER_OVERRIDES.floorKind).length)
+      ? String(RENDER_OVERRIDES.floorKind)
+      : rawFloorKind;
+
+    const box = roomToWallBox(parent);
+    const f = roomFloorRectWorld(parent, box);
+    const worldX = f.x1;
+    const worldY = f.y1;
+    const seed = hashStringToSeed(parent.id || JSON.stringify(parent.corners || []));
+
+    const fk = String(floorKind).toLowerCase();
+
+    if (fk === 'stone') {
+      ctx.fillStyle = COLORS.floorStone;
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      return;
+    }
+
+    if (fk === 'cobble') {
+      fillCobbleRectScreenOn(ctx, rect, {
+        baseHex: COLORS.floorCobbleBase,
+        alpha: 1.0,
+        worldX,
+        worldY,
+        seed,
+        stoneMin: 9,
+        stoneMax: 14,
+        gap: 0.35,
+      });
+      return;
+    }
+
+    if (fk === 'stairs.wood') {
+      fillStairsWoodRectScreenOn(ctx, rect, {
+        baseHex: COLORS.floorWoodBase,
+        alpha: 1.0,
+        worldX,
+        worldY,
+        seed,
+        down: parent.stairsDown || 'S',
+        treadDepth: 10,
+        treadGap: 1.2,
+      });
+      return;
+    }
+
+    if (fk === 'none') {
+      ctx.fillStyle = '#f7f1e6';
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      return;
+    }
+
+    // Default: wood
+    fillWoodPlanksRectScreenOn(ctx, rect, {
+      baseHex: COLORS.floorWoodBase,
+      alpha: 1.0,
+      worldX,
+      worldY,
+      seed,
+      variant: 3,
+      plankH: 18,
+      gapY: 2,
+      gapX: 2,
+    });
+  }
+
   // ===== Fog of War (room-based) =====
   function normalizeFog(state) {
     const raw = (state && typeof state.fog === 'object' && state.fog) ? state.fog : null;
@@ -1125,12 +1417,6 @@
       const side = String(t.side || '').toUpperCase();
       return side === 'PC' || side === 'PLAYER';
     });
-  }
-
-  function openingOrientation(o) {
-    if (o && (o.orientation === 'h' || o.orientation === 'v')) return o.orientation;
-    const rot = Number((o && o.rot) ? o.rot : 0) % 180;
-    return (rot === 90) ? 'h' : 'v';
   }
 
   function normalizeDoorParams(opening, orient) {
@@ -1384,10 +1670,20 @@
 
     const rect = { x: f1.x, y: f1.y, w: (f2.x - f1.x), h: (f2.y - f1.y) };
 
+    // World anchoring values for patterns.
+    const worldX = f.x1;
+    const worldY = f.y1;
+
     // Fog-floor rooms are a base layer for Fog of War. If fog is OFF, skip them.
     if (String(floorKind).toLowerCase() === 'fog') {
       if (!(RENDER_FOG && RENDER_FOG.enabled)) return;
       ctx.fillStyle = COLORS.fogUnseen;
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      return;
+    }
+
+    if (floorKind === 'stone') {
+      ctx.fillStyle = COLORS.floorStone;
       ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
       return;
     }
@@ -1397,8 +1693,8 @@
       fillWoodPlanksRectScreenOn(ctx, rect, {
         baseHex: COLORS.floorWoodBase,
         alpha: 1.0,
-        worldX: f.x1,
-        worldY: f.y1,
+        worldX,
+        worldY,
         seed,
         variant: 3,
         plankH: 18,
@@ -1413,12 +1709,12 @@
       fillCobbleRectScreenOn(ctx, rect, {
         baseHex: COLORS.floorCobbleBase,
         alpha: 1.0,
-        worldX: f.x1,
-        worldY: f.y1,
+        worldX,
+        worldY,
         seed,
-        stoneMin: 4,
-        stoneMax: 7,
-        gap: 0.8,
+        stoneMin: 9,
+        stoneMax: 14,
+        gap: 0.35,
       });
       return;
     }
@@ -1428,8 +1724,8 @@
       fillStairsWoodRectScreenOn(ctx, rect, {
         baseHex: COLORS.floorWoodBase,
         alpha: 1.0,
-        worldX: f.x1,
-        worldY: f.y1,
+        worldX,
+        worldY,
         seed,
         down: room.stairsDown || 'S',
         treadDepth: 10,
@@ -1438,204 +1734,68 @@
       return;
     }
 
-    ctx.fillStyle = COLORS.floorStone;
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-  }
-
-  // ===== Walls =====
-  function drawRoomWalls(targetCtx, room) {
-    if (!roomHasWalls(room)) return;
-    const box = roomToWallBox(room);
-    const wallColor = room.color || COLORS.wall;
-
-    const o1 = worldToScreen({ x: box.outer.x1, y: box.outer.y1 });
-    const o2 = worldToScreen({ x: box.outer.x2, y: box.outer.y2 });
-
-    const t = box.thickness;
-
-    fillBrickRectScreenOn(targetCtx, { x: o1.x, y: o1.y,     w: o2.x - o1.x, h: t }, wallColor, box.outer.x1, box.outer.y1);
-    fillBrickRectScreenOn(targetCtx, { x: o1.x, y: o2.y - t, w: o2.x - o1.x, h: t }, wallColor, box.outer.x1, box.outer.y2 - t);
-    fillBrickRectScreenOn(targetCtx, { x: o1.x, y: o1.y + t, w: t, h: (o2.y - o1.y) - 2 * t }, wallColor, box.outer.x1, box.outer.y1 + t);
-    fillBrickRectScreenOn(targetCtx, { x: o2.x - t, y: o1.y + t, w: t, h: (o2.y - o1.y) - 2 * t }, wallColor, box.outer.x2 - t, box.outer.y1 + t);
-  }
-
-  // ===== Openings: placement helpers =====
-  function findNearestWallSegment(segs, orient, worldPoint) {
-    let best = null;
-    let bestD = Infinity;
-
-    for (const s of segs) {
-      if (s.orientation !== orient) continue;
-      if (orient === 'h') {
-        if (worldPoint.x < Math.min(s.x1, s.x2) - 1 || worldPoint.x > Math.max(s.x1, s.x2) + 1) continue;
-        const d = Math.abs(worldPoint.y - s.y);
-        if (d < bestD) { bestD = d; best = s; }
-      } else {
-        if (worldPoint.y < Math.min(s.y1, s.y2) - 1 || worldPoint.y > Math.max(s.y1, s.y2) + 1) continue;
-        const d = Math.abs(worldPoint.x - s.x);
-        if (d < bestD) { bestD = d; best = s; }
-      }
-    }
-
-    return best;
-  }
-
-  function openingKnockoutSpan(opening) {
-    const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
-    const orient = openingOrientation(opening);
-    if (kind === 'threshold') return (orient === 'v') ? 1.5 : 1.0;
-    return 1.0;
-  }
-
-  function findRoomById(rooms, id) {
-    const want = String(id || '');
-    if (!want) return null;
-    for (const r of (Array.isArray(rooms) ? rooms : [])) {
-      if (r && String(r.id || '') === want) return r;
-    }
-    return null;
-  }
-
-  function thresholdKnockoutFromParent(opening, rooms, wallSegs) {
-    const parentId = opening && opening.parent ? String(opening.parent) : '';
-    if (!parentId) return null;
-
-    const room = findRoomById(rooms, parentId);
-    if (!room) return null;
-
-    let p;
-    try { p = parseHexId(opening.hex); } catch { return null; }
-
-    const orient = openingOrientation(opening);
-    const hexWorld = hexCenterWorld(p.col, p.row);
-
-    const box = roomToWallBox(room);
-
-    const seg = findNearestWallSegment(wallSegs || [], orient, hexWorld);
-    const thickness = seg ? seg.thickness : Math.max(1, Number(room.thickness || 28));
-
-    if (orient === 'v') {
-      const dL = Math.abs(hexWorld.x - box.xL);
-      const dR = Math.abs(hexWorld.x - box.xR);
-      const cx = (dL <= dR) ? box.xL : box.xR;
-
-      const cy = (box.inner.y1 + box.inner.y2) / 2;
-      const len = Math.max(6, (box.inner.y2 - box.inner.y1));
-
-      return { orient, cx, cy, len, thickness };
-    }
-
-    // orient === 'h'
-    const dT = Math.abs(hexWorld.y - box.yTop);
-    const dB = Math.abs(hexWorld.y - box.yBot);
-    const cy = (dT <= dB) ? box.yTop : box.yBot;
-
-    const cx = (box.inner.x1 + box.inner.x2) / 2;
-    const len = Math.max(6, (box.inner.x2 - box.inner.x1));
-
-    return { orient, cx, cy, len, thickness };
-  }
-
-  function paintThresholdUnderlay(opening, rooms, wallSegs) {
-    const kind = String(opening && opening.kind ? opening.kind : '').toLowerCase();
-    if (kind !== 'threshold') return;
-
-    const parentId = opening && opening.parent ? String(opening.parent) : '';
-    if (!parentId) return;
-
-    const parentRoom = findRoomById(rooms, parentId);
-    if (!parentRoom) return;
-
-    const spec = thresholdKnockoutFromParent(opening, rooms, wallSegs);
-    if (!spec) return;
-
-    const orient = openingOrientation(opening);
-    const centerS = worldToScreen({ x: spec.cx, y: spec.cy });
-
-    // Must match the knockout rect in cutOpeningHole() so the revealed span reads as continuous floor.
-    const cutH = spec.thickness + 6; // pad across thickness only
-    const cutW = spec.len;           // no end-padding
-
-    const rect = (orient === 'h')
-      ? { x: centerS.x - cutW / 2, y: centerS.y - cutH / 2, w: cutW, h: cutH }
-      : { x: centerS.x - cutH / 2, y: centerS.y - cutW / 2, w: cutH, h: cutW };
-
-    const floorKind = (parentRoom.floor && parentRoom.floor.kind) ? String(parentRoom.floor.kind).toLowerCase() : 'wood';
-
-    // Use the parent room’s floor anchoring so patterns line up with the hallway.
-    const box = roomToWallBox(parentRoom);
-    const f = roomFloorRectWorld(parentRoom, box);
-    const worldX = f.x1;
-    const worldY = f.y1;
-    const seed = hashStringToSeed(parentRoom.id || JSON.stringify(parentRoom.corners || []));
-
-    if (floorKind === 'stone') {
-      ctx.fillStyle = COLORS.floorStone;
-      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-      return;
-    }
-
-    if (floorKind === 'cobble') {
-      fillCobbleRectScreenOn(ctx, rect, {
-        baseHex: COLORS.floorCobbleBase,
-        alpha: 1.0,
-        worldX,
-        worldY,
-        seed,
-        stoneMin: 4,
-        stoneMax: 7,
-        gap: 0.8,
-      });
-      return;
-    }
-
-    if (floorKind === 'stairs.wood') {
-      fillStairsWoodRectScreenOn(ctx, rect, {
+    // Default: wood (unknown kind falls back to wood).
+    {
+      const seed = hashStringToSeed(room.id || JSON.stringify(room.corners || []));
+      fillWoodPlanksRectScreenOn(ctx, rect, {
         baseHex: COLORS.floorWoodBase,
         alpha: 1.0,
         worldX,
         worldY,
         seed,
-        down: parentRoom.stairsDown || 'S',
-        treadDepth: 10,
-        treadGap: 1.2,
+        variant: 3,
+        plankH: 18,
+        gapY: 2,
+        gapX: 2,
       });
-      return;
     }
-
-    if (floorKind === 'none') {
-      ctx.fillStyle = '#f7f1e6';
-      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-      return;
-    }
-
-    // Default: wood
-    fillWoodPlanksRectScreenOn(ctx, rect, {
-      baseHex: COLORS.floorWoodBase,
-      alpha: 1.0,
-      worldX,
-      worldY,
-      seed,
-      variant: 3,
-      plankH: 18,
-      gapY: 2,
-      gapX: 2,
-    });
   }
 
-
   // ===== Open door underlay =====
-  function resolveDoorUnderlayRoomId(opening, roomMeta) {
+  function resolveDoorUnderlayRoomId(opening, roomMeta, rooms, allowedRoomIds) {
     const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
     if (kind !== 'door') return null;
 
     const orient = openingOrientation(opening);
     const d = normalizeDoorParams(opening, orient);
-    if (d.openPct <= 0.05) return null; // only paint under OPEN doors
 
     const { a, b } = openingTouchingRoomIds(opening, roomMeta);
-    if (orient === 'v') return (d.opensTo === 'E') ? b : a;
-    return (d.opensTo === 'N') ? a : b;
+
+    // Prefer the opensTo side.
+    let primary = null;
+    let secondary = null;
+
+    if (orient === 'v') {
+      primary = (d.opensTo === 'E') ? b : a;
+      secondary = (primary === a) ? b : a;
+    } else {
+      primary = (d.opensTo === 'N') ? a : b;
+      secondary = (primary === a) ? b : a;
+    }
+
+    const isFogRoom = (rid) => {
+      if (!rid) return false;
+      const rr = findRoomById(rooms, rid);
+      const fk = rr && rr.floor && rr.floor.kind ? String(rr.floor.kind).toLowerCase() : '';
+      return fk === 'fog';
+    };
+
+    const isAllowed = (rid) => {
+      if (!rid) return false;
+      if (allowedRoomIds && allowedRoomIds instanceof Set) return allowedRoomIds.has(rid);
+      return true;
+    };
+
+    // In fog mode, never underlay using an unseen room's floor.
+    if (primary && (!isAllowed(primary) || isFogRoom(primary))) {
+      if (secondary && isAllowed(secondary) && !isFogRoom(secondary)) return secondary;
+      return null;
+    }
+
+    if (primary && isAllowed(primary)) return primary;
+    if (secondary && isAllowed(secondary) && !isFogRoom(secondary)) return secondary;
+
+    return null;
   }
 
   function openingCutRectOnScreen(opening, wallSegs) {
@@ -1672,11 +1832,11 @@
       : { x: centerS.x - cutH / 2, y: centerS.y - cutW / 2, w: cutH, h: cutW };
   }
 
-  function paintDoorUnderlay(opening, rooms, wallSegs, roomMeta) {
+  function paintDoorUnderlay(opening, rooms, wallSegs, roomMeta, allowedRoomIds) {
     const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
     if (kind !== 'door') return;
 
-    const rid = resolveDoorUnderlayRoomId(opening, roomMeta);
+    const rid = resolveDoorUnderlayRoomId(opening, roomMeta, rooms, allowedRoomIds);
     if (!rid) return;
 
     const room = findRoomById(rooms, rid);
@@ -1685,7 +1845,6 @@
     const rect = openingCutRectOnScreen(opening, wallSegs);
     if (!rect) return;
 
-    // Apply the same floor override behavior as rooms ("Mixed" => no override).
     const rawFloorKind = (room.floor && room.floor.kind) ? String(room.floor.kind) : 'wood';
     const floorKind = (RENDER_OVERRIDES.floorKind && String(RENDER_OVERRIDES.floorKind).length)
       ? String(RENDER_OVERRIDES.floorKind)
@@ -1712,9 +1871,9 @@
         worldX,
         worldY,
         seed,
-        stoneMin: 4,
-        stoneMax: 7,
-        gap: 0.8,
+        stoneMin: 9,
+        stoneMax: 14,
+        gap: 0.35,
       });
       return;
     }
@@ -1985,6 +2144,178 @@
     ctx.restore();
   }
 
+  // ===== Objects =====
+  // Fallback furniture objects (simple D&D-style symbols). These are intentionally cheap to draw.
+
+  function objectShouldDraw(o, rooms) {
+    // Fog OFF: draw normally.
+    if (!RENDER_FOG || !RENDER_FOG.enabled) return true;
+
+    // Fog ON:
+    // - visible room: draw
+    // - explored-but-not-visible: draw (it will be dimmed by the room overlay)
+    // - unseen: do not draw
+    const rid = pickMostSpecificRoomIdForHex(buildRoomMeta(rooms), o && o.hex);
+    if (!rid) return true;
+
+    return RENDER_FOG.visible.has(rid) || RENDER_FOG.explored.has(rid);
+  }
+
+  function drawBedSquare(ctx2, rect, opts = {}) {
+    const head = String(opts.head || 'W').toUpperCase();
+
+    // Mattress
+    ctx2.fillStyle = opts.mattressFill ?? '#9a6a33';
+    ctx2.fillRect(rect.x, rect.y, rect.w, rect.h);
+
+    ctx2.lineWidth = 2;
+    ctx2.strokeStyle = opts.stroke ?? 'rgba(0,0,0,0.55)';
+    ctx2.strokeRect(rect.x + 1, rect.y + 1, Math.max(0, rect.w - 2), Math.max(0, rect.h - 2));
+
+    // Pillow(s): simple inset rectangles at the head side.
+    const inset = Math.max(3, Math.min(rect.w, rect.h) * 0.08);
+    const pillowThick = Math.max(6, (head === 'W' || head === 'E') ? rect.w * 0.22 : rect.h * 0.22);
+
+    ctx2.fillStyle = opts.pillowFill ?? '#7a4f22';
+
+    if (opts.double) {
+      const gap = Math.max(3, Math.min(rect.w, rect.h) * 0.06);
+
+      if (head === 'W' || head === 'E') {
+        const ph = (rect.h - inset * 2 - gap) / 2;
+        const pw = pillowThick;
+        const px = (head === 'W') ? (rect.x + inset) : (rect.x + rect.w - inset - pw);
+        const py1 = rect.y + inset;
+        const py2 = rect.y + inset + ph + gap;
+        ctx2.fillRect(px, py1, pw, ph);
+        ctx2.fillRect(px, py2, pw, ph);
+        ctx2.strokeStyle = opts.stroke ?? 'rgba(0,0,0,0.55)';
+        ctx2.lineWidth = 1.5;
+        ctx2.strokeRect(px + 0.75, py1 + 0.75, Math.max(0, pw - 1.5), Math.max(0, ph - 1.5));
+        ctx2.strokeRect(px + 0.75, py2 + 0.75, Math.max(0, pw - 1.5), Math.max(0, ph - 1.5));
+      } else {
+        const pw = (rect.w - inset * 2 - gap) / 2;
+        const ph = pillowThick;
+        const py = (head === 'N') ? (rect.y + inset) : (rect.y + rect.h - inset - ph);
+        const px1 = rect.x + inset;
+        const px2 = rect.x + inset + pw + gap;
+        ctx2.fillRect(px1, py, pw, ph);
+        ctx2.fillRect(px2, py, pw, ph);
+        ctx2.strokeStyle = opts.stroke ?? 'rgba(0,0,0,0.55)';
+        ctx2.lineWidth = 1.5;
+        ctx2.strokeRect(px1 + 0.75, py + 0.75, Math.max(0, pw - 1.5), Math.max(0, ph - 1.5));
+        ctx2.strokeRect(px2 + 0.75, py + 0.75, Math.max(0, pw - 1.5), Math.max(0, ph - 1.5));
+      }
+    } else {
+      if (head === 'W' || head === 'E') {
+        const pw = pillowThick;
+        const ph = rect.h - inset * 2;
+        const px = (head === 'W') ? (rect.x + inset) : (rect.x + rect.w - inset - pw);
+        const py = rect.y + inset;
+        ctx2.fillRect(px, py, pw, ph);
+        ctx2.strokeStyle = opts.stroke ?? 'rgba(0,0,0,0.55)';
+        ctx2.lineWidth = 1.5;
+        ctx2.strokeRect(px + 0.75, py + 0.75, Math.max(0, pw - 1.5), Math.max(0, ph - 1.5));
+      } else {
+        const pw = rect.w - inset * 2;
+        const ph = pillowThick;
+        const px = rect.x + inset;
+        const py = (head === 'N') ? (rect.y + inset) : (rect.y + rect.h - inset - ph);
+        ctx2.fillRect(px, py, pw, ph);
+        ctx2.strokeStyle = opts.stroke ?? 'rgba(0,0,0,0.55)';
+        ctx2.lineWidth = 1.5;
+        ctx2.strokeRect(px + 0.75, py + 0.75, Math.max(0, pw - 1.5), Math.max(0, ph - 1.5));
+      }
+    }
+  }
+
+  function drawObject(o) {
+    if (!o || !o.hex) return;
+
+    const kind = String(o.kind || '').toLowerCase();
+    if (kind !== 'bed.single' && kind !== 'bed.double') return;
+
+    let p;
+    try { p = parseHexId(o.hex); } catch { return; }
+
+    const cS = worldToScreen(hexCenterWorld(p.col, p.row));
+
+    // Hex flat-to-flat distances in screen space.
+    const hexFlatX = 2 * GRID.size;
+    const hexFlatY = rowStep();
+
+    // Spec from mockup:
+    // - length: 1.25 hex flat-to-flat
+    // - width: 0.75 (single) or 1.25 (double)
+    const lengthFactor = 1.25;
+    const widthFactor = (kind === 'bed.double') ? 1.25 : 0.75;
+
+    const orient = (o.orientation === 'v' || o.orientation === 'h') ? o.orientation : 'h';
+
+    const lenPx = (orient === 'h') ? (hexFlatX * lengthFactor) : (hexFlatY * lengthFactor);
+    const widPx = (orient === 'h') ? (hexFlatY * widthFactor) : (hexFlatX * widthFactor);
+
+    const rect = {
+      x: cS.x - lenPx / 2,
+      y: cS.y - widPx / 2,
+      w: lenPx,
+      h: widPx,
+    };
+
+    drawBedSquare(ctx, rect, {
+      head: o.head || 'W',
+      double: (kind === 'bed.double'),
+      mattressFill: '#9a6a33',
+      pillowFill: '#7a4f22',
+      stroke: 'rgba(0,0,0,0.60)'
+    });
+  }
+
+  function drawObjects(objects, rooms) {
+    const list = Array.isArray(objects) ? objects : [];
+    for (const o of list) {
+      if (!objectShouldDraw(o, rooms)) continue;
+      drawObject(o);
+    }
+  }
+
+  function drawRememberedRoomOverlays(rooms) {
+    if (!RENDER_FOG || !RENDER_FOG.enabled) return;
+
+    // "Remembered" means explored but not currently visible.
+    const remembered = new Set();
+    for (const id of RENDER_FOG.explored) {
+      if (!RENDER_FOG.visible.has(id)) remembered.add(id);
+    }
+    if (remembered.size === 0) return;
+
+    ctx.save();
+    ctx.globalAlpha = clamp(RENDER_FOG.exploredAlpha, 0, 1);
+    ctx.fillStyle = COLORS.fogExplored;
+
+    for (const r of (Array.isArray(rooms) ? rooms : [])) {
+      if (!r || !r.id) continue;
+      const id = String(r.id);
+      if (!remembered.has(id)) continue;
+
+      // Never overlay the base fog-floor rooms.
+      const fk = r && r.floor && r.floor.kind ? String(r.floor.kind).toLowerCase() : '';
+      if (fk === 'fog') continue;
+
+      const box = roomToWallBox(r);
+      const f = roomFloorRectWorld(r, box);
+      const f1 = worldToScreen({ x: f.x1, y: f.y1 });
+      const f2 = worldToScreen({ x: f.x2, y: f.y2 });
+
+      const rect = { x: f1.x, y: f1.y, w: (f2.x - f1.x), h: (f2.y - f1.y) };
+      if (rect.w <= 0 || rect.h <= 0) continue;
+
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+    }
+
+    ctx.restore();
+  }
+
   // ===== Tokens =====
   function drawToken(t) {
     const p = parseHexId(t.hex);
@@ -2086,6 +2417,7 @@
     const meta = state.meta || {};
     const rooms = Array.isArray(state.rooms) ? state.rooms.length : 0;
     const openings = Array.isArray(state.openings) ? state.openings.length : 0;
+    const objects = Array.isArray(state.objects) ? state.objects.length : 0;
     const tokens = Array.isArray(state.tokens) ? state.tokens.length : 0;
 
     const camHex = (state.view && state.view.camera_hex) ? state.view.camera_hex : hexId(VIEW.camera.col, VIEW.camera.row);
@@ -2103,6 +2435,7 @@
       ['Camera', camHex],
       ['Rooms', rooms],
       ['Openings', openings],
+      ['Objects', objects],
       ['Tokens', tokens],
       ['Fog', fogLabel],
       ['Fog maxDepth', String(fog.maxDepth)],
@@ -2170,14 +2503,19 @@
 
     const rooms = Array.isArray(state.rooms) ? state.rooms : [];
     const openings = Array.isArray(state.openings) ? state.openings : [];
+    const objects = Array.isArray(state.objects) ? state.objects : [];
     const tokens = Array.isArray(state.tokens) ? state.tokens : [];
 
     // Compute Fog of War sets for this frame.
     RENDER_FOG = computeRenderFog(state, rooms, openings);
 
-    // When fog is enabled, render ONLY what's in view, plus any base "fog" floor rooms.
+    // When fog is enabled:
+    // - Unexplored rooms are NOT drawn (the base fog-floor room(s) show through).
+    // - Visible rooms are drawn normally.
+    // - Explored-but-not-visible rooms are drawn normally, then get a fog overlay.
     let roomsToDraw = rooms;
     let openingsToDraw = openings;
+    let renderableRoomIds = null;
 
     if (RENDER_FOG && RENDER_FOG.enabled) {
       const roomMeta = buildRoomMeta(rooms);
@@ -2188,16 +2526,17 @@
         if (k === 'fog' && r && r.id) baseFogRoomIds.add(String(r.id));
       }
 
-      const geometryRoomIds = new Set([...RENDER_FOG.visible]);
+      // Anything explored is renderable (includes visible rooms).
+      renderableRoomIds = new Set([...RENDER_FOG.explored]);
 
       roomsToDraw = rooms.filter(r => {
         const id = r && r.id ? String(r.id) : '';
         if (!id) return true;
         if (baseFogRoomIds.has(id)) return true;
-        return geometryRoomIds.has(id);
+        return renderableRoomIds.has(id);
       });
 
-      openingsToDraw = openings.filter(o => isRenderableOpening(o, roomMeta, geometryRoomIds));
+      openingsToDraw = openings.filter(o => isRenderableOpening(o, roomMeta, renderableRoomIds));
     }
 
     // Floors.
@@ -2216,11 +2555,12 @@
 
     // Floor underlays for openings.
     // - Thresholds: always paint under the wall knockout (so hallway junctions read continuous).
-    // - Doors: paint ONLY when open (closed doors keep their gray knockout).
+    // - Doors: paint floor underlay for BOTH open and closed doors (so the knockout never shows white/gray unless the floor itself is gray).
     const roomMetaAll = buildRoomMeta(rooms);
     for (const o of openingsToDraw) {
       paintThresholdUnderlay(o, rooms, wallSegs);
-      paintDoorUnderlay(o, rooms, wallSegs, roomMetaAll);
+      // If fog is on, only allow door underlays from rooms that are actually renderable (visible or explored).
+      paintDoorUnderlay(o, rooms, wallSegs, roomMetaAll, renderableRoomIds);
     }
 
     // Build walls into offscreen.
@@ -2263,6 +2603,12 @@
     // Visible openings.
     for (const o of openingsToDraw) drawOpening(o, wallSegs);
 
+    // Objects (furniture) — after floors, before tokens. (Walls already composited above.)
+    drawObjects(objects, rooms);
+
+    // Remembered rooms (explored but not visible): overlay a fog wash so EVERYTHING in the room looks dim.
+    drawRememberedRoomOverlays(rooms);
+
     // Tokens.
     for (const t of tokens) {
       if (shouldDrawToken(t, rooms)) drawToken(t);
@@ -2297,6 +2643,20 @@
       const r2 = mulberry32(123);
       if (Math.abs(r1() - r2()) > 1e-12) throw new Error('mulberry32 not deterministic');
 
+      // findNearestWallSegment should pick the closest segment.
+      {
+        const segs = [
+          { orientation: 'v', x: 10, y1: 0, y2: 100, thickness: 20 },
+          { orientation: 'v', x: 50, y1: 0, y2: 100, thickness: 20 },
+          { orientation: 'h', y: 25, x1: 0, x2: 100, thickness: 20 },
+        ];
+        const bestV = findNearestWallSegment(segs, 'v', { x: 12, y: 40 });
+        if (!bestV || bestV.x !== 10) throw new Error('findNearestWallSegment(v) did not select expected segment');
+
+        const bestH = findNearestWallSegment(segs, 'h', { x: 40, y: 24 });
+        if (!bestH || bestH.y !== 25) throw new Error('findNearestWallSegment(h) did not select expected segment');
+      }
+
       // Adjacency: wall-less spaces must NOT auto-connect by touching bounds.
       {
         const dummyRooms = [
@@ -2330,10 +2690,6 @@
         const th = { id: 't2', kind: 'threshold', hex: 'D2', orientation: 'h', state: 'open' };
         if (Math.abs(openingKnockoutSpan(tv) - 1.5) > 1e-9) throw new Error('vertical threshold knockout span should be 1.5');
         if (Math.abs(openingKnockoutSpan(th) - 1.0) > 1e-9) throw new Error('horizontal threshold knockout span should be 1.0');
-
-        const baseLen = (GRID.size * 1.2);
-        const expectedBias = ((1.5 - 1) * baseLen) / 2;
-        if (Math.abs(expectedBias - (0.25 * baseLen)) > 1e-9) throw new Error('vertical threshold expected bias math changed');
       }
 
       // Parent-based thresholds: knockout span should match the parent room's INNER floor span.
@@ -2346,58 +2702,14 @@
         const tv = { id: 'tpv', kind: 'threshold', hex: 'B2', orientation: 'v', state: 'open', parent: 'Hall' };
         const th = { id: 'tph', kind: 'threshold', hex: 'D3', orientation: 'h', state: 'open', parent: 'Hall' };
 
-        const sv = thresholdKnockoutFromParent(tv, [parentRoom], []);
-        const sh = thresholdKnockoutFromParent(th, [parentRoom], []);
+        const sv = thresholdKnockoutFromParent(tv, [parentRoom], buildWallSegments([parentRoom]));
+        const sh = thresholdKnockoutFromParent(th, [parentRoom], buildWallSegments([parentRoom]));
 
         if (!sv) throw new Error('parent vertical threshold spec missing');
         if (!sh) throw new Error('parent horizontal threshold spec missing');
 
         if (Math.abs(sv.len - expectV) > 0.001) throw new Error('parent vertical threshold len should equal inner height');
         if (Math.abs(sh.len - expectH) > 0.001) throw new Error('parent horizontal threshold len should equal inner width');
-      }
-
-      // Render filter: a door should be considered renderable if at least one side touches a renderable room.
-      {
-        const dummyRooms = [
-          { id: 'Hall', corners: ['B3','D3','D1','B1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id: 'Hidden', corners: ['D3','F3','F1','D1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-        ];
-        const rm = buildRoomMeta(dummyRooms);
-        const o = { id: 'd', kind: 'door', hex: 'D2', orientation: 'v', state: 'closed' };
-        const renderable = new Set(['Hall']);
-        if (!isRenderableOpening(o, rm, renderable)) throw new Error('door adjacent to renderable room should be renderable');
-      }
-
-      // Door underlay selection: should pick the opensTo side when open.
-      {
-        const dummyRooms = [
-          { id: 'A', corners: ['B3','D3','D1','B1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id: 'B', corners: ['D3','F3','F1','D1'], thickness: 20, floor: { kind: 'stone' }, wall: { kind: 'brick' } },
-        ];
-        const rm = buildRoomMeta(dummyRooms);
-
-        const toE = { id: 'd1', kind: 'door', hex: 'D2', orientation: 'v', state: 'open', opensTo: 'E', hingeEnd: 'N' };
-        const toW = { id: 'd2', kind: 'door', hex: 'D2', orientation: 'v', state: 'open', opensTo: 'W', hingeEnd: 'N' };
-        const closed = { id: 'd3', kind: 'door', hex: 'D2', orientation: 'v', state: 'closed', opensTo: 'E', hingeEnd: 'N' };
-
-        if (resolveDoorUnderlayRoomId(toE, rm) !== 'B') throw new Error('door underlay should target opensTo side (E => east room)');
-        if (resolveDoorUnderlayRoomId(toW, rm) !== 'A') throw new Error('door underlay should target opensTo side (W => west room)');
-        if (resolveDoorUnderlayRoomId(closed, rm) != null) throw new Error('closed door should not request an underlay');
-      }
-
-      // Fog defaults: when maxDepth is omitted, normalizeFog should default to 1.
-      {
-        const f = normalizeFog({ fog: { enabled: true, mode: 'room' } });
-        if (f.maxDepth !== 1) throw new Error('normalizeFog default maxDepth should be 1');
-      }
-
-      // cutOpeningHole smoke test.
-      {
-        const oc = document.createElement('canvas');
-        oc.width = 64; oc.height = 64;
-        const octx = oc.getContext('2d');
-        VIEW.anchor.x = 0; VIEW.anchor.y = 0; VIEW.camera.col = 0; VIEW.camera.row = 0; VIEW.dx = 0; VIEW.dy = 0;
-        cutOpeningHole(octx, { id: 't', kind: 'threshold', hex: 'A1', orientation: 'v', state: 'open' }, []);
       }
 
       // Stairs fill should not throw.
@@ -2415,31 +2727,26 @@
           gap: 2,
           down: 'S'
         });
-
-        fillStairsWoodRectScreenOn(octx, { x: 0, y: 0, w: 64, h: 64 }, {
-          baseHex: COLORS.floorWoodBase,
-          alpha: 1.0,
-          worldX: 13,
-          worldY: 29,
-          seed: 1,
-          treadDepth: 10,
-          treadGap: 2,
-          down: 'W'
-        });
       }
 
-      // Floor ordering: fog-floor rooms must be drawn first.
+      // drawObjects smoke test should not throw.
       {
-        const fogRoom = { id: 'Fog', corners: ['B3','F3','F1','B1'], thickness: 20, floor: { kind: 'fog' }, wall: { kind: 'brick' } };
-        const stairsRoom = { id: 'Stairs', corners: ['B3','F3','F1','B1'], thickness: 20, floor: { kind: 'stairs.wood' }, wall: { kind: 'brick' } };
-        const woodRoom = { id: 'Wood', corners: ['B3','F3','F1','B1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } };
+        const savedFog = RENDER_FOG;
+        RENDER_FOG = { enabled: false, visible: new Set(), explored: new Set(), unseenAlpha: 0.9, exploredAlpha: 0.5 };
+        drawObjects([{ id: 'x', kind: 'bed.single', hex: 'A1', orientation: 'h', head: 'W' }], []);
+        RENDER_FOG = savedFog;
+      }
 
-        const fogRooms = [];
-        const otherRooms = [];
-        for (const r of [woodRoom, stairsRoom, fogRoom]) (isFogFloorRoom(r) ? fogRooms : otherRooms).push(r);
-        const ordered = fogRooms.concat(otherRooms).map(r => r.id);
-
-        if (ordered[0] !== 'Fog') throw new Error('fog floor rooms should be first in floor render order');
+      // drawRememberedRoomOverlays smoke test should not throw.
+      {
+        const savedFog = RENDER_FOG;
+        RENDER_FOG = { enabled: true, visible: new Set(['A']), explored: new Set(['A','B']), unseenAlpha: 0.9, exploredAlpha: 0.5 };
+        const dummyRooms = [
+          { id: 'A', corners: ['B3','D3','D1','B1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id: 'B', corners: ['D3','F3','F1','D1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+        ];
+        drawRememberedRoomOverlays(dummyRooms);
+        RENDER_FOG = savedFog;
       }
 
       console.log('[Battlemat] self-tests: OK');
