@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v4.95
+  v4.96
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -15,9 +15,12 @@
 
   Unauthorized use is prohibited.
 
-  Refactor notes (v4.95):
+  Refactor notes (v4.96):
   - Cleanup-only refactor: remove obsolete/accidental comment artifacts, align version display, and group code by section.
   - No functional changes intended.
+
+  Feature notes (v4.96):
+  - Doors: when a door is open, paint the parent room floor pattern under the wall knockout (closed doors remain gray).
 
   Feature notes (v4.94):
   - Stairs: tread taper symmetric around the midline (even cascade) and add an end landing pad (default 25px).
@@ -223,7 +226,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.95</div>
+        <div class="pill" id="versionLine">v4.96</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -346,7 +349,7 @@
       { id: 'door_room2', kind: 'door', hex: 'P16',  orientation: 'v', state: 'closed', opensTo: 'W', hingeEnd: 'N' },
       { id: 'door_room3', kind: 'door', hex: 'P13',  orientation: 'v', state: 'closed', opensTo: 'W', hingeEnd: 'N' },
       { id: 'door_room4', kind: 'door', hex: 'T15',  orientation: 'h', state: 'open', opensTo: 'S', hingeEnd: 'W' },
-      { id: 'door_room5', kind: 'door', hex: 'U17',  orientation: 'h', state: 'open', opensTo: 'N', hingeEnd: 'W' },
+      { id: 'door_room5', kind: 'door', hex: 'U17',  orientation: 'h', state: 'closed', opensTo: 'N', hingeEnd: 'W' },
       { id: 'door_room5_closet', kind: 'door', hex: 'X20',  orientation: 'v', state: 'open', opensTo: 'W', hingeEnd: 'N' },
       { id: 'door_room6', kind: 'door', hex: 'AA17', orientation: 'h', state: 'closed', opensTo: 'N', hingeEnd: 'E' },
       { id: 'door_room7', kind: 'door', hex: 'AC14', orientation: 'h', state: 'closed', opensTo: 'S', hingeEnd: 'E' },
@@ -1620,6 +1623,136 @@
     });
   }
 
+
+  // ===== Open door underlay =====
+  function resolveDoorUnderlayRoomId(opening, roomMeta) {
+    const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
+    if (kind !== 'door') return null;
+
+    const orient = openingOrientation(opening);
+    const d = normalizeDoorParams(opening, orient);
+    if (d.openPct <= 0.05) return null; // only paint under OPEN doors
+
+    const { a, b } = openingTouchingRoomIds(opening, roomMeta);
+    if (orient === 'v') return (d.opensTo === 'E') ? b : a;
+    return (d.opensTo === 'N') ? a : b;
+  }
+
+  function openingCutRectOnScreen(opening, wallSegs) {
+    const orient = openingOrientation(opening);
+
+    let p;
+    try { p = parseHexId(opening.hex); } catch { return null; }
+
+    const hexWorld = hexCenterWorld(p.col, p.row);
+    const seg = findNearestWallSegment(wallSegs || [], orient, hexWorld);
+
+    // Match cutOpeningHole() defaults for non-threshold openings.
+    const baseLen = (GRID.size * 1.2);
+    const span = openingKnockoutSpan(opening);
+    const w = baseLen * span;
+
+    let cx = hexWorld.x;
+    let cy = hexWorld.y;
+    let thickness = 28;
+
+    if (seg) {
+      thickness = seg.thickness;
+      if (orient === 'h') cy = seg.y;
+      else cx = seg.x;
+    }
+
+    const centerS = worldToScreen({ x: cx, y: cy });
+    const cutH = thickness + 3;
+    const cutW = w + 2;
+
+    // When cutOpeningHole rotates for 'v', width/height swap.
+    return (orient === 'h')
+      ? { x: centerS.x - cutW / 2, y: centerS.y - cutH / 2, w: cutW, h: cutH }
+      : { x: centerS.x - cutH / 2, y: centerS.y - cutW / 2, w: cutH, h: cutW };
+  }
+
+  function paintDoorUnderlay(opening, rooms, wallSegs, roomMeta) {
+    const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
+    if (kind !== 'door') return;
+
+    const rid = resolveDoorUnderlayRoomId(opening, roomMeta);
+    if (!rid) return;
+
+    const room = findRoomById(rooms, rid);
+    if (!room) return;
+
+    const rect = openingCutRectOnScreen(opening, wallSegs);
+    if (!rect) return;
+
+    // Apply the same floor override behavior as rooms ("Mixed" => no override).
+    const rawFloorKind = (room.floor && room.floor.kind) ? String(room.floor.kind) : 'wood';
+    const floorKind = (RENDER_OVERRIDES.floorKind && String(RENDER_OVERRIDES.floorKind).length)
+      ? String(RENDER_OVERRIDES.floorKind)
+      : rawFloorKind;
+
+    const box = roomToWallBox(room);
+    const f = roomFloorRectWorld(room, box);
+    const worldX = f.x1;
+    const worldY = f.y1;
+    const seed = hashStringToSeed(room.id || JSON.stringify(room.corners || []));
+
+    const fk = String(floorKind).toLowerCase();
+
+    if (fk === 'stone') {
+      ctx.fillStyle = COLORS.floorStone;
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      return;
+    }
+
+    if (fk === 'cobble') {
+      fillCobbleRectScreenOn(ctx, rect, {
+        baseHex: COLORS.floorCobbleBase,
+        alpha: 1.0,
+        worldX,
+        worldY,
+        seed,
+        stoneMin: 4,
+        stoneMax: 7,
+        gap: 0.8,
+      });
+      return;
+    }
+
+    if (fk === 'stairs.wood') {
+      fillStairsWoodRectScreenOn(ctx, rect, {
+        baseHex: COLORS.floorWoodBase,
+        alpha: 1.0,
+        worldX,
+        worldY,
+        seed,
+        down: room.stairsDown || 'S',
+        treadDepth: 10,
+        treadGap: 1.2,
+      });
+      return;
+    }
+
+    if (fk === 'none') {
+      ctx.fillStyle = '#f7f1e6';
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      return;
+    }
+
+    // Default: wood
+    fillWoodPlanksRectScreenOn(ctx, rect, {
+      baseHex: COLORS.floorWoodBase,
+      alpha: 1.0,
+      worldX,
+      worldY,
+      seed,
+      variant: 3,
+      plankH: 18,
+      gapY: 2,
+      gapX: 2,
+    });
+  }
+
   function cutOpeningHole(targetCtx, opening, wallSegs, roomsForSizing) {
     const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
     if (kind === 'portal' || kind === 'connector') return;
@@ -2081,8 +2214,14 @@
 
     const wallSegs = buildWallSegments(roomsForWalls);
 
-    // Floor underlays for thresholds (to avoid “fog gray” showing through the knockout).
-    for (const o of openingsToDraw) paintThresholdUnderlay(o, rooms, wallSegs);
+    // Floor underlays for openings.
+    // - Thresholds: always paint under the wall knockout (so hallway junctions read continuous).
+    // - Doors: paint ONLY when open (closed doors keep their gray knockout).
+    const roomMetaAll = buildRoomMeta(rooms);
+    for (const o of openingsToDraw) {
+      paintThresholdUnderlay(o, rooms, wallSegs);
+      paintDoorUnderlay(o, rooms, wallSegs, roomMetaAll);
+    }
 
     // Build walls into offscreen.
     wallCtx.save();
@@ -2227,6 +2366,23 @@
         const o = { id: 'd', kind: 'door', hex: 'D2', orientation: 'v', state: 'closed' };
         const renderable = new Set(['Hall']);
         if (!isRenderableOpening(o, rm, renderable)) throw new Error('door adjacent to renderable room should be renderable');
+      }
+
+      // Door underlay selection: should pick the opensTo side when open.
+      {
+        const dummyRooms = [
+          { id: 'A', corners: ['B3','D3','D1','B1'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id: 'B', corners: ['D3','F3','F1','D1'], thickness: 20, floor: { kind: 'stone' }, wall: { kind: 'brick' } },
+        ];
+        const rm = buildRoomMeta(dummyRooms);
+
+        const toE = { id: 'd1', kind: 'door', hex: 'D2', orientation: 'v', state: 'open', opensTo: 'E', hingeEnd: 'N' };
+        const toW = { id: 'd2', kind: 'door', hex: 'D2', orientation: 'v', state: 'open', opensTo: 'W', hingeEnd: 'N' };
+        const closed = { id: 'd3', kind: 'door', hex: 'D2', orientation: 'v', state: 'closed', opensTo: 'E', hingeEnd: 'N' };
+
+        if (resolveDoorUnderlayRoomId(toE, rm) !== 'B') throw new Error('door underlay should target opensTo side (E => east room)');
+        if (resolveDoorUnderlayRoomId(toW, rm) !== 'A') throw new Error('door underlay should target opensTo side (W => west room)');
+        if (resolveDoorUnderlayRoomId(closed, rm) != null) throw new Error('closed door should not request an underlay');
       }
 
       // Fog defaults: when maxDepth is omitted, normalizeFog should default to 1.
