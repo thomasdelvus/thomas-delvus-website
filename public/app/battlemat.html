@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v4.124
+  v4.125
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -14,6 +14,11 @@
   or AI/training workflow without prior written permission from the copyright holder.
 
   Unauthorized use is prohibited.
+
+  Bugfix notes (v4.125):
+  - Chairs: fix facing orientation mapping. Support 6-direction compass facings (N, NE, SE, S, SW, NW) in true 60° steps.
+    (Previously we applied a +30° edge-normal offset, which made some inputs appear rotated and also caused N/S to fall back.
+     Now N/S work and NW/SE no longer drift to N/S.)
 
   Bugfix notes (v4.124):
   - Chairs: draw backrest AFTER the seat so it renders on top (fixes the “backrest under chair” look).
@@ -272,7 +277,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        <div class="pill" id="versionLine">v4.124</div>
+        <div class="pill" id="versionLine">v4.125</div>
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -2341,28 +2346,42 @@
   }
 
   function facingToAngleRad(facing) {
-    const f = String(facing || 'E').toUpperCase();
-
-    // We want chairs to point at a *flat hex side* (an edge normal), not at a corner.
-    // Our hex geometry is flat-top, so the edge normals are offset by +30° from the
-    // usual 60° direction set.
+    // Chair/object facing is expressed in a 6-direction "compass" set:
+    //   N, NE, SE, S, SW, NW
+    // in 60° increments.
     //
-    // Base (60° steps): E, SE, SW, W, NW, NE
-    // Then apply +30° (π/6) so directions land on edge normals.
-    const EDGE_NORMAL_OFFSET = Math.PI / 6; // 30°
+    // This matches how you’ve been entering directions for furniture.
+    // (Older code used the flat-top neighbor set E/NE/NW/W/SW/SE plus a +30° offset,
+    // which made some values look rotated and caused N/S to silently fall back.)
 
-    let base = 0;
+    const f = String(facing || 'NE').trim().toUpperCase();
+
+    // Angles are in CANVAS screen space (y+ is down). Positive angles rotate clockwise.
+    // Chosen so:
+    //   N  = up
+    //   S  = down
+    //   NE = up-right
+    //   SE = down-right
+    //   SW = down-left
+    //   NW = up-left
+
     switch (f) {
-      case 'E':  base = 0; break;
-      case 'SE': base = Math.PI / 3; break;
-      case 'SW': base = 2 * Math.PI / 3; break;
-      case 'W':  base = Math.PI; break;
-      case 'NW': base = -2 * Math.PI / 3; break;
-      case 'NE': base = -Math.PI / 3; break;
-      default:   base = 0; break;
-    }
+      case 'N':  return -Math.PI / 2;
+      case 'NE': return -Math.PI / 6;
+      case 'SE': return  Math.PI / 6;
+      case 'S':  return  Math.PI / 2;
+      case 'SW': return  5 * Math.PI / 6;
+      case 'NW': return -5 * Math.PI / 6;
 
-    return base + EDGE_NORMAL_OFFSET;
+      // Optional aliases (not part of the 6-direction set, but handy if you ever use them)
+      case 'E':  return 0;
+      case 'W':  return Math.PI;
+
+      default:
+        // If we get an unknown token, fail safe to NE (so it's obvious something is off
+        // rather than silently pointing "somewhere").
+        return -Math.PI / 6;
+    }
   }
 
   function drawChair(ctx2, center, facing, opts = {}) {
@@ -3018,13 +3037,28 @@
       // facingToAngleRad sanity.
       {
         const eps = 1e-9;
-        const off = Math.PI / 6;
-        if (Math.abs(facingToAngleRad('E') - (0 + off)) > eps) throw new Error('chair angle E');
-        if (Math.abs(facingToAngleRad('SE') - (Math.PI / 3 + off)) > eps) throw new Error('chair angle SE');
-        if (Math.abs(facingToAngleRad('SW') - (2 * Math.PI / 3 + off)) > eps) throw new Error('chair angle SW');
-        if (Math.abs(facingToAngleRad('W') - (Math.PI + off)) > eps) throw new Error('chair angle W');
-        if (Math.abs(facingToAngleRad('NW') - (-2 * Math.PI / 3 + off)) > eps) throw new Error('chair angle NW');
-        if (Math.abs(facingToAngleRad('NE') - (-Math.PI / 3 + off)) > eps) throw new Error('chair angle NE');
+        const near = (a, b) => Math.abs(a - b) < eps;
+
+        if (!near(facingToAngleRad('N'), -Math.PI / 2)) throw new Error('chair angle N');
+        if (!near(facingToAngleRad('NE'), -Math.PI / 6)) throw new Error('chair angle NE');
+        if (!near(facingToAngleRad('SE'),  Math.PI / 6)) throw new Error('chair angle SE');
+        if (!near(facingToAngleRad('S'),   Math.PI / 2)) throw new Error('chair angle S');
+        if (!near(facingToAngleRad('SW'),  5 * Math.PI / 6)) throw new Error('chair angle SW');
+        if (!near(facingToAngleRad('NW'), -5 * Math.PI / 6)) throw new Error('chair angle NW');
+
+        // 60° step sanity (clockwise order): N -> NE -> SE -> S -> SW -> NW -> back to N
+        const dirs = ['N','NE','SE','S','SW','NW'];
+        const angs = dirs.map(d => facingToAngleRad(d));
+        for (let i = 0; i < angs.length; i++) {
+          const a = angs[i];
+          const b = angs[(i + 1) % angs.length];
+          // normalize to [-pi, pi]
+          let d = b - a;
+          while (d <= -Math.PI) d += Math.PI * 2;
+          while (d > Math.PI) d -= Math.PI * 2;
+          // The step size is +60° (pi/3) in our clockwise-positive canvas space.
+          if (Math.abs(d - (Math.PI / 3)) > 1e-6) throw new Error('chair 60° step ' + dirs[i] + '->' + dirs[(i + 1) % dirs.length]);
+        }
       }
 
       // drawChair smoke test should not throw.
@@ -3032,7 +3066,7 @@
         const oc = document.createElement('canvas');
         oc.width = 80; oc.height = 80;
         const octx = oc.getContext('2d');
-        const facings = ['E','SE','SW','W','NW','NE'];
+        const facings = ['N','NE','SE','S','SW','NW'];
         for (const f of facings) drawChair(octx, { x: 40, y: 40 }, f, {});
       }
 
