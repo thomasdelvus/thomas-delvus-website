@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v5.02 
+  v5.03 
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -217,7 +217,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        v5.02
+        $1v5.03$2
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -400,7 +400,7 @@
 
     tokens: [
       { id: 'lich', name: 'Lich', side: 'ENEMY', hex: 'U19', label: 'L', init: 15, hp: 135 },
-      { id: 'w1',   name: 'Wraith 1', side: 'ENEMY', hex: 'T16', label: 'W1', init: 12, hp: 67, sprite: 'wraith.png' },
+      { id: 'w1',   name: 'Wraith 1', side: 'ENEMY', hex: 'T16', label: 'W1', init: 12, hp: 67 },
       { id: 'w2',   name: 'Wraith 2', side: 'ENEMY', hex: 'Q18', label: 'W2', init: 11, hp: 67 },
       { id: 'w3',   name: 'Wraith 3', side: 'ENEMY', hex: 'N17', label: 'W3', init: 10, hp: 67 },
       { id: 'a',    name: 'Aelar', side: 'PC', hex: 'W14', label: 'A', init: 14, hp: 42 },
@@ -3110,7 +3110,8 @@
       const seatH = GRID.size * 0.72;
       const seatR = Math.max(4, seatH * 0.22);
 
-      const backR = Math.max(6, seatH * 0.48);
+      // Bring the backrest radius in a bit so its vertical edges match the seat width more cleanly.
+      const backR = Math.max(6, seatH * 0.44);
 
       const ang = facingToAngleRad(facing);
 
@@ -3130,11 +3131,11 @@
       ctx2.fillStyle = 'rgba(0,0,0,0.10)';
       ctx2.fillRect(seatW * 0.33, -seatH * 0.18, seatW * 0.12, seatH * 0.36);
 
-      // Backrest
-      const backInsetX = seatW * 0.06 + backR;
-
+      // Backrest (semi-circle) — place the FLAT edge exactly on the seat's back edge.
+      // The arc is the LEFT half of a circle, so the flat edge is at x=0 in local coords.
+      // By translating to (-seatW/2), it lines up flush with the seat.
       ctx2.save();
-      ctx2.translate(-seatW / 2 + backInsetX, 0);
+      ctx2.translate(-seatW / 2, 0);
 
       ctx2.fillStyle = fill;
       ctx2.beginPath();
