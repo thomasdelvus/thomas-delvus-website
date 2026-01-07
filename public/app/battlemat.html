@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v5.02 
+  v5.04 
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -217,7 +217,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        $1v5.02$2
+        v5.04
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -2521,7 +2521,7 @@
     requestAnimationFrame(followCameraTick);
   }
 
-  function resize() {
+  function resize(opts = {}) {
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     VIEW.dpr = dpr;
 
@@ -2539,7 +2539,8 @@
     VIEW.anchor.x = rect.width / 2;
     VIEW.anchor.y = rect.height / 2;
 
-    redraw();
+    // If called from init() we may want to defer the very first paint.
+    if (!opts.skipRedraw) redraw();
   }
 
   // =====================================================================================
@@ -2635,14 +2636,20 @@
     wireUI();
 
     window.addEventListener('resize', resize);
-    resize();
+
+    // First-load: size canvases, then do a double-refresh on the next frames.
+    // This avoids the “basic pack first frame” issue and lets any late-loading assets settle.
+    resize({ skipRedraw: true });
 
     runSelfTests();
 
+    requestAnimationFrame(() => {
+      redraw();
+      requestAnimationFrame(redraw);
+    });
+
     requestAnimationFrame(followCameraTick);
   }
-
-  init();
 
   // =====================================================================================
   // OPTIONAL FANCY PACK (SAFE TO DELETE)
@@ -3512,6 +3519,11 @@
 
   })(PACK);
 
+
+  // =====================================================================================
+  // BOOT (after optional fancy pack)
+  // =====================================================================================
+  init();
 })();
 </script>
 </body>
