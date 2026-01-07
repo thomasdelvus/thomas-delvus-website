@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v5.03 
+  v5.02 
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -217,7 +217,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        v5.03
+        $1v5.02$2
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -240,18 +240,6 @@
   // identifier; a stray reference crashes with "ReferenceError: $1 is not defined". Binding it here
   // makes any accidental stray usage a harmless no-op.
   const $1 = undefined;
-
-  // ===== Debug toggles =====
-  // Toggle on/off with the "D" key.
-  // You can also tweak in DevTools: window.DEBUG.enabled = true/false
-  window.DEBUG = window.DEBUG || {
-    enabled: true,
-    chair: true,
-    openings: false,
-    walls: false,
-    text: true,
-  };
-
 
   // ===== DOM / Canvas =====
   const canvas = document.getElementById('canvas');
@@ -2022,16 +2010,7 @@
       const cS = { x: cS0.x + sh.dx, y: cS0.y + sh.dy };
 
       const facing = o.facing ?? o.dir ?? o.direction ?? 'E';
-
-      // Pass debug metadata through the style bag (safe: packs can ignore unknown fields).
-      const style = Object.assign({}, (o.style || {}), {
-        _debug: {
-          id: o.id || '',
-          hex: o.hex || '',
-          facing: String(facing),
-          shiftPx: { dx: sh.dx, dy: sh.dy },
-        }
-      });
+      const style = o.style || {};
 
       // The PACK can choose how fancy chairs are.
       if (PACK.drawChair) PACK.drawChair(ctx, cS, facing, style);
@@ -2508,14 +2487,6 @@
     }
 
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'd' || e.key === 'D') {
-        if (!window.DEBUG) window.DEBUG = { enabled: false, chair: true, openings: false, walls: false, text: true };
-        window.DEBUG.enabled = !window.DEBUG.enabled;
-        console.log('[Battlemat] DEBUG.enabled =', window.DEBUG.enabled);
-        redraw();
-        return;
-      }
-
       if (e.key === 'ArrowLeft') { e.preventDefault(); pan(-PAN_STEP, 0); }
       if (e.key === 'ArrowRight') { e.preventDefault(); pan(PAN_STEP, 0); }
       if (e.key === 'ArrowUp') { e.preventDefault(); pan(0, PAN_STEP); }
@@ -3139,14 +3110,9 @@
       const seatH = GRID.size * 0.72;
       const seatR = Math.max(4, seatH * 0.22);
 
-      // Bring the backrest radius in a bit so its vertical edges match the seat width more cleanly.
-      const backR = Math.max(6, seatH * 0.44);
+      const backR = Math.max(6, seatH * 0.48);
 
       const ang = facingToAngleRad(facing);
-
-      const dbg = (window.DEBUG && window.DEBUG.enabled && window.DEBUG.chair);
-      const dbgText = dbg && (window.DEBUG.text !== false);
-      const dbgMeta = (opts && opts._debug) ? opts._debug : null;
 
       ctx2.save();
       ctx2.translate(center.x, center.y);
@@ -3164,11 +3130,11 @@
       ctx2.fillStyle = 'rgba(0,0,0,0.10)';
       ctx2.fillRect(seatW * 0.33, -seatH * 0.18, seatW * 0.12, seatH * 0.36);
 
-      // Backrest (semi-circle) — place the FLAT edge exactly on the seat's back edge.
-      // The arc is the LEFT half of a circle, so the flat edge is at x=0 in local coords.
-      // By translating to (-seatW/2), it lines up flush with the seat.
+      // Backrest
+      const backInsetX = seatW * 0.06 + backR;
+
       ctx2.save();
-      ctx2.translate(-seatW / 2, 0);
+      ctx2.translate(-seatW / 2 + backInsetX, 0);
 
       ctx2.fillStyle = fill;
       ctx2.beginPath();
@@ -3189,89 +3155,7 @@
       ctx2.arc(0, 0, Math.max(3, backR * 0.72), -Math.PI / 2, Math.PI / 2, true);
       ctx2.stroke();
 
-      // DEBUG overlays in backrest-local coords (where x=0 is the flat edge)
-      if (dbg) {
-        // Flat edge line (should sit on seat back edge)
-        ctx2.save();
-        ctx2.strokeStyle = 'rgba(255,0,255,0.65)';
-        ctx2.lineWidth = 2;
-        ctx2.beginPath();
-        ctx2.moveTo(0, -backR);
-        ctx2.lineTo(0, backR);
-        ctx2.stroke();
-
-        // Backrest bounding box
-        ctx2.strokeStyle = 'rgba(255,0,255,0.35)';
-        ctx2.lineWidth = 1;
-        ctx2.strokeRect(-backR, -backR, backR, backR * 2);
-
-        // Backrest center point
-        ctx2.fillStyle = 'rgba(255,0,255,0.75)';
-        ctx2.beginPath();
-        ctx2.arc(0, 0, 2.5, 0, Math.PI * 2);
-        ctx2.fill();
-        ctx2.restore();
-      }
-
-      ctx2.restore(); // backrest local
-
-      // DEBUG overlays in chair-local coords
-      if (dbg) {
-        ctx2.save();
-
-        // Axes
-        ctx2.strokeStyle = 'rgba(0,180,255,0.55)';
-        ctx2.lineWidth = 1.5;
-        ctx2.beginPath();
-        ctx2.moveTo(-seatW * 0.75, 0);
-        ctx2.lineTo(seatW * 0.75, 0);
-        ctx2.moveTo(0, -seatH * 1.2);
-        ctx2.lineTo(0, seatH * 1.2);
-        ctx2.stroke();
-
-        // Seat bounds
-        ctx2.strokeStyle = 'rgba(255,0,255,0.35)';
-        ctx2.lineWidth = 1;
-        ctx2.strokeRect(-seatW / 2, -seatH / 2, seatW, seatH);
-
-        // Seat back edge marker at x = -seatW/2 (where the backrest flat edge should align)
-        ctx2.strokeStyle = 'rgba(255,0,255,0.65)';
-        ctx2.lineWidth = 2;
-        ctx2.beginPath();
-        ctx2.moveTo(-seatW / 2, -seatH * 0.6);
-        ctx2.lineTo(-seatW / 2, seatH * 0.6);
-        ctx2.stroke();
-
-        // Center point
-        ctx2.fillStyle = 'rgba(0,180,255,0.75)';
-        ctx2.beginPath();
-        ctx2.arc(0, 0, 2.5, 0, Math.PI * 2);
-        ctx2.fill();
-
-        // Debug text (screen-space-ish; keep it readable)
-        if (dbgText) {
-          ctx2.rotate(-ang); // un-rotate for text readability
-          ctx2.font = '12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
-          ctx2.textAlign = 'left';
-          ctx2.textBaseline = 'top';
-          ctx2.fillStyle = 'rgba(0,0,0,0.70)';
-
-          const lines = [];
-          if (dbgMeta && (dbgMeta.id || dbgMeta.hex)) lines.push(String(dbgMeta.id || 'chair') + ' @ ' + String(dbgMeta.hex || ''));
-          lines.push('facing=' + String(facing));
-          lines.push('seatW=' + seatW.toFixed(1) + ' seatH=' + seatH.toFixed(1));
-          lines.push('backR=' + backR.toFixed(1) + ' backX=' + (-seatW/2).toFixed(1));
-
-          let ty = seatH * 0.75;
-          for (const line of lines) {
-            ctx2.fillText(line, seatW * 0.60, ty);
-            ty += 14;
-          }
-        }
-
-        ctx2.restore();
-      }
-
+      ctx2.restore();
       ctx2.restore();
     }
 
