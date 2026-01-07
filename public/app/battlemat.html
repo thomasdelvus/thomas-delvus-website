@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v5.04 
+  v5.06 
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -217,7 +217,7 @@
     <div class="sidebar">
       <div class="sidebarHeader">
         <div style="font-weight: 600;">Status</div>
-        v5.04
+        v5.06
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -2659,6 +2659,8 @@
   // =====================================================================================
 
   (function installFancyPack(PACK) {
+    // Mark pack as enabled immediately so first draw uses fancy fills.
+    PACK.enabled = true;
     // ---- Deterministic RNG / hashing ----
     function mulberry32(seed) {
       let a = (seed >>> 0) || 0;
@@ -3168,7 +3170,24 @@
 
     // ---- Sprites (OPTIONAL) ----
     // If sprites are missing or still loading, we fall back to the core shapes.
-    const SPRITE_BASE = String(window.SPRITE_BASE_PATH || './sprites/').replace(/\+$/,'/').replace(/\/+$/,'/') + '';
+    // Base paths tried in order. In most web setups, anything under /public is served at the site root.
+    // So "/public/assets/sprites" on disk is typically accessible as "/assets/sprites" in the browser.
+    const SPRITE_BASES = (() => {
+      const fromWindow = (window.SPRITE_BASE_PATH != null) ? String(window.SPRITE_BASE_PATH) : '';
+      const bases = [];
+      const push = (p) => {
+        const s = String(p || '').trim();
+        if (!s) return;
+        const norm = s.replace(/\/+$/,'') + '/';
+        if (!bases.includes(norm)) bases.push(norm);
+      };
+      push(fromWindow);
+      push('/assets/sprites/');
+      push('./assets/sprites/');
+      push('./public/assets/sprites/');
+      push('./sprites/');
+      return bases.length ? bases : ['./sprites/'];
+    })();
 
     const SPRITE_MANIFEST = {
       // Objects / terrain
@@ -3318,10 +3337,10 @@
 
         return '';
       };
-
       const ensure = (key) => {
         const k = String(key || '');
         if (!k || missing.has(k)) return null;
+
         const hit = cache.get(k);
         if (hit) return hit.ok ? hit.img : null;
 
@@ -3329,20 +3348,34 @@
         if (!filename) return null;
 
         const img = new Image();
-        cache.set(k, { img, ok: false, err: false });
+        const rec = { img, ok: false, idx: 0 };
+        cache.set(k, rec);
+
+        const tryLoad = () => {
+          const base = SPRITE_BASES[Math.min(rec.idx, SPRITE_BASES.length - 1)];
+          img.src = base + filename;
+        };
 
         img.onload = () => {
-          const rec = cache.get(k);
-          if (rec) rec.ok = true;
+          const r = cache.get(k);
+          if (r) r.ok = true;
           redraw();
         };
+
         img.onerror = () => {
+          const r = cache.get(k);
+          if (!r) return;
+          r.idx = (r.idx || 0) + 1;
+          if (r.idx < SPRITE_BASES.length) {
+            tryLoad();
+            return;
+          }
           cache.delete(k);
           missing.add(k);
           redraw();
         };
 
-        img.src = SPRITE_BASE + filename;
+        tryLoad();
         return null; // not ready yet
       };
 
