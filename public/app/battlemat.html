@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v5.15 
+  v5.14 
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -215,7 +215,7 @@
     </div>
 
     <div class="sidebar">
-      <div class="sidebarHeader">v5.15
+      <div class="sidebarHeader">v5.14
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -298,7 +298,6 @@
 
     fog: {
       enabled: true,
-      revealWallsInUnseenRooms: true,
       mode: 'room',
       visibleRoomIds: [],
       exploredRoomIds: ['Hallway1','Hallway2','Hallway3','Bedroom2'],
@@ -406,8 +405,6 @@
       { id:'t_sq', kind:'table.square', hex:'U23', shift:'E0.00' },
       { id:'t_big', kind:'table.round', hexes:['N25','O25','O26'] },
       { id:'t_rect', kind:'table.rect', hexes:['P25','P24'] },
-
-      
     ],
 
     tokens: [
@@ -415,7 +412,7 @@
       { id: 'w1',   name: 'Wraith 1', side: 'ENEMY', hex: 'T16', label: 'W1', init: 12, hp: 67 },
       { id: 'w2',   name: 'Wraith 2', side: 'ENEMY', hex: 'Q18', label: 'W2', init: 11, hp: 67 },
       { id: 'w3',   name: 'Wraith 3', side: 'ENEMY', hex: 'N17', label: 'W3', init: 10, hp: 67 },
-      { id: 'a',    name: 'Aelar', side: 'PC', hex: 'U14', label: 'A', init: 14, hp: 42, sprite: 'ranger_male' },
+      { id: 'a',    name: 'Aelar', side: 'PC', hex: 'X16', label: 'A', init: 14, hp: 42 },
       { id: 'b',    name: 'Brunna', side: 'PC', hex: 'U13', label: 'B', init: 13, hp: 55 },
       { id: 'c',    name: 'Caelin', side: 'PC', hex: 'AA20', label: 'C', init: 12, hp: 38 },
     ],
@@ -992,10 +989,6 @@
     const enabled = !!(raw && raw.enabled);
     const mode = raw && raw.mode ? String(raw.mode) : 'room';
 
-    // If true, we still draw unseen rooms (so walls/geometry remain visible) and then cover
-    // their floors with a dark fog overlay. If false, unseen rooms are not drawn at all.
-    const revealWallsInUnseenRooms = (raw && raw.revealWallsInUnseenRooms === true) ? true : false;
-
     const maxDepth = Number.isFinite(raw && raw.maxDepth) ? Number(raw.maxDepth) : 1;
     const autoCompute = (raw && raw.autoCompute === false) ? false : true;
     const autoExplore = (raw && raw.autoExplore === false) ? false : true;
@@ -1006,7 +999,7 @@
     const visibleRoomIds = Array.isArray(raw && raw.visibleRoomIds) ? raw.visibleRoomIds.map(x => String(x)) : [];
     const exploredRoomIds = Array.isArray(raw && raw.exploredRoomIds) ? raw.exploredRoomIds.map(x => String(x)) : [];
 
-    return { enabled, mode, maxDepth, autoCompute, autoExplore, unseenAlpha, exploredAlpha, visibleRoomIds, exploredRoomIds, revealWallsInUnseenRooms, raw };
+    return { enabled, mode, maxDepth, autoCompute, autoExplore, unseenAlpha, exploredAlpha, visibleRoomIds, exploredRoomIds, raw };
   }
 
   function buildRoomMeta(rooms) {
@@ -1162,7 +1155,6 @@
         explored: new Set(),
         unseenAlpha: fog.unseenAlpha,
         exploredAlpha: fog.exploredAlpha,
-        revealWallsInUnseenRooms: fog.revealWallsInUnseenRooms,
       };
     }
 
@@ -1213,7 +1205,7 @@
       if (fog.raw) fog.raw.exploredRoomIds = Array.from(explored).sort();
     }
 
-    return { enabled: true, visible, explored, unseenAlpha: fog.unseenAlpha, exploredAlpha: fog.exploredAlpha, revealWallsInUnseenRooms: fog.revealWallsInUnseenRooms };
+    return { enabled: true, visible, explored, unseenAlpha: fog.unseenAlpha, exploredAlpha: fog.exploredAlpha };
   }
 
   function shouldDrawToken(t, rooms) {
@@ -1385,19 +1377,26 @@
     if (fk === 'stone') {
       ctx.fillStyle = COLORS.floorStone;
       ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-    } else if (fk === 'cobble') {
-      PACK.fillCobbleRect(ctx, rect, { baseHex: COLORS.floorCobbleBase, alpha: 1.0, worldX, worldY, seed });
-    } else if (fk === 'stairs.wood') {
-      PACK.fillStairsWoodRect(ctx, rect, { baseHex: COLORS.floorWoodBase, alpha: 1.0, worldX, worldY, seed, down: parent.stairsDown || 'S', treadDepth: 10, treadGap: 1.2 });
-    } else if (fk === 'none') {
-      ctx.fillStyle = '#f7f1e6';
-      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-    } else {
-      PACK.fillWoodRect(ctx, rect, { baseHex: COLORS.floorWoodBase, alpha: 1.0, worldX, worldY, seed });
+      return;
     }
 
-    // Match the room's current fog state (important because threshold underlays sit inside wall thickness).
-    applyFogToUnderlayRect(rect, parentId);
+    if (fk === 'cobble') {
+      PACK.fillCobbleRect(ctx, rect, { baseHex: COLORS.floorCobbleBase, alpha: 1.0, worldX, worldY, seed });
+      return;
+    }
+
+    if (fk === 'stairs.wood') {
+      PACK.fillStairsWoodRect(ctx, rect, { baseHex: COLORS.floorWoodBase, alpha: 1.0, worldX, worldY, seed, down: parent.stairsDown || 'S', treadDepth: 10, treadGap: 1.2 });
+      return;
+    }
+
+    if (fk === 'none') {
+      ctx.fillStyle = '#f7f1e6';
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      return;
+    }
+
+    PACK.fillWoodRect(ctx, rect, { baseHex: COLORS.floorWoodBase, alpha: 1.0, worldX, worldY, seed });
   }
 
   function resolveDoorUnderlayRoomId(opening, roomMeta, rooms, allowedRoomIds) {
@@ -1482,53 +1481,52 @@
     const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
     if (kind !== 'door') return;
 
+    const rid = resolveDoorUnderlayRoomId(opening, roomMeta, rooms, allowedRoomIds);
+    if (!rid) return;
+
+    const room = findRoomById(rooms, rid);
+    if (!room) return;
+
     const rect = openingCutRectOnScreen(opening, wallSegs);
     if (!rect) return;
 
-    const rid = resolveDoorUnderlayRoomId(opening, roomMeta, rooms, allowedRoomIds);
+    const rawFloorKind = (room.floor && room.floor.kind) ? String(room.floor.kind) : 'wood';
+    const floorKind = (RENDER_OVERRIDES.floorKind && String(RENDER_OVERRIDES.floorKind).length)
+      ? String(RENDER_OVERRIDES.floorKind)
+      : rawFloorKind;
 
-    if (rid) {
-      const room = findRoomById(rooms, rid);
-      if (!room) return;
+    const box = roomToWallBox(room);
+    const f = roomFloorRectWorld(room, box);
 
-      const rawFloorKind = (room.floor && room.floor.kind) ? String(room.floor.kind) : 'wood';
-      const floorKind = (RENDER_OVERRIDES.floorKind && String(RENDER_OVERRIDES.floorKind).length)
-        ? String(RENDER_OVERRIDES.floorKind)
-        : rawFloorKind;
+    const worldX = f.x1;
+    const worldY = f.y1;
+    const seed = seedForRoom(room, 'doorUnderlay');
 
-      const box = roomToWallBox(room);
-      const f = roomFloorRectWorld(room, box);
+    const fk = String(floorKind).toLowerCase();
 
-      const worldX = f.x1;
-      const worldY = f.y1;
-      const seed = seedForRoom(room, 'doorUnderlay');
-
-      const fk = String(floorKind).toLowerCase();
-
-      if (fk === 'stone') {
-        ctx.fillStyle = COLORS.floorStone;
-        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-      } else if (fk === 'cobble') {
-        PACK.fillCobbleRect(ctx, rect, { baseHex: COLORS.floorCobbleBase, alpha: 1.0, worldX, worldY, seed });
-      } else if (fk === 'stairs.wood') {
-        PACK.fillStairsWoodRect(ctx, rect, { baseHex: COLORS.floorWoodBase, alpha: 1.0, worldX, worldY, seed, down: room.stairsDown || 'S', treadDepth: 10, treadGap: 1.2 });
-      } else if (fk === 'none') {
-        ctx.fillStyle = '#f7f1e6';
-        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-      } else {
-        PACK.fillWoodRect(ctx, rect, { baseHex: COLORS.floorWoodBase, alpha: 1.0, worldX, worldY, seed });
-      }
-    } else {
-      // If both adjacent rooms are unseen, we still need *something* under the punched-out wall.
-      // We'll tint it with fog so the doorway doesn't show white gaps.
-      if (RENDER_FOG && RENDER_FOG.enabled) {
-        ctx.fillStyle = COLORS.fogUnseen;
-        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-      }
+    if (fk === 'stone') {
+      ctx.fillStyle = COLORS.floorStone;
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      return;
     }
 
-    // Match fog state. If rid is null, treat as unseen.
-    applyFogToUnderlayRect(rect, rid);
+    if (fk === 'cobble') {
+      PACK.fillCobbleRect(ctx, rect, { baseHex: COLORS.floorCobbleBase, alpha: 1.0, worldX, worldY, seed });
+      return;
+    }
+
+    if (fk === 'stairs.wood') {
+      PACK.fillStairsWoodRect(ctx, rect, { baseHex: COLORS.floorWoodBase, alpha: 1.0, worldX, worldY, seed, down: room.stairsDown || 'S', treadDepth: 10, treadGap: 1.2 });
+      return;
+    }
+
+    if (fk === 'none') {
+      ctx.fillStyle = '#f7f1e6';
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      return;
+    }
+
+    PACK.fillWoodRect(ctx, rect, { baseHex: COLORS.floorWoodBase, alpha: 1.0, worldX, worldY, seed });
   }
 
   function cutOpeningHole(targetCtx, opening, wallSegs, roomsForSizing) {
@@ -2085,30 +2083,28 @@
     }
   }
 
-  function drawFogRoomOverlays(rooms) {
+  function drawRememberedRoomOverlays(rooms) {
     if (!RENDER_FOG || !RENDER_FOG.enabled) return;
 
-    const revealWalls = !!RENDER_FOG.revealWallsInUnseenRooms;
+    // "Remembered" means explored but not currently visible.
+    const remembered = new Set();
+    for (const id of RENDER_FOG.explored) {
+      if (!RENDER_FOG.visible.has(id)) remembered.add(id);
+    }
+    if (remembered.size === 0) return;
 
     ctx.save();
+    ctx.globalAlpha = clamp(RENDER_FOG.exploredAlpha, 0, 1);
+    ctx.fillStyle = COLORS.fogExplored;
 
     for (const r of (Array.isArray(rooms) ? rooms : [])) {
       if (!r || !r.id) continue;
-
       const id = String(r.id);
+      if (!remembered.has(id)) continue;
 
       // Never overlay the base fog-floor rooms.
       const fk = r && r.floor && r.floor.kind ? String(r.floor.kind).toLowerCase() : '';
       if (fk === 'fog') continue;
-
-      const isVisible = RENDER_FOG.visible.has(id);
-      const isExplored = RENDER_FOG.explored.has(id);
-
-      if (isVisible) continue;
-      if (!revealWalls && !isExplored) continue; // preserve old behavior unless reveal-walls mode is enabled
-
-      const alpha = isExplored ? clamp(RENDER_FOG.exploredAlpha, 0, 1) : clamp(RENDER_FOG.unseenAlpha, 0, 1);
-      const fill = isExplored ? COLORS.fogExplored : COLORS.fogUnseen;
 
       const box = roomToWallBox(r);
       const f = roomFloorRectWorld(r, box);
@@ -2118,33 +2114,9 @@
       const rect = { x: f1.x, y: f1.y, w: (f2.x - f1.x), h: (f2.y - f1.y) };
       if (rect.w <= 0 || rect.h <= 0) continue;
 
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = fill;
       ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
     }
 
-    ctx.restore();
-  }
-
-  function applyFogToUnderlayRect(rect, roomId) {
-    if (!RENDER_FOG || !RENDER_FOG.enabled) return;
-    if (!rect || rect.w <= 0 || rect.h <= 0) return;
-
-    const id = roomId ? String(roomId) : '';
-    const isVisible = id && RENDER_FOG.visible.has(id);
-    const isExplored = id && RENDER_FOG.explored.has(id);
-
-    if (isVisible) return;
-
-    ctx.save();
-    if (isExplored) {
-      ctx.globalAlpha = clamp(RENDER_FOG.exploredAlpha, 0, 1);
-      ctx.fillStyle = COLORS.fogExplored;
-    } else {
-      ctx.globalAlpha = clamp(RENDER_FOG.unseenAlpha, 0, 1);
-      ctx.fillStyle = COLORS.fogUnseen;
-    }
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
     ctx.restore();
   }
 
@@ -2237,11 +2209,9 @@
     RENDER_FOG = computeRenderFog(state, rooms, openings);
 
     // When fog is enabled:
+    // - Unexplored rooms are NOT drawn (the base fog-floor room(s) show through).
     // - Visible rooms are drawn normally.
-    // - Explored-but-not-visible rooms are drawn, then get a "remembered" overlay.
-    // - Unseen rooms:
-    //    - If fog.revealWallsInUnseenRooms is true: draw them, then cover floors with dark fog (walls stay visible).
-    //    - If false: do not draw them at all (the optional fog-floor base rooms can cover the area).
+    // - Explored-but-not-visible rooms are drawn normally, then get a fog overlay.
     let roomsToDraw = rooms;
     let openingsToDraw = openings;
     let renderableRoomIds = null;
@@ -2255,49 +2225,30 @@
         if (k === 'fog' && r && r.id) baseFogRoomIds.add(String(r.id));
       }
 
-      const revealWalls = !!RENDER_FOG.revealWallsInUnseenRooms;
+      // Anything explored is renderable (includes visible rooms).
+      renderableRoomIds = new Set([...RENDER_FOG.explored]);
 
-      if (revealWalls) {
-        // Draw all real rooms (skip fog-floor helpers), then overlay fog per-room.
-        roomsToDraw = rooms.filter(r => {
-          const k = r && r.floor && r.floor.kind ? String(r.floor.kind).toLowerCase() : '';
-          return k !== 'fog';
-        });
+      roomsToDraw = rooms.filter(r => {
+        const id = r && r.id ? String(r.id) : '';
+        if (!id) return true;
+        if (baseFogRoomIds.has(id)) return true;
+        return renderableRoomIds.has(id);
+      });
 
-        openingsToDraw = openings.slice();
-
-        // "Renderable" is used mainly for sizing/underlay choices; explored is the safe set.
-        renderableRoomIds = new Set([...RENDER_FOG.explored]);
-      } else {
-        // Old behavior: only render explored rooms (plus base fog rooms).
-        renderableRoomIds = new Set([...RENDER_FOG.explored]);
-
-        roomsToDraw = rooms.filter(r => {
-          const id = r && r.id ? String(r.id) : '';
-          if (!id) return true;
-          if (baseFogRoomIds.has(id)) return true;
-          return renderableRoomIds.has(id);
-        });
-
-        openingsToDraw = openings.filter(o => isRenderableOpening(o, roomMeta, renderableRoomIds));
-      }
+      openingsToDraw = openings.filter(o => isRenderableOpening(o, roomMeta, renderableRoomIds));
     }
 
     // Floors.
     drawFloorsLayered(roomsToDraw);
 
     // Walls are drawn only for rooms that contribute geometry this frame.
-    const revealWallsMode = !!(RENDER_FOG && RENDER_FOG.enabled && RENDER_FOG.revealWallsInUnseenRooms);
-
-    const roomsForWalls = revealWallsMode
-      ? rooms.filter(r => roomHasWalls(r))
-      : (RENDER_FOG && RENDER_FOG.enabled)
-        ? roomsToDraw.filter(r => {
-            const k = r && r.floor && r.floor.kind ? String(r.floor.kind).toLowerCase() : '';
-            if (k === 'fog') return roomHasWalls(r);
-            return true;
-          })
-        : roomsToDraw;
+    const roomsForWalls = (RENDER_FOG && RENDER_FOG.enabled)
+      ? roomsToDraw.filter(r => {
+          const k = r && r.floor && r.floor.kind ? String(r.floor.kind).toLowerCase() : '';
+          if (k === 'fog') return roomHasWalls(r);
+          return true;
+        })
+      : roomsToDraw;
 
     const wallSegs = buildWallSegments(roomsForWalls);
 
@@ -2307,7 +2258,7 @@
     const roomMetaAll = buildRoomMeta(rooms);
     for (const o of openingsToDraw) {
       paintThresholdUnderlay(o, rooms, wallSegs);
-      paintDoorUnderlay(o, rooms, wallSegs, roomMetaAll, (RENDER_FOG && RENDER_FOG.enabled) ? RENDER_FOG.explored : renderableRoomIds);
+      paintDoorUnderlay(o, rooms, wallSegs, roomMetaAll, renderableRoomIds);
     }
 
     // Build walls into offscreen.
@@ -2353,8 +2304,8 @@
     // Objects.
     drawObjects(objects, rooms);
 
-    // Fog overlays (unseen + remembered/explored).
-    drawFogRoomOverlays(rooms);
+    // Remembered rooms overlay.
+    drawRememberedRoomOverlays(rooms);
 
     // Tokens.
     for (const t of tokens) {
