@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v5.32
+  v5.31
 -->
 <html lang="en">
 <head>
@@ -183,11 +183,6 @@
         </label>
 
         <label style="display:flex; align-items:center; gap:6px;">
-          <input type="checkbox" id="fancyToggle" checked />
-          <span style="font-size:12px; color:var(--muted);">Fancy</span>
-        </label>
-
-        <label style="display:flex; align-items:center; gap:6px;">
           <span style="font-size:12px; color:var(--muted);">Center on</span>
           <select id="centerOn" style="min-width: 150px;">
             <option value="">None</option>
@@ -201,7 +196,7 @@
     </div>
 
     <div class="sidebar">
-      <div class="sidebarHeader">v5.32</div>
+      <div class="sidebarHeader">v5.31</div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
         <hr style="border: none; border-top: 1px solid var(--panel-border); margin: 12px 0;" />
@@ -516,21 +511,11 @@
   // =====================================================================================
   // "PACK" LAYER: simple by default. Optional FANCY PACK at end can overwrite these.
   // =====================================================================================
-  const BASIC_PACK = createBasicPack();
-  const FANCY_PACK = createBasicPack();
-
-  // Active pack (debug toggle). Default ON.
-  let FANCY_ENABLED = true;
-  let PACK = FANCY_PACK;
-
-  function setFancyEnabled(on) {
-    FANCY_ENABLED = !!on;
-    PACK = FANCY_ENABLED ? FANCY_PACK : BASIC_PACK;
-  }
+  const PACK = createBasicPack();
 
   // Expose a minimal set of core helpers so the OPTIONAL fancy pack can plug in things like sprites
   // without forcing changes throughout the renderer.
-  const PACK_CORE = {
+  PACK.core = {
     GRID,
     COLORS,
     clamp,
@@ -553,10 +538,9 @@
     getObjectOccupiedHexes,
     getScreenPointsForHexes,
     centroidOfPoints,
-    boundsOfPoints,$1};
-
-  BASIC_PACK.core = PACK_CORE;
-  FANCY_PACK.core = PACK_CORE;
+    boundsOfPoints,
+    expandBounds,
+  };
 
   function createBasicPack() {
     const flatFill = (targetCtx, rect, fill) => {
@@ -2422,7 +2406,6 @@
 
     populateCenterOn(state);
     syncFogToggle(state);
-    syncFancyToggle();
 
     if (VIEW.followTokenId) {
       const tokens = Array.isArray(state.tokens) ? state.tokens : [];
@@ -2623,13 +2606,6 @@
     if (el.checked !== enabled) el.checked = enabled;
   }
 
-  function syncFancyToggle() {
-    const el = document.getElementById('fancyToggle');
-    if (!el) return;
-    const enabled = !!FANCY_ENABLED;
-    if (el.checked !== enabled) el.checked = enabled;
-  }
-
   function populateCenterOn(state) {
     const sel = document.getElementById('centerOn');
     if (!sel) return;
@@ -2694,7 +2670,6 @@
     const centerOn = req('centerOn');
     const floorKind = document.getElementById('floorKind');
     const fogToggle = document.getElementById('fogToggle');
-    const fancyToggle = document.getElementById('fancyToggle');
 
     if (btnLeft) btnLeft.addEventListener('click', () => pan(-PAN_STEP, 0));
     if (btnRight) btnRight.addEventListener('click', () => pan(PAN_STEP, 0));
@@ -2750,14 +2725,6 @@
         state.fog.enabled = !!e.target.checked;
         redraw();
       });
-    }
-
-    if (fancyToggle) {
-      fancyToggle.addEventListener('change', (e) => {
-        setFancyEnabled(!!e.target.checked);
-        redraw();
-      });
-    });
     }
 
     window.addEventListener('keydown', (e) => {
