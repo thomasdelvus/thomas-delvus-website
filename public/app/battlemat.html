@@ -959,7 +959,174 @@ Bingo!  Now the fireplaces are correct AND the chests are correct orientation.
 ChatGPT said:
 
 Yessss — that’s the magic combo. 🔥📦
-If the fireplaces and chest orientation are both behaving now, that means the faci
+If the fireplaces and chest orientation are both behaving now, that means the facing/rotation logic is finally lined up cleanly with the pack rendering.
+You said:
+Battlemat - V5
+Could you add sprite definitions for all the objects like bed, chair, hearth, chest?  I assume if the sprites exist they will take precedent over of the defined objects?
+ChatGPT said:
+
+Yep — that’s the clean way to do it: if a sprite exists (and is loaded), use it; otherwise fall back to the vector/shape draw. The only thing you have to be careful about is making “sprite exists” mean “we successfully loaded the image”, not just “a filename string is present”.
+
+Here’s a drop-in pattern you can paste into the battlemat JS (works great with your /public/assets/sprites setup). It does three things:
+
+    Defines a default sprite per object type (bed/chair/hearth/chest/etc).
+
+    Lets any individual object override via sprite: 'my_file.png'.
+
+    Makes draw logic: sprite > shape.
+
+// ===============================
+// Sprites (basic object mapping)
+// ===============================
+
+// Base path where your sprites live
+const SPRITE_BASE_PATH = '/assets/sprites/';
+
+// Default sprite per object "type"/"kind"/"shape" (use whatever field your objects already have)
+const OBJECT_SPRITE_MAP = {
+  // Furniture / props
+  bed:   'bed.png',
+  chair: 'chair.png',
+  table: 'table.png',
+  hearth:'hearth.png',
+  chest: 'chest.png',
+  barrel:'barrel.png',
+  crate: 'crate.png',
+  shelf: 'shelf.png',
+  rug:   'rug.png',
+
+  // Doors/windows etc (if you have them as objects)
+  door:  'door.png',
+  window:'window.png',
+
+  // Stairs (if represented as objects)
+  stairs_up:   'stairs_up.png',
+  stairs_down: 'stairs_down.png',
+};
+
+// Cache of loaded sprite images: { 'bed.png': HTMLImageElement, ... }
+const spriteCache = Object.create(null);
+
+function normalizeType(v) {
+  return String(v || '').trim().toLowerCase();
+}
+
+function getSpriteFilenameForObject(obj) {
+  // 1) Per-object explicit override wins
+  if (obj && obj.sprite) return String(obj.sprite).trim();
+
+  // 2) Otherwise infer from object type-ish field(s)
+  // Adjust these keys to match your actual object schema
+  const t =
+    normalizeType(obj?.type) ||
+    normalizeType(obj?.kind) ||
+    normalizeType(obj?.shape) ||
+    normalizeType(obj?.name);
+
+  if (!t) return null;
+
+  // Exact match
+  if (OBJECT_SPRITE_MAP[t]) return OBJECT_SPRITE_MAP[t];
+
+  // Common aliases (optional convenience)
+  if (t.includes('chair')) return OBJECT_SPRITE_MAP.chair;
+  if (t.includes('bed'))   return OBJECT_SPRITE_MAP.bed;
+  if (t.includes('hearth') || t.includes('fireplace')) return OBJECT_SPRITE_MAP.hearth;
+  if (t.includes('chest')) return OBJECT_SPRITE_MAP.chest;
+
+  return null;
+}
+
+function loadSprite(filename) {
+  if (!filename) return Promise.resolve(null);
+  if (spriteCache[filename]) return Promise.resolve(spriteCache[filename]);
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      spriteCache[filename] = img;
+      resolve(img);
+    };
+    img.onerror = () => resolve(null);
+    img.src = SPRITE_BASE_PATH + filename;
+  });
+}
+
+// Call this once after your state loads (or whenever objects list changes)
+async function preloadObjectSprites(objects) {
+  const filenames = new Set();
+  for (const obj of (objects || [])) {
+    const fn = getSpriteFilenameForObject(obj);
+    if (fn) filenames.add(fn);
+  }
+  await Promise.all([...filenames].map(loadSprite));
+}
+
+// ===============================
+// Drawing helper
+// ===============================
+
+function drawSpriteForObject(ctx, obj, hexToPixelFn) {
+  const fn = getSpriteFilenameForObject(obj);
+  if (!fn) return false;
+
+  const img = spriteCache[fn];
+  if (!img) return false;
+
+  // You’ll have your own positioning; below is a common pattern:
+  // - obj.hex is the anchor hex
+  // - obj.w / obj.h are in hexes (optional)
+  const { x, y } = hexToPixelFn(obj.hex); // center of hex (or top-left if that’s your function)
+
+  const wHex = obj.w ?? 1;
+  const hHex = obj.h ?? 1;
+
+  // Replace HEX_W/HEX_H with your hex pixel sizing
+  const pxW = wHex * HEX_W;
+  const pxH = hHex * HEX_H;
+
+  const rot = (obj.rot ?? 0) * Math.PI / 180;
+
+  ctx.save();
+  ctx.translate(x, y);
+  if (rot) ctx.rotate(rot);
+
+  // Draw centered
+  ctx.drawImage(img, -pxW / 2, -pxH / 2, pxW, pxH);
+  ctx.restore();
+
+  return true;
+}
+
+Then in your main object draw function, make sprites take precedence:
+
+function drawOneObject(ctx, obj, hexToPixelFn) {
+  // Sprite wins if it exists and is loaded
+  if (drawSpriteForObject(ctx, obj, hexToPixelFn)) return;
+
+  // Otherwise fall back to your existing vector/shape code:
+  drawVectorObject(ctx, obj, hexToPixelFn);
+}
+
+And somewhere after you load/parse state (or whenever objects change), call:
+
+await preloadObjectSprites(state.objects);
+
+What you assumed (and it’s the right assumption)
+
+Yes: sprites should take precedence. The robust rule is:
+
+    If obj.sprite is set and loads → use it
+
+    Else if inferred sprite from type exists and loads → use it
+
+    Else → draw the shape/vector fallback
+
+That gives you zero fragility when a file is missing or you’re still building out the sprite set.
+You said:
+Battlemat - V5
+Please make the changes for me in the canvas. 
+ChatGPT said:
 
 
 ChatGPT can make mistakes. OpenAI doesn't use Delvus & Co. workspace data to train its models.
@@ -1136,4 +1303,3 @@ Selection deleted
       border: 1px solid var(--btn-border);
       border-radius: 10px;
       padding: 8px 10px;
-ChatGPT is generating a response...
