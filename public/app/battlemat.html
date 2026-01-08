@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v5.27
+  v5.28
 -->
 <html lang="en">
 <head>
@@ -196,7 +196,7 @@
     </div>
 
     <div class="sidebar">
-      <div class="sidebarHeader">v5.27</div>
+      <div class="sidebarHeader">v5.28</div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
         <hr style="border: none; border-top: 1px solid var(--panel-border); margin: 12px 0;" />
@@ -2813,13 +2813,906 @@
     requestAnimationFrame(followCameraTick);
   }
 
-  // =====================================================================================
+// =====================================================================================
   // OPTIONAL FANCY PACK (SAFE TO DELETE)
   // -------------------------------------------------------------------------------------
   // This block overwrites PACK.* with procedural textures and nicer symbols.
   // Remove it and the battlemat still runs (with simple flat fills).
   // =====================================================================================
 
+  (function installFancyPack(PACK) {
+    // Mark pack as enabled immediately so first draw uses fancy fills.
+    PACK.enabled = true;
+    // ---- Deterministic RNG / hashing ----
+    function mulberry32(seed) {
+      let a = (seed >>> 0) || 0;
+      return function() {
+        a |= 0;
+        a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function hashStringToSeed(s) {
+      const str = String(s || '');
+      let h = 2166136261 >>> 0;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+
+    function hexToRgbStrict(hex, fallback = { r: 193, g: 146, b: 86 }) {
+      const m = String(hex).trim().match(/^#?([0-9a-fA-F]{6})$/);
+      if (!m) return fallback;
+      const n = parseInt(m[1], 16);
+      return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+    }
+
+    function shadeRgba(hex, amt, alpha) {
+      const rgb = hexToRgbStrict(hex);
+      const r = clamp(Math.round(rgb.r + 255 * amt), 0, 255);
+      const g = clamp(Math.round(rgb.g + 255 * amt), 0, 255);
+      const b = clamp(Math.round(rgb.b + 255 * amt), 0, 255);
+      return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+    }
+
+    PACK.mulberry32 = mulberry32;
+    PACK.hashStringToSeed = hashStringToSeed;
+    PACK.shadeRgba = shadeRgba;
+    PACK.hexToRgbStrict = hexToRgbStrict;
+
+    // ---- Brick walls (WORLD-anchored) ----
+    function fillBrickRectScreenOn(targetCtx, rect, color, worldX = 0, worldY = 0) {
+      const brickW = 9;
+      const brickH = 4;
+      const gap = 1.2;
+      const radius = 1.5;
+      const strokeW = 0.8;
+
+      const pitchX = brickW + gap;
+      const pitchY = brickH + gap;
+
+      const hexToRgb = (hex) => {
+        const m = String(hex).trim().match(/^#?([0-9a-fA-F]{6})$/);
+        if (!m) return { r: 102, g: 102, b: 102 };
+        const n = parseInt(m[1], 16);
+        return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+      };
+
+      const clamp255 = (v) => Math.max(0, Math.min(255, v));
+
+      const shade = (hex, amt) => {
+        const rgb = hexToRgb(hex);
+        return 'rgb(' +
+          clamp255(Math.round(rgb.r + 255 * amt)) + ',' +
+          clamp255(Math.round(rgb.g + 255 * amt)) + ',' +
+          clamp255(Math.round(rgb.b + 255 * amt)) +
+        ')';
+      };
+
+      const mortarColor = shade(color, -0.10);
+      const brickFill = shade(color, +0.06);
+
+      targetCtx.save();
+
+      targetCtx.beginPath();
+      targetCtx.rect(rect.x, rect.y, rect.w, rect.h);
+      targetCtx.clip();
+
+      targetCtx.fillStyle = mortarColor;
+      targetCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
+
+      const phaseX = mod(worldX, pitchX);
+      const phaseY = mod(worldY, pitchY);
+
+      const startY = rect.y - (phaseY + pitchY);
+
+      targetCtx.fillStyle = brickFill;
+      targetCtx.strokeStyle = 'rgba(0,0,0,0.14)';
+      targetCtx.lineWidth = strokeW;
+
+      const rows = Math.ceil((rect.h + pitchY * 2) / pitchY);
+      for (let rr = 0; rr < rows; rr++) {
+        const y = startY + rr * pitchY;
+        const rowOffset = (rr & 1) ? (pitchX / 2) : 0;
+
+        const startX = rect.x - (phaseX + pitchX) + rowOffset;
+        const cols = Math.ceil((rect.w + pitchX * 2) / pitchX);
+
+        for (let cc = 0; cc < cols; cc++) {
+          const x = startX + cc * pitchX;
+          roundRectPath(targetCtx, x, y, brickW, brickH, radius);
+          targetCtx.fill();
+          targetCtx.stroke();
+        }
+      }
+
+      targetCtx.restore();
+    }
+
+    // ---- Cobble floors (WORLD-anchored) ----
+    function fillCobbleRectScreenOn(targetCtx, rect, opts) {
+      const base = (opts && opts.baseHex) ? opts.baseHex : COLORS.floorCobbleBase;
+      const alpha = (opts && Number.isFinite(opts.alpha)) ? opts.alpha : 1.0;
+      const worldX = (opts && Number.isFinite(opts.worldX)) ? opts.worldX : 0;
+      const worldY = (opts && Number.isFinite(opts.worldY)) ? opts.worldY : 0;
+      const seed = (opts && Number.isFinite(opts.seed)) ? opts.seed : 12345;
+
+      const stoneMin = (opts && Number.isFinite(opts.stoneMin)) ? opts.stoneMin : 9;
+      const stoneMax = (opts && Number.isFinite(opts.stoneMax)) ? opts.stoneMax : 14;
+      const gap = (opts && Number.isFinite(opts.gap)) ? opts.gap : 0.35;
+
+      const pitch = stoneMax + gap;
+
+      const mortar = shadeRgba(base, +0.28, alpha);
+      const edge = 'rgba(0,0,0,0.10)';
+
+      targetCtx.save();
+
+      targetCtx.beginPath();
+      targetCtx.rect(rect.x, rect.y, rect.w, rect.h);
+      targetCtx.clip();
+
+      targetCtx.fillStyle = mortar;
+      targetCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
+
+      const phaseX = mod(worldX, pitch);
+      const phaseY = mod(worldY, pitch);
+
+      const startX = rect.x - (phaseX + pitch);
+      const startY = rect.y - (phaseY + pitch);
+
+      const cols = Math.ceil((rect.w + pitch * 2) / pitch);
+      const rows = Math.ceil((rect.h + pitch * 2) / pitch);
+
+      targetCtx.strokeStyle = edge;
+      targetCtx.lineWidth = 1;
+
+      for (let ry = 0; ry < rows; ry++) {
+        for (let cx = 0; cx < cols; cx++) {
+          const cellX = startX + cx * pitch;
+          const cellY = startY + ry * pitch;
+
+          const cellSeed = (seed + cx * 131 + ry * 977) >>> 0;
+          const rnd = mulberry32(cellSeed);
+
+          const w = stoneMin + rnd() * (stoneMax - stoneMin);
+          const h = stoneMin + rnd() * (stoneMax - stoneMin);
+
+          const ox = (rnd() - 0.5) * (gap * 1.6);
+          const oy = (rnd() - 0.5) * (gap * 1.6);
+          const rot = (rnd() - 0.5) * 0.25;
+
+          const x = cellX + (pitch / 2) + ox;
+          const y = cellY + (pitch / 2) + oy;
+
+          const shadeAmt = +0.20 + (rnd() - 0.5) * 0.06;
+          const fill = shadeRgba(base, shadeAmt, alpha);
+
+          const rr = 3.6 + rnd() * 6.2;
+
+          targetCtx.save();
+          targetCtx.translate(x, y);
+          targetCtx.rotate(rot);
+
+          targetCtx.fillStyle = fill;
+          roundRectPath(targetCtx, -w / 2, -h / 2, w, h, rr);
+          targetCtx.fill();
+          targetCtx.stroke();
+
+          targetCtx.strokeStyle = 'rgba(255,255,255,0.06)';
+          targetCtx.beginPath();
+          targetCtx.moveTo(-w / 2 + rr, -h / 2 + 1);
+          targetCtx.lineTo(w / 2 - rr, -h / 2 + 1);
+          targetCtx.stroke();
+
+          targetCtx.restore();
+
+          targetCtx.strokeStyle = edge;
+        }
+      }
+
+      targetCtx.restore();
+    }
+
+    // ---- Wood planks (WORLD-anchored) ----
+    function fillWoodPlanksRectScreenOn(targetCtx, rect, opts) {
+      const base = (opts && opts.baseHex) ? opts.baseHex : '#c19256';
+      const alpha = (opts && Number.isFinite(opts.alpha)) ? opts.alpha : 1.0;
+      const worldX = (opts && Number.isFinite(opts.worldX)) ? opts.worldX : 0;
+      const worldY = (opts && Number.isFinite(opts.worldY)) ? opts.worldY : 0;
+      const seed = (opts && Number.isFinite(opts.seed)) ? opts.seed : 12345;
+      const variant = (opts && Number.isFinite(opts.variant)) ? opts.variant : 3;
+
+      const contrast = 0.04;
+      const seamAlpha = 0.06;
+      const grainAlpha = 0.04;
+      const knotChance = 0.06;
+
+      const plankH = (opts && Number.isFinite(opts.plankH)) ? opts.plankH : 18;
+      const gapY = (opts && Number.isFinite(opts.gapY)) ? opts.gapY : 2.2;
+      const gapX = (opts && Number.isFinite(opts.gapX)) ? opts.gapX : 1.8;
+
+      const minL = (opts && Number.isFinite(opts.minL)) ? opts.minL : 110;
+      const maxL = (opts && Number.isFinite(opts.maxL)) ? opts.maxL : 240;
+
+      const pitchY = plankH + gapY;
+
+      const phaseY = mod(worldY, pitchY);
+      const startY = rect.y - (phaseY + pitchY);
+
+      const phasePeriodX = 600;
+      const phaseX = mod(worldX, phasePeriodX);
+
+      targetCtx.save();
+
+      targetCtx.beginPath();
+      targetCtx.rect(rect.x, rect.y, rect.w, rect.h);
+      targetCtx.clip();
+
+      targetCtx.fillStyle = shadeRgba(base, -0.03, alpha);
+      targetCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
+
+      const rows = Math.ceil((rect.h + pitchY * 2) / pitchY);
+
+      for (let r = 0; r < rows; r++) {
+        const y = startY + r * pitchY;
+
+        const rowSeed = (seed + r * 1013) >>> 0;
+        const rrnd = mulberry32(rowSeed);
+
+        const baseOffset = (r & 1) ? (minL * 0.42) : 0;
+        const wobble = (rrnd() - 0.5) * 30;
+        const rowOffset = baseOffset + wobble + (phaseX * 0.12);
+
+        let x = rect.x - rowOffset;
+        const xEnd = rect.x + rect.w + maxL;
+
+        targetCtx.fillStyle = 'rgba(0,0,0,' + seamAlpha + ')';
+        targetCtx.fillRect(rect.x, y + plankH, rect.w, gapY);
+
+        while (x < xEnd) {
+          const len = Math.floor(minL + rrnd() * (maxL - minL));
+
+          const v = (rrnd() - 0.5) * 2;
+          const shadeAmt = v * contrast;
+
+          const px1 = x;
+          const px2 = x + len;
+          const visX1 = Math.max(px1, rect.x);
+          const visX2 = Math.min(px2, rect.x + rect.w);
+          const visW = visX2 - visX1;
+
+          if (visW > 0) {
+            targetCtx.fillStyle = shadeRgba(base, shadeAmt, alpha);
+            targetCtx.fillRect(visX1, y, visW, plankH);
+
+            const grainCount = 1 + Math.floor(rrnd() * 3);
+            targetCtx.strokeStyle = 'rgba(0,0,0,' + grainAlpha + ')';
+            targetCtx.lineWidth = 1;
+            for (let g = 0; g < grainCount; g++) {
+              const yy = y + 2 + rrnd() * (plankH - 4);
+              const amp = 1.3 + rrnd() * 2.0;
+              const freq = 0.008 + rrnd() * 0.01;
+              const ph = rrnd() * Math.PI * 2;
+
+              targetCtx.beginPath();
+              const gx0 = visX1 - 10;
+              const gx1 = visX1 + visW + 10;
+              targetCtx.moveTo(gx0, yy);
+              const step = 28;
+              for (let gx = gx0; gx <= gx1; gx += step) {
+                const wob = Math.sin((gx + worldX) * freq + ph) * amp;
+                targetCtx.lineTo(gx, yy + wob);
+              }
+              targetCtx.stroke();
+            }
+
+            if (px1 >= rect.x - 1 && px1 <= rect.x + rect.w + 1) {
+              targetCtx.fillStyle = 'rgba(0,0,0,' + (seamAlpha * 0.50) + ')';
+              targetCtx.fillRect(px1 - (gapX / 2), y + 1, gapX, plankH - 2);
+            }
+
+            if (rrnd() < knotChance) {
+              const kx = visX1 + rrnd() * visW;
+              const ky = y + 3 + rrnd() * (plankH - 6);
+              const kr = 2.2 + rrnd() * 4.2;
+
+              targetCtx.fillStyle = 'rgba(0,0,0,0.10)';
+              targetCtx.beginPath();
+              targetCtx.ellipse(kx, ky, kr * 1.15, kr * 0.85, rrnd() * Math.PI, 0, Math.PI * 2);
+              targetCtx.fill();
+
+              targetCtx.strokeStyle = 'rgba(0,0,0,0.10)';
+              targetCtx.beginPath();
+              targetCtx.ellipse(kx, ky, kr * 0.9, kr * 0.65, rrnd() * Math.PI, 0, Math.PI * 2);
+              targetCtx.stroke();
+            }
+
+            if (variant >= 3 && rrnd() < 0.06) {
+              const sc = 1 + Math.floor(rrnd() * 3);
+              targetCtx.strokeStyle = 'rgba(255,255,255,0.10)';
+              targetCtx.lineWidth = 1;
+              for (let s = 0; s < sc; s++) {
+                const sx = visX1 + rrnd() * visW;
+                const sy = y + 2 + rrnd() * (plankH - 4);
+                const slen = 18 + rrnd() * 40;
+                targetCtx.beginPath();
+                targetCtx.moveTo(sx, sy);
+                targetCtx.lineTo(sx + slen, sy + (rrnd() - 0.5) * 2);
+                targetCtx.stroke();
+              }
+            }
+          }
+
+          x += len + gapX;
+        }
+
+        if (variant >= 3) {
+          targetCtx.fillStyle = 'rgba(255,255,255,0.02)';
+          targetCtx.fillRect(rect.x, y, rect.w, 1);
+        }
+      }
+
+      targetCtx.restore();
+    }
+
+    // ---- Stairs (WORLD-anchored) ----
+    function fillStairsWoodRectScreenOn(targetCtx, rect, opts) {
+      const base = (opts && opts.baseHex) ? opts.baseHex : COLORS.floorWoodBase;
+      const alpha = (opts && Number.isFinite(opts.alpha)) ? opts.alpha : 1.0;
+
+      const worldX = (opts && Number.isFinite(opts.worldX)) ? opts.worldX : 0;
+      const worldY = (opts && Number.isFinite(opts.worldY)) ? opts.worldY : 0;
+
+      let down = (opts && opts.down) ? String(opts.down).toUpperCase() : 'S';
+      if (!['N','S','E','W'].includes(down)) down = 'S';
+
+      const tread = Number.isFinite(opts && opts.tread) ? opts.tread
+        : Number.isFinite(opts && opts.treadDepth) ? opts.treadDepth
+        : 10;
+
+      const gap = Number.isFinite(opts && opts.gap) ? opts.gap
+        : Number.isFinite(opts && opts.treadGap) ? opts.treadGap
+        : 2;
+
+      const pitch = tread + gap;
+
+      const minFactor = Number.isFinite(opts && opts.minFactor) ? opts.minFactor : 0.26;
+      const maxFactor = Number.isFinite(opts && opts.maxFactor) ? opts.maxFactor : 1.00;
+
+      const endPadRaw = Number.isFinite(opts && opts.endPad) ? opts.endPad : 25;
+
+      const axis = (down === 'E' || down === 'W') ? 'x' : 'y';
+      const runLen = (axis === 'x') ? rect.w : rect.h;
+      const crossSpan = (axis === 'x') ? rect.h : rect.w;
+
+      const endPad = clamp(endPadRaw, 0, Math.max(0, (runLen / 2) - 1));
+
+      const runStart = (axis === 'x' ? rect.x : rect.y) + endPad;
+      const runEnd   = (axis === 'x' ? (rect.x + rect.w) : (rect.y + rect.h)) - endPad;
+      const runLenEff = Math.max(1, runEnd - runStart);
+
+      // 0 at UP end, 1 at DOWN end.
+      const tDownFromU = (u) => (down === 'E' || down === 'S') ? u : (1 - u);
+
+      targetCtx.save();
+
+      targetCtx.beginPath();
+      targetCtx.rect(rect.x, rect.y, rect.w, rect.h);
+      targetCtx.clip();
+
+      targetCtx.fillStyle = shadeRgba(base, -0.015, alpha);
+      targetCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
+
+      targetCtx.strokeStyle = 'rgba(0,0,0,0.18)';
+      targetCtx.lineWidth = 1;
+      targetCtx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.w - 1, rect.h - 1);
+
+      const phase = mod((axis === 'x') ? worldX : worldY, pitch);
+      const start = runStart - (phase + pitch);
+
+      const steps = Math.max(1, Math.ceil((runLenEff + pitch * 2) / pitch));
+
+      const stroke = (opts && opts.stroke != null) ? String(opts.stroke) : 'rgba(0,0,0,0.55)';
+      const lineWidth = Number.isFinite(opts && opts.lineWidth) ? opts.lineWidth : 1;
+
+      targetCtx.lineWidth = lineWidth;
+
+      for (let i = 0; i < steps; i++) {
+        const pos = start + i * pitch;
+
+        // Enforce end landing pad.
+        if (pos < runStart) continue;
+        if ((pos + tread) > runEnd) continue;
+
+        const treadCenter = pos + tread / 2;
+        const u = clamp((treadCenter - runStart) / runLenEff, 0, 1);
+        const tDown = tDownFromU(u);
+
+        const factor = maxFactor + (minFactor - maxFactor) * tDown;
+        const crossSize = clamp(crossSpan * factor, 2, crossSpan);
+
+        let x, y, w, h;
+        if (axis === 'x') {
+          x = pos;
+          y = rect.y + (rect.h - crossSize) / 2;
+          w = tread;
+          h = crossSize;
+        } else {
+          x = rect.x + (rect.w - crossSize) / 2;
+          y = pos;
+          w = crossSize;
+          h = tread;
+        }
+
+        const shadeAmt = 0.02 - tDown * 0.08;
+        targetCtx.fillStyle = shadeRgba(base, shadeAmt, alpha);
+        targetCtx.fillRect(x, y, w, h);
+
+        if (gap > 0.2) {
+          targetCtx.fillStyle = 'rgba(0,0,0,0.14)';
+          if (axis === 'x') targetCtx.fillRect(x + w, y, Math.min(gap, 3), h);
+          else targetCtx.fillRect(x, y + h, w, Math.min(gap, 3));
+        }
+
+        targetCtx.strokeStyle = stroke;
+        targetCtx.strokeRect(x + 0.5, y + 0.5, Math.max(0, w - 1), Math.max(0, h - 1));
+
+        targetCtx.fillStyle = 'rgba(255,255,255,0.06)';
+        if (axis === 'x') targetCtx.fillRect(x + 1, y + 1, Math.max(0, w - 2), 1);
+        else targetCtx.fillRect(x + 1, y + 1, 1, Math.max(0, h - 2));
+      }
+
+      targetCtx.restore();
+    }
+
+    // ---- Chair (nicer) ----
+    function drawChairFancy(ctx2, center, facing, opts = {}) {
+      const fill = opts.fill ?? '#8a5a2b';
+      const stroke = opts.stroke ?? 'rgba(0,0,0,0.35)';
+      const accent = opts.accent ?? 'rgba(255,255,255,0.08)';
+
+      const seatW = GRID.size * 0.95;
+      const seatH = GRID.size * 0.72;
+      const seatR = Math.max(4, seatH * 0.22);
+
+      const backR = Math.max(6, seatH * 0.48);
+
+      const ang = facingToAngleRad(facing);
+
+      ctx2.save();
+      ctx2.translate(center.x, center.y);
+      ctx2.rotate(ang);
+
+      // Seat
+      ctx2.fillStyle = fill;
+      ctx2.strokeStyle = stroke;
+      ctx2.lineWidth = 1;
+      roundRectPath(ctx2, -seatW / 2, -seatH / 2, seatW, seatH, seatR);
+      ctx2.fill();
+      ctx2.stroke();
+
+      // Front notch
+      ctx2.fillStyle = 'rgba(0,0,0,0.10)';
+      ctx2.fillRect(seatW * 0.33, -seatH * 0.18, seatW * 0.12, seatH * 0.36);
+
+      // Backrest
+      const backInsetX = seatW * 0.06 + backR;
+
+      ctx2.save();
+      ctx2.translate(-seatW / 2 + backInsetX, 0);
+
+      ctx2.fillStyle = fill;
+      ctx2.beginPath();
+      ctx2.moveTo(0, -backR);
+      ctx2.arc(0, 0, backR, -Math.PI / 2, Math.PI / 2, true);
+      ctx2.closePath();
+      ctx2.fill();
+
+      ctx2.strokeStyle = stroke;
+      ctx2.lineWidth = 1;
+      ctx2.beginPath();
+      ctx2.arc(0, 0, backR, -Math.PI / 2, Math.PI / 2, true);
+      ctx2.stroke();
+
+      ctx2.strokeStyle = accent;
+      ctx2.lineWidth = 2;
+      ctx2.beginPath();
+      ctx2.arc(0, 0, Math.max(3, backR * 0.72), -Math.PI / 2, Math.PI / 2, true);
+      ctx2.stroke();
+
+      ctx2.restore();
+      ctx2.restore();
+    }
+
+    // ---- Sprites (OPTIONAL) ----
+    // If sprites are missing or still loading, we fall back to the core shapes.
+    // Base paths tried in order. In most web setups, anything under /public is served at the site root.
+    // So "/public/assets/sprites" on disk is typically accessible as "/assets/sprites" in the browser.
+    const SPRITE_BASES = (() => {
+      const fromWindow = (window.SPRITE_BASE_PATH != null) ? String(window.SPRITE_BASE_PATH) : '';
+      const bases = [];
+      const push = (p) => {
+        const s = String(p || '').trim();
+        if (!s) return;
+        const norm = s.replace(/\/+$/,'') + '/';
+        if (!bases.includes(norm)) bases.push(norm);
+      };
+      push(fromWindow);
+      push('/assets/sprites/');
+      push('./assets/sprites/');
+      push('./public/assets/sprites/');
+      push('./sprites/');
+      return bases.length ? bases : ['./sprites/'];
+    })();
+
+    const SPRITE_MANIFEST = {
+      // Objects / terrain
+      barrel: 'barrel.png',
+      bedroll: 'bedroll.png',
+      bush: 'bush.png',
+      campfire: 'campfire.png',
+      cart: 'cart.png',
+      chest_locked: 'chest_locked.png',
+      chest_open: 'chest_open.png',
+      crate: 'crate.png',
+      fence_rope: 'fence_rope.png',
+      fence1: 'fence1.png',
+      forest_thick: 'forest_thick.png',
+      grass_tall: 'grass_tall.png',
+      guardian_of_faith: 'guardian_of_faith.png',
+      log_fallen: 'log_fallen.png',
+      pillar: 'pillar.png',
+      rock: 'rock.png',
+      spiritual_weapon: 'spiritual_weapon.png',
+      statue_dragonkin: 'statue_dragonkin.png',
+      statue_figher: 'statue_figher.png', // (typo preserved from filename)
+      statue_fighter: 'statue_figher.png', // alias
+      statue_gargoyle: 'statue_gargoyle.png',
+      statue_gnome: 'statue_gnome.png',
+      wagonwheel_broken: 'wagonwheel_broken.png',
+      water_shallow: 'water_shallow.png',
+      weapons_rack1: 'weapons_rack1.png',
+
+      // Furniture
+      door_wood: 'door_wood.png',
+      door_wood_open: 'door_wood_open.png',
+      window: 'window.png',
+      window_open: 'window_open.png',
+      sarcophagus: 'sarcophagus.png',
+      table_round: 'table_round.png',
+
+      // PCs / classes
+      barbarian_female: 'barbarian_female.png',
+      barbarian_male: 'barbarian_male.png',
+      bard_female: 'bard_female.png',
+      bard_male: 'bard_male.png',
+      cleric_female: 'cleric_female.png',
+      cleric_male: 'cleric_male.png',
+      druid_female: 'druid_female.png',
+      druid_male: 'druid_male.png',
+      fighter_female: 'fighter_female.png',
+      fighter_male: 'fighter_male.png',
+      monk_female: 'monk_female.png',
+      monk_male: 'monk_male.png',
+      paladin_female: 'paladin_female.png',
+      paladin_male: 'paladin_male.png',
+      ranger_female: 'ranger_female.png',
+      ranger_male: 'ranger_male.png',
+      rogue_male: 'rogue_male.png',
+      rogue_female: 'rouge_female.png', // (typo preserved from filename)
+      rouge_female: 'rouge_female.png',
+      sorcerer_female: 'sorcerer_female.png',
+      sorcerer_male: 'sorcerer_male.png',
+      warlock_female: 'warlock_female.png',
+      warlock_male: 'warlock_male.png',
+      wizard_female: 'wizard_female.png',
+      wizard_male: 'wizard_male.png',
+
+      // Monsters
+      bear: 'bear.png',
+      bugbear: 'bugbear.png',
+      dire_wolf: 'dire_wolf.png',
+      ghoul: 'ghoul.png',
+      giant_rat: 'giant_rat.png',
+      giant_spider: 'giant_spider.png',
+      goblin: 'goblin.png',
+      guard: 'guard.png',
+      hobgoblin: 'hobgoblin.png',
+      lich: 'lich.png',
+      mimic: 'mimic.png',
+      ogre: 'ogre.png',
+      orc: 'orc.png',
+      skeleton: 'skeleton.png',
+      skeleton_archer: 'skeleton_archer.png',
+      wight: 'wight.png',
+      wolf: 'wolf.png',
+      wraith: 'wraith.png',
+      wraith2: 'wraith2.png',
+      zombie: 'zombie.png',
+    };
+
+    const SpriteStore = (() => {
+      const cache = new Map(); // key -> { img, ok, err }
+      const missing = new Set();
+
+      const normalizeKey = (v) => {
+        const s = String(v || '').trim().toLowerCase();
+        if (!s) return '';
+        // Keep letters/numbers, convert everything else to underscores.
+        let k = s.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').replace(/_+/g, '_');
+        // Common: "wraith_2" -> "wraith2" (matches your filenames)
+        k = k.replace(/_([0-9]+)$/g, '$1');
+        return k;
+      };
+
+      const hasKey = (k) => !!SPRITE_MANIFEST[String(k || '')];
+
+      const resolveTokenKey = (t) => {
+        if (!t) return '';
+        const direct = normalizeKey(t.sprite || '');
+        if (direct && hasKey(direct)) return direct;
+
+        const byName = normalizeKey(t.name || t.id || '');
+        if (byName && hasKey(byName)) return byName;
+
+        // If it's like "wraith1" but only "wraith" exists, fall back to base.
+        const m = byName.match(/^([a-z_]+)([0-9]+)$/);
+        if (m && hasKey(m[1])) return m[1];
+
+        return '';
+      };
+
+      const resolveObjectKey = (o) => {
+        if (!o) return '';
+        const direct = normalizeKey(o.sprite || '');
+        if (direct && hasKey(direct)) return direct;
+
+        // kind like "table.round" -> "table_round"
+        const byKind = normalizeKey(String(o.kind || '').replaceAll('.', '_'));
+        if (byKind && hasKey(byKind)) return byKind;
+
+        return '';
+      };
+
+      const resolveOpeningKey = (o, core) => {
+        if (!o) return '';
+        const direct = normalizeKey(o.sprite || '');
+        if (direct && hasKey(direct)) return direct;
+
+        const kind = String(o.kind || 'door').toLowerCase();
+        const orient = core.openingOrientation(o);
+
+        if (kind === 'door') {
+          const d = core.normalizeDoorParams(o, orient);
+          return (d.openPct > 0.5) ? 'door_wood_open' : 'door_wood';
+        }
+        if (kind === 'window') {
+          const w = core.normalizeWindowParams(o, orient);
+          return (w.openPct > 0.5) ? 'window_open' : 'window';
+        }
+
+        return '';
+      };
+      const ensure = (key) => {
+        const k = String(key || '');
+        if (!k || missing.has(k)) return null;
+
+        const hit = cache.get(k);
+        if (hit) return hit.ok ? hit.img : null;
+
+        const filename = SPRITE_MANIFEST[k];
+        if (!filename) return null;
+
+        const img = new Image();
+        const rec = { img, ok: false, idx: 0 };
+        cache.set(k, rec);
+
+        const tryLoad = () => {
+          const base = SPRITE_BASES[Math.min(rec.idx, SPRITE_BASES.length - 1)];
+          img.src = base + filename;
+        };
+
+        img.onload = () => {
+          const r = cache.get(k);
+          if (r) r.ok = true;
+          redraw();
+        };
+
+        img.onerror = () => {
+          const r = cache.get(k);
+          if (!r) return;
+          r.idx = (r.idx || 0) + 1;
+          if (r.idx < SPRITE_BASES.length) {
+            tryLoad();
+            return;
+          }
+          cache.delete(k);
+          missing.add(k);
+          redraw();
+        };
+
+        tryLoad();
+        return null; // not ready yet
+      };
+
+      const drawCentered = (ctx2, img, cx, cy, w, h, rotRad = 0) => {
+        ctx2.save();
+        ctx2.translate(cx, cy);
+        if (rotRad) ctx2.rotate(rotRad);
+        ctx2.imageSmoothingEnabled = true;
+        ctx2.drawImage(img, -w / 2, -h / 2, w, h);
+        ctx2.restore();
+      };
+
+      return {
+        normalizeKey,
+        resolveTokenKey,
+        resolveObjectKey,
+        resolveOpeningKey,
+        ensure,
+        drawCentered,
+        hasKey,
+      };
+    })();
+
+    // Token sprites
+    PACK.drawTokenSprite = (ctx2, t, core) => {
+      const key = SpriteStore.resolveTokenKey(t);
+      if (!key) return false;
+      const img = SpriteStore.ensure(key);
+      if (!img) return false;
+
+      let p;
+      try { p = core.parseHexId(t.hex); } catch { return false; }
+      const cS = core.worldToScreen(core.hexCenterWorld(p.col, p.row));
+
+      const size = core.rowStep() * 0.98;
+      SpriteStore.drawCentered(ctx2, img, cS.x, cS.y, size, size, 0);
+
+      // Label overlay (keeps your quick-read combat labels)
+      const isEnemy = String(t.side || '').toUpperCase().indexOf('EN') >= 0;
+      const label = (t.label != null) ? t.label : (t.name ? t.name[0] : '?');
+
+      ctx2.save();
+      ctx2.font = 'bold 14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+      ctx2.textAlign = 'center';
+      ctx2.textBaseline = 'middle';
+      ctx2.lineWidth = 4;
+      ctx2.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx2.fillStyle = isEnemy ? core.COLORS.tokenTextLight : 'rgba(255,255,255,0.95)';
+      ctx2.strokeText(label, cS.x, cS.y);
+      ctx2.fillText(label, cS.x, cS.y);
+
+      if (t.name) {
+        const r = core.GRID.size * 0.42;
+        ctx2.font = '12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+        ctx2.lineWidth = 3;
+        ctx2.strokeStyle = 'rgba(255,255,255,0.80)';
+        ctx2.fillStyle = core.COLORS.tokenTextDark;
+        ctx2.strokeText(t.name, cS.x, cS.y + r + 14);
+        ctx2.fillText(t.name, cS.x, cS.y + r + 14);
+      }
+      ctx2.restore();
+
+      return true;
+    };
+
+    // Object sprites
+    PACK.drawObjectSprite = (ctx2, o, core) => {
+      const key = SpriteStore.resolveObjectKey(o);
+      if (!key) return false;
+      const img = SpriteStore.ensure(key);
+      if (!img) return false;
+
+      const occ = core.getObjectOccupiedHexes(o);
+      if (!occ.length) return false;
+
+      const pts = core.getScreenPointsForHexes(occ);
+      if (!pts.length) return false;
+
+      const sh = core.getObjectShiftPx(o);
+
+      // Single-hex: draw in a square that fits the hex height.
+      if (pts.length === 1) {
+        const c0 = pts[0];
+        const cx = c0.x + sh.dx;
+        const cy = c0.y + sh.dy;
+        const size = core.rowStep() * 0.98;
+        SpriteStore.drawCentered(ctx2, img, cx, cy, size, size, 0);
+        return true;
+      }
+
+      // Multi-hex: fit sprite to the footprint bounds.
+      const b0 = core.boundsOfPoints(pts);
+      const pad = core.GRID.size * 0.95;
+      const b = core.expandBounds(b0, pad);
+
+      const w = Math.max(4, (b.maxX - b.minX));
+      const h = Math.max(4, (b.maxY - b.minY));
+      const cx = (b.minX + b.maxX) / 2 + sh.dx;
+      const cy = (b.minY + b.maxY) / 2 + sh.dy;
+
+      // Preserve aspect ratio: fit to the smaller dimension.
+      const size = Math.min(w, h);
+      SpriteStore.drawCentered(ctx2, img, cx, cy, size, size, 0);
+      return true;
+    };
+
+    // Door / window sprites
+    PACK.drawOpeningSprite = (ctx2, opening, wallSegs, core) => {
+      const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
+      if (kind !== 'door' && kind !== 'window') return false;
+
+      const key = SpriteStore.resolveOpeningKey(opening, core);
+      if (!key) return false;
+      const img = SpriteStore.ensure(key);
+      if (!img) return false;
+
+      let p;
+      try { p = core.parseHexId(opening.hex); } catch { return false; }
+
+      const orient = core.openingOrientation(opening);
+      const hexWorld = core.hexCenterWorld(p.col, p.row);
+      const seg = core.findNearestWallSegment(wallSegs || [], orient, hexWorld);
+
+      const wAlong = core.GRID.size * 1.2;
+      const fallbackH = core.GRID.size * 0.55;
+
+      let cx = hexWorld.x;
+      let cy = hexWorld.y;
+      let thickness = 28;
+
+      if (seg) {
+        thickness = seg.thickness;
+        if (orient === 'h') cy = seg.y;
+        else cx = seg.x;
+      }
+
+      const centerS = core.worldToScreen({ x: cx, y: cy });
+
+      const openingHBase = Math.min(thickness * 0.72, fallbackH);
+      const openingH = openingHBase * 0.85;
+
+      const rot = (orient === 'v') ? (Math.PI / 2) : 0;
+      SpriteStore.drawCentered(ctx2, img, centerS.x, centerS.y, wAlong, openingH, rot);
+      return true;
+    };
+
+    // ---- Install overrides ----
+    PACK.enabled = true;
+
+    PACK.fillBrickRect = (targetCtx, rect, color, worldX, worldY) => fillBrickRectScreenOn(targetCtx, rect, color, worldX, worldY);
+
+    PACK.fillCobbleRect = (targetCtx, rect, opts) => fillCobbleRectScreenOn(targetCtx, rect, opts);
+
+    PACK.fillWoodRect = (targetCtx, rect, opts) => {
+      const o = opts || {};
+      fillWoodPlanksRectScreenOn(targetCtx, rect, {
+        baseHex: o.baseHex ?? COLORS.floorWoodBase,
+        alpha: Number.isFinite(o.alpha) ? o.alpha : 1.0,
+        worldX: Number.isFinite(o.worldX) ? o.worldX : 0,
+        worldY: Number.isFinite(o.worldY) ? o.worldY : 0,
+        seed: Number.isFinite(o.seed) ? o.seed : 12345,
+        variant: 3,
+        plankH: 18,
+        gapY: 2,
+        gapX: 2,
+      });
+    };
+
+    PACK.fillStairsWoodRect = (targetCtx, rect, opts) => fillStairsWoodRectScreenOn(targetCtx, rect, opts || {});
+
+    PACK.drawChair = (targetCtx, center, facing, style) => drawChairFancy(targetCtx, center, facing, style || {});
+
+    // Beds and tables are already decent; keep basic implementations unless you want to enhance later.
+
+  })(PACK);
 
 
   // =====================================================================================
