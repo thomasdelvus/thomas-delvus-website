@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
-  v5.31
--->
+  v5.32
+--> 
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -196,7 +196,7 @@
     </div>
 
     <div class="sidebar">
-      <div class="sidebarHeader">v5.31</div>
+      <div class="sidebarHeader">v5.32</div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
         <hr style="border: none; border-top: 1px solid var(--panel-border); margin: 12px 0;" />
@@ -2962,6 +2962,196 @@
     PACK.hashStringToSeed = hashStringToSeed;
     PACK.shadeRgba = shadeRgba;
     PACK.hexToRgbStrict = hexToRgbStrict;
+
+    // ---- Sprites (objects) ----
+    // Served from /public/assets/sprites in the real app.
+    const SPRITE_BASE = '/assets/sprites/';
+
+    const spriteCache = new Map();
+    function getSpriteImage(file) {
+      const path = SPRITE_BASE + String(file || '');
+      if (spriteCache.has(path)) return spriteCache.get(path);
+
+      const img = new Image();
+      img._loaded = false;
+      img._error = false;
+      img.onload = () => {
+        img._loaded = true;
+        try { requestAnimationFrame(redraw); } catch { /* ignore */ }
+      };
+      img.onerror = () => {
+        img._error = true;
+      };
+      img.src = path;
+      spriteCache.set(path, img);
+      return img;
+    }
+
+    function chestSpriteFile(o) {
+      // Prefer explicit state; fall back to openPct.
+      const st = String(o && (o.state || '')).toLowerCase();
+      let openPct = Number(o && (o.openPct ?? o.openPercent ?? o.openAmount));
+      if (!Number.isFinite(openPct)) openPct = (st === 'open') ? 1 : (st === 'ajar') ? 0.5 : 0;
+      if (openPct > 0.66) return 'chest_open.png';
+      if (openPct > 0.10) return 'chest_ajar.png';
+      return 'chest_closed.png';
+    }
+
+    function hearthSpriteFile(o) {
+      const v = String(o && (o.variant || '')).toLowerCase();
+      return (v === 'small') ? 'hearth_small.png' : 'hearth_big.png';
+    }
+
+    // Sprite definitions by object kind. (If an image is missing, we fall back to vector shapes.)
+    const OBJECT_SPRITES = {
+      // Beds (base sprite assumed: horizontal with head to the WEST/left)
+      'bed.single': { file: 'bed_single.png', rotate: 'bed' },
+      'bed.double': { file: 'bed_double.png', rotate: 'bed' },
+
+      // Furniture
+      'chair': { file: 'chair.png', rotate: 'facing' },
+      'table.round': { file: 'table_round.png' },
+      'table.square': { file: 'table_square.png' },
+      'table.rect': { file: 'table_rect.png' },
+
+      // Props
+      'chest': { file: chestSpriteFile, rotate: 'facing' },
+      // Hearth base sprite assumed: opening faces EAST/right
+      'hearth': { file: hearthSpriteFile, rotate: 'hearthFacing' },
+    };
+
+    function spriteRotationRadForObject(kind, o) {
+      const k = String(kind || '').toLowerCase();
+      const def = OBJECT_SPRITES[k];
+      const rotKind = def && def.rotate ? String(def.rotate) : '';
+
+      if (rotKind === 'facing') {
+        const facing = o && (o.facing ?? o.dir ?? o.direction ?? 'E');
+        return facingToAngleRad(facing);
+      }
+
+      if (rotKind === 'hearthFacing') {
+        const facing = String(o && (o.facing || 'E')).toUpperCase();
+        return (
+          (facing === 'S') ? (Math.PI / 2) :
+          (facing === 'W') ? (Math.PI) :
+          (facing === 'N') ? (-Math.PI / 2) :
+          0
+        );
+      }
+
+      if (rotKind === 'bed') {
+        // Use head direction as the true orientation.
+        const head = String(o && (o.head || 'W')).toUpperCase();
+        return (
+          (head === 'E') ? (Math.PI) :
+          (head === 'S') ? (Math.PI / 2) :
+          (head === 'N') ? (-Math.PI / 2) :
+          0
+        );
+      }
+
+      return 0;
+    }
+
+    function spriteSizePxForObject(kind, o) {
+      const k = String(kind || '').toLowerCase();
+      const s = GRID.size;
+      const hexFlatX = 2 * s;
+      const hexFlatY = rowStep();
+
+      // Default size ~ one hex.
+      let w = s * 1.25;
+      let h = s * 1.25;
+
+      if (k === 'chair') {
+        w = s * 1.15;
+        h = s * 1.15;
+      }
+
+      if (k === 'chest') {
+        w = s * 1.20;
+        h = s * 0.92;
+      }
+
+      if (k === 'hearth') {
+        const variant = (o && String(o.variant || '').toLowerCase() === 'small') ? 'small' : 'big';
+        const wHex = Number.isFinite(o && o.wHex) ? Number(o.wHex) : (variant === 'small' ? 0.5 : 1.0);
+        const hHex = Number.isFinite(o && o.hHex) ? Number(o.hHex) : (variant === 'big' ? 2.0 : 1.0);
+        w = Math.max(0.35, wHex) * hexFlatX;
+        h = Math.max(0.35, hHex) * hexFlatY;
+      }
+
+      if (k === 'bed.single' || k === 'bed.double') {
+        const orient = (o && (o.orientation === 'v' || o.orientation === 'h')) ? o.orientation : 'h';
+        const lengthFactor = 1.25;
+        const widthFactor = (k === 'bed.double') ? 1.25 : 0.75;
+        const lenPx = (orient === 'h') ? (hexFlatX * lengthFactor) : (hexFlatY * lengthFactor);
+        const widPx = (orient === 'h') ? (hexFlatY * widthFactor) : (hexFlatX * widthFactor);
+        // If the sprite is rotated via head, keep the larger axis the length.
+        w = lenPx;
+        h = widPx;
+      }
+
+      if (k === 'table.round') {
+        w = s * 1.90;
+        h = s * 1.90;
+      }
+
+      if (k === 'table.square') {
+        w = s * 1.85;
+        h = s * 1.85;
+      }
+
+      if (k === 'table.rect') {
+        w = s * 2.20;
+        h = s * 1.55;
+      }
+
+      return { w, h };
+    }
+
+    function drawObjectSprite(targetCtx, o, core) {
+      if (!o || !o.kind) return false;
+      const kind = String(o.kind).toLowerCase();
+      const def = OBJECT_SPRITES[kind];
+      if (!def) return false;
+
+      // Resolve occupied hexes + center (supports multi-hex tables, etc.).
+      const occHexes = core.getObjectOccupiedHexes(o);
+      if (!occHexes.length) return false;
+
+      const pts = core.getScreenPointsForHexes(occHexes);
+      if (!pts.length) return false;
+
+      const baseCenter = core.centroidOfPoints(pts);
+      const sh = core.getObjectShiftPx(o);
+      const center = { x: baseCenter.x + sh.dx, y: baseCenter.y + sh.dy };
+
+      // Resolve file (static or function).
+      const file = (typeof def.file === 'function') ? def.file(o) : def.file;
+      const img = getSpriteImage(file);
+      if (!img || img._error || !img._loaded) return false;
+
+      const rot = spriteRotationRadForObject(kind, o);
+      const objScale = core.getObjectScale(o);
+      const { w, h } = spriteSizePxForObject(kind, o);
+      const dw = w * objScale;
+      const dh = h * objScale;
+
+      targetCtx.save();
+      targetCtx.translate(center.x, center.y);
+      if (rot) targetCtx.rotate(rot);
+      targetCtx.imageSmoothingEnabled = true;
+      targetCtx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+      targetCtx.restore();
+
+      return true;
+    }
+
+    // Expose hook for the core renderer.
+    PACK.drawObjectSprite = drawObjectSprite;
+
 
     // ---- Brick walls (WORLD-anchored) ----
     function fillBrickRectScreenOn(targetCtx, rect, color, worldX = 0, worldY = 0) {
