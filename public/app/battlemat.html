@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  v5.06 
+  v5.14 
 
   Copyright © 2025 Thomas Delvus. All rights reserved.
 
@@ -215,9 +215,7 @@
     </div>
 
     <div class="sidebar">
-      <div class="sidebarHeader">
-        <div style="font-weight: 600;">Status</div>
-        v5.06
+      <div class="sidebarHeader">v5.14
       </div>
       <div class="sidebarBody">
         <div class="kvs" id="kvs"></div>
@@ -338,7 +336,7 @@
 
     openings: [
       { id: 'door_room1', kind: 'door', hex: 'P19',  orientation: 'v', state: 'closed', opensTo: 'W', hingeEnd: 'N' },
-      { id: 'door_room2', kind: 'door', hex: 'P16',  orientation: 'v', state: 'closed', opensTo: 'W', hingeEnd: 'N' },
+      { id: 'door_room2', kind: 'door', hex: 'P16',  orientation: 'v', state: 'open', opensTo: 'W', hingeEnd: 'N' },
       { id: 'door_room3', kind: 'door', hex: 'P13',  orientation: 'v', state: 'closed', opensTo: 'W', hingeEnd: 'N' },
       { id: 'door_room4', kind: 'door', hex: 'T15',  orientation: 'h', state: 'open', opensTo: 'S', hingeEnd: 'W' },
       { id: 'door_room5', kind: 'door', hex: 'U17',  orientation: 'h', state: 'closed', opensTo: 'N', hingeEnd: 'W' },
@@ -399,11 +397,11 @@
     ],
 
     tokens: [
-      { id: 'lich', name: 'Lich', side: 'ENEMY', hex: 'T20', label: 'L', init: 15, hp: 135 },
+      { id: 'lich', name: 'Lich', side: 'ENEMY', hex: 'U19', label: 'L', init: 15, hp: 135 },
       { id: 'w1',   name: 'Wraith 1', side: 'ENEMY', hex: 'T16', label: 'W1', init: 12, hp: 67 },
       { id: 'w2',   name: 'Wraith 2', side: 'ENEMY', hex: 'Q18', label: 'W2', init: 11, hp: 67 },
       { id: 'w3',   name: 'Wraith 3', side: 'ENEMY', hex: 'N17', label: 'W3', init: 10, hp: 67 },
-      { id: 'a',    name: 'Aelar', side: 'PC', hex: 'U18', label: 'A', init: 14, hp: 42, sprite: 'ranger_male' },
+      { id: 'a',    name: 'Aelar', side: 'PC', hex: 'X16', label: 'A', init: 14, hp: 42 },
       { id: 'b',    name: 'Brunna', side: 'PC', hex: 'U13', label: 'B', init: 13, hp: 55 },
       { id: 'c',    name: 'Caelin', side: 'PC', hex: 'AA20', label: 'C', init: 12, hp: 38 },
     ],
@@ -595,11 +593,12 @@
 
       drawBed(targetCtx, rect, opts) {
         targetCtx.save();
-        targetCtx.fillStyle = (opts && opts.mattressFill) ? opts.mattressFill : '#ae7e47';
+        targetCtx.fillStyle = (opts && opts.mattressFill) ? opts.mattressFill : '#9a7b4b';
         targetCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
         targetCtx.strokeStyle = (opts && opts.stroke) ? opts.stroke : 'rgba(0,0,0,0.60)';
-        targetCtx.lineWidth = 2;
-        targetCtx.strokeRect(rect.x + 1, rect.y + 1, Math.max(0, rect.w - 2), Math.max(0, rect.h - 2));
+        // Match table outline thickness
+        targetCtx.lineWidth = 1;
+        targetCtx.strokeRect(rect.x + 0.5, rect.y + 0.5, Math.max(0, rect.w - 1), Math.max(0, rect.h - 1));
         targetCtx.restore();
       },
 
@@ -1900,7 +1899,7 @@
 
     targetCtx.fillStyle = opts.pillowFill ?? '#7a4f22';
     targetCtx.strokeStyle = opts.stroke ?? 'rgba(0,0,0,0.55)';
-    targetCtx.lineWidth = 1.5;
+    targetCtx.lineWidth = 1;
 
     if (opts.double) {
       const gap = Math.max(3, Math.min(rect.w, rect.h) * 0.06);
@@ -2057,7 +2056,7 @@
     drawBedSquare(ctx, rect, {
       head: o.head || 'W',
       double: (kind === 'bed.double'),
-      mattressFill: '#ae7e47',
+      mattressFill: '#9a7b4b',
       pillowFill: '#a0733c',
       stroke: 'rgba(0,0,0,0.60)'
     });
