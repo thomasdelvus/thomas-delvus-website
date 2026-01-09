@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v5.73
+Version: v5.74
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v5.73</title>
+  <title>Battlemat Core v5.74</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v5.73
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.73</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.74</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -244,11 +244,11 @@ Version: v5.73
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v5.73
+  // Battlemat Core Rewrite v5.74
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v5.73';
+  const VERSION = 'v5.74';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -345,18 +345,23 @@ Version: v5.73
     cache: new Map(),
     defs: {
       // Objects
-      'bed':        { file: 'bed.png', rotate: 'deg' },
-      'bed.double': { file: 'bed.png', rotate: 'deg' },
-      'chair':      { file: 'chair.png', rotate: 'deg' },
-      'table.round':{ file: 'round_table.png', rotate: 'deg' },
-      'table.rect': { file: 'rect_table.png', rotate: 'deg' },
-      'chest':      { file: 'chest_closed.png', rotate: 'deg' },
-      'hearth':     { file: 'hearth_big.png', rotate: 'deg' },      'cooking.hearth': { file: 'cooking_hearth.png', rotate: 'deg' },
-      'stairs':     { file: 'stairs.png', rotate: 'deg' },
+      // Optional sprite-only scaling:
+      //   - scale: uniform
+      //   - scaleX/scaleY: non-uniform
+      // Instance overrides: spriteScale / spriteScaleX / spriteScaleY on the object record.
+      'bed':         { file: 'bed.png', rotate: 'deg' },
+      'bed.double':  { file: 'bed_double.png', rotate: 'deg' },
+      'chair':       { file: 'chair.png', rotate: 'deg' },
+      'table.round': { file: 'table_round.png', rotate: 'deg' },
+      'table.rect':  { file: 'table_rectangle.png', rotate: 'deg' },
+      'chest':       { file: 'chest_closed.png', rotate: 'deg' },
+      'hearth':      { file: 'hearth_big.png', rotate: 'deg' },
+      'cooking.hearth': { file: 'cooking_hearth.png', rotate: 'deg' },
+      'stairs':      { file: 'stairs.png', rotate: 'deg' },
 
       // Tokens (optional)
-      'token.pc':   { file: 'token_pc.png', rotate: 'none' },
-      'token.npc':  { file: 'token_npc.png', rotate: 'none' },
+      'token.pc':    { file: 'token_pc.png', rotate: 'none' },
+      'token.npc':   { file: 'token_npc.png', rotate: 'none' },
     }
   };
 
@@ -553,6 +558,7 @@ Version: v5.73
 
   // ===== Small utilities =====
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const isFiniteNum = (v) => Number.isFinite(Number(v));
 
   // ===== Hex id helpers =====
   function colToLetters(col) {
@@ -1422,13 +1428,26 @@ Version: v5.73
     const rot = objectRotationRad(o);
 
     const kind = String(o.kind || 'object').toLowerCase();
-
     // Sprite first (optional)
+    // NOTE: sprite-only scale multipliers live on the sprite def and/or the object record.
+    // They do NOT affect fallback shapes.
     if (elSpriteToggle && elSpriteToggle.checked) {
       const def = getSpriteDef(kind);
       if (def) {
         const img = loadSprite(def.file);
-        const ok = drawSprite(img, c.x, c.y, w, h, def.rotate === 'deg' ? rot : 0);
+
+        // Start with def scaling (defaults to 1)
+        let sx = 1, sy = 1;
+        if (isFiniteNum(def.scale)) { sx = Number(def.scale); sy = Number(def.scale); }
+        if (isFiniteNum(def.scaleX)) sx = Number(def.scaleX);
+        if (isFiniteNum(def.scaleY)) sy = Number(def.scaleY);
+
+        // Instance overrides (multiply so you can "nudge" without reauthoring defs)
+        if (isFiniteNum(o.spriteScale)) { sx *= Number(o.spriteScale); sy *= Number(o.spriteScale); }
+        if (isFiniteNum(o.spriteScaleX)) sx *= Number(o.spriteScaleX);
+        if (isFiniteNum(o.spriteScaleY)) sy *= Number(o.spriteScaleY);
+
+        const ok = drawSprite(img, c.x, c.y, w * sx, h * sy, def.rotate === 'deg' ? rot : 0);
         if (ok) return;
       }
     }
