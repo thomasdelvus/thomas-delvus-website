@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v5.89
+Version: v5.90
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v5.89</title>
+  <title>Battlemat Core v5.90</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v5.89
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.89</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.90</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -244,11 +244,11 @@ Version: v5.89
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v5.89
+  // Battlemat Core Rewrite v5.90
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v5.89';
+  const VERSION = 'v5.90';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -1349,13 +1349,16 @@ Version: v5.89
       const cutH = thickness + 4;
       const cutW = len + 4;
 
+      // IMPORTANT:
+      // Draw seam fills in screen space WITHOUT rotating/translating the canvas.
+      // Rotating/translation re-anchors the repeating pattern and causes misalignment
+      // vs the room's floor texture.
+      const w = (orient === 'v') ? cutH : cutW;
+      const h = (orient === 'v') ? cutW : cutH;
+
       ctx.save();
-      ctx.translate(centerS.x, centerS.y);
-      if (orient === 'v') ctx.rotate(Math.PI / 2);
-
       ctx.fillStyle = openingKnockoutFill(o, rooms, fogEnabled, wantTextures);
-      ctx.fillRect(-cutW / 2, -cutH / 2, cutW, cutH);
-
+      ctx.fillRect(centerS.x - w / 2, centerS.y - h / 2, w, h);
       ctx.restore();
     }
   }
