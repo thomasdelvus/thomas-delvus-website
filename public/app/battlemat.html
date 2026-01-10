@@ -1,6 +1,6 @@
 <!--
 Battlemat Core Rewrite
-Version: v5.87
+Version: v5.88
 -->
 <!doctype html>
 <html lang="en">
@@ -186,7 +186,7 @@ Version: v5.87
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.86</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.88</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -587,6 +587,10 @@ Version: v5.87
         id: 'upper',
         name: 'Upper',
       rooms: [
+          //Closed buildings
+          { id:'NextDoor', corners: ['L26','V26','V21','L21'], thickness: 20, floor: { kind: 'fog' }, wall: { kind: 'brick_gray' } },
+          
+          //Cross Keys Inn
           { id: 'CrossKeysUpperFloor', buildingId:'CrossKeysInn', corners: ['L21','AJ21','AJ12','L12'], thickness: 20, floor: { kind: 'fog' }, wall: { kind: 'brick_gray' } },
           { id: 'Hallway1', buildingId:'CrossKeysInn', corners: ['AD21','AF21','AF12','AD12'], thickness: 20, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Hallway2', buildingId:'CrossKeysInn', corners: ['R17','AD17','AD15','R15'], thickness: 20, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
@@ -604,8 +608,6 @@ Version: v5.87
           { id:'Bedroom8', buildingId:'CrossKeysInn', corners: ['AF15','AJ15','AJ12','AF12'], thickness: 20, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id:'Bedroom9', buildingId:'CrossKeysInn', corners: ['AF19','AJ19','AJ15','AF15'], thickness: 20, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id:'Bedroom10', buildingId:'CrossKeysInn', corners: ['AF21','AJ21','AJ19','AF19'], thickness: 20, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
-
-          { id:'NextDoor', corners: ['L26','V26','V21','L21'], thickness: 20, floor: { kind: 'fog' }, wall: { kind: 'brick_gray' } },
         ],
         openings: [
           { id: 'door_room1', kind: 'door', hex: 'P19',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1  },
@@ -636,7 +638,13 @@ Version: v5.87
           
           { id:'bedroom_window1', kind:'window', hex:'M12.5', orientation:'h' },
           { id:'bedroom_window1', kind:'window', hex:'N12', orientation:'h' },
-
+          { id:'bedroom_window1', kind:'window', hex:'Q12.5', orientation:'h' },
+          { id:'bedroom_window1', kind:'window', hex:'U12.5', orientation:'h' },
+          { id:'bedroom_window1', kind:'window', hex:'V12', orientation:'h' },
+          { id:'bedroom_window1', kind:'window', hex:'Z12', orientation:'h' },
+          { id:'bedroom_window1', kind:'window', hex:'AA12.5', orientation:'h' },
+          { id:'bedroom_window1', kind:'window', hex:'AE12.5', orientation:'h' },
+          { id:'bedroom_window1', kind:'window', hex:'AH12', orientation:'h' },
           
 
           { id:'thresh_R16',  kind: 'threshold', hex: 'R16',  orientation: 'v', span: 2.4, parent: 'Hallway2' },
