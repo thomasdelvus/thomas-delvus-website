@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v5.88
+Version: v5.89
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v5.87</title>
+  <title>Battlemat Core v5.89</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v5.88
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.88</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.89</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -244,11 +244,11 @@ Version: v5.88
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v5.87
+  // Battlemat Core Rewrite v5.89
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v5.87';
+  const VERSION = 'v5.89';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -635,24 +635,28 @@ Version: v5.88
           // Portals: movement/transition links between floors (renderer does not draw them)
           { id:'portal_down_AB20', kind:'portal', hex:'AB20', trigger:'enter', to:{ floorId:'ground', hex:'Z20' } },
 
-          { id:'bedroom_window1', kind:'window', hex:'L20', orientation:'v' },
-          { id:'bedroom_window2', kind:'window', hex:'L19', orientation:'v' },
+          { id:'bedroom1_window1', kind:'window', hex:'L20', orientation:'v' },
+          { id:'bedroom1_window2', kind:'window', hex:'L19', orientation:'v' },
           
-          { id:'bedroom_window1', kind:'window', hex:'L17', orientation:'v' },
-          { id:'bedroom_window1', kind:'window', hex:'L16', orientation:'v' },
+          { id:'bedroom2_window1', kind:'window', hex:'L17', orientation:'v' },
+          { id:'bedroom2_window2', kind:'window', hex:'L16', orientation:'v' },
           
-          { id:'bedroom_window1', kind:'window', hex:'L14', orientation:'v' },
-          { id:'bedroom_window1', kind:'window', hex:'L13', orientation:'v' },
+          { id:'bedroom3_window1', kind:'window', hex:'L14', orientation:'v' },
+          { id:'bedroom3_window2', kind:'window', hex:'L13', orientation:'v' },
+          { id:'bedroom3_window3', kind:'window', hex:'M12.5', orientation:'h' },
+          { id:'bedroom3_window4', kind:'window', hex:'N12', orientation:'h' },
           
-          { id:'bedroom_window1', kind:'window', hex:'M12.5', orientation:'h' },
-          { id:'bedroom_window1', kind:'window', hex:'N12', orientation:'h' },
-          { id:'bedroom_window1', kind:'window', hex:'Q12.5', orientation:'h' },
-          { id:'bedroom_window1', kind:'window', hex:'U12.5', orientation:'h' },
-          { id:'bedroom_window1', kind:'window', hex:'V12', orientation:'h' },
-          { id:'bedroom_window1', kind:'window', hex:'Z12', orientation:'h' },
-          { id:'bedroom_window1', kind:'window', hex:'AA12.5', orientation:'h' },
-          { id:'bedroom_window1', kind:'window', hex:'AE12.5', orientation:'h' },
-          { id:'bedroom_window1', kind:'window', hex:'AH12', orientation:'h' },
+          { id:'hallway3_window1', kind:'window', hex:'Q12.5', orientation:'h' },
+          
+          { id:'bedroom4_window1', kind:'window', hex:'U12.5', orientation:'h' },
+          { id:'bedroom4_window2', kind:'window', hex:'V12', orientation:'h' },
+          
+          { id:'bedroom5_window1', kind:'window', hex:'Z12', orientation:'h' },
+          { id:'bedroom5_window2', kind:'window', hex:'AA12.5', orientation:'h' },
+          
+          { id:'hallwlay1_window1', kind:'window', hex:'AE12.5', orientation:'h' },
+          
+          { id:'bedroom8_window1', kind:'window', hex:'AH12', orientation:'h' },
           
 
           { id:'thresh_R16',  kind: 'threshold', hex: 'R16',  orientation: 'v', span: 2.4, parent: 'Hallway2' },
@@ -670,7 +674,7 @@ Version: v5.88
 
           { id:'room3_bed1', kind: 'bed', hex: 'M15', wHex: 1.0, hHex: 1.0, rotDeg: 0, ox: 0.00, oy: 0.70, spriteScale:2.75 },
           { id:'room3_bed2', kind: 'bed', hex: 'N14', wHex: 1.0, hHex: 1.0, rotDeg: 0, ox: 0.00, oy: -0.17, spriteScale:2.75 },
-          { id:'room3_bed2', kind: 'bed', hex: 'O15', wHex: 1.0, hHex: 1.0, rotDeg: 0, ox: 0.00, oy: 0.70, spriteScale:2.75 },
+          { id:'room3_bed3', kind: 'bed', hex: 'O15', wHex: 1.0, hHex: 1.0, rotDeg: 0, ox: 0.00, oy: 0.70, spriteScale:2.75 },
 
           { id:'room4_bed', kind: 'bed.double', hex: 'S14', wHex: 1.0, hHex: 1.0, rotDeg: 270, ox: 0.00, oy: -0.00, spriteScale:3.0 },
           { id:'room4_chair1', kind: 'chair', hex: 'W14', rotDeg: 60, ox: -0.20, oy: -0.00, spriteScale:0.75  },
