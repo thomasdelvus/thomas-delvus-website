@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v5.82
+Version: v5.83
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v5.82</title>
+  <title>Battlemat Core v5.83</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v5.82
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.82</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.83</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -244,11 +244,11 @@ Version: v5.82
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v5.82
+  // Battlemat Core Rewrite v5.83
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v5.82';
+  const VERSION = 'v5.83';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -424,35 +424,72 @@ Version: v5.82
   // ===== Repeat textures (optional) =====
   // Uses the same /assets/sprites/ folder as normal sprites.
   // If an image is missing, we simply fall back to solid colors.
-  const TEXTURE_FILES = {
+  // ===== Repeat textures (optional) =====
+  // Uses the same /assets/sprites/ folder as normal sprites.
+  // If an image is missing, we simply fall back to solid colors.
+  //
+  // IMPORTANT: patterns almost always need to be *scaled* ("tiny bricks") to look right.
+  // We hardcode those scales here so rooms don't have to pass parameters all over the place.
+  const TEXTURE_DEFS = {
     wall: {
-      // Put a repeating brick tile here (e.g. 64x64, 128x128, etc)
-      brick: 'brick_wall.png',
+      // A repeating brick tile. scale < 1 = smaller bricks (more repeats).
+      brick: { file: 'brick_wall.png', scale: 0.25 },
     },
-    // (Optional later)
-    // floor: { cobble: 'cobble_floor.png', wood: 'wood_floor.png' }
+    // Later if you want:
+    // floor: {
+    //   cobble: { file: 'cobble_floor.png', scale: 0.35 },
+    //   wood:   { file: 'wood_floor.png',   scale: 0.50 },
+    // }
   };
 
   const PATTERN_CACHE = new Map();
 
-  function getRepeatPatternForCtx(targetCtx, file) {
+  function getRepeatPatternForCtx(targetCtx, tex) {
+    // tex can be a string filename or { file, scale }
+    const file = (typeof tex === 'string') ? tex : (tex && tex.file);
+    const scale = (tex && typeof tex === 'object' && isFiniteNum(tex.scale)) ? Number(tex.scale) : 1;
+
     const f = String(file || '').trim();
     if (!f) return null;
 
     const ctxKey = (targetCtx === wallCtx) ? 'wall' : 'main';
-    const key = ctxKey + '|' + f;
+    const key = ctxKey + '|' + f + '|s=' + String(scale);
 
     const cached = PATTERN_CACHE.get(key);
-    if (cached && cached.pattern && cached.w && cached.h) return cached.pattern;
+    if (cached && cached.pattern) return cached.pattern;
 
     const img = loadSprite(f);
     if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return null;
 
-    const pat = targetCtx.createPattern(img, 'repeat');
-    if (!pat) return null;
+    // Modern browsers: scale the pattern directly.
+    if (typeof CanvasPattern !== 'undefined') {
+      const pat = targetCtx.createPattern(img, 'repeat');
+      if (!pat) return null;
 
-    PATTERN_CACHE.set(key, { pattern: pat, w: img.naturalWidth, h: img.naturalHeight });
-    return pat;
+      if (typeof pat.setTransform === 'function') {
+        // scale < 1 => smaller tiles (more repeats)
+        pat.setTransform(new DOMMatrix([scale, 0, 0, scale, 0, 0]));
+        PATTERN_CACHE.set(key, { pattern: pat });
+        return pat;
+      }
+    }
+
+    // Fallback: pre-scale into an offscreen tile canvas, then pattern that.
+    const tw = Math.max(1, Math.round(img.naturalWidth * scale));
+    const th = Math.max(1, Math.round(img.naturalHeight * scale));
+    const tile = document.createElement('canvas');
+    tile.width = tw;
+    tile.height = th;
+    const tctx = tile.getContext('2d');
+    tctx.imageSmoothingEnabled = true;
+    try { tctx.imageSmoothingQuality = 'high'; } catch {}
+    tctx.drawImage(img, 0, 0, tw, th);
+
+    const pat2 = targetCtx.createPattern(tile, 'repeat');
+    if (!pat2) return null;
+
+    PATTERN_CACHE.set(key, { pattern: pat2 });
+    return pat2;
   }
 
   // ===== Canonical state (demo) =====
@@ -507,7 +544,7 @@ Version: v5.82
           { id:'Bedroom9', corners: ['AF19','AJ19','AJ15','AF15'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
           { id:'Bedroom10', corners: ['AF21','AJ21','AJ19','AF19'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
 
-          { id:'NextDoor', corners: ['L26','V26','U21','L21'], thickness: 20, floor: { kind: 'brick' }, wall: { kind: 'brick' } },
+          { id:'NextDoor', corners: ['L26','V26','V21','L21'], thickness: 20, floor: { kind: 'brick' }, wall: { kind: 'brick' } },
         ],
         openings: [
           { id: 'door_room1', kind: 'door', hex: 'P19',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1  },
@@ -959,7 +996,7 @@ Version: v5.82
 
       let fill = s.color || COLORS.wall;
       if (wantTextures && s.wallKind === 'brick') {
-        const pat = getRepeatPatternForCtx(targetCtx, TEXTURE_FILES.wall.brick);
+        const pat = getRepeatPatternForCtx(targetCtx, TEXTURE_DEFS.wall.brick);
         if (pat) fill = pat;
       }
       targetCtx.fillStyle = fill;
