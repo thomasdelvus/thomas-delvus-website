@@ -291,7 +291,8 @@ Version: v5.89
     door: '#b67a2c',
     window: '#bfe2ff',
 
-    floorStone: 'rgb(223, 208, 165)',    floorWood: 'rgb(213, 181, 140)',
+    floorStone: 'rgb(223, 208, 165)',
+    floorWood:  'rgb(213, 181, 140)',
 
     // Placeholder prop colors (used when sprites are off or missing)
     objectWood: 'rgb(173, 131, 89)',
@@ -314,9 +315,9 @@ Version: v5.89
     fogUnseen: 'rgb(128,128,128)',
     fogExplored: 'rgb(170,170,170)',
   };
-  // NOTE (v5.52): We generally avoid per-kind scaling in objectSizePx because it also changes sprite sizing.
+
+  // NOTE: We generally avoid per-kind scaling in objectSizePx because it also changes sprite sizing.
   // Placeholder shapes can have their own internal proportions.
-  // Exception: when a kind is intentionally a different physical footprint (e.g. cooking.hearth).
   const OBJECT_KIND_SCALE = {}; // kept for future use, but currently unused
 
   const VIEW = {
@@ -345,10 +346,6 @@ Version: v5.89
     cache: new Map(),
     defs: {
       // Objects
-      // Optional sprite-only scaling:
-      //   - scale: uniform
-      //   - scaleX/scaleY: non-uniform
-      // Instance overrides: spriteScale / spriteScaleX / spriteScaleY on the object record.
       'bed':         { file: 'bed.png', rotate: 'deg' },
       'bed.double':  { file: 'bed_double.png', rotate: 'deg' },
       'chair':       { file: 'chair.png', rotate: 'deg' },
@@ -376,7 +373,6 @@ Version: v5.89
     scheduleSpriteRedraw._pending = true;
     requestAnimationFrame(() => {
       scheduleSpriteRedraw._pending = false;
-      // Only redraw if sprites are enabled; otherwise we don't care.
       if (elSpriteToggle && elSpriteToggle.checked) safeRedraw();
     });
   }
@@ -385,17 +381,12 @@ Version: v5.89
     const f = String(file || '').trim();
     if (!f) return null;
 
-    // Cached
     if (SPRITES.cache.has(f)) return SPRITES.cache.get(f);
 
     const img = new Image();
     img.decoding = 'async';
-
-    // IMPORTANT: sprites load async. First draw often happens before images are ready.
-    // When an image finishes loading, schedule a redraw so sprites appear immediately.
     img.addEventListener('load', () => scheduleSpriteRedraw(), { once: true });
     img.addEventListener('error', () => scheduleSpriteRedraw(), { once: true });
-
     img.src = SPRITES.basePath + f;
 
     SPRITES.cache.set(f, img);
@@ -404,7 +395,6 @@ Version: v5.89
 
   function drawSprite(img, x, y, w, h, rotRad = 0) {
     // Always preserve sprite aspect ratio ("contain" behavior).
-    // If a sprite needs a different footprint, resize/pad the PNG, or tweak spriteScale on the object.
     if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return false;
 
     const iw = img.naturalWidth;
@@ -423,23 +413,11 @@ Version: v5.89
 
   // ===== Repeat textures (optional) =====
   // Uses the same /assets/sprites/ folder as normal sprites.
-  // If an image is missing, we simply fall back to solid colors.
-  // ===== Repeat textures (optional) =====
-  // Uses the same /assets/sprites/ folder as normal sprites.
-  // If an image is missing, we simply fall back to solid colors.
-  //
-  // IMPORTANT: patterns almost always need to be *scaled* ("tiny bricks") to look right.
-  // We hardcode those scales here so rooms don't have to pass parameters all over the place.
+  // Patterns often need to be *scaled* ("tiny bricks") to look right.
+  // We hardcode those scales here so rooms don't have to pass parameters everywhere.
   const TEXTURE_DEFS = {
-    // NOTE: these are *repeat* textures (patterns), not object sprites.
-    // Put the PNG tiles in: /public/assets/sprites/
-    // Filenames below are the defaults we’ll look for.
-
-    // Aliases let old maps keep working (e.g. wall.kind: 'brick', floor.kind: 'wood').
     aliases: {
-      wall: {
-        brick: 'stone_brick_red',
-      },
+      wall: { brick: 'stone_brick_red' },
       floor: {
         wood: 'wood_oak',
         stone: 'stone_cobble',
@@ -449,22 +427,23 @@ Version: v5.89
     },
 
     wall: {
-      // scale < 1 => smaller tiles (more repeats), good for “tiny bricks”.
       wood_oak:         { file: 'wood_oak.png',         scale: 0.50 },
       wood_elm:         { file: 'wood_elm.png',         scale: 0.50 },
       wood_dark:        { file: 'wood_dark.png',        scale: 0.50 },
 
       stone_cobble:     { file: 'stone_cobble.png',     scale: 0.45 },
       stone_gravel:     { file: 'stone_gravel.png',     scale: 0.55 },
-      
+
       brick_gray:       { file: 'brick_gray.png',       scale: 0.40 },
       brick_red:        { file: 'brick_red.png',        scale: 0.40 },
+      brick_dark:       { file: 'brick_dark.png',       scale: 0.40 },
 
       // Convenience / compatibility
       wood:             { file: 'wood_oak.png',         scale: 0.50 },
       cobble:           { file: 'stone_cobble.png',     scale: 0.45 },
       stone:            { file: 'stone_cobble.png',     scale: 0.45 },
       brick:            { file: 'brick_gray.png',       scale: 0.45 },
+
     },
 
     floor: {
@@ -474,15 +453,19 @@ Version: v5.89
 
       stone_cobble:     { file: 'stone_cobble.png',     scale: 0.45 },
       stone_gravel:     { file: 'stone_gravel.png',     scale: 0.55 },
-      
+
       brick_gray:       { file: 'brick_gray.png',       scale: 0.40 },
       brick_red:        { file: 'brick_red.png',        scale: 0.40 },
+      brick_dark:       { file: 'brick_dark.png',       scale: 0.40 },
+
 
       // Convenience / compatibility
       wood:             { file: 'wood_oak.png',         scale: 0.50 },
       cobble:           { file: 'stone_cobble.png',     scale: 0.45 },
       stone:            { file: 'stone_cobble.png',     scale: 0.45 },
       brick:            { file: 'brick_gray.png',       scale: 0.45 },
+
+
     }
   };
 
@@ -505,8 +488,10 @@ Version: v5.89
 
   const PATTERN_CACHE = new Map();
 
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const isFiniteNum = (v) => Number.isFinite(Number(v));
+
   function getRepeatPatternForCtx(targetCtx, tex) {
-    // tex can be a string filename or { file, scale }
     const file = (typeof tex === 'string') ? tex : (tex && tex.file);
     const scale = (tex && typeof tex === 'object' && isFiniteNum(tex.scale)) ? Number(tex.scale) : 1;
 
@@ -522,17 +507,13 @@ Version: v5.89
     const img = loadSprite(f);
     if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return null;
 
-    // Modern browsers: scale the pattern directly.
-    if (typeof CanvasPattern !== 'undefined') {
-      const pat = targetCtx.createPattern(img, 'repeat');
-      if (!pat) return null;
+    const pat = targetCtx.createPattern(img, 'repeat');
+    if (!pat) return null;
 
-      if (typeof pat.setTransform === 'function') {
-        // scale < 1 => smaller tiles (more repeats)
-        pat.setTransform(new DOMMatrix([scale, 0, 0, scale, 0, 0]));
-        PATTERN_CACHE.set(key, { pattern: pat });
-        return pat;
-      }
+    if (typeof pat.setTransform === 'function') {
+      pat.setTransform(new DOMMatrix([scale, 0, 0, scale, 0, 0]));
+      PATTERN_CACHE.set(key, { pattern: pat });
+      return pat;
     }
 
     // Fallback: pre-scale into an offscreen tile canvas, then pattern that.
@@ -558,9 +539,6 @@ Version: v5.89
   const DEFAULT_STATE = {
     meta: { title: 'Cross Keys Inn — Demo (upper + ground)', battleId: 'local', round: 1 },
 
-    // POI catalog (town-level points of interest).
-    // Buildings on each floor can reference these ids so you have one place to name/describe POIs.
-    // Geometry still lives under floors[].rooms using buildingId.
     pois: [
       { poiNumber: 1, id: 'CrossKeysInn',  name: 'The Cross Keys Inn',  zone: 'Downtown' },
       { poiNumber: 2, id: 'EightBellsInn', name: 'The Eight Bells Inn', zone: 'Downtown' },
@@ -571,18 +549,8 @@ Version: v5.89
     fog: {
       enabled: true,
       mode: 'room',
-
-      // For single-floor states you can use visibleRoomIds/exploredRoomIds.
-      // For multi-floor, use visibleRoomIdsByFloor/exploredRoomIdsByFloor.
-      visibleRoomIdsByFloor: {
-        upper: [],
-        ground: [],
-      },
-      exploredRoomIdsByFloor: {
-        upper: ['Hallway1','Hallway2'],
-        ground: ['Kitchen'],
-      },
-
+      visibleRoomIdsByFloor: { upper: [], ground: [] },
+      exploredRoomIdsByFloor: { upper: ['Hallway1','Hallway2'], ground: ['Kitchen'] },
       autoCompute: true,
       autoExplore: true,
       maxDepth: 1,
@@ -590,14 +558,14 @@ Version: v5.89
       exploredAlpha: 0.55,
     },
 
-      floors: [
-          {
+    floors: [
+      {
         id: 'upper',
         name: 'Upper',
-      rooms: [
+        rooms: [
           //Closed buildings
           { id:'NextDoor', corners: ['L26','V26','V21','L21'], thickness: 20, floor: { kind: 'fog' }, wall: { kind: 'brick_gray' } },
-          
+
           //Cross Keys Inn
           { id: 'CrossKeysUpperFloor', buildingId:'CrossKeysInn', corners: ['L21','AJ21','AJ12','L12'], thickness: 20, floor: { kind: 'fog' }, wall: { kind: 'brick_gray' } },
           { id: 'Hallway1', buildingId:'CrossKeysInn', corners: ['AD21','AF21','AF12','AD12'], thickness: 20, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
@@ -621,9 +589,8 @@ Version: v5.89
           { id: 'door_room1', kind: 'door', hex: 'P19',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1  },
           { id: 'door_room2', kind: 'door', hex: 'P16',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1 },
           { id: 'door_room3', kind: 'door', hex: 'P13',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1  },
-          //{ id: 'door_room4', kind: 'door', hex: 'T15',  orientation: 'h',  openPct: -0.3  },
           { id:'door_room4', kind:'door', hex:'V15', orientation:'h', openPct: 1.0, hinge: 'left', swing: 1 },
-          
+
           { id: 'door_room5', kind: 'door', hex: 'V17',  orientation: 'h',  openPct: 1.0  },
           { id: 'door_room5_closet', kind: 'door', hex: 'X20',  orientation: 'v',  openPct: 1.0  },
           { id: 'door_room6', kind: 'door', hex: 'AB17', orientation: 'h',  openPct: 1.0  },
@@ -632,43 +599,41 @@ Version: v5.89
           { id: 'door_room9', kind: 'door', hex: 'AF17', orientation: 'v',  openPct: 1.0  },
           { id: 'door_room10',kind: 'door', hex: 'AF20', orientation: 'v',  openPct: 1.0  },
 
-          // Portals: movement/transition links between floors (renderer does not draw them)
+          // Portals
           { id:'portal_down_AB20', kind:'portal', hex:'AB20', trigger:'enter', to:{ floorId:'ground', hex:'Z20' } },
 
           { id:'bedroom1_window1', kind:'window', hex:'L20', orientation:'v' },
           { id:'bedroom1_window2', kind:'window', hex:'L19', orientation:'v' },
-          
+
           { id:'bedroom2_window1', kind:'window', hex:'L17', orientation:'v' },
           { id:'bedroom2_window2', kind:'window', hex:'L16', orientation:'v' },
-          
+
           { id:'bedroom3_window1', kind:'window', hex:'L14', orientation:'v' },
           { id:'bedroom3_window2', kind:'window', hex:'L13', orientation:'v' },
           { id:'bedroom3_window3', kind:'window', hex:'M12.5', orientation:'h' },
           { id:'bedroom3_window4', kind:'window', hex:'N12', orientation:'h' },
-          
+
           { id:'hallway3_window1', kind:'window', hex:'Q12.5', orientation:'h' },
-          
+
           { id:'bedroom4_window1', kind:'window', hex:'U12.5', orientation:'h' },
           { id:'bedroom4_window2', kind:'window', hex:'V12', orientation:'h' },
-          
+
           { id:'bedroom5_window1', kind:'window', hex:'Z12', orientation:'h' },
           { id:'bedroom5_window2', kind:'window', hex:'AA12.5', orientation:'h' },
-          
-          { id:'hallwlay1_window1', kind:'window', hex:'AE12.5', orientation:'h' },
-          
+
+          { id:'hallway1_window1', kind:'window', hex:'AE12.5', orientation:'h' },
+
           { id:'bedroom8_window1', kind:'window', hex:'AH12', orientation:'h' },
-          
 
           { id:'thresh_R16',  kind: 'threshold', hex: 'R16',  orientation: 'v', span: 2.4, parent: 'Hallway2' },
           { id:'thresh_AD16', kind:'threshold', hex:'AD16', orientation:'v', span: 2.4, parent:'Hallway2' },
           { id:'thresh_AD20', kind: 'threshold', hex: 'AD20', orientation: 'v', span: 2.4, parent: '1stFloorStairsDown' },
-          
         ],
         objects: [
           { id:'room1_bed1', kind: 'bed', hex: 'M21', rotDeg: 0, ox: 0.00, oy: 0.70, spriteScale:2.75 },
           { id:'room1_bed2', kind: 'bed', hex: 'N20', rotDeg: 0, ox: 0.00, oy: -0.17, spriteScale:2.75 },
           { id:'room1_bed3', kind: 'bed', hex: 'O21', rotDeg: 0, ox: 0.00, oy: 0.70, spriteScale:2.75 },
-          
+
           { id:'room2_bed1', kind: 'bed', hex: 'M18', wHex: 1.0, hHex: 1.0, rotDeg: 270, ox: 0.00, oy: 0.00, spriteScale:2.75 },
           { id:'room2_bed2', kind: 'bed', hex: 'M16', wHex: 1.0, hHex: 1.0, rotDeg: 270, ox: 0.00, oy: -0.00, spriteScale:2.75 },
 
@@ -680,30 +645,28 @@ Version: v5.89
           { id:'room4_chair1', kind: 'chair', hex: 'W14', rotDeg: 60, ox: -0.20, oy: -0.00, spriteScale:0.75  },
           { id:'room4_chair2', kind: 'chair', hex: 'W13', rotDeg: 120, ox: -0.20, oy: -0.00, spriteScale:0.75  },
           { id:'room4_chair3', kind: 'chair', hex: 'U13', rotDeg: 240, ox: 0.20, oy: -0.00, spriteScale:0.75  },
-          //{ id:'room4_chair4', kind: 'chair', hex: 'U14', rotDeg: 300, ox: 0.20, oy: -0.00, spriteScale:0.75  },
           { id:'room4_table', kind: 'table.round', hex: 'V13', wHex: 1.1, hHex: 1.1, rotDeg: 0, spriteScale:1.5 },
-          { id:'room4_chest', kind: 'chest', hex: 'U15', rotDeg: 00, scale: 1.0, spriteScale:0.75 },
-          { id:'room4_hearth', kind: 'hearth', hex: 'W15', rotDeg: 00, ox: 0.00, oy: -0.30 },
-          
+          { id:'room4_chest', kind: 'chest', hex: 'U15', rotDeg: 0, scale: 1.0, spriteScale:0.75 },
+          { id:'room4_hearth', kind: 'hearth', hex: 'W15', rotDeg: 0, ox: 0.00, oy: -0.30 },
+
           { id:'room5_bed', kind: 'bed.double', hex: 'S20', wHex: 1.0, hHex: 1.0, rotDeg: 270, ox: 0.00, oy: -0.00, spriteScale:3.0 },
           { id:'room5_chair1', kind: 'chair', hex: 'W21', rotDeg: 60, ox: -0.20, oy: -0.00, spriteScale:0.75  },
           { id:'room5_chair2', kind: 'chair', hex: 'W20', rotDeg: 120, ox: -0.20, oy: -0.00, spriteScale:0.75  },
           { id:'room5_chair3', kind: 'chair', hex: 'U20', rotDeg: 240, ox: 0.20, oy: -0.00, spriteScale:0.75  },
           { id:'room5_chair4', kind: 'chair', hex: 'U21', rotDeg: 300, ox: 0.20, oy: -0.00, spriteScale:0.75  },
           { id:'room5_table', kind: 'table.round', hex: 'V20', wHex: 1.1, hHex: 1.1, rotDeg: 0, spriteScale:1.5 },
-          { id:'room5_chest', kind: 'chest', hex: 'S18', rotDeg: 00, scale: 1.0, spriteScale:0.75 },
+          { id:'room5_chest', kind: 'chest', hex: 'S18', rotDeg: 0, scale: 1.0, spriteScale:0.75 },
           { id:'room5_hearth', kind: 'hearth', hex: 'X18', rotDeg: 90, ox: -0.56, oy: -0.00 },
-          
+
           { id:'room6_hearth', kind: 'cooking.hearth', hex: 'X18', wHex: 1.05, rotDeg: 270, ox: 0.94, oy: -0.00 },
 
           { id:'room7_bed', kind: 'bed.double', hex: 'AC14', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: -0.00, spriteScale:3.0 },
           { id:'room7_chair1', kind: 'chair', hex: 'AA14', rotDeg: 60, ox: -0.20, oy: -0.00, spriteScale:0.75  },
-          //{ id:'room7_chair2', kind: 'chair', hex: 'AA13', rotDeg: 120, ox: -0.20, oy: -0.00, spriteScale:0.75  },
           { id:'room7_chair3', kind: 'chair', hex: 'Y13', rotDeg: 240, ox: 0.20, oy: -0.00, spriteScale:0.75  },
           { id:'room7_chair4', kind: 'chair', hex: 'Y14', rotDeg: 300, ox: 0.20, oy: -0.00, spriteScale:0.75  },
           { id:'room7_table', kind: 'table.round', hex: 'Z13', wHex: 1.1, hHex: 1.1, rotDeg: 0, spriteScale:1.5 },
-          { id:'room7_chest', kind: 'chest', hex: 'AA15', rotDeg: 00, scale: 1.0, spriteScale:0.75 },
-          { id:'room7_hearth', kind: 'hearth', hex: 'Y15', rotDeg: 00, ox: 0.00, oy: -0.30 },
+          { id:'room7_chest', kind: 'chest', hex: 'AA15', rotDeg: 0, scale: 1.0, spriteScale:0.75 },
+          { id:'room7_hearth', kind: 'hearth', hex: 'Y15', rotDeg: 0, ox: 0.00, oy: -0.30 },
 
           { id:'room8_bed1', kind: 'bed', hex: 'AG15', wHex: 1.0, hHex: 1.0, rotDeg: 0, ox: 0.00, oy: 0.70, spriteScale:2.75 },
           { id:'room8_bed2', kind: 'bed', hex: 'AH14', wHex: 1.0, hHex: 1.0, rotDeg: 0, ox: 0.00, oy: -0.17, spriteScale:2.75 },
@@ -715,7 +678,7 @@ Version: v5.89
           { id:'room9_bed4', kind: 'bed', hex: 'AI16', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: -0.00, spriteScale:2.75 },
 
           { id:'room10_bed1', kind: 'bed', hex: 'AI21', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: 0.00, spriteScale:2.75 },
-          
+
           { id:'stairs_down', kind:'stairs', hex:'AB20', wHex: 1.0, hHex: 1.07, rotDeg: 270, ox: 0.0, oy: 0.0, spriteScale:4.5 },
         ],
       },
@@ -726,14 +689,11 @@ Version: v5.89
           { id: 'CrossKeysGroundFloor', buildingId:'CrossKeysInn', corners: ['M21.5','AJ21','AJ12.5','M13'], thickness: 20, floor: { kind: 'fog' }, wall: { kind: 'brick' } },
           { id: 'Pub', buildingId:'CrossKeysInn', corners: ['M21.5','X21','X12.5','M13'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
           { id: 'Kitchen', buildingId:'CrossKeysInn', corners: ['X21','AJ21','AJ12.5','X12.5'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-
-        
-
         ],
         openings: [
           { id:'kitchen_door', kind:'door', hex:'X15', orientation:'h', openPct: 0 },
 
-          // Portals: movement/transition links between floors (renderer does not draw them)
+          // Portals
           { id:'portal_up_AA21', kind:'portal', hex:'AA21', trigger:'enter', to:{ floorId:'upper', hex:'AC21' } },
           { id:'portal_up_AA20', kind:'portal', hex:'AA20', trigger:'enter', to:{ floorId:'upper', hex:'AC20' } },
         ],
@@ -750,13 +710,36 @@ Version: v5.89
       { id: 'g1', name: 'Goblin 1', side: 'NPC', hex: 'U19', label: 'G1', init: 10, hp: 8, floorId: 'upper' },
       { id: 'g2', name: 'Goblin 2', side: 'NPC', hex: 'V19', label: 'G2', init: 10, hp: 8, floorId: 'upper' },
       { id: 'g3', name: 'Goblin 3', side: 'NPC', hex: 'W19', label: 'G3', init: 10, hp: 8, floorId: 'upper' },
-      
     ]
   };
 
-  // ===== Small utilities =====
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-  const isFiniteNum = (v) => Number.isFinite(Number(v));
+  // ===== Supersample =====
+  let SUPERSAMPLE = 1;
+
+  function readSupersample() {
+    const raw = localStorage.getItem(STORAGE_SS);
+    const v = parseFloat(raw != null ? raw : '1');
+    if (!Number.isFinite(v)) return 1;
+    return clamp(v, 1, 3);
+  }
+
+  function setSupersample(v) {
+    const n = clamp(parseFloat(String(v)), 1, 3);
+    localStorage.setItem(STORAGE_SS, String(n));
+    SUPERSAMPLE = n;
+    if (elSsSelect) elSsSelect.value = String(n);
+    resize();
+  }
+
+  // ===== State access =====
+  function getState() {
+    const injected = (window && window.BATTLE_STATE != null) ? window.BATTLE_STATE : null;
+    const raw = injected != null ? injected : DEFAULT_STATE;
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw); } catch { return DEFAULT_STATE; }
+    }
+    return raw;
+  }
 
   // ===== Hex id helpers =====
   function colToLetters(col) {
@@ -782,8 +765,6 @@ Version: v5.89
   }
 
   function parseHexId(hex) {
-    // Strict (integer-row) hex parsing: e.g., "X12".
-    // Used for camera, tokens, object placement, etc.
     const m = String(hex).trim().toUpperCase().match(/^([A-Z]+)([0-9]+)$/);
     if (!m) throw new Error('Bad hex: ' + hex);
     return { col: lettersToCol(m[1]), row: parseInt(m[2], 10) - 1 };
@@ -794,14 +775,12 @@ Version: v5.89
   }
 
   function isHalfStep(n) {
-    // Allow integers and .5 steps only (e.g., 12, 12.5).
     const v = Number(n);
     if (!Number.isFinite(v)) return false;
     return Math.abs(v * 2 - Math.round(v * 2)) < 1e-6;
   }
 
   function parseOpeningHexId(hex) {
-    // Openings (doors/windows/thresholds) may use half-row increments like "M12.5".
     const m = String(hex).trim().toUpperCase().match(/^([A-Z]+)([0-9]+(?:\.[0-9]+)?)$/);
     if (!m) throw new Error('Bad opening hex: ' + hex);
 
@@ -817,8 +796,6 @@ Version: v5.89
   }
 
   function parseCornerHexId(hex) {
-    // Corner parsing for *walls only*: allows fractional rows like "X12.5".
-    // This enables half-row wall joints without changing the integer hex grid.
     const m = String(hex).trim().toUpperCase().match(/^([A-Z]+)([0-9]+(?:\.[0-9]+)?)$/);
     if (!m) throw new Error('Bad corner hex: ' + hex);
 
@@ -826,14 +803,12 @@ Version: v5.89
     const rowNum = parseFloat(m[2]);
     if (!Number.isFinite(rowNum)) throw new Error('Bad corner row: ' + hex);
 
-    // Stored row is 0-based and can be fractional.
     return { col, row: rowNum - 1 };
   }
 
   function parseCornerHex(hex) {
     try { return parseCornerHexId(hex); } catch { return null; }
   }
-
 
   function hexId(col, row) {
     return colToLetters(col) + String(row + 1);
@@ -867,7 +842,6 @@ Version: v5.89
       return Object.entries(f).map(([id, data]) => ({ id, ...(data || {}) }));
     }
 
-    // Back-compat: single-floor state
     return [{
       id: (state && state.view && (state.view.floorId || state.view.floor_id || state.view.floor)) ? String(state.view.floorId || state.view.floor_id || state.view.floor) : 'floor1',
       name: 'Floor',
@@ -902,34 +876,6 @@ Version: v5.89
     });
   }
 
-  // ===== Supersample =====
-  let SUPERSAMPLE = 1; // default 1× (user can bump to 2×/3× for extra crispness)
-
-  function readSupersample() {
-    const raw = localStorage.getItem(STORAGE_SS);
-    const v = parseFloat(raw != null ? raw : '1');
-    if (!Number.isFinite(v)) return 1;
-    return clamp(v, 1, 3);
-  }
-
-  function setSupersample(v) {
-    const n = clamp(parseFloat(String(v)), 1, 3);
-    localStorage.setItem(STORAGE_SS, String(n));
-    SUPERSAMPLE = n;
-    if (elSsSelect) elSsSelect.value = String(n);
-    resize();
-  }
-
-  // ===== State access =====
-  function getState() {
-    const injected = (window && window.BATTLE_STATE != null) ? window.BATTLE_STATE : null;
-    const raw = injected != null ? injected : DEFAULT_STATE;
-    if (typeof raw === 'string') {
-      try { return JSON.parse(raw); } catch { return DEFAULT_STATE; }
-    }
-    return raw;
-  }
-
   // ===== Rooms / walls geometry =====
   function roomHasWalls(room) {
     const thick = Number(room && room.thickness != null ? room.thickness : 0);
@@ -941,8 +887,6 @@ Version: v5.89
     const corners = Array.isArray(room && room.corners) ? room.corners : [];
     if (corners.length !== 4) throw new Error('Room corners must be [TL, TR, BR, BL]');
 
-    // Corners support fractional rows (e.g. "X12.5") to allow half-row wall joints.
-    // This is *walls only*; tokens/objects/openings remain integer-hex.
     const tl = parseCornerHexId(corners[0]);
     const tr = parseCornerHexId(corners[1]);
     const br = parseCornerHexId(corners[2]);
@@ -953,7 +897,6 @@ Version: v5.89
     const pBR = hexCenterWorld(br.col, br.row);
     const pBL = hexCenterWorld(bl.col, bl.row);
 
-    // These are the *wall centerlines* derived from the room corner points.
     const xL = (pTL.x + pBL.x) / 2;
     const xR = (pTR.x + pBR.x) / 2;
     const yTop = (pTL.y + pTR.y) / 2;
@@ -962,8 +905,6 @@ Version: v5.89
     const thickness = Number(room && room.thickness != null ? room.thickness : 20);
     const t = roomHasWalls(room) ? thickness : 0;
 
-    // New model (v5.36): walls are centered on the centerlines (xL/xR/yTop/yBot).
-    // Floors should stop at the *inside edge* of the wall, so we shrink by t/2.
     const half = t / 2;
 
     const mid = { x1: xL, y1: yTop, x2: xR, y2: yBot };
@@ -973,7 +914,6 @@ Version: v5.89
   }
 
   function roomFloorRectWorld(room, box) {
-    // Floors fill the interior of walls. If there are no walls, this is the full mid-rect.
     const src = (roomHasWalls(room) ? box.floor : box.mid);
     return { x1: src.x1, y1: src.y1, x2: src.x2, y2: src.y2 };
   }
@@ -988,7 +928,6 @@ Version: v5.89
       const color = (r && r.color) ? String(r.color) : COLORS.wall;
       const wallKind = (r && r.wall && r.wall.kind) ? String(r.wall.kind).toLowerCase() : 'brick';
 
-      // Segments are centerlines. We will render them as centered rectangles of thickness t.
       segs.push({ orientation: 'h', y: box.yTop, x1: box.xL, x2: box.xR, thickness: t, color, wallKind });
       segs.push({ orientation: 'h', y: box.yBot, x1: box.xL, x2: box.xR, thickness: t, color, wallKind });
       segs.push({ orientation: 'v', x: box.xL, y1: box.yTop, y2: box.yBot, thickness: t, color, wallKind });
@@ -1026,7 +965,6 @@ Version: v5.89
   }
 
   function quant01(v) {
-    // Quantize to 0.01 to make floating world coords stable for hashing.
     return Math.round(v * 100) / 100;
   }
 
@@ -1042,24 +980,16 @@ Version: v5.89
         const x2 = quant01(Math.max(s.x1, s.x2));
         const key = `h|${y}|${x1}|${x2}`;
         const prev = map.get(key);
-        if (!prev) {
-          map.set(key, { ...s, y, x1, x2 });
-        } else {
-          // If two rooms share the same wall segment, keep a single segment.
-          // Use the maximum thickness (should usually match) and keep the first color.
-          prev.thickness = Math.max(prev.thickness, s.thickness);
-        }
+        if (!prev) map.set(key, { ...s, y, x1, x2 });
+        else prev.thickness = Math.max(prev.thickness, s.thickness);
       } else {
         const x = quant01(s.x);
         const y1 = quant01(Math.min(s.y1, s.y2));
         const y2 = quant01(Math.max(s.y1, s.y2));
         const key = `v|${x}|${y1}|${y2}`;
         const prev = map.get(key);
-        if (!prev) {
-          map.set(key, { ...s, x, y1, y2 });
-        } else {
-          prev.thickness = Math.max(prev.thickness, s.thickness);
-        }
+        if (!prev) map.set(key, { ...s, x, y1, y2 });
+        else prev.thickness = Math.max(prev.thickness, s.thickness);
       }
     }
 
@@ -1067,8 +997,6 @@ Version: v5.89
   }
 
   function drawWallSegments(targetCtx, wallSegs) {
-    // Solid, uniform walls (no alpha edge/stroke pass).
-    // If a repeating wall texture sprite exists, use it; otherwise fall back to solid color.
     const wantTextures = !!(elSpriteToggle && elSpriteToggle.checked);
 
     for (const s of (Array.isArray(wallSegs) ? wallSegs : [])) {
@@ -1088,7 +1016,6 @@ Version: v5.89
       targetCtx.fillStyle = fill;
 
       if (s.orientation === 'h') {
-        // Extend by half thickness to neatly cover corner joins.
         const x1 = s.x1 - half;
         const x2 = s.x2 + half;
         const y1 = s.y - half;
@@ -1099,7 +1026,6 @@ Version: v5.89
         const w = p2.x - p1.x;
         const h = p2.y - p1.y;
         if (w > 0 && h > 0) targetCtx.fillRect(p1.x, p1.y, w, h);
-
       } else {
         const x1 = s.x - half;
         const x2 = s.x + half;
@@ -1144,10 +1070,7 @@ Version: v5.89
 
       const fk = (r && r.floor && r.floor.kind) ? String(r.floor.kind).toLowerCase() : 'wood';
 
-      // Default: solid fallback color
       let fill = floorColor(fk);
-
-      // If sprites are on, prefer a repeating floor texture when available
       if (wantTextures) {
         const def = resolveTextureDef('floor', fk);
         if (def) {
@@ -1159,7 +1082,6 @@ Version: v5.89
       ctx.fillStyle = fill;
       ctx.fillRect(p1.x, p1.y, w, h);
 
-      // light outline
       ctx.strokeStyle = 'rgba(0,0,0,0.06)';
       ctx.lineWidth = 1;
       ctx.strokeRect(p1.x + 0.5, p1.y + 0.5, Math.max(0, w - 1), Math.max(0, h - 1));
@@ -1193,9 +1115,6 @@ Version: v5.89
     const span = openingSpan(opening);
     const len = baseLen * span;
 
-    // IMPORTANT (v5.40): Openings are authored in the *correct hex*.
-    // We do NOT "snap" their center to the nearest wall segment, because that can jump to a different
-    // segment when fog changes the set of wall segments. We only borrow thickness from the nearest wall.
     const cx = hexWorld.x;
     const cy = hexWorld.y;
     const thickness = seg ? seg.thickness : 28;
@@ -1217,10 +1136,6 @@ Version: v5.89
 
   function drawOpeningMarker(opening, wallSegs) {
     const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
-
-    // Thresholds are *invisible* seam connectors.
-    // They still cut walls (handled in cutOpeningHole), and they still participate in fog visibility.
-    // But they should not render as "doors".
     if (kind === 'threshold' || kind === 'portal' || kind === 'connector') return;
 
     const orient = openingOrientation(opening);
@@ -1230,8 +1145,6 @@ Version: v5.89
     const hexWorld = hexCenterWorld(p.col, p.row);
     const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
 
-    // IMPORTANT (v5.40): Do not snap opening position to wall segments (can jump under fog).
-    // Use the authored hex center for position; only borrow thickness for styling.
     const cx = hexWorld.x;
     const cy = hexWorld.y;
     const thickness = seg ? seg.thickness : 28;
@@ -1265,10 +1178,7 @@ Version: v5.89
       ctx.restore();
       return;
     }
-    // Door: closed = bar across; open = a visible "leaf" that swings on a hinge.
-    // You can control swing direction with:
-    //   - hinge: 'left' | 'right'   (default: 'left')
-    //   - swing: -1 | 1             (default: -1, i.e., "up" in local door coordinates)
+
     ctx.strokeStyle = COLORS.door;
     ctx.lineWidth = 4;
     ctx.globalAlpha = 0.9;
@@ -1285,14 +1195,12 @@ Version: v5.89
       const rawSwing = Number(opening && (opening.swing ?? opening.swingDir ?? opening.polarity));
       const swingSign = (rawSwing === 1 || rawSwing === -1) ? rawSwing : -1;
 
-      // Hinge on left or right edge of the opening.
       const hingeX = hingeRight ? (len / 2) : (-len / 2);
       const hingeY = 0;
 
       const leafLen = len * 0.80;
-      const ang = openPct * (Math.PI / 2); // 0..90deg
+      const ang = openPct * (Math.PI / 2);
 
-      // Leaf extends away from the hinge into the opening.
       const x2 = hingeX + (hingeRight ? -1 : 1) * leafLen * Math.cos(ang);
       const y2 = hingeY + swingSign * leafLen * Math.sin(ang);
 
@@ -1301,7 +1209,6 @@ Version: v5.89
       ctx.lineTo(x2, y2);
       ctx.stroke();
 
-      // Small hinge dot for readability
       ctx.fillStyle = COLORS.door;
       ctx.globalAlpha = 0.95;
       ctx.beginPath();
@@ -1322,27 +1229,106 @@ Version: v5.89
     return (room && room.floor && room.floor.kind) ? String(room.floor.kind) : 'wood';
   }
 
-  function thresholdFillColor(opening, rooms, fogEnabled) {
-    // Desired behavior:
-    // 1) Fog OFF -> always use parent room floor color.
-    // 2) Fog ON -> if parent room is visible -> parent floor color; else -> fog color.
+  function floorFillStyle(kind, wantTextures) {
+    const fk = String(kind || 'wood').toLowerCase();
+    if (!wantTextures) return floorColor(fk);
+    const def = resolveTextureDef('floor', fk);
+    if (!def) return floorColor(fk);
+    const pat = getRepeatPatternForCtx(ctx, def);
+    return pat || floorColor(fk);
+  }
+
+  function buildRoomMeta(rooms) {
+    const meta = new Map();
+    for (const r of (Array.isArray(rooms) ? rooms : [])) {
+      if (!r || !r.id) continue;
+      const box = roomToWallBox(r);
+      const f = roomFloorRectWorld(r, box);
+      meta.set(String(r.id), { room: r, floorRect: f });
+    }
+    return meta;
+  }
+
+  function roomContainsWorldPoint(roomRect, p) {
+    if (!roomRect) return false;
+    return (p.x >= roomRect.x1 && p.x <= roomRect.x2 && p.y >= roomRect.y1 && p.y <= roomRect.y2);
+  }
+
+  function pickRoomAtWorldPoint(roomMeta, p) {
+    let bestId = null;
+    let bestArea = Infinity;
+
+    for (const [id, info] of roomMeta.entries()) {
+      const r = info.floorRect;
+      if (!roomContainsWorldPoint(r, p)) continue;
+      const area = Math.abs((r.x2 - r.x1) * (r.y2 - r.y1));
+      if (area < bestArea) { bestArea = area; bestId = id; }
+    }
+
+    return bestId;
+  }
+
+  function openingRoomIds(opening, roomMeta) {
+    const orient = openingOrientation(opening);
+    const p = parseOpeningHex(opening.hex);
+    if (!p) return [];
+
+    const hw = hexCenterWorld(p.col, p.row);
+
+    // NOTE: this is only used to derive thickness for sampling.
+    const seg = findNearestWallSegment(buildWallSegments([...roomMeta.values()].map(v => v.room)), orient, hw);
+
+    let cx = hw.x, cy = hw.y;
+    let thickness = 28;
+    if (seg) thickness = seg.thickness;
+
+    const eps = Math.max(6, thickness * 0.6);
+    const samples = (orient === 'h')
+      ? [{ x: cx, y: cy - eps }, { x: cx, y: cy + eps }]
+      : [{ x: cx - eps, y: cy }, { x: cx + eps, y: cy }];
+
+    const ids = new Set();
+    for (const s of samples) {
+      const id = pickRoomAtWorldPoint(roomMeta, s);
+      if (id) ids.add(id);
+    }
+    return [...ids];
+  }
+
+  function openingPreferredRoomId(opening, rooms) {
     const parentId = opening && opening.parent ? String(opening.parent) : '';
-    const parent = parentId ? roomById(rooms, parentId) : null;
-    const parentColor = floorColor(roomFloorKind(parent));
+    if (parentId) return parentId;
 
-    if (!fogEnabled) return parentColor;
+    const roomMetaAll = buildRoomMeta(rooms);
+    const ids = openingRoomIds(opening, roomMetaAll);
+    if (!ids.length) return '';
 
-    // If fog is on but we don't have a computed visibility set, fall back to fog.
-    if (!RENDER_FOG || !RENDER_FOG.enabled) return floorColor('fog');
+    if (RENDER_FOG && RENDER_FOG.enabled) {
+      for (const id of ids) if (RENDER_FOG.visible && RENDER_FOG.visible.has(id)) return id;
+      for (const id of ids) if (RENDER_FOG.explored && RENDER_FOG.explored.has(id)) return id;
+    }
+    return String(ids[0] || '');
+  }
 
-    if (parentId && RENDER_FOG.visible && RENDER_FOG.visible.has(parentId)) return parentColor;
+  function openingKnockoutFill(opening, rooms, fogEnabled, wantTextures) {
+    const rid = openingPreferredRoomId(opening, rooms);
+    const room = rid ? roomById(rooms, rid) : null;
+    const fk = room ? roomFloorKind(room) : 'wood';
+
+    if (!fogEnabled) return floorFillStyle(fk, wantTextures);
+
+    if (RENDER_FOG && RENDER_FOG.enabled && rid && RENDER_FOG.visible && RENDER_FOG.visible.has(rid)) {
+      return floorFillStyle(fk, wantTextures);
+    }
     return floorColor('fog');
   }
 
-  function drawThresholdSeamFills(openings, rooms, wallSegs, fogEnabled) {
+  function drawOpeningSeamFills(openings, rooms, wallSegs, fogEnabled) {
+    const wantTextures = !!(elSpriteToggle && elSpriteToggle.checked);
+
     for (const o of (Array.isArray(openings) ? openings : [])) {
       const kind = String(o && o.kind ? o.kind : '').toLowerCase();
-      if (kind !== 'threshold') continue;
+      if (kind !== 'threshold' && kind !== 'door' && kind !== 'portal') continue;
 
       const orient = openingOrientation(o);
       const p = parseOpeningHex(o.hex);
@@ -1355,8 +1341,6 @@ Version: v5.89
       const span = openingSpan(o);
       const len = baseLen * span;
 
-      // IMPORTANT (v5.40): Do not snap thresholds to wall segments; they are authored in the correct hex.
-      // Only use nearest segment for thickness sizing.
       const cx = hexWorld.x;
       const cy = hexWorld.y;
       const thickness = seg ? seg.thickness : 28;
@@ -1369,7 +1353,7 @@ Version: v5.89
       ctx.translate(centerS.x, centerS.y);
       if (orient === 'v') ctx.rotate(Math.PI / 2);
 
-      ctx.fillStyle = thresholdFillColor(o, rooms, fogEnabled);
+      ctx.fillStyle = openingKnockoutFill(o, rooms, fogEnabled, wantTextures);
       ctx.fillRect(-cutW / 2, -cutH / 2, cutW, cutH);
 
       ctx.restore();
@@ -1425,66 +1409,6 @@ Version: v5.89
     };
   }
 
-  function buildRoomMeta(rooms) {
-    const meta = new Map();
-    for (const r of (Array.isArray(rooms) ? rooms : [])) {
-      if (!r || !r.id) continue;
-      const box = roomToWallBox(r);
-      const f = roomFloorRectWorld(r, box);
-      meta.set(String(r.id), { room: r, floorRect: f });
-    }
-    return meta;
-  }
-
-  function roomContainsWorldPoint(roomRect, p) {
-    if (!roomRect) return false;
-    return (p.x >= roomRect.x1 && p.x <= roomRect.x2 && p.y >= roomRect.y1 && p.y <= roomRect.y2);
-  }
-
-  function pickRoomAtWorldPoint(roomMeta, p) {
-    // Pick the smallest area room that contains p.
-    let bestId = null;
-    let bestArea = Infinity;
-
-    for (const [id, info] of roomMeta.entries()) {
-      const r = info.floorRect;
-      if (!roomContainsWorldPoint(r, p)) continue;
-      const area = Math.abs((r.x2 - r.x1) * (r.y2 - r.y1));
-      if (area < bestArea) { bestArea = area; bestId = id; }
-    }
-
-    return bestId;
-  }
-
-  function openingRoomIds(opening, roomMeta) {
-    // Heuristic: sample just "inside" each side of the opening and see which room contains it.
-    const orient = openingOrientation(opening);
-    const p = parseOpeningHex(opening.hex);
-    if (!p) return [];
-
-    const hw = hexCenterWorld(p.col, p.row);
-    const seg = findNearestWallSegment(buildWallSegments([...roomMeta.values()].map(v => v.room)), orient, hw);
-
-    let cx = hw.x, cy = hw.y;
-    let thickness = 28;
-    if (seg) {
-      thickness = seg.thickness;
-      if (orient === 'h') cy = seg.y; else cx = seg.x;
-    }
-
-    const eps = Math.max(6, thickness * 0.6);
-    const samples = (orient === 'h')
-      ? [{ x: cx, y: cy - eps }, { x: cx, y: cy + eps }]
-      : [{ x: cx - eps, y: cy }, { x: cx + eps, y: cy }];
-
-    const ids = new Set();
-    for (const s of samples) {
-      const id = pickRoomAtWorldPoint(roomMeta, s);
-      if (id) ids.add(id);
-    }
-    return [...ids];
-  }
-
   function computeRenderFog(state, floorId, rooms, openings, tokens) {
     const fog = normalizeFog(state, floorId);
     if (!fog.enabled) return null;
@@ -1498,7 +1422,6 @@ Version: v5.89
       return { enabled: true, explored, visible, maxDepth: fog.maxDepth, exploredAlpha: fog.exploredAlpha, unseenAlpha: fog.unseenAlpha };
     }
 
-    // Start from rooms containing PCs
     const pcs = (Array.isArray(tokens) ? tokens : []).filter(isPlayerToken);
     const start = new Set();
     for (const t of pcs) {
@@ -1509,7 +1432,6 @@ Version: v5.89
       if (rid) start.add(rid);
     }
 
-    // Build adjacency from doors/windows/thresholds that are effectively passable for visibility
     const adj = new Map();
     const addEdge = (a, b) => {
       if (!a || !b || a === b) return;
@@ -1523,7 +1445,6 @@ Version: v5.89
       const k = String(o && o.kind ? o.kind : 'door').toLowerCase();
       if (k === 'portal' || k === 'connector') continue;
 
-      // Visibility: thresholds always; doors mostly; windows count but don't auto-explore beyond.
       const openPct = clamp(Number(o && o.openPct != null ? o.openPct : 0), 0, 1);
       const isOpenForSight = (k === 'threshold') || (k === 'window') || (k === 'door' && openPct >= 0.5);
       if (!isOpenForSight) continue;
@@ -1532,7 +1453,6 @@ Version: v5.89
       if (ids.length === 2) addEdge(ids[0], ids[1]);
     }
 
-    // BFS out to maxDepth
     const q = [];
     const dist = new Map();
 
@@ -1595,9 +1515,7 @@ Version: v5.89
   }
 
   // ===== Objects / tokens orientation =====
-  function degToRad(deg) {
-    return (deg * Math.PI) / 180;
-  }
+  function degToRad(deg) { return (deg * Math.PI) / 180; }
 
   function facingToDeg(facing) {
     const f = String(facing || '').toUpperCase();
@@ -1622,8 +1540,6 @@ Version: v5.89
 
     const base = hexCenterWorld(p.col, p.row);
 
-    // Offsets are expressed in "hex radius" units (GRID.size).
-    // Offsets are ABSOLUTE/world-space and do NOT rotate with the object.
     const ox = Number.isFinite(Number(o && (o.ox ?? o.offsetX ?? o.xOffset ?? o.dx))) ? Number(o.ox ?? o.offsetX ?? o.xOffset ?? o.dx) : 0;
     const oy = Number.isFinite(Number(o && (o.oy ?? o.offsetY ?? o.yOffset ?? o.dy))) ? Number(o.oy ?? o.offsetY ?? o.yOffset ?? o.dy) : 0;
 
@@ -1643,8 +1559,6 @@ Version: v5.89
     const hHex = Number.isFinite(Number(o && o.hHex)) ? Number(o.hHex) : 1;
     const scale = Number.isFinite(Number(o && o.scale)) ? Number(o.scale) : 1;
 
-    // IMPORTANT: this size drives BOTH sprites and placeholder shapes.
-    // Keep it data-driven; only special-case kinds that are truly different footprints.
     const kind = String(o && o.kind ? o.kind : '').toLowerCase();
     const kindMul = (kind === 'cooking.hearth') ? 2.2 : 1.0;
 
@@ -1654,7 +1568,6 @@ Version: v5.89
   function objectVisible(o, roomMetaAll) {
     if (!RENDER_FOG || !RENDER_FOG.enabled) return true;
 
-    // Hearths: always visible if room is renderable (they're structural)
     const kind = String(o && o.kind ? o.kind : '').toLowerCase();
 
     const w = objectCenterWorld(o);
@@ -1668,6 +1581,21 @@ Version: v5.89
     return RENDER_FOG.visible.has(rid) || RENDER_FOG.explored.has(rid);
   }
 
+  function roundRectPath(targetCtx, x, y, w, h, r) {
+    const rr = Math.max(0, Math.min(r, Math.min(Math.abs(w), Math.abs(h)) / 2));
+    targetCtx.beginPath();
+    targetCtx.moveTo(x + rr, y);
+    targetCtx.lineTo(x + w - rr, y);
+    targetCtx.quadraticCurveTo(x + w, y, x + w, y + rr);
+    targetCtx.lineTo(x + w, y + h - rr);
+    targetCtx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+    targetCtx.lineTo(x + rr, y + h);
+    targetCtx.quadraticCurveTo(x, y + h, x, y + h - rr);
+    targetCtx.lineTo(x, y + rr);
+    targetCtx.quadraticCurveTo(x, y, x + rr, y);
+    targetCtx.closePath();
+  }
+
   function drawObject(o, roomMetaAll) {
     if (!o) return;
     if (!objectVisible(o, roomMetaAll)) return;
@@ -1679,21 +1607,17 @@ Version: v5.89
     const rot = objectRotationRad(o);
 
     const kind = String(o.kind || 'object').toLowerCase();
-    // Sprite first (optional)
-    // NOTE: sprite-only scale multipliers live on the sprite def and/or the object record.
-    // They do NOT affect fallback shapes.
+
     if (elSpriteToggle && elSpriteToggle.checked) {
       const def = getSpriteDef(kind);
       if (def) {
         const img = loadSprite(def.file);
 
-        // Start with def scaling (defaults to 1)
         let sx = 1, sy = 1;
         if (isFiniteNum(def.scale)) { sx = Number(def.scale); sy = Number(def.scale); }
         if (isFiniteNum(def.scaleX)) sx = Number(def.scaleX);
         if (isFiniteNum(def.scaleY)) sy = Number(def.scaleY);
 
-        // Instance overrides (multiply so you can "nudge" without reauthoring defs)
         if (isFiniteNum(o.spriteScale)) { sx *= Number(o.spriteScale); sy *= Number(o.spriteScale); }
         if (isFiniteNum(o.spriteScaleX)) sx *= Number(o.spriteScaleX);
         if (isFiniteNum(o.spriteScaleY)) sy *= Number(o.spriteScaleY);
@@ -1703,36 +1627,29 @@ Version: v5.89
       }
     }
 
-    // Placeholder shapes
     ctx.save();
     ctx.translate(c.x, c.y);
     if (rot) ctx.rotate(rot);
 
-    // Default style
     ctx.fillStyle = 'rgba(255,255,255,0.08)';
     ctx.strokeStyle = 'rgba(0,0,0,0.25)';
     ctx.lineWidth = 1;
 
     if (kind === 'stairs') {
-      // Simple stairs placeholder: trapezoid wedge.
-      // IMPORTANT: Placeholder-only sizing boost so you don't have to "lie" with wHex/hHex (which would affect sprites).
       const rw = w * 2;
-      const rh = h * 4; 
-      const topW = rw * 0.4; 
+      const rh = h * 4;
+      const topW = rw * 0.4;
 
       ctx.fillStyle = COLORS.stairsWood;
       ctx.beginPath();
-      // bottom (wide)
       ctx.moveTo(-rw/2,  rh/2);
       ctx.lineTo( rw/2,  rh/2);
-      // top (narrow)
       ctx.lineTo( topW/2, -rh/2);
       ctx.lineTo(-topW/2, -rh/2);
       ctx.closePath();
       ctx.fill();
 
     } else if (kind === 'chest') {
-      // Rounded rect + vertical slats
       const rw = w * 0.90, rh = h * 0.70;
 
       ctx.fillStyle = COLORS.chestWood;
@@ -1755,20 +1672,12 @@ Version: v5.89
       }
 
     } else if (kind === 'hearth' || kind === 'cooking.hearth') {
-
-      // Hearth: wide rectangle, squared corners (top-down fireplace)
-      // Solid color, no outline, no inner opening (clean placeholder).
       const rw = w * 1.15;
       const rh = h * 0.55;
-
       ctx.fillStyle = COLORS.hearth;
       ctx.fillRect(-rw/2, -rh/2, rw, rh);
 
     } else if (kind === 'bed' || kind === 'bed.double') {
-      // Beds should read as "longer than wide" in default orientation.
-      // (Width along X, length along Y in local coordinates.)
-      // NOTE: Placeholder-only boost so wHex:1/hHex:1 looks like a bed filling the hex.
-      // This does NOT affect sprite sizing.
       const isDouble = (kind === 'bed.double');
       const BOOST = 2.0;
       const widthMul = isDouble ? 1.3 : 0.75;
@@ -1781,7 +1690,6 @@ Version: v5.89
       ctx.fill();
       ctx.stroke();
 
-      // Pillow/headboard hint at the "top" end (negative Y)
       ctx.fillStyle = COLORS.bedPillow;
       const pad = Math.max(6, Math.min(14, Math.min(rw, rh) * 0.08));
       const pillowH = Math.max(10, rh * 0.22);
@@ -1805,9 +1713,6 @@ Version: v5.89
       }
 
     } else if (kind === 'table.round') {
-
-
-      // True round table (circle)
       const r = Math.min(w, h) * 0.64;
       ctx.fillStyle = COLORS.objectWood;
       ctx.beginPath();
@@ -1816,7 +1721,6 @@ Version: v5.89
       ctx.stroke();
 
     } else if (kind.startsWith('table')) {
-      // Rect/square tables
       const rw = w * 0.90, rh = h * 0.55;
       ctx.fillStyle = COLORS.objectWood;
       roundRectPath(ctx, -rw/2, -rh/2, rw, rh, Math.min(10, rh/3));
@@ -1824,36 +1728,27 @@ Version: v5.89
       ctx.stroke();
 
     } else if (kind === 'chair') {
-      // Simple top-down chair: half-circle back + rectangular seat.
-      // Single fill color, no outlines.
       const rw = Math.min(w, h) * 0.65;
       const r = rw / 2;
       const rectH = rw * 0.55;
-
-      // Center the combined shape around (0,0).
       const yShift = -(rectH - r) / 2;
 
       ctx.fillStyle = COLORS.objectWood;
       ctx.beginPath();
-      // Top half-circle (back)
       ctx.moveTo(-rw / 2, yShift);
       ctx.arc(0, yShift, r, Math.PI, 0, false);
-      // Seat rectangle
       ctx.lineTo(rw / 2, yShift + rectH);
       ctx.lineTo(-rw / 2, yShift + rectH);
       ctx.closePath();
       ctx.fill();
 
     } else {
-
-      // Generic rounded marker
       const rw = w * 0.80, rh = h * 0.55;
       roundRectPath(ctx, -rw/2, -rh/2, rw, rh, 10);
       ctx.fill();
       ctx.stroke();
     }
 
-    // Label
     ctx.fillStyle = 'rgba(233,238,247,0.55)';
     ctx.font = '11px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
     ctx.textAlign = 'center';
@@ -1863,30 +1758,15 @@ Version: v5.89
     ctx.restore();
   }
 
-  function roundRectPath(targetCtx, x, y, w, h, r) {
-    const rr = Math.max(0, Math.min(r, Math.min(Math.abs(w), Math.abs(h)) / 2));
-    targetCtx.beginPath();
-    targetCtx.moveTo(x + rr, y);
-    targetCtx.lineTo(x + w - rr, y);
-    targetCtx.quadraticCurveTo(x + w, y, x + w, y + rr);
-    targetCtx.lineTo(x + w, y + h - rr);
-    targetCtx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
-    targetCtx.lineTo(x + rr, y + h);
-    targetCtx.quadraticCurveTo(x, y + h, x, y + h - rr);
-    targetCtx.lineTo(x, y + rr);
-    targetCtx.quadraticCurveTo(x, y, x + rr, y);
-    targetCtx.closePath();
-  }
-
   // ===== Tokens =====
   function isPlayerToken(t) {
     return String(t && t.side ? t.side : '').toUpperCase() === 'PC';
   }
 
+  let RENDER_FOG = null;
+
   function tokenVisible(t, roomMetaAll) {
     if (!RENDER_FOG || !RENDER_FOG.enabled) return true;
-
-    // PCs always visible on their floor.
     if (isPlayerToken(t)) return true;
 
     const p = parseHex(t && t.hex);
@@ -1896,6 +1776,16 @@ Version: v5.89
     if (!rid) return true;
 
     return RENDER_FOG.visible.has(rid);
+  }
+
+  function drawTokenLabel(t, x, y, isPC) {
+    const label = (t && t.label) ? String(t.label) : (t && t.name ? String(t.name).slice(0, 2) : '?');
+
+    ctx.fillStyle = isPC ? COLORS.tokenTextDark : COLORS.tokenTextLight;
+    ctx.font = 'bold 14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x, y);
   }
 
   function drawToken(t, roomMetaAll) {
@@ -1908,7 +1798,6 @@ Version: v5.89
     const r = GRID.size * 0.40;
     const isPC = isPlayerToken(t);
 
-    // Optional sprite
     if (elSpriteToggle && elSpriteToggle.checked) {
       const def = getSpriteDef(isPC ? 'token.pc' : 'token.npc');
       if (def) {
@@ -1934,16 +1823,6 @@ Version: v5.89
     drawTokenLabel(t, c.x, c.y, isPC);
 
     ctx.restore();
-  }
-
-  function drawTokenLabel(t, x, y, isPC) {
-    const label = (t && t.label) ? String(t.label) : (t && t.name ? String(t.name).slice(0, 2) : '?');
-
-    ctx.fillStyle = isPC ? COLORS.tokenTextDark : COLORS.tokenTextLight;
-    ctx.font = 'bold 14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, x, y);
   }
 
   // ===== Grid =====
@@ -1982,14 +1861,11 @@ Version: v5.89
         const row = r0 + dr;
         const p = worldToScreen(hexCenterWorld(col, row));
 
-        // Quick reject
         if (p.x < -100 || p.x > w + 100 || p.y < -100 || p.y > h + 100) continue;
-
         drawHexOutline(p, GRID.size);
       }
     }
 
-    // Labels
     const bright = !!(elLabelBoldToggle && elLabelBoldToggle.checked);
     ctx.globalAlpha = bright ? 1 : GRID.labelAlpha;
     ctx.fillStyle = bright ? 'rgba(233,238,247,0.96)' : 'rgba(233,238,247,0.65)';
@@ -2042,7 +1918,9 @@ Version: v5.89
     const meta = state && state.meta ? state.meta : {};
     const round = Number(meta.round != null ? meta.round : 1);
 
-    const camHex = (state && state.view && state.view.camera_hex) ? String(state.view.camera_hex) : hexId(VIEW.camera.col, VIEW.camera.row);
+    const camHex = (state && state.view && state.view.camera_hex)
+      ? String(state.view.camera_hex)
+      : hexId(VIEW.camera.col, VIEW.camera.row);
 
     const fog = normalizeFog(state, VIEW.floorId);
     const fogLabel = fog.enabled
@@ -2067,7 +1945,6 @@ Version: v5.89
       .map(([k, v]) => '<div>' + escapeHtml(k) + '</div><div style="color:var(--text); text-align:right;">' + escapeHtml(v) + '</div>')
       .join('');
 
-    // Initiative list: sort by init desc
     const sorted = [...tokens]
       .filter(t => t && t.id)
       .sort((a, b) => (Number(b.init) || 0) - (Number(a.init) || 0));
@@ -2078,7 +1955,7 @@ Version: v5.89
       const isActive = activeId && String(t.id) === activeId;
       const name = t.name ? String(t.name) : String(t.id);
       const right = (t.hp != null) ? ('HP ' + t.hp) : '';
-      return '<div class="turnRow' + (isActive ? ' active' : '') + '">'
+      return '<div class="turnRow' + (isActive ? ' active' : '') + '">' 
         + '<div>' + escapeHtml(name) + ' <span style="opacity:0.65">(' + escapeHtml(String(t.init ?? '')) + ')</span></div>'
         + '<div style="opacity:0.85">' + escapeHtml(right) + '</div>'
         + '</div>';
@@ -2117,8 +1994,6 @@ Version: v5.89
   }
 
   // ===== Main render =====
-  let RENDER_FOG = null;
-
   function clear() {
     const rect = canvas.getBoundingClientRect();
     const w = Math.max(1, rect.width);
@@ -2137,11 +2012,9 @@ Version: v5.89
     const floor = floorById(floors, activeFloorId) || floors[0];
     VIEW.floorId = floor ? String(floor.id) : activeFloorId;
 
-    // Keep title in sync
     const title = (state.meta && state.meta.title) ? String(state.meta.title) : 'Battlemat';
     elTitle.textContent = title;
 
-    // Follow token: also flips floor if needed
     if (VIEW.followTokenId) {
       const allTokens = Array.isArray(state.tokens) ? state.tokens : [];
       const t = allTokens.find(x => x && x.id === VIEW.followTokenId);
@@ -2149,7 +2022,7 @@ Version: v5.89
         const fid = entityFloorId(t) || VIEW.floorId;
         if (fid && fid !== VIEW.floorId) {
           setActiveFloor(fid, { fromFollow: true });
-          return; // redraw called by setActiveFloor
+          return;
         }
 
         const p = parseHexId(t.hex);
@@ -2161,25 +2034,19 @@ Version: v5.89
       }
     }
 
-    // Floor entities
     const rooms = Array.isArray(floor && floor.rooms) ? floor.rooms : [];
     const openings = Array.isArray(floor && floor.openings) ? floor.openings : [];
     const objects = Array.isArray(floor && floor.objects) ? floor.objects : [];
     const tokens = tokensOnFloor(state, VIEW.floorId);
 
-    // Fog toggles
     const fogEnabled = !!elFogToggle.checked;
     if (state.fog && typeof state.fog === 'object') state.fog.enabled = fogEnabled;
 
-    // Build per-frame fog sets
     RENDER_FOG = computeRenderFog(state, VIEW.floorId, rooms, openings, tokens);
 
-    // Room selection
     let roomsToDraw = rooms;
     let openingsToDraw = openings;
 
-    // When fog is OFF, we do NOT draw the large "fog backing" rooms.
-    // Those exist only to create a gray base layer for fog-of-war.
     if (!fogEnabled) {
       roomsToDraw = rooms.filter(r => !isFogFloorRoom(r));
     }
@@ -2201,7 +2068,6 @@ Version: v5.89
       const roomMetaAll = buildRoomMeta(rooms);
       openingsToDraw = openings.filter(o => {
         const ids = openingRoomIds(o, roomMetaAll);
-        // If we can determine the sides, only draw openings that touch renderable geometry.
         if (ids.length === 2) return (renderableRoomIds.has(ids[0]) || renderableRoomIds.has(ids[1]));
         return true;
       });
@@ -2212,10 +2078,8 @@ Version: v5.89
 
     clear();
 
-    // Floors
     drawFloorsLayered(roomsToDraw);
 
-    // Walls
     const roomsForWalls = (RENDER_FOG && RENDER_FOG.enabled)
       ? roomsToDraw.filter(r => (isFogFloorRoom(r) ? roomHasWalls(r) : true))
       : roomsToDraw;
@@ -2223,9 +2087,8 @@ Version: v5.89
     const wallSegsRaw = buildWallSegments(roomsForWalls);
     const wallSegs = dedupeWallSegments(wallSegsRaw);
 
-    // Threshold seam fills: extend parent room floor color through the wall gap so the corridor looks continuous.
-    // This draw happens BEFORE walls are composited.
-    drawThresholdSeamFills(openingsToDraw, rooms, wallSegs, fogEnabled);
+    // Floor-aware knockout fills for doors/thresholds (so wall openings match the underlying texture)
+    drawOpeningSeamFills(openingsToDraw, rooms, wallSegs, fogEnabled);
 
     wallCtx.save();
     wallCtx.setTransform(1, 0, 0, 1, 0, 0);
@@ -2234,7 +2097,6 @@ Version: v5.89
 
     wallCtx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
 
-    // Draw de-duped wall segments so shared internal walls don't double in thickness.
     drawWallSegments(wallCtx, wallSegs);
 
     wallCtx.save();
@@ -2249,7 +2111,6 @@ Version: v5.89
 
     wallCtx.restore();
 
-    // Composite walls
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(wallCanvas, 0, 0);
@@ -2257,26 +2118,19 @@ Version: v5.89
 
     ctx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
 
-    // Openings
     for (const o of openingsToDraw) drawOpeningMarker(o, wallSegs);
 
-    // Objects
     const roomMetaAll = buildRoomMeta(rooms);
     for (const o of objects) drawObject(o, roomMetaAll);
 
-    // Remembered overlay
     drawRememberedRoomOverlays(rooms);
 
-    // Tokens
     for (const t of tokens) drawToken(t, roomMetaAll);
 
-    // Grid
     drawGrid();
 
-    // Sidebar
     updateSidebar(state, floor, rooms, openings, objects, tokens);
 
-    // Keep camera_hex in state.view updated for convenience
     if (state.view && typeof state.view === 'object') state.view.camera_hex = hexId(VIEW.camera.col, VIEW.camera.row);
   }
 
@@ -2328,11 +2182,8 @@ Version: v5.89
 
     VIEW.floorId = target;
 
-    // Keep canonical hint
     if (state.view && typeof state.view === 'object') state.view.floorId = target;
 
-    // If we're switching manually (not follow), keep camera unless it points nowhere.
-    // If the new floor has a PC, prefer that.
     if (!opts.fromFollow) {
       const pcs = tokensOnFloor(state, target).filter(isPlayerToken);
       if (pcs.length && pcs[0].hex) {
@@ -2395,7 +2246,6 @@ Version: v5.89
       elSsSelect.onchange = () => setSupersample(elSsSelect.value);
     }
 
-    // Keyboard pan
     window.onkeydown = (ev) => {
       if (ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'SELECT' || ev.target.isContentEditable)) return;
       const k = ev.key;
@@ -2433,7 +2283,6 @@ Version: v5.89
     wallCanvas.width = canvas.width;
     wallCanvas.height = canvas.height;
 
-    // Draw in CSS pixels
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     wallCtx.setTransform(scale, 0, 0, scale, 0, 0);
 
@@ -2443,14 +2292,32 @@ Version: v5.89
     safeRedraw();
   }
 
+  // ===== Self-tests (tiny sanity checks) =====
+  function runSelfTests() {
+    const assert = (name, cond) => {
+      if (!cond) throw new Error('SelfTest failed: ' + name);
+    };
+
+    // half-step openings
+    const oh = parseOpeningHexId('M12.5');
+    assert('parseOpeningHexId col', oh.col === lettersToCol('M'));
+    assert('parseOpeningHexId row', Math.abs(oh.row - 11.5) < 1e-9);
+
+    // integer hex
+    const hh = parseHexId('U16');
+    assert('parseHexId row', hh.row === 15);
+
+    // texture alias
+    const td = resolveTextureDef('floor', 'wood');
+    assert('resolveTextureDef alias', !!td && td.file === 'wood_oak.png');
+  }
+
   // ===== Boot =====
   function init() {
-    // Initial view from state
     const state = getState();
     const floors = getFloorsFromState(state);
     VIEW.floorId = pickActiveFloorId(state, floors);
 
-    // Camera hex from state.view
     const camHex = state && state.view && state.view.camera_hex ? String(state.view.camera_hex) : null;
     if (camHex) {
       try {
@@ -2459,7 +2326,6 @@ Version: v5.89
         VIEW.camera.row = p.row;
       } catch {}
     } else {
-      // fallback: first PC token
       const pc = (Array.isArray(state.tokens) ? state.tokens : []).find(isPlayerToken);
       if (pc && pc.hex) {
         try {
@@ -2470,19 +2336,26 @@ Version: v5.89
       }
     }
 
-    // Sync toggles from state/storage
     if (state.fog && typeof state.fog === 'object') elFogToggle.checked = !!state.fog.enabled;
     elSsSelect.value = String(readSupersample());
 
+    // Run sanity checks early so we fail loudly with a useful message.
+    try { runSelfTests(); }
+    catch (e) {
+      if (elError) {
+        elError.hidden = false;
+        elError.textContent = String(e && e.stack ? e.stack : e);
+      }
+      throw e;
+    }
+
     wireUI();
 
-    // Resize observer keeps backing store correct when wrapper resizes.
     const ro = new ResizeObserver(() => resize());
     ro.observe(document.getElementById('canvasWrap'));
 
     window.addEventListener('resize', resize, { passive: true });
 
-    // Double-refresh first load (prevents "first frame" weirdness if sprites are late)
     resize();
     requestAnimationFrame(() => {
       safeRedraw();
