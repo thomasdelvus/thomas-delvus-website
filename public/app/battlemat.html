@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v5.83
+Version: v5.87
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v5.83</title>
+  <title>Battlemat Core v5.87</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v5.83
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.83</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.86</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -244,11 +244,11 @@ Version: v5.83
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v5.83
+  // Battlemat Core Rewrite v5.87
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v5.83';
+  const VERSION = 'v5.87';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -431,16 +431,67 @@ Version: v5.83
   // IMPORTANT: patterns almost always need to be *scaled* ("tiny bricks") to look right.
   // We hardcode those scales here so rooms don't have to pass parameters all over the place.
   const TEXTURE_DEFS = {
-    wall: {
-      // A repeating brick tile. scale < 1 = smaller bricks (more repeats).
-      brick: { file: 'brick_wall.png', scale: 0.15 },
+    // NOTE: these are *repeat* textures (patterns), not object sprites.
+    // Put the PNG tiles in: /public/assets/sprites/
+    // Filenames below are the defaults we’ll look for.
+
+    // Aliases let old maps keep working (e.g. wall.kind: 'brick', floor.kind: 'wood').
+    aliases: {
+      wall: {
+        brick: 'stone_brick_red',
+      },
+      floor: {
+        wood: 'wood_oak',
+        stone: 'stone_cobble',
+        cobble: 'stone_cobble',
+        gravel: 'stone_gravel',
+      },
     },
-    // Later if you want:
-    // floor: {
-    //   cobble: { file: 'cobble_floor.png', scale: 0.35 },
-    //   wood:   { file: 'wood_floor.png',   scale: 0.50 },
-    // }
+
+    wall: {
+      // scale < 1 => smaller tiles (more repeats), good for “tiny bricks”.
+      stone_brick_red:  { file: 'stone_brick_red.png',  scale: 0.25 },
+      stone_brick_gray: { file: 'stone_brick_gray.png', scale: 0.25 },
+      stone_cobble:     { file: 'stone_cobble.png',     scale: 0.35 },
+      stone_gravel:     { file: 'stone_gravel.png',     scale: 0.40 },
+
+      // Convenience / compatibility
+      brick:            { file: 'stone_brick_red.png',  scale: 0.25 },
+    },
+
+    floor: {
+      wood_oak:         { file: 'wood_oak.png',         scale: 0.50 },
+      wood_elm:         { file: 'wood_elm.png',         scale: 0.50 },
+      wood_dark:        { file: 'wood_dark.png',        scale: 0.50 },
+
+      stone_cobble:     { file: 'stone_cobble.png',     scale: 0.45 },
+      stone_brick_gray: { file: 'stone_brick_gray.png', scale: 0.40 },
+      stone_brick_red:  { file: 'stone_brick_red.png',  scale: 0.40 },
+      stone_gravel:     { file: 'stone_gravel.png',     scale: 0.55 },
+
+      // Convenience / compatibility
+      wood:             { file: 'wood_oak.png',         scale: 0.50 },
+      cobble:           { file: 'stone_cobble.png',     scale: 0.45 },
+      stone:            { file: 'stone_cobble.png',     scale: 0.45 },
+    }
   };
+
+  function resolveTextureDef(category, kind) {
+    const cat = String(category || '').toLowerCase();
+    const k0 = String(kind || '').toLowerCase();
+    if (!cat || !k0) return null;
+
+    const group = (TEXTURE_DEFS && TEXTURE_DEFS[cat]) ? TEXTURE_DEFS[cat] : null;
+    if (!group) return null;
+
+    if (group[k0]) return group[k0];
+
+    const aliases = (TEXTURE_DEFS.aliases && TEXTURE_DEFS.aliases[cat]) ? TEXTURE_DEFS.aliases[cat] : null;
+    const aliased = aliases && aliases[k0] ? String(aliases[k0]).toLowerCase() : '';
+    if (aliased && group[aliased]) return group[aliased];
+
+    return null;
+  }
 
   const PATTERN_CACHE = new Map();
 
@@ -497,6 +548,14 @@ Version: v5.83
   const DEFAULT_STATE = {
     meta: { title: 'Cross Keys Inn — Demo (upper + ground)', battleId: 'local', round: 1 },
 
+    // POI catalog (town-level points of interest).
+    // Buildings on each floor can reference these ids so you have one place to name/describe POIs.
+    // Geometry still lives under floors[].rooms using buildingId.
+    pois: [
+      { poiNumber: 1, id: 'CrossKeysInn',  name: 'The Cross Keys Inn',  zone: 'Downtown' },
+      { poiNumber: 2, id: 'EightBellsInn', name: 'The Eight Bells Inn', zone: 'Downtown' },
+    ],
+
     view: { camera_hex: 'U16', floorId: 'upper' },
 
     fog: {
@@ -525,24 +584,24 @@ Version: v5.83
           {
         id: 'upper',
         name: 'Upper',
-        rooms: [
-          { id: 'CrossKeysUpperFloor', corners: ['L21','AJ21','AJ12','L12'], thickness: 20, floor: { kind: 'fog' }, wall: { kind: 'brick' } },
-          { id: 'Hallway1', corners: ['AD21','AF21','AF12','AD12'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id: 'Hallway2', corners: ['R17','AD17','AD15','R15'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id: 'Hallway3', corners: ['P21','R21','R12','P12'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id:'1stFloorStairsDown', corners: ['Z21','AD21','AD19','Z19'], thickness: 20, floor: { kind: 'stairs.wood' }, wall: { kind: 'brick' } },
+      rooms: [
+          { id: 'CrossKeysUpperFloor', buildingId:'CrossKeysInn', corners: ['L21','AJ21','AJ12','L12'], thickness: 20, floor: { kind: 'fog' }, wall: { kind: 'brick' } },
+          { id: 'Hallway1', buildingId:'CrossKeysInn', corners: ['AD21','AF21','AF12','AD12'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id: 'Hallway2', buildingId:'CrossKeysInn', corners: ['R17','AD17','AD15','R15'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id: 'Hallway3', buildingId:'CrossKeysInn', corners: ['P21','R21','R12','P12'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id:'1stFloorStairsDown', buildingId:'CrossKeysInn', corners: ['Z21','AD21','AD19','Z19'], thickness: 20, floor: { kind: 'stairs.wood' }, wall: { kind: 'brick' } },
 
-          { id:'Bedroom1', corners: ['L21','P21','P18','L18'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id:'Bedroom2', corners: ['L18','P18','P15','L15'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id:'Bedroom3', corners: ['L15','P15','P12','L12'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id:'Bedroom4', corners: ['R15','X15','X12','R12'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id:'Bedroom5', corners: ['R21','X21','X17','R17'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id:'Bedroom5_Closet', corners: ['X21','Z21','Z19','X19'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id:'Bedroom6', corners: ['X19','AD19','AD17','X17'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id:'Bedroom7', corners: ['X15','AD15','AD12','X12'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id:'Bedroom8', corners: ['AF15','AJ15','AJ12','AF12'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id:'Bedroom9', corners: ['AF19','AJ19','AJ15','AF15'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id:'Bedroom10', corners: ['AF21','AJ21','AJ19','AF19'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id:'Bedroom1', buildingId:'CrossKeysInn', corners: ['L21','P21','P18','L18'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id:'Bedroom2', buildingId:'CrossKeysInn', corners: ['L18','P18','P15','L15'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id:'Bedroom3', buildingId:'CrossKeysInn', corners: ['L15','P15','P12','L12'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id:'Bedroom4', buildingId:'CrossKeysInn', corners: ['R15','X15','X12','R12'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id:'Bedroom5', buildingId:'CrossKeysInn', corners: ['R21','X21','X17','R17'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id:'Bedroom5_Closet', buildingId:'CrossKeysInn', corners: ['X21','Z21','Z19','X19'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id:'Bedroom6', buildingId:'CrossKeysInn', corners: ['X19','AD19','AD17','X17'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id:'Bedroom7', buildingId:'CrossKeysInn', corners: ['X15','AD15','AD12','X12'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id:'Bedroom8', buildingId:'CrossKeysInn', corners: ['AF15','AJ15','AJ12','AF12'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id:'Bedroom9', buildingId:'CrossKeysInn', corners: ['AF19','AJ19','AJ15','AF15'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id:'Bedroom10', buildingId:'CrossKeysInn', corners: ['AF21','AJ21','AJ19','AF19'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
 
           { id:'NextDoor', corners: ['L26','V26','V21','L21'], thickness: 20, floor: { kind: 'brick' }, wall: { kind: 'brick' } },
         ],
@@ -642,9 +701,11 @@ Version: v5.83
         id: 'ground',
         name: 'Ground',
         rooms: [
-          { id: 'CrossKeysGroundFloor', corners: ['M21.5','AJ21','AJ12.5','M13'], thickness: 20, floor: { kind: 'fog' }, wall: { kind: 'brick' } },
-          { id: 'Pub', corners: ['M21.5','X21','X12.5','M13'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id: 'Kitchen', corners: ['X21','AJ21','AJ12.5','X12.5'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id: 'CrossKeysGroundFloor', buildingId:'CrossKeysInn', corners: ['M21.5','AJ21','AJ12.5','M13'], thickness: 20, floor: { kind: 'fog' }, wall: { kind: 'brick' } },
+          { id: 'Pub', buildingId:'CrossKeysInn', corners: ['M21.5','X21','X12.5','M13'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id: 'Kitchen', buildingId:'CrossKeysInn', corners: ['X21','AJ21','AJ12.5','X12.5'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+
+        
 
         ],
         openings: [
@@ -995,9 +1056,12 @@ Version: v5.83
       const half = t / 2;
 
       let fill = s.color || COLORS.wall;
-      if (wantTextures && s.wallKind === 'brick') {
-        const pat = getRepeatPatternForCtx(targetCtx, TEXTURE_DEFS.wall.brick);
-        if (pat) fill = pat;
+      if (wantTextures) {
+        const def = resolveTextureDef('wall', s.wallKind);
+        if (def) {
+          const pat = getRepeatPatternForCtx(targetCtx, def);
+          if (pat) fill = pat;
+        }
       }
       targetCtx.fillStyle = fill;
 
@@ -1045,6 +1109,8 @@ Version: v5.83
   }
 
   function drawFloorsLayered(rooms) {
+    const wantTextures = !!(elSpriteToggle && elSpriteToggle.checked);
+
     for (const r of (Array.isArray(rooms) ? rooms : [])) {
       const box = roomToWallBox(r);
       const f = roomFloorRectWorld(r, box);
@@ -1054,8 +1120,21 @@ Version: v5.83
       const h = p2.y - p1.y;
       if (w <= 0 || h <= 0) continue;
 
-      const fk = (r && r.floor && r.floor.kind) ? r.floor.kind : 'wood';
-      ctx.fillStyle = floorColor(fk);
+      const fk = (r && r.floor && r.floor.kind) ? String(r.floor.kind).toLowerCase() : 'wood';
+
+      // Default: solid fallback color
+      let fill = floorColor(fk);
+
+      // If sprites are on, prefer a repeating floor texture when available
+      if (wantTextures) {
+        const def = resolveTextureDef('floor', fk);
+        if (def) {
+          const pat = getRepeatPatternForCtx(ctx, def);
+          if (pat) fill = pat;
+        }
+      }
+
+      ctx.fillStyle = fill;
       ctx.fillRect(p1.x, p1.y, w, h);
 
       // light outline
