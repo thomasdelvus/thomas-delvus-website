@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v5.75
+Version: v5.76
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v5.75</title>
+  <title>Battlemat Core v5.76</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v5.75
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.75</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.76</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -244,11 +244,11 @@ Version: v5.75
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v5.75
+  // Battlemat Core Rewrite v5.76
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v5.75';
+  const VERSION = 'v5.76';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -403,12 +403,20 @@ Version: v5.75
   }
 
   function drawSprite(img, x, y, w, h, rotRad = 0) {
-    if (!img || !img.complete || !img.naturalWidth) return false;
+    // Always preserve sprite aspect ratio ("contain" behavior).
+    // If a sprite needs a different footprint, resize/pad the PNG, or tweak spriteScale on the object.
+    if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return false;
+
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    const s = Math.min(w / iw, h / ih);
+    const dw = iw * s;
+    const dh = ih * s;
 
     ctx.save();
     ctx.translate(x, y);
     if (rotRad) ctx.rotate(rotRad);
-    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+    ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
     ctx.restore();
     return true;
   }
@@ -443,7 +451,7 @@ Version: v5.75
     },
 
     floors: [
-      {
+          {
         id: 'upper',
         name: 'Upper',
         rooms: [
@@ -502,7 +510,7 @@ Version: v5.75
           
           { id:'room5_bed', kind: 'bed.double', hex: 'S20', wHex: 1.0, hHex: 1.0, rotDeg: 270, ox: 0.00, oy: -0.00, spriteScale:3.0 },
           { id:'room5_chair1', kind: 'chair', hex: 'W21', rotDeg: 60, ox: 0.00, oy: -0.00, spriteScale:0.75  },
-          { id:'room5_chair2', kind: 'chair', hex: 'W20', rotDeg: 120, ox: 0.00, oy: -0.00, spriteScale:0.75  },
+          //{ id:'room5_chair2', kind: 'chair', hex: 'W20', rotDeg: 120, ox: 0.00, oy: -0.00, spriteScale:0.75  },
           { id:'room5_chair3', kind: 'chair', hex: 'U20', rotDeg: 240, ox: 0.00, oy: -0.00, spriteScale:0.75  },
           { id:'room5_chair4', kind: 'chair', hex: 'U21', rotDeg: 300, ox: 0.00, oy: -0.00, spriteScale:0.75  },
           { id:'room5_table', kind: 'table.round', hex: 'V20', wHex: 1.1, hHex: 1.1, rotDeg: 0, spriteScale:1.5 },
@@ -515,7 +523,7 @@ Version: v5.75
 
           { id:'room7_bed', kind: 'bed.double', hex: 'AC14', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: -0.00, spriteScale:3.0 },
           { id:'room7_chair1', kind: 'chair', hex: 'AA14', rotDeg: 60, ox: 0.00, oy: -0.00, spriteScale:0.75  },
-          //{ id:'room7_chair2', kind: 'chair', hex: 'AA13', rotDeg: 120, ox: 0.00, oy: -0.00, spriteScale:0.75  },
+          { id:'room7_chair2', kind: 'chair', hex: 'AA13', rotDeg: 120, ox: 0.00, oy: -0.00, spriteScale:0.75  },
           { id:'room7_chair3', kind: 'chair', hex: 'Y13', rotDeg: 240, ox: 0.00, oy: -0.00, spriteScale:0.75  },
           { id:'room7_chair4', kind: 'chair', hex: 'Y14', rotDeg: 300, ox: 0.00, oy: -0.00, spriteScale:0.75  },
           { id:'room7_table', kind: 'table.round', hex: 'Z13', wHex: 1.1, hHex: 1.1, rotDeg: 0, spriteScale:1.5 },
@@ -540,7 +548,7 @@ Version: v5.75
           { id:'room10_bed1', kind: 'bed', hex: 'AI21', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: 0.30, spriteScale:2.0 },
           { id:'room10_bed2', kind: 'bed', hex: 'AI19', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: -0.30, spriteScale:2.0 },
           
-          { id:'stairs_down', kind:'stairs', hex:'AB20', wHex: 1.0, hHex: 1.0, rotDeg: 270, ox: 0.0, oy: 0.0, spriteScale:6.0 },
+          { id:'stairs_down', kind:'stairs', hex:'AB20', wHex: 1.0, hHex: 1.0, rotDeg: 270, ox: 0.0, oy: 0.0 },
         ],
       },
       {
