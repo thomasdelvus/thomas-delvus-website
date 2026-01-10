@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v5.76
+Version: v5.82
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v5.76</title>
+  <title>Battlemat Core v5.82</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v5.76
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.76</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.82</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -244,11 +244,11 @@ Version: v5.76
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v5.76
+  // Battlemat Core Rewrite v5.82
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v5.76';
+  const VERSION = 'v5.82';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -294,13 +294,13 @@ Version: v5.76
     floorStone: 'rgb(223, 208, 165)',    floorWood: 'rgb(213, 181, 140)',
 
     // Placeholder prop colors (used when sprites are off or missing)
-    objectWood: 'rgb(176, 126, 80)',
+    objectWood: 'rgb(173, 131, 89)',
     chestWood:  'rgb(110, 72, 40)',
     stairsWood: 'rgb(140, 98, 64)',
 
     // Beds (placeholder colors)
-    bedFabric: 'rgb(150, 86, 76)',
-    bedPillow: 'rgb(135, 78, 69)',
+    bedFabric: 'rgb(147, 116, 84)',
+    bedPillow: 'rgb(175, 159, 141)',
 
     // Hearth (placeholder color)
     hearth: 'rgb(147, 53, 53)',
@@ -421,6 +421,40 @@ Version: v5.76
     return true;
   }
 
+  // ===== Repeat textures (optional) =====
+  // Uses the same /assets/sprites/ folder as normal sprites.
+  // If an image is missing, we simply fall back to solid colors.
+  const TEXTURE_FILES = {
+    wall: {
+      // Put a repeating brick tile here (e.g. 64x64, 128x128, etc)
+      brick: 'brick_wall.png',
+    },
+    // (Optional later)
+    // floor: { cobble: 'cobble_floor.png', wood: 'wood_floor.png' }
+  };
+
+  const PATTERN_CACHE = new Map();
+
+  function getRepeatPatternForCtx(targetCtx, file) {
+    const f = String(file || '').trim();
+    if (!f) return null;
+
+    const ctxKey = (targetCtx === wallCtx) ? 'wall' : 'main';
+    const key = ctxKey + '|' + f;
+
+    const cached = PATTERN_CACHE.get(key);
+    if (cached && cached.pattern && cached.w && cached.h) return cached.pattern;
+
+    const img = loadSprite(f);
+    if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return null;
+
+    const pat = targetCtx.createPattern(img, 'repeat');
+    if (!pat) return null;
+
+    PATTERN_CACHE.set(key, { pattern: pat, w: img.naturalWidth, h: img.naturalHeight });
+    return pat;
+  }
+
   // ===== Canonical state (demo) =====
   // If your real page injects state, set window.BATTLE_STATE.
   const DEFAULT_STATE = {
@@ -450,7 +484,7 @@ Version: v5.76
       exploredAlpha: 0.55,
     },
 
-    floors: [
+      floors: [
           {
         id: 'upper',
         name: 'Upper',
@@ -472,6 +506,8 @@ Version: v5.76
           { id:'Bedroom8', corners: ['AF15','AJ15','AJ12','AF12'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
           { id:'Bedroom9', corners: ['AF19','AJ19','AJ15','AF15'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
           { id:'Bedroom10', corners: ['AF21','AJ21','AJ19','AF19'], thickness: 20, color: '#555', floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+
+          { id:'NextDoor', corners: ['L26','V26','U21','L21'], thickness: 20, floor: { kind: 'brick' }, wall: { kind: 'brick' } },
         ],
         openings: [
           { id: 'door_room1', kind: 'door', hex: 'P19',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1  },
@@ -491,7 +527,19 @@ Version: v5.76
           // Portals: movement/transition links between floors (renderer does not draw them)
           { id:'portal_down_AB20', kind:'portal', hex:'AB20', trigger:'enter', to:{ floorId:'ground', hex:'Z20' } },
 
-          { id:'window_bed1', kind:'window', hex:'L20', orientation:'v' },
+          { id:'bedroom_window1', kind:'window', hex:'L20', orientation:'v' },
+          { id:'bedroom_window2', kind:'window', hex:'L19', orientation:'v' },
+          
+          { id:'bedroom_window1', kind:'window', hex:'L17', orientation:'v' },
+          { id:'bedroom_window1', kind:'window', hex:'L16', orientation:'v' },
+          
+          { id:'bedroom_window1', kind:'window', hex:'L14', orientation:'v' },
+          { id:'bedroom_window1', kind:'window', hex:'L13', orientation:'v' },
+          
+          { id:'bedroom_window1', kind:'window', hex:'M12.5', orientation:'h' },
+          { id:'bedroom_window1', kind:'window', hex:'N12', orientation:'h' },
+
+          
 
           { id:'thresh_R16',  kind: 'threshold', hex: 'R16',  orientation: 'v', span: 2.4, parent: 'Hallway2' },
           { id:'thresh_AD16', kind:'threshold', hex:'AD16', orientation:'v', span: 2.4, parent:'Hallway2' },
@@ -614,8 +662,8 @@ Version: v5.76
   }
 
   function parseHexId(hex) {
-    // Strict (integer) hex parsing: e.g., "X12".
-    // Used for camera, tokens, openings, object placement, etc.
+    // Strict (integer-row) hex parsing: e.g., "X12".
+    // Used for camera, tokens, object placement, etc.
     const m = String(hex).trim().toUpperCase().match(/^([A-Z]+)([0-9]+)$/);
     if (!m) throw new Error('Bad hex: ' + hex);
     return { col: lettersToCol(m[1]), row: parseInt(m[2], 10) - 1 };
@@ -623,6 +671,29 @@ Version: v5.76
 
   function parseHex(hex) {
     try { return parseHexId(hex); } catch { return null; }
+  }
+
+  function isHalfStep(n) {
+    // Allow integers and .5 steps only (e.g., 12, 12.5).
+    const v = Number(n);
+    if (!Number.isFinite(v)) return false;
+    return Math.abs(v * 2 - Math.round(v * 2)) < 1e-6;
+  }
+
+  function parseOpeningHexId(hex) {
+    // Openings (doors/windows/thresholds) may use half-row increments like "M12.5".
+    const m = String(hex).trim().toUpperCase().match(/^([A-Z]+)([0-9]+(?:\.[0-9]+)?)$/);
+    if (!m) throw new Error('Bad opening hex: ' + hex);
+
+    const col = lettersToCol(m[1]);
+    const rowNum = parseFloat(m[2]);
+    if (!isHalfStep(rowNum)) throw new Error('Opening hex must be .0 or .5: ' + hex);
+
+    return { col, row: rowNum - 1 };
+  }
+
+  function parseOpeningHex(hex) {
+    try { return parseOpeningHexId(hex); } catch { return null; }
   }
 
   function parseCornerHexId(hex) {
@@ -642,6 +713,7 @@ Version: v5.76
   function parseCornerHex(hex) {
     try { return parseCornerHexId(hex); } catch { return null; }
   }
+
 
   function hexId(col, row) {
     return colToLetters(col) + String(row + 1);
@@ -792,13 +864,15 @@ Version: v5.76
       if (!r || !roomHasWalls(r)) continue;
       const box = roomToWallBox(r);
       const t = box.thickness;
+
       const color = (r && r.color) ? String(r.color) : COLORS.wall;
+      const wallKind = (r && r.wall && r.wall.kind) ? String(r.wall.kind).toLowerCase() : 'brick';
 
       // Segments are centerlines. We will render them as centered rectangles of thickness t.
-      segs.push({ orientation: 'h', y: box.yTop, x1: box.xL, x2: box.xR, thickness: t, color });
-      segs.push({ orientation: 'h', y: box.yBot, x1: box.xL, x2: box.xR, thickness: t, color });
-      segs.push({ orientation: 'v', x: box.xL, y1: box.yTop, y2: box.yBot, thickness: t, color });
-      segs.push({ orientation: 'v', x: box.xR, y1: box.yTop, y2: box.yBot, thickness: t, color });
+      segs.push({ orientation: 'h', y: box.yTop, x1: box.xL, x2: box.xR, thickness: t, color, wallKind });
+      segs.push({ orientation: 'h', y: box.yBot, x1: box.xL, x2: box.xR, thickness: t, color, wallKind });
+      segs.push({ orientation: 'v', x: box.xL, y1: box.yTop, y2: box.yBot, thickness: t, color, wallKind });
+      segs.push({ orientation: 'v', x: box.xR, y1: box.yTop, y2: box.yBot, thickness: t, color, wallKind });
     }
     return segs;
   }
@@ -874,12 +948,21 @@ Version: v5.76
 
   function drawWallSegments(targetCtx, wallSegs) {
     // Solid, uniform walls (no alpha edge/stroke pass).
+    // If a repeating wall texture sprite exists, use it; otherwise fall back to solid color.
+    const wantTextures = !!(elSpriteToggle && elSpriteToggle.checked);
+
     for (const s of (Array.isArray(wallSegs) ? wallSegs : [])) {
       if (!s || !s.thickness) continue;
 
       const t = s.thickness;
       const half = t / 2;
-      targetCtx.fillStyle = s.color || COLORS.wall;
+
+      let fill = s.color || COLORS.wall;
+      if (wantTextures && s.wallKind === 'brick') {
+        const pat = getRepeatPatternForCtx(targetCtx, TEXTURE_FILES.wall.brick);
+        if (pat) fill = pat;
+      }
+      targetCtx.fillStyle = fill;
 
       if (s.orientation === 'h') {
         // Extend by half thickness to neatly cover corner joins.
@@ -962,7 +1045,7 @@ Version: v5.76
     if (kind === 'portal' || kind === 'connector') return;
 
     const orient = openingOrientation(opening);
-    const p = parseHex(opening.hex);
+    const p = parseOpeningHex(opening.hex);
     if (!p) return;
 
     const hexWorld = hexCenterWorld(p.col, p.row);
@@ -1003,7 +1086,7 @@ Version: v5.76
     if (kind === 'threshold' || kind === 'portal' || kind === 'connector') return;
 
     const orient = openingOrientation(opening);
-    const p = parseHex(opening.hex);
+    const p = parseOpeningHex(opening.hex);
     if (!p) return;
 
     const hexWorld = hexCenterWorld(p.col, p.row);
@@ -1124,7 +1207,7 @@ Version: v5.76
       if (kind !== 'threshold') continue;
 
       const orient = openingOrientation(o);
-      const p = parseHex(o.hex);
+      const p = parseOpeningHex(o.hex);
       if (!p) continue;
 
       const hexWorld = hexCenterWorld(p.col, p.row);
@@ -1238,7 +1321,7 @@ Version: v5.76
   function openingRoomIds(opening, roomMeta) {
     // Heuristic: sample just "inside" each side of the opening and see which room contains it.
     const orient = openingOrientation(opening);
-    const p = parseHex(opening.hex);
+    const p = parseOpeningHex(opening.hex);
     if (!p) return [];
 
     const hw = hexCenterWorld(p.col, p.row);
@@ -1550,7 +1633,7 @@ Version: v5.76
       // This does NOT affect sprite sizing.
       const isDouble = (kind === 'bed.double');
       const BOOST = 2.0;
-      const widthMul = isDouble ? 1.5 : 1.0;
+      const widthMul = isDouble ? 1.3 : 0.75;
 
       const rw = w * 0.70 * BOOST * widthMul;
       const rh = h * 0.95 * BOOST;
