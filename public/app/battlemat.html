@@ -691,11 +691,22 @@ Version: v5.90
           { id: 'Kitchen', buildingId:'CrossKeysInn', corners: ['X21','AJ21','AJ12.5','X12.5'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
         ],
         openings: [
-          { id:'kitchen_door', kind:'door', hex:'X15', orientation:'v', openPct: 0 },
+          { id: 'pub_window1', kind:'window', hex:'M20', orientation:'v' },
+          { id: 'pub_window2', kind:'window', hex:'M19', orientation:'v' },
+          { id: 'pub_window3', kind:'window', hex:'M15', orientation:'v' },
+          { id: 'pub_window4', kind:'window', hex:'M14', orientation:'v' },
+          { id: 'pub_window5', kind:'window', hex:'N12.5', orientation:'h' },
+          { id: 'pub_window5', kind:'window', hex:'O12', orientation:'h' },
+          { id: 'pub_window5', kind:'window', hex:'P12.5', orientation:'h' },
+          { id: 'pub_window5', kind:'window', hex:'Z12.5', orientation:'h' },
+          { id: 'pub_window5', kind:'window', hex:'AB12.5', orientation:'h' },
+          
+
+          { id: 'kitchen_door', kind:'door', hex:'X14', orientation:'V', openPct: 0 },
 
           // Portals
-          { id:'portal_up_AA21', kind:'portal', hex:'AA21', trigger:'enter', to:{ floorId:'upper', hex:'AC21' } },
-          { id:'portal_up_AA20', kind:'portal', hex:'AA20', trigger:'enter', to:{ floorId:'upper', hex:'AC20' } },
+          { id: 'portal_up_AA21', kind:'portal', hex:'AA21', trigger:'enter', to:{ floorId:'upper', hex:'AC21' } },
+          { id: 'portal_up_AA20', kind:'portal', hex:'AA20', trigger:'enter', to:{ floorId:'upper', hex:'AC20' } },
         ],
         objects: [
           { kind: 'table.rect', hex: 'P15', wHex: 1.6, hHex: 0.9, rotDeg: 0 },
