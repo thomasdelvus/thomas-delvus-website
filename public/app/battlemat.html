@@ -827,21 +827,20 @@ Version: v6.08
           { id: 'Hallway1', buildingId:'CrossKeysInn', corners: ['AD21','AF21','AF12','AD12'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Hallway2', buildingId:'CrossKeysInn', corners: ['R17','AD17','AD15','R15'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Hallway3', buildingId:'CrossKeysInn', corners: ['P21','R21','R12','P12'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
-          { id: '1stFloorStairsDown', buildingId:'CrossKeysInn', corners: ['Z21','AD21','AD19','Z19'], thickness: 20, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
+          { id: '1stFloorStairsDown', buildingId:'CrossKeysInn', corners: ['X21','AD21','AD19.5','X19.5'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
 
           { id: 'Bedroom1', buildingId:'CrossKeysInn', corners: ['L21','P21','P18','L18'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Bedroom2', buildingId:'CrossKeysInn', corners: ['L18','P18','P15','L15'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Bedroom3', buildingId:'CrossKeysInn', corners: ['L15','P15','P12','L12'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Bedroom4', buildingId:'CrossKeysInn', corners: ['R15','X15','X12','R12'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Bedroom5', buildingId:'CrossKeysInn', corners: ['R21','X21','X17','R17'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
-          { id: 'Bedroom5_Closet', buildingId:'CrossKeysInn', corners: ['X21','Z21','Z19','X19'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
-          { id: 'Bedroom6', buildingId:'CrossKeysInn', corners: ['Y19.5','AD19','AD17','Y17.5'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
+          { id: 'Bedroom6', buildingId:'CrossKeysInn', corners: ['Y20','AD19.5','AD17','Y17.5'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Bedroom7', buildingId:'CrossKeysInn', corners: ['X15','AD15','AD12','X12'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Bedroom8', buildingId:'CrossKeysInn', corners: ['AF15','AJ15','AJ12','AF12'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Bedroom9', buildingId:'CrossKeysInn', corners: ['AF19','AJ19','AJ15','AF15'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Bedroom10', buildingId:'CrossKeysInn', corners: ['AF21','AJ21','AJ19','AF19'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
 
-          { id: 'Flue', buildingId:'CrossKeysInn', corners: ['X19','Y19.5','Y17.5','X17'], thickness: 15, floor: { kind: 'brick' }, wall: { kind: 'wood_dark' } },
+          { id: 'Flue', buildingId:'CrossKeysInn', corners: ['X19','Y19.5','Y17.5','X17'], thickness: 15, floor: { kind: 'fog' }, wall: { kind: 'wood_dark' } },
 
           
         ],
@@ -885,10 +884,10 @@ Version: v6.08
 
           { id:'bedroom8_window1', kind:'window', hex:'AH12', orientation:'h' },
 
-          { id:'thresh_R16',  kind: 'threshold', hex: 'R16',  orientation: 'v', span: 2.4, parent: 'Hallway2' },
-          { id:'thresh_AD16', kind:'threshold', hex:'AD16', orientation:'v', span: 2.4, parent:'Hallway2' },
-          { id:'thresh_AD20', kind: 'threshold', hex: 'AD20', orientation: 'v', span: 2.4, parent: '1stFloorStairsDown' },
-          { id:'thresh_AD20', kind: 'threshold', hex: 'Q12.5', orientation: 'h', span: 2.4, parent: 'Hallway3' },
+          { id:'thresh_R16',  kind: 'threshold', hex: 'R16',  orientation: 'v', parent: 'Hallway2' },
+          { id:'thresh_AD16', kind:'threshold', hex:'AD16', orientation:'v', parent:'Hallway2' },
+          { id:'thresh_AD20', kind: 'threshold', hex: 'AD20.25', orientation: 'v', parent: '1stFloorStairsDown' },
+          { id:'thresh_AD20', kind: 'threshold', hex: 'Q12.5', orientation: 'h', parent: 'Hallway3' },
         ],
         objects: [
           // Bedroom 1
