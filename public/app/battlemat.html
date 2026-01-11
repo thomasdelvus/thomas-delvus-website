@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.08
+Version: v6.09
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.08</title>
+  <title>Battlemat Core v6.09</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.08
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.08</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.09</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.08
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.08
+  // Battlemat Core Rewrite v6.09
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.08';
+  const VERSION = 'v6.09';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -840,8 +840,6 @@ Version: v6.08
           { id: 'Bedroom9', buildingId:'CrossKeysInn', corners: ['AF19','AJ19','AJ15','AF15'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Bedroom10', buildingId:'CrossKeysInn', corners: ['AF21','AJ21','AJ19','AF19'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
 
-          { id: 'Flue', buildingId:'CrossKeysInn', corners: ['X19','Y19.5','Y17.5','X17'], thickness: 15, floor: { kind: 'fog' }, wall: { kind: 'wood_dark' } },
-
           
         ],
         openings: [
@@ -851,7 +849,6 @@ Version: v6.08
           { id: 'door_room4', kind:'door.wood', hex:'V15', orientation:'h', openPct: 1.0, hinge: 'left', swing: 1 },
 
           { id: 'door_room5', kind: 'door.wood', hex: 'V17',  orientation: 'h',  openPct: 1.0  },
-          { id: 'door_room5_closet', kind: 'door.wood', hex: 'X20',  orientation: 'v',  openPct: 1.0  },
           { id: 'door_room6', kind: 'door.wood', hex: 'AB17', orientation: 'h',  openPct: 1.0  },
           { id: 'door_room7', kind: 'door.wood', hex: 'Z15', orientation: 'h',  openPct: 1.0, hinge: 'right', swing: 1   },
           { id: 'door_room8', kind: 'door.wood', hex: 'AF13', orientation: 'v', hinge: 'left',  openPct: 1.0  },
@@ -955,7 +952,7 @@ Version: v6.08
           // Bedroom 10
           { id:'room10_bed1', kind: 'bed', hex: 'AI21', rotDeg: 90, ox: 0.00, oy: 0.00, spriteScale:2.4 },
 
-          { id:'stairs_down', kind:'stairs', hex:'AB20', wHex: 1.0, hHex: 1.09, rotDeg: 270, ox: 0.0, oy: 0.0, spriteScale:4.70 },
+          { id:'stairs_down', kind:'stairs', hex:'AB20', wHex: 1.0, hHex: 1.09, rotDeg: 270, ox: 0.0, oy: -0.50, spriteScale:4.70 },
         ],
       },
       {
@@ -1037,7 +1034,7 @@ Version: v6.08
     ],
 
     tokens: [
-      { id: 'a', name: 'Aelar', side: 'PC', hex: 'U16', label: 'A', init: 14, hp: 42, floorId: 'upper' },
+      { id: 'a', name: 'Aelar', side: 'PC', hex: 'AE19', label: 'A', init: 14, hp: 42, floorId: 'upper' },
       { id: 'b', name: 'Bran', side: 'PC', hex: 'T15', label: 'B', init: 12, hp: 35, floorId: 'ground', spriteFile: 'ranger_male.png', spriteScale: 1.00 },
       { id: 'g1', name: 'Goblin 1', side: 'NPC', hex: 'U19', label: 'G1', init: 10, hp: 8, floorId: 'upper' },
       { id: 'g2', name: 'Goblin 2', side: 'NPC', hex: 'V19', label: 'G2', init: 10, hp: 8, floorId: 'upper' },
@@ -1098,13 +1095,21 @@ Version: v6.08
     return Math.abs(v * 2 - Math.round(v * 2)) < 1e-6;
   }
 
+  // Openings (doors/windows/thresholds) may use quarter-step rows (e.g. AD20.25)
+  // to support odd hall geometries. Corners already allow arbitrary decimals.
+  function isQuarterStep(n) {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return false;
+    return Math.abs(v * 4 - Math.round(v * 4)) < 1e-6;
+  }
+
   function parseOpeningHexId(hex) {
     const m = String(hex).trim().toUpperCase().match(/^([A-Z]+)([0-9]+(?:\.[0-9]+)?)$/);
     if (!m) throw new Error('Bad opening hex: ' + hex);
 
     const col = lettersToCol(m[1]);
     const rowNum = parseFloat(m[2]);
-    if (!isHalfStep(rowNum)) throw new Error('Opening hex must be .0 or .5: ' + hex);
+    if (!isQuarterStep(rowNum)) throw new Error('Opening hex must be in 0.25 steps (e.g. 20, 20.25, 20.5, 20.75): ' + hex);
 
     return { col, row: rowNum - 1 };
   }
@@ -2769,10 +2774,13 @@ Version: v6.08
       if (!cond) throw new Error('SelfTest failed: ' + name);
     };
 
-    // half-step openings
+    // quarter-step openings (still supports .5)
     const oh = parseOpeningHexId('M12.5');
     assert('parseOpeningHexId col', oh.col === lettersToCol('M'));
-    assert('parseOpeningHexId row', Math.abs(oh.row - 11.5) < 1e-9);
+    assert('parseOpeningHexId row (.5)', Math.abs(oh.row - 11.5) < 1e-9);
+
+    const oq = parseOpeningHexId('M12.25');
+    assert('parseOpeningHexId row (.25)', Math.abs(oq.row - 11.25) < 1e-9);
 
     // integer hex
     const hh = parseHexId('U16');
