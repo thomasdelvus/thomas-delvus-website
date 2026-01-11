@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.05
+Version: v6.06
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.05</title>
+  <title>Battlemat Core v6.06</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.05
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.05</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.06</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.05
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.05
+  // Battlemat Core Rewrite v6.06
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.05';
+  const VERSION = 'v6.06';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -1527,7 +1527,7 @@ Version: v6.05
 
           ctx.save();
           ctx.translate(hingeX, hingeY);
-          ctx.rotate(swingSign * ang);
+          ctx.rotate((hingeRight ? -1 : 1) * swingSign * ang);
 
           const ok = drawSpriteContainAnchored(
             img,
@@ -2738,6 +2738,23 @@ Version: v6.05
     assert('isDoorKind door.wood', isDoorKind('door.wood') === true);
     assert('isDoorKind door.steel (prefix)', isDoorKind('door.steel') === true);
     assert('isDoorKind window false', isDoorKind('window') === false);
+
+    // door sprite swing direction should match the line-based door math for both hinge sides.
+    // Non-sprite math uses: y2 = swingSign * sin(ang) (independent of hinge side), while x flips for hingeRight.
+    // For sprite math, we rotate about hinge. Base leaf direction is +X for hinge-left, -X for hinge-right.
+    // Using rotAng = (hingeRight ? -1 : 1) * swingSign * ang preserves y2 sign across hinge sides.
+    {
+      const ang = 0.75; // arbitrary radians
+      for (const hingeRight of [false, true]) {
+        for (const swingSign of [-1, 1]) {
+          const baseX = hingeRight ? -1 : 1;
+          const rotAng = (hingeRight ? -1 : 1) * swingSign * ang;
+          const ySprite = baseX * Math.sin(rotAng);
+          const yLine = swingSign * Math.sin(ang);
+          assert('door sprite swing matches line (hingeRight=' + hingeRight + ', swing=' + swingSign + ')', Math.abs(ySprite - yLine) < 1e-12);
+        }
+      }
+    }
 
     // door sprite scaling (openings)
     const doorDef = getSpriteDef('door.wood');
