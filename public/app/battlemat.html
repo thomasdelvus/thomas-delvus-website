@@ -1,6 +1,6 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.09
+Version: v6.10
 -->
 <!doctype html>
 <html lang="en">
@@ -254,7 +254,7 @@ Version: v6.09
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.09';
+  const VERSION = 'v6.10';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -889,7 +889,6 @@ Version: v6.09
           { id:'thresh_R16',  kind: 'threshold', hex: 'R16',  orientation: 'v', parent: 'Hallway2' },
           { id:'thresh_AD16', kind:'threshold', hex:'AD16', orientation:'v', parent:'Hallway2' },
           { id:'thresh_AD20', kind: 'threshold', hex: 'AD20.25', orientation: 'v', parent: '1stFloorStairsDown' },
-          { id:'thresh_AD20', kind: 'threshold', hex: 'Q12.5', orientation: 'h', parent: 'Hallway3' },
         ],
         objects: [
           // Bedroom 1
