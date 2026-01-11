@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.06
+Version: v6.07
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.06</title>
+  <title>Battlemat Core v6.07</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.06
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.06</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.07</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.06
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.06
+  // Battlemat Core Rewrite v6.07
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.06';
+  const VERSION = 'v6.07';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -2373,9 +2373,12 @@ Version: v6.06
 
   // ===== Main render =====
   function clear() {
-    const rect = canvas.getBoundingClientRect();
-    const w = Math.max(1, rect.width);
-    const h = Math.max(1, rect.height);
+    // Use backing-store derived CSS size so we always cover the full drawable area.
+    // This prevents 1px edge seams that can appear on the right/bottom when the
+    // layout produces fractional CSS pixels.
+    const d = Number(VIEW && VIEW.dpr) || 1;
+    const w = Math.max(1, canvas.width / d);
+    const h = Math.max(1, canvas.height / d);
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, w, h);
   }
@@ -2651,10 +2654,18 @@ Version: v6.06
     syncZoomUI();
 
     const wrap = document.getElementById('canvasWrap');
-    const rect = wrap.getBoundingClientRect();
 
-    const cssW = Math.max(1, Math.floor(rect.width));
-    const cssH = Math.max(1, Math.floor(rect.height));
+    // Prefer integer CSS sizes (clientWidth/Height) to avoid fractional px gaps that
+    // can show up as a 1px line along the right/bottom edge.
+    let cssW = Math.max(1, wrap ? wrap.clientWidth : 1);
+    let cssH = Math.max(1, wrap ? wrap.clientHeight : 1);
+
+    // Fallback: if layout is mid-transition and client sizes are 0, use a rounded rect.
+    if (wrap && (cssW <= 1 || cssH <= 1)) {
+      const rect = wrap.getBoundingClientRect();
+      cssW = Math.max(1, Math.round(rect.width));
+      cssH = Math.max(1, Math.round(rect.height));
+    }
 
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     const scale = dpr * SUPERSAMPLE;
