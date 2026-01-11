@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v5.99
+Version: v6.02
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v5.99</title>
+  <title>Battlemat Core v6.02</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v5.99
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.99</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.02</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v5.99
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v5.99
+  // Battlemat Core Rewrite v6.01
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v5.99';
+  const VERSION = 'v6.02';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -533,6 +533,11 @@ Version: v5.99
       'cooking.hearth': { file: 'cooking_hearth.png', rotate: 'deg' },
       'stairs':      { file: 'stairs.png', rotate: 'deg' },
 
+      // Doors (prefer dot-style kinds, but keep aliases for convenience/compat)
+      'door':         { file: 'door_wood.png', rotate: 'none' },
+      'door.wood':    { file: 'door_wood.png', rotate: 'none' },
+      'door_wood':    { file: 'door_wood.png', rotate: 'none' },
+
       // Tokens (optional)
       'token.pc':    { file: 'token_pc.png', rotate: 'none' },
       'token.npc':   { file: 'token_npc.png', rotate: 'none' },
@@ -585,6 +590,23 @@ Version: v5.99
     if (rotRad) ctx.rotate(rotRad);
     ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
     ctx.restore();
+    return true;
+  }
+
+  function drawSpriteContainAnchored(img, x, y, w, h, anchorX = 0.5, anchorY = 0.5) {
+    // "Contain" fit, but with a specific anchor point (0..1) inside the drawn sprite.
+    if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return false;
+
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    const s = Math.min(w / iw, h / ih);
+    const dw = iw * s;
+    const dh = ih * s;
+
+    const ax = clamp(Number(anchorX), 0, 1);
+    const ay = clamp(Number(anchorY), 0, 1);
+
+    ctx.drawImage(img, x - dw * ax, y - dh * ay, dw, dh);
     return true;
   }
 
@@ -820,18 +842,18 @@ Version: v5.99
           { id: 'Bedroom10', buildingId:'CrossKeysInn', corners: ['AF21','AJ21','AJ19','AF19'], thickness: 20, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
         ],
         openings: [
-          { id: 'door_room1', kind: 'door', hex: 'P19',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1  },
-          { id: 'door_room2', kind: 'door', hex: 'P16',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1 },
-          { id: 'door_room3', kind: 'door', hex: 'P13',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1  },
-          { id: 'door_room4', kind:'door', hex:'V15', orientation:'h', openPct: 1.0, hinge: 'left', swing: 1 },
+          { id: 'door_room1', kind: 'door.wood', hex: 'P19',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1  },
+          { id: 'door_room2', kind: 'door.wood', hex: 'P16',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1 },
+          { id: 'door_room3', kind: 'door.wood', hex: 'P13',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1  },
+          { id: 'door_room4', kind:'door.wood', hex:'V15', orientation:'h', openPct: 1.0, hinge: 'left', swing: 1 },
 
-          { id: 'door_room5', kind: 'door', hex: 'V17',  orientation: 'h',  openPct: 1.0  },
-          { id: 'door_room5_closet', kind: 'door', hex: 'X20',  orientation: 'v',  openPct: 1.0  },
-          { id: 'door_room6', kind: 'door', hex: 'AB17', orientation: 'h',  openPct: 1.0  },
-          { id: 'door_room7', kind: 'door', hex: 'Z15', orientation: 'h',  openPct: 1.0, hinge: 'right', swing: 1   },
-          { id: 'door_room8', kind: 'door', hex: 'AF13', orientation: 'v', hinge: 'left',  openPct: 1.0  },
-          { id: 'door_room9', kind: 'door', hex: 'AF17', orientation: 'v',  openPct: 1.0  },
-          { id: 'door_room10',kind: 'door', hex: 'AF20', orientation: 'v',  openPct: 1.0  },
+          { id: 'door_room5', kind: 'door.wood', hex: 'V17',  orientation: 'h',  openPct: 1.0  },
+          { id: 'door_room5_closet', kind: 'door.wood', hex: 'X20',  orientation: 'v',  openPct: 1.0  },
+          { id: 'door_room6', kind: 'door.wood', hex: 'AB17', orientation: 'h',  openPct: 1.0  },
+          { id: 'door_room7', kind: 'door.wood', hex: 'Z15', orientation: 'h',  openPct: 1.0, hinge: 'right', swing: 1   },
+          { id: 'door_room8', kind: 'door.wood', hex: 'AF13', orientation: 'v', hinge: 'left',  openPct: 1.0  },
+          { id: 'door_room9', kind: 'door.wood', hex: 'AF17', orientation: 'v',  openPct: 1.0  },
+          { id: 'door_room10',kind: 'door.wood', hex: 'AF20', orientation: 'v',  openPct: 1.0  },
 
           // Portals
           { id:'portal_down_AB20', kind:'portal', hex:'AB20', trigger:'enter', to:{ floorId:'ground', hex:'Z20' } },
@@ -1342,11 +1364,31 @@ Version: v5.99
     return clamp(Number.isFinite(s) ? s : 1, 0.5, 4);
   }
 
+  function isDoorKind(kind) {
+    const k = String(kind || '').toLowerCase();
+    return (k === 'door' || k.startsWith('door_') || k.startsWith('door.'));
+  }
+
   // Pixel padding applied to wall cutouts / seam fills.
-  // Thresholds must match the parent floor rect exactly (no padding).
-  function openingPadPx(opening) {
+  // To avoid 1px seams at certain zoom levels, we apply a small buffer.
+  // For thresholds, we ONLY buffer in the axis perpendicular to the opening orientation:
+  //   - vertical threshold (orientation 'v') => widen horizontally (+4px)
+  //   - horizontal threshold (orientation 'h') => widen vertically (+4px)
+  // This keeps the threshold span aligned to the parent floor, while still covering subpixel seams.
+  function openingPadAxes(opening) {
     const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
-    return (kind === 'threshold') ? 0 : 4;
+    const orient = openingOrientation(opening);
+
+    // No padding needed for portals (they don't cut walls/floors).
+    if (kind === 'portal' || kind === 'connector') return { x: 0, y: 0 };
+
+    // Thresholds: buffer only perpendicular to the opening orientation.
+    if (kind === 'threshold') {
+      return (orient === 'v') ? { x: 4, y: 0 } : { x: 0, y: 4 };
+    }
+
+    // Doors/windows: small buffer in both axes helps hide seams.
+    return { x: 4, y: 4 };
   }
 
   // Opening length in world-units (CSS px). For thresholds, we auto-size to the parent room's
@@ -1391,13 +1433,14 @@ Version: v5.99
     const thickness = seg ? seg.thickness : 28;
 
     const centerS = worldToScreen({ x: cx, y: cy });
-    const pad = openingPadPx(opening);
-    const cutH = thickness + pad;
-    const cutW = len + pad;
+    const pad = openingPadAxes(opening);
 
     // Axis-aligned screen rect (no rotation) so this matches seam fills exactly.
-    const w = (orient === 'v') ? cutH : cutW;
-    const h = (orient === 'v') ? cutW : cutH;
+    // Base rect dimensions depend on orientation, then we apply axis-specific padding.
+    const baseW = (orient === 'v') ? thickness : len;
+    const baseH = (orient === 'v') ? len : thickness;
+    const w = baseW + (pad.x || 0);
+    const h = baseH + (pad.y || 0);
 
     const rr = snappedRectFromCenter(centerS, w, h);
     if (rr.w > 0 && rr.h > 0) targetCtx.fillRect(rr.x, rr.y, rr.w, rr.h);
@@ -1446,6 +1489,42 @@ Version: v5.99
 
       ctx.restore();
       return;
+    }
+
+    // Door sprites (e.g. kind: 'door_wood')
+    if (isDoorKind(kind) && (elSpriteToggle && elSpriteToggle.checked)) {
+      const def = getSpriteDef(kind);
+      if (def) {
+        const img = loadSprite(def.file);
+        if (img && img.complete && img.naturalWidth && img.naturalHeight) {
+          const hingeSide = String(opening && opening.hinge != null ? opening.hinge : 'left').toLowerCase();
+          const hingeRight = (hingeSide === 'right' || hingeSide === 'r');
+
+          const rawSwing = Number(opening && (opening.swing ?? opening.swingDir ?? opening.polarity));
+          const swingSign = (rawSwing === 1 || rawSwing === -1) ? rawSwing : -1;
+
+          const hingeX = hingeRight ? (len / 2) : (-len / 2);
+          const hingeY = 0;
+
+          const leafLen = len * 0.80;
+          const boxW = leafLen;
+          const boxH = thickness * 1.25;
+
+          const ang = openPct * (Math.PI / 2);
+
+          ctx.save();
+          ctx.translate(hingeX, hingeY);
+          ctx.rotate(swingSign * ang);
+
+          const ok = drawSpriteContainAnchored(img, 0, 0, boxW, boxH, hingeRight ? 1 : 0, 0.5);
+          ctx.restore();
+
+          if (ok) {
+            ctx.restore();
+            return;
+          }
+        }
+      }
     }
 
     ctx.strokeStyle = COLORS.door;
@@ -1599,7 +1678,8 @@ Version: v5.99
 
     for (const o of (Array.isArray(openings) ? openings : [])) {
       const kind = String(o && o.kind ? o.kind : '').toLowerCase();
-      if (kind !== 'threshold' && kind !== 'door' && kind !== 'portal') continue;
+      const isDoor = isDoorKind(kind);
+      if (kind !== 'threshold' && !isDoor && kind !== 'portal') continue;
 
       const orient = openingOrientation(o);
       const p = parseOpeningHex(o.hex);
@@ -1615,13 +1695,13 @@ Version: v5.99
       const thickness = seg ? seg.thickness : 28;
 
       const centerS = worldToScreen({ x: cx, y: cy });
-      const pad = openingPadPx(o);
-      const cutH = thickness + pad;
-      const cutW = len + pad;
+      const pad = openingPadAxes(o);
 
       // Axis-aligned screen-space rect so patterns stay aligned with the floor.
-      const w = (orient === 'v') ? cutH : cutW;
-      const h = (orient === 'v') ? cutW : cutH;
+      const baseW = (orient === 'v') ? thickness : len;
+      const baseH = (orient === 'v') ? len : thickness;
+      const w = baseW + (pad.x || 0);
+      const h = baseH + (pad.y || 0);
 
       ctx.save();
       ctx.fillStyle = openingKnockoutFill(o, rooms, fogEnabled, wantTextures);
@@ -1721,7 +1801,7 @@ Version: v5.99
       if (k === 'portal' || k === 'connector') continue;
 
       const openPct = clamp(Number(o && o.openPct != null ? o.openPct : 0), 0, 1);
-      const isOpenForSight = (k === 'threshold') || (k === 'window') || (k === 'door' && openPct >= 0.5);
+      const isOpenForSight = (k === 'threshold') || (k === 'window') || (isDoorKind(k) && openPct >= 0.5);
       if (!isOpenForSight) continue;
 
       const ids = openingRoomIds(o, roomMeta);
@@ -2615,9 +2695,20 @@ Version: v5.99
     const noParent = { kind: 'threshold', hex: 'B5', orientation: 'h', span: 2 };
     assert('openingLengthWorld threshold fallback to span', Math.abs(openingLengthWorld(noParent, testRooms) - (GRID.size * 1.2 * 2)) < 1e-6);
 
-    // opening padding
-    assert('openingPadPx threshold is 0', openingPadPx({ kind: 'threshold' }) === 0);
-    assert('openingPadPx door default is 4', openingPadPx({ kind: 'door' }) === 4);
+    // opening padding (axis-specific)
+    const pV = openingPadAxes({ kind: 'threshold', orientation: 'v' });
+    const pH = openingPadAxes({ kind: 'threshold', orientation: 'h' });
+    assert('openingPadAxes threshold v pads X only', pV.x === 4 && pV.y === 0);
+    assert('openingPadAxes threshold h pads Y only', pH.x === 0 && pH.y === 4);
+    const pD = openingPadAxes({ kind: 'door', orientation: 'v' });
+    assert('openingPadAxes door pads both axes', pD.x === 4 && pD.y === 4);
+
+    // door kind detection
+    assert('isDoorKind door', isDoorKind('door') === true);
+    assert('isDoorKind door_wood', isDoorKind('door_wood') === true);
+    assert('isDoorKind door.wood', isDoorKind('door.wood') === true);
+    assert('isDoorKind door.steel (prefix)', isDoorKind('door.steel') === true);
+    assert('isDoorKind window false', isDoorKind('window') === false);
 
     // query parsing
     const qp = getQueryParams('?stateUrl=%2Fdata%2Fbattle.json&pollMs=1500');
