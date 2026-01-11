@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.06
+Version: v6.07
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.06</title>
+  <title>Battlemat Core v6.07</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.06
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.06</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.07</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.06
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.06
+  // Battlemat Core Rewrite v6.07
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.06';
+  const VERSION = 'v6.07';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -2653,8 +2653,14 @@ Version: v6.06
     const wrap = document.getElementById('canvasWrap');
     const rect = wrap.getBoundingClientRect();
 
-    const cssW = Math.max(1, Math.floor(rect.width));
-    const cssH = Math.max(1, Math.floor(rect.height));
+    // IMPORTANT: avoid fractional CSS sizing drift (can show as a 1px line on right/bottom).
+    // We quantize the canvas' CSS size to integer pixels and match the backing store to it.
+    const cssW = Math.max(1, Math.round(rect.width));
+    const cssH = Math.max(1, Math.round(rect.height));
+
+    // Force the element's CSS size to match our integer sizing so the browser doesn't resample.
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
 
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     const scale = dpr * SUPERSAMPLE;
