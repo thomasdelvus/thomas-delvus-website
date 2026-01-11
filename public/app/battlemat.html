@@ -827,13 +827,15 @@ Version: v6.09
           { id: 'Hallway1', buildingId:'CrossKeysInn', corners: ['AD21','AF21','AF12','AD12'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Hallway2', buildingId:'CrossKeysInn', corners: ['R17','AD17','AD15','R15'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Hallway3', buildingId:'CrossKeysInn', corners: ['P21','R21','R12','P12'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
-          { id: '1stFloorStairsDown', buildingId:'CrossKeysInn', corners: ['X21','AD21','AD19.5','X19.5'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
+          { id: '1stFloorStairsDown', buildingId:'CrossKeysInn', corners: ['Z21','AD21','AD19.5','Z19.5'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
 
           { id: 'Bedroom1', buildingId:'CrossKeysInn', corners: ['L21','P21','P18','L18'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Bedroom2', buildingId:'CrossKeysInn', corners: ['L18','P18','P15','L15'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Bedroom3', buildingId:'CrossKeysInn', corners: ['L15','P15','P12','L12'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Bedroom4', buildingId:'CrossKeysInn', corners: ['R15','X15','X12','R12'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Bedroom5', buildingId:'CrossKeysInn', corners: ['R21','X21','X17','R17'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
+          { id: 'Bedroom5_closet', buildingId:'CrossKeysInn', corners: ['X21','Z21','Z19.5','X19.5'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
+
           { id: 'Bedroom6', buildingId:'CrossKeysInn', corners: ['Y20','AD19.5','AD17','Y17.5'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Bedroom7', buildingId:'CrossKeysInn', corners: ['X15','AD15','AD12','X12'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Bedroom8', buildingId:'CrossKeysInn', corners: ['AF15','AJ15','AJ12','AF12'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
@@ -843,12 +845,15 @@ Version: v6.09
           
         ],
         openings: [
+       
           { id: 'door_room1', kind: 'door.wood', hex: 'P19',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1  },
           { id: 'door_room2', kind: 'door.wood', hex: 'P16',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1 },
           { id: 'door_room3', kind: 'door.wood', hex: 'P13',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1  },
           { id: 'door_room4', kind:'door.wood', hex:'V15', orientation:'h', openPct: 1.0, hinge: 'left', swing: 1 },
 
           { id: 'door_room5', kind: 'door.wood', hex: 'V17',  orientation: 'h',  openPct: 1.0  },
+          { id: 'door_to_closet', kind:'door', hex:'X20.25', orientation:'v', openPct: 1.0 },
+
           { id: 'door_room6', kind: 'door.wood', hex: 'AB17', orientation: 'h',  openPct: 1.0  },
           { id: 'door_room7', kind: 'door.wood', hex: 'Z15', orientation: 'h',  openPct: 1.0, hinge: 'right', swing: 1   },
           { id: 'door_room8', kind: 'door.wood', hex: 'AF13', orientation: 'v', hinge: 'left',  openPct: 1.0  },
@@ -961,9 +966,9 @@ Version: v6.09
         rooms: [
           { id: 'CrossKeysGroundFloor', buildingId:'CrossKeysInn', corners: ['M21.5','AJ21','AJ12.5','M13'], thickness: 15, floor: { kind: 'fog' }, wall: { kind: 'brick' } },
           { id: 'Pub', buildingId:'CrossKeysInn', corners: ['M21.5','X21','X12.5','M13'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
-          { id: 'Kitchen', buildingId:'CrossKeysInn', corners: ['X19','AJ19','AJ12.5','X12.5'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
-          { id: 'StairsUp', buildingId:'CrossKeysInn', corners: ['X21','AE21.5','AE19.5','X19'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
-          { id: 'KitchenEntry', buildingId:'CrossKeysInn', corners: ['AE21.5','AJ21','AJ19','AE19.5'], thickness: 15, floor: { kind: 'brick' }, wall: { kind: 'brick' } },
+          { id: 'Kitchen', buildingId:'CrossKeysInn', corners: ['X19.5','AJ19.5','AJ12.5','X12.5'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
+          { id: 'StairsUp', buildingId:'CrossKeysInn', corners: ['X21','AC21.5','AC20','X19.5'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
+          { id: 'Pantry', buildingId:'CrossKeysInn', corners: ['AC21.5','AJ21','AJ19.5','AC20'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
 
         ],
         openings: [
@@ -978,7 +983,7 @@ Version: v6.09
           { id: 'pub_window9', kind:'window', hex:'AB12.5', orientation:'h' },
 
           { id: 'kitchen_door', kind:'door', hex:'X14', orientation:'v', openPct: 1.0 },
-          { id: 'door_to_upstairs', kind:'door', hex:'X20', orientation:'v', openPct: 1.0 },
+          { id: 'door_to_upstairs', kind:'door', hex:'X20.25', orientation:'v', openPct: 1.0 },
           { id: 'door_out1', kind:'door', hex:'M17', orientation:'v', openPct: 1.0 },
           { id: 'door_out2', kind:'door', hex:'U13', orientation:'h', openPct: 1.0 },
 
