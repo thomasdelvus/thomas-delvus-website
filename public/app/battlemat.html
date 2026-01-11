@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.04
+Version: v6.05
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.04</title>
+  <title>Battlemat Core v6.05</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.04
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.04</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.05</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.04
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.04
+  // Battlemat Core Rewrite v6.05
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.04';
+  const VERSION = 'v6.05';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -1172,7 +1172,10 @@ Version: v6.04
     const yTop = (pTL.y + pTR.y) / 2;
     const yBot = (pBL.y + pBR.y) / 2;
 
-    const thickness = Number(room && room.thickness != null ? room.thickness : 20);
+    const thicknessBase = Number(room && room.thickness != null ? room.thickness : 20);
+    // room.thickness is specified at 100% zoom; scale by ZOOM so walls stay proportional.
+    const thickness = thicknessBase * (Number(ZOOM) || 1);
+
     const t = roomHasWalls(room) ? thickness : 0;
 
     const half = t / 2;
@@ -2766,6 +2769,15 @@ Version: v6.04
     applyZoom();
     assert('applyZoom sets GRID.size', Math.abs(GRID.size - base * 1.35) < 1e-9);
     ZOOM = prev;
+    applyZoom();
+
+    // wall thickness scales with zoom
+    const prevZ = ZOOM;
+    ZOOM = 2;
+    const wtRoom = { id: 'WallTest', corners: ['A6','D6','D3','A3'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } };
+    const wtBox = roomToWallBox(wtRoom);
+    assert('roomToWallBox thickness scales with ZOOM', Math.abs(wtBox.thickness - 40) < 1e-9);
+    ZOOM = prevZ;
     applyZoom();
 
     // snap to device pixels (prevents 1px seams at high zoom)
