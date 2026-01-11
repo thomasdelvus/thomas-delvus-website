@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v5.92
+Version: v5.95
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v5.92</title>
+  <title>Battlemat Core v5.95</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v5.92
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.90</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.95</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -226,6 +226,12 @@ Version: v5.92
         <button id="btnDown">↓</button>
         <button id="btnRight">→</button>
       </div>
+
+      <div class="dpad" title="Zoom">
+        <button id="btnZoomOut">−</button>
+        <button id="btnZoomIn">+</button>
+      </div>
+      <div class="mini" title="Map zoom"><span id="zoomText">100%</span></div>
     </div>
   </div>
 
@@ -244,11 +250,11 @@ Version: v5.92
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v5.90
+  // Battlemat Core Rewrite v5.95
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v5.92';
+  const VERSION = 'v5.95';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -278,6 +284,7 @@ Version: v5.92
 
   const GRID = {
     // Flat-top hex geometry: size is center-to-vertex.
+    baseSize: 42,
     size: 42,
     lineWidth: 2,
     lineAlpha: 0.10,
@@ -316,10 +323,6 @@ Version: v5.92
     fogExplored: 'rgb(170,170,170)',
   };
 
-  // NOTE: We generally avoid per-kind scaling in objectSizePx because it also changes sprite sizing.
-  // Placeholder shapes can have their own internal proportions.
-  const OBJECT_KIND_SCALE = {}; // kept for future use, but currently unused
-
   const VIEW = {
     // Camera is in hex coords (col,row), row 0 is "row 1" at the bottom.
     camera: { col: 6, row: 6 },
@@ -339,16 +342,9 @@ Version: v5.92
 
   const PAN_STEP = 2;
   const STORAGE_SS = 'battlemat.supersample';
+  const STORAGE_ZOOM = 'battlemat.zoom';
 
   // ===== Remote state (DB/API) =====
-  // If provided, we will fetch JSON state from a URL and keep it updated via polling.
-  // Priority (highest first):
-  //  1) ?stateUrl=... (URL-encoded)
-  //  2) window.BATTLE_STATE_URL
-  //  3) window.BATTLE_STATE (injected object/string)
-  //  4) DEFAULT_STATE
-  //
-  // Polling interval default: 1000ms. Set ?pollMs=0 or window.BATTLE_STATE_POLL_MS=0 to disable polling.
   const DEFAULT_POLL_MS = 1000;
   let CURRENT_STATE = null;
   let STATE_URL = null;
@@ -592,9 +588,6 @@ Version: v5.92
   }
 
   // ===== Repeat textures (optional) =====
-  // Uses the same /assets/sprites/ folder as normal sprites.
-  // Patterns often need to be *scaled* ("tiny bricks") to look right.
-  // We hardcode those scales here so rooms don't have to pass parameters everywhere.
   const TEXTURE_DEFS = {
     aliases: {
       wall: { brick: 'stone_brick_red' },
@@ -623,7 +616,6 @@ Version: v5.92
       cobble:           { file: 'stone_cobble.png',     scale: 0.45 },
       stone:            { file: 'stone_cobble.png',     scale: 0.45 },
       brick:            { file: 'brick_gray.png',       scale: 0.45 },
-
     },
 
     floor: {
@@ -638,14 +630,11 @@ Version: v5.92
       brick_red:        { file: 'brick_red.png',        scale: 0.40 },
       brick_dark:       { file: 'brick_dark.png',       scale: 0.40 },
 
-
       // Convenience / compatibility
       wood:             { file: 'wood_oak.png',         scale: 0.50 },
       cobble:           { file: 'stone_cobble.png',     scale: 0.45 },
       stone:            { file: 'stone_cobble.png',     scale: 0.45 },
       brick:            { file: 'brick_gray.png',       scale: 0.45 },
-
-
     }
   };
 
@@ -671,15 +660,25 @@ Version: v5.92
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const isFiniteNum = (v) => Number.isFinite(Number(v));
 
+  // ===== Supersample + Zoom =====
+  let SUPERSAMPLE = 1;
+  let ZOOM = 1;
+
+  function effectivePatternScale(defScale) {
+    // Patterns should zoom with the map so tiles stay visually consistent.
+    return clamp((Number(defScale) || 1) * (Number(ZOOM) || 1), 0.02, 10);
+  }
+
   function getRepeatPatternForCtx(targetCtx, tex) {
     const file = (typeof tex === 'string') ? tex : (tex && tex.file);
-    const scale = (tex && typeof tex === 'object' && isFiniteNum(tex.scale)) ? Number(tex.scale) : 1;
+    const defScale = (tex && typeof tex === 'object' && isFiniteNum(tex.scale)) ? Number(tex.scale) : 1;
 
     const f = String(file || '').trim();
     if (!f) return null;
 
     const ctxKey = (targetCtx === wallCtx) ? 'wall' : 'main';
-    const key = ctxKey + '|' + f + '|s=' + String(scale);
+    const effScale = effectivePatternScale(defScale);
+    const key = ctxKey + '|' + f + '|s=' + String(effScale.toFixed(4));
 
     const cached = PATTERN_CACHE.get(key);
     if (cached && cached.pattern) return cached.pattern;
@@ -691,14 +690,14 @@ Version: v5.92
     if (!pat) return null;
 
     if (typeof pat.setTransform === 'function') {
-      pat.setTransform(new DOMMatrix([scale, 0, 0, scale, 0, 0]));
+      pat.setTransform(new DOMMatrix([effScale, 0, 0, effScale, 0, 0]));
       PATTERN_CACHE.set(key, { pattern: pat });
       return pat;
     }
 
     // Fallback: pre-scale into an offscreen tile canvas, then pattern that.
-    const tw = Math.max(1, Math.round(img.naturalWidth * scale));
-    const th = Math.max(1, Math.round(img.naturalHeight * scale));
+    const tw = Math.max(1, Math.round(img.naturalWidth * effScale));
+    const th = Math.max(1, Math.round(img.naturalHeight * effScale));
     const tile = document.createElement('canvas');
     tile.width = tw;
     tile.height = th;
@@ -714,8 +713,47 @@ Version: v5.92
     return pat2;
   }
 
+  function readSupersample() {
+    const raw = localStorage.getItem(STORAGE_SS);
+    const v = parseFloat(raw != null ? raw : '1');
+    if (!Number.isFinite(v)) return 1;
+    return clamp(v, 1, 3);
+  }
+
+  function setSupersample(v) {
+    const n = clamp(parseFloat(String(v)), 1, 3);
+    localStorage.setItem(STORAGE_SS, String(n));
+    SUPERSAMPLE = n;
+    if (elSsSelect) elSsSelect.value = String(n);
+    resize();
+  }
+
+  function readZoom() {
+    const raw = localStorage.getItem(STORAGE_ZOOM);
+    const v = parseFloat(raw != null ? raw : '1');
+    if (!Number.isFinite(v)) return 1;
+    return clamp(v, 0.60, 2.25);
+  }
+
+  function applyZoom() {
+    GRID.size = GRID.baseSize * ZOOM;
+  }
+
+  function syncZoomUI() {
+    const el = document.getElementById('zoomText');
+    if (el) el.textContent = Math.round(ZOOM * 100) + '%';
+  }
+
+  function setZoom(v, opts = {}) {
+    const n = clamp(parseFloat(String(v)), 0.60, 2.25);
+    ZOOM = n;
+    applyZoom();
+    if (opts.persist !== false) localStorage.setItem(STORAGE_ZOOM, String(n));
+    syncZoomUI();
+    safeRedraw();
+  }
+
   // ===== Canonical state (demo) =====
-  // If your real page injects state, set window.BATTLE_STATE.
   const DEFAULT_STATE = {
     meta: { title: 'Cross Keys Inn — Demo (upper + ground)', battleId: 'local', round: 1 },
 
@@ -807,43 +845,43 @@ Version: v5.92
 
           { id:'thresh_R16',  kind: 'threshold', hex: 'R16',  orientation: 'v', span: 2.4, parent: 'Hallway2' },
           { id:'thresh_AD16', kind:'threshold', hex:'AD16', orientation:'v', span: 2.4, parent:'Hallway2' },
-          { id:'thresh_AD20', kind: 'threshold', hex: 'AD20', orientation: 'v', span: 2.4, parent: 'Hallway1' },
+          { id:'thresh_AD20', kind: 'threshold', hex: 'AD20', orientation: 'v', span: 2.4, parent: '1stFloorStairsDown' },
         ],
         objects: [
-          { id:'room1_bed1', kind: 'bed', hex: 'M21', rotDeg: 0, ox: 0.00, oy: 0.70, spriteScale:2.4 },
+          { id:'room1_bed1', kind: 'bed', hex: 'M21', rotDeg: 0, ox: 0.00, oy: 0.70, spriteScale:2.75 },
           { id:'room1_bed2', kind: 'bed', hex: 'N20', rotDeg: 0, ox: 0.00, oy: -0.17, spriteScale:2.75 },
           { id:'room1_bed3', kind: 'bed', hex: 'O21', rotDeg: 0, ox: 0.00, oy: 0.70, spriteScale:2.75 },
 
           { id:'room2_bed1', kind: 'bed', hex: 'M18', wHex: 1.0, hHex: 1.0, rotDeg: 270, ox: 0.00, oy: 0.00, spriteScale:2.75 },
-          { id:'room2_bed2', kind: 'bed', hex: 'M16', wHex: 1.0, hHex: 1.0, rotDeg: 270, ox: 0.00, oy: -0.00, spriteScale:2.75 },
+          { id:'room2_bed2', kind: 'bed', hex: 'M16', wHex: 1.0, hHex: 1.0, rotDeg: 270, ox: 0.00, oy: 0.00, spriteScale:2.75 },
 
           { id:'room3_bed1', kind: 'bed', hex: 'M15', wHex: 1.0, hHex: 1.0, rotDeg: 0, ox: 0.00, oy: 0.70, spriteScale:2.75 },
           { id:'room3_bed2', kind: 'bed', hex: 'N14', wHex: 1.0, hHex: 1.0, rotDeg: 0, ox: 0.00, oy: -0.17, spriteScale:2.75 },
           { id:'room3_bed3', kind: 'bed', hex: 'O15', wHex: 1.0, hHex: 1.0, rotDeg: 0, ox: 0.00, oy: 0.70, spriteScale:2.75 },
 
-          { id:'room4_bed', kind: 'bed.double', hex: 'S14', wHex: 1.0, hHex: 1.0, rotDeg: 270, ox: 0.00, oy: -0.00, spriteScale:2.4 },
-          { id:'room4_chair1', kind: 'chair', hex: 'W14', rotDeg: 60, ox: -0.20, oy: -0.00, spriteScale:0.75  },
-          { id:'room4_chair2', kind: 'chair', hex: 'W13', rotDeg: 120, ox: -0.20, oy: -0.00, spriteScale:0.75  },
-          { id:'room4_chair3', kind: 'chair', hex: 'U13', rotDeg: 240, ox: 0.20, oy: -0.00, spriteScale:0.75  },
+          { id:'room4_bed', kind: 'bed.double', hex: 'S14', wHex: 1.0, hHex: 1.0, rotDeg: 270, ox: 0.00, oy: 0.00, spriteScale:3.0 },
+          { id:'room4_chair1', kind: 'chair', hex: 'W14', rotDeg: 60, ox: -0.20, oy: 0.00, spriteScale:0.75  },
+          { id:'room4_chair2', kind: 'chair', hex: 'W13', rotDeg: 120, ox: -0.20, oy: 0.00, spriteScale:0.75  },
+          { id:'room4_chair3', kind: 'chair', hex: 'U13', rotDeg: 240, ox: 0.20, oy: 0.00, spriteScale:0.75  },
           { id:'room4_table', kind: 'table.round', hex: 'V13', wHex: 1.1, hHex: 1.1, rotDeg: 0, spriteScale:1.5 },
           { id:'room4_chest', kind: 'chest', hex: 'U15', rotDeg: 0, scale: 1.0, spriteScale:0.75 },
           { id:'room4_hearth', kind: 'hearth', hex: 'W15', rotDeg: 0, ox: 0.00, oy: -0.30 },
 
-          { id:'room5_bed', kind: 'bed.double', hex: 'S20', wHex: 1.0, hHex: 1.0, rotDeg: 270, ox: 0.00, oy: -0.00, spriteScale:3.0 },
-          { id:'room5_chair1', kind: 'chair', hex: 'W21', rotDeg: 60, ox: -0.20, oy: -0.00, spriteScale:0.75  },
-          { id:'room5_chair2', kind: 'chair', hex: 'W20', rotDeg: 120, ox: -0.20, oy: -0.00, spriteScale:0.75  },
-          { id:'room5_chair3', kind: 'chair', hex: 'U20', rotDeg: 240, ox: 0.20, oy: -0.00, spriteScale:0.75  },
-          { id:'room5_chair4', kind: 'chair', hex: 'U21', rotDeg: 300, ox: 0.20, oy: -0.00, spriteScale:0.75  },
+          { id:'room5_bed', kind: 'bed.double', hex: 'S20', wHex: 1.0, hHex: 1.0, rotDeg: 270, ox: 0.00, oy: 0.00, spriteScale:3.0 },
+          { id:'room5_chair1', kind: 'chair', hex: 'W21', rotDeg: 60, ox: -0.20, oy: 0.00, spriteScale:0.75  },
+          { id:'room5_chair2', kind: 'chair', hex: 'W20', rotDeg: 120, ox: -0.20, oy: 0.00, spriteScale:0.75  },
+          { id:'room5_chair3', kind: 'chair', hex: 'U20', rotDeg: 240, ox: 0.20, oy: 0.00, spriteScale:0.75  },
+          { id:'room5_chair4', kind: 'chair', hex: 'U21', rotDeg: 300, ox: 0.20, oy: 0.00, spriteScale:0.75  },
           { id:'room5_table', kind: 'table.round', hex: 'V20', wHex: 1.1, hHex: 1.1, rotDeg: 0, spriteScale:1.5 },
           { id:'room5_chest', kind: 'chest', hex: 'S18', rotDeg: 0, scale: 1.0, spriteScale:0.75 },
-          { id:'room5_hearth', kind: 'hearth', hex: 'X18', rotDeg: 90, ox: -0.56, oy: -0.00 },
+          { id:'room5_hearth', kind: 'hearth', hex: 'X18', rotDeg: 90, ox: -0.56, oy: 0.00 },
 
-          { id:'room6_hearth', kind: 'cooking.hearth', hex: 'X18', wHex: 1.05, rotDeg: 270, ox: 0.94, oy: -0.00 },
+          { id:'room6_hearth', kind: 'cooking.hearth', hex: 'X18', wHex: 1.05, rotDeg: 270, ox: 0.94, oy: 0.00 },
 
-          { id:'room7_bed', kind: 'bed.double', hex: 'AC14', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: -0.00, spriteScale:3.0 },
-          { id:'room7_chair1', kind: 'chair', hex: 'AA14', rotDeg: 60, ox: -0.20, oy: -0.00, spriteScale:0.75  },
-          { id:'room7_chair3', kind: 'chair', hex: 'Y13', rotDeg: 240, ox: 0.20, oy: -0.00, spriteScale:0.75  },
-          { id:'room7_chair4', kind: 'chair', hex: 'Y14', rotDeg: 300, ox: 0.20, oy: -0.00, spriteScale:0.75  },
+          { id:'room7_bed', kind: 'bed.double', hex: 'AC14', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: 0.00, spriteScale:3.0 },
+          { id:'room7_chair1', kind: 'chair', hex: 'AA14', rotDeg: 60, ox: -0.20, oy: 0.00, spriteScale:0.75  },
+          { id:'room7_chair3', kind: 'chair', hex: 'Y13', rotDeg: 240, ox: 0.20, oy: 0.00, spriteScale:0.75  },
+          { id:'room7_chair4', kind: 'chair', hex: 'Y14', rotDeg: 300, ox: 0.20, oy: 0.00, spriteScale:0.75  },
           { id:'room7_table', kind: 'table.round', hex: 'Z13', wHex: 1.1, hHex: 1.1, rotDeg: 0, spriteScale:1.5 },
           { id:'room7_chest', kind: 'chest', hex: 'AA15', rotDeg: 0, scale: 1.0, spriteScale:0.75 },
           { id:'room7_hearth', kind: 'hearth', hex: 'Y15', rotDeg: 0, ox: 0.00, oy: -0.30 },
@@ -853,9 +891,9 @@ Version: v5.92
           { id:'room8_bed3', kind: 'bed', hex: 'AI15', wHex: 1.0, hHex: 1.0, rotDeg: 0, ox: 0.00, oy: 0.70, spriteScale:2.75 },
 
           { id:'room9_bed1', kind: 'bed', hex: 'AI19', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: 0.00, spriteScale:2.75 },
-          { id:'room9_bed2', kind: 'bed', hex: 'AI18', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: -0.00, spriteScale:2.75 },
-          { id:'room9_bed3', kind: 'bed', hex: 'AI17', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: -0.00, spriteScale:2.75 },
-          { id:'room9_bed4', kind: 'bed', hex: 'AI16', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: -0.00, spriteScale:2.75 },
+          { id:'room9_bed2', kind: 'bed', hex: 'AI18', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: 0.00, spriteScale:2.75 },
+          { id:'room9_bed3', kind: 'bed', hex: 'AI17', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: 0.00, spriteScale:2.75 },
+          { id:'room9_bed4', kind: 'bed', hex: 'AI16', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: 0.00, spriteScale:2.75 },
 
           { id:'room10_bed1', kind: 'bed', hex: 'AI21', wHex: 1.0, hHex: 1.0, rotDeg: 90, ox: 0.00, oy: 0.00, spriteScale:2.75 },
 
@@ -876,12 +914,12 @@ Version: v5.92
           { id: 'pub_window3', kind:'window', hex:'M15', orientation:'v' },
           { id: 'pub_window4', kind:'window', hex:'M14', orientation:'v' },
           { id: 'pub_window5', kind:'window', hex:'N12.5', orientation:'h' },
-          { id: 'pub_window5', kind:'window', hex:'O12', orientation:'h' },
-          { id: 'pub_window5', kind:'window', hex:'P12.5', orientation:'h' },
-          { id: 'pub_window5', kind:'window', hex:'Z12.5', orientation:'h' },
-          { id: 'pub_window5', kind:'window', hex:'AB12.5', orientation:'h' },
+          { id: 'pub_window6', kind:'window', hex:'O12', orientation:'h' },
+          { id: 'pub_window7', kind:'window', hex:'P12.5', orientation:'h' },
+          { id: 'pub_window8', kind:'window', hex:'Z12.5', orientation:'h' },
+          { id: 'pub_window9', kind:'window', hex:'AB12.5', orientation:'h' },
 
-          { id: 'kitchen_door', kind:'door', hex:'X14', orientation:'V', openPct: 0 },
+          { id: 'kitchen_door', kind:'door', hex:'X14', orientation:'v', openPct: 0 },
 
           // Portals
           { id: 'portal_up_AA21', kind:'portal', hex:'AA21', trigger:'enter', to:{ floorId:'upper', hex:'AC21' } },
@@ -889,13 +927,12 @@ Version: v5.92
         ],
         objects: [
           { id: 'pub_table1', kind: 'table.rect', hex: 'O20', wHex: 1.0, hHex: 1.0, rotDeg: 0 },
-          { id: 'pub_table1_c1', kind: 'chair', hex: 'P20', rotDeg: 90, ox: -0.00, oy: -0.00, spriteScale:0.75  },
-          { id: 'pub_table1_c2', kind: 'chair', hex: 'P19', rotDeg: 90, ox: -0.00, oy: -0.00, spriteScale:0.75  },
-          { id: 'pub_table1_c3', kind: 'chair', hex: 'N20', rotDeg: 270, ox: -0.00, oy: -0.00, spriteScale:0.75  },
-          { id: 'pub_table1_c4', kind: 'chair', hex: 'N19', rotDeg: 270, ox: -0.00, oy: -0.00, spriteScale:0.75  },
+          { id: 'pub_table1_c1', kind: 'chair', hex: 'P20', rotDeg: 90, ox: 0.00, oy: 0.00, spriteScale:0.75  },
+          { id: 'pub_table1_c2', kind: 'chair', hex: 'P19', rotDeg: 90, ox: 0.00, oy: 0.00, spriteScale:0.75  },
+          { id: 'pub_table1_c3', kind: 'chair', hex: 'N20', rotDeg: 270, ox: 0.00, oy: 0.00, spriteScale:0.75  },
+          { id: 'pub_table1_c4', kind: 'chair', hex: 'N19', rotDeg: 270, ox: 0.00, oy: 0.00, spriteScale:0.75  },
 
-
-          { id:'Kitchen_hearth', kind: 'cooking.hearth', hex: 'X18', rotDeg: 270, ox: 0.94, oy: -0.00 },
+          { id:'Kitchen_hearth', kind: 'cooking.hearth', hex: 'X18', rotDeg: 270, ox: 0.94, oy: 0.00 },
         ],
       }
     ],
@@ -908,24 +945,6 @@ Version: v5.92
       { id: 'g3', name: 'Goblin 3', side: 'NPC', hex: 'W19', label: 'G3', init: 10, hp: 8, floorId: 'upper' },
     ]
   };
-
-  // ===== Supersample =====
-  let SUPERSAMPLE = 1;
-
-  function readSupersample() {
-    const raw = localStorage.getItem(STORAGE_SS);
-    const v = parseFloat(raw != null ? raw : '1');
-    if (!Number.isFinite(v)) return 1;
-    return clamp(v, 1, 3);
-  }
-
-  function setSupersample(v) {
-    const n = clamp(parseFloat(String(v)), 1, 3);
-    localStorage.setItem(STORAGE_SS, String(n));
-    SUPERSAMPLE = n;
-    if (elSsSelect) elSsSelect.value = String(n);
-    resize();
-  }
 
   // ===== State access =====
   function getState() {
@@ -1004,10 +1023,6 @@ Version: v5.92
     if (!Number.isFinite(rowNum)) throw new Error('Bad corner row: ' + hex);
 
     return { col, row: rowNum - 1 };
-  }
-
-  function parseCornerHex(hex) {
-    try { return parseCornerHexId(hex); } catch { return null; }
   }
 
   function hexId(col, row) {
@@ -1164,9 +1179,7 @@ Version: v5.92
     return best;
   }
 
-  function quant01(v) {
-    return Math.round(v * 100) / 100;
-  }
+  function quant01(v) { return Math.round(v * 100) / 100; }
 
   function dedupeWallSegments(segs) {
     const map = new Map();
@@ -1495,6 +1508,8 @@ Version: v5.92
     return [...ids];
   }
 
+  let RENDER_FOG = null;
+
   function openingPreferredRoomId(opening, rooms) {
     const parentId = opening && opening.parent ? String(opening.parent) : '';
     if (parentId) return parentId;
@@ -1549,10 +1564,7 @@ Version: v5.92
       const cutH = thickness + 4;
       const cutW = len + 4;
 
-      // IMPORTANT:
-      // Draw seam fills in screen space WITHOUT rotating/translating the canvas.
-      // Rotating/translation re-anchors the repeating pattern and causes misalignment
-      // vs the room's floor texture.
+      // Screen-space rect (no rotation) so patterns stay aligned with floor.
       const w = (orient === 'v') ? cutH : cutW;
       const h = (orient === 'v') ? cutW : cutH;
 
@@ -1610,6 +1622,10 @@ Version: v5.92
       setVisibleRoomIds: setVis,
       setExploredRoomIds: setExp,
     };
+  }
+
+  function isPlayerToken(t) {
+    return String(t && t.side ? t.side : '').toUpperCase() === 'PC';
   }
 
   function computeRenderFog(state, floorId, rooms, openings, tokens) {
@@ -1962,12 +1978,6 @@ Version: v5.92
   }
 
   // ===== Tokens =====
-  function isPlayerToken(t) {
-    return String(t && t.side ? t.side : '').toUpperCase() === 'PC';
-  }
-
-  let RENDER_FOG = null;
-
   function tokenVisible(t, roomMetaAll) {
     if (!RENDER_FOG || !RENDER_FOG.enabled) return true;
     if (isPlayerToken(t)) return true;
@@ -2136,6 +2146,7 @@ Version: v5.92
       ['Floor', floor && floor.name ? String(floor.name) : String(VIEW.floorId || '')],
       ['Round', String(round)],
       ['Camera', camHex],
+      ['Zoom', Math.round(ZOOM * 100) + '%'],
       ['Rooms', String(rooms.length)],
       ['Openings', String(openings.length)],
       ['Objects', String(objects.length)],
@@ -2412,6 +2423,8 @@ Version: v5.92
     const btnRight = req('btnRight');
     const btnUp = req('btnUp');
     const btnDown = req('btnDown');
+    const btnZoomOut = req('btnZoomOut');
+    const btnZoomIn = req('btnZoomIn');
     const btnRedraw = req('btnRedraw');
     const btnJump = req('btnJump');
 
@@ -2419,6 +2432,10 @@ Version: v5.92
     if (btnRight) btnRight.onclick = () => pan(PAN_STEP, 0);
     if (btnUp) btnUp.onclick = () => pan(0, PAN_STEP);
     if (btnDown) btnDown.onclick = () => pan(0, -PAN_STEP);
+
+    const ZOOM_STEP = 0.10;
+    if (btnZoomOut) btnZoomOut.onclick = () => setZoom(ZOOM - ZOOM_STEP);
+    if (btnZoomIn) btnZoomIn.onclick = () => setZoom(ZOOM + ZOOM_STEP);
 
     if (btnRedraw) btnRedraw.onclick = () => safeRedraw();
 
@@ -2457,12 +2474,17 @@ Version: v5.92
       else if (k === 'ArrowUp' || k === 'w' || k === 'W') pan(0, PAN_STEP);
       else if (k === 'ArrowDown' || k === 's' || k === 'S') pan(0, -PAN_STEP);
       else if (k === 'r' || k === 'R') safeRedraw();
+      else if (k === '+' || k === '=' ) setZoom(ZOOM + 0.10);
+      else if (k === '-' || k === '_' ) setZoom(ZOOM - 0.10);
     };
   }
 
   // ===== Resize =====
   function resize() {
     SUPERSAMPLE = readSupersample();
+    ZOOM = readZoom();
+    applyZoom();
+    syncZoomUI();
 
     const wrap = document.getElementById('canvasWrap');
     const rect = wrap.getBoundingClientRect();
@@ -2510,6 +2532,10 @@ Version: v5.92
     const hh = parseHexId('U16');
     assert('parseHexId row', hh.row === 15);
 
+    // corner decimals
+    const ch = parseCornerHexId('M21.5');
+    assert('parseCornerHexId half row', Math.abs(ch.row - 20.5) < 1e-9);
+
     // texture alias
     const td = resolveTextureDef('floor', 'wood');
     assert('resolveTextureDef alias', !!td && td.file === 'wood_oak.png');
@@ -2518,6 +2544,24 @@ Version: v5.92
     const qp = getQueryParams('?stateUrl=%2Fdata%2Fbattle.json&pollMs=1500');
     assert('getQueryParams stateUrl', qp.get('stateUrl') === '/data/battle.json');
     assert('getQueryParams pollMs', qp.get('pollMs') === '1500');
+
+    // clamp zoom
+    assert('clamp zoom low', clamp(0.1, 0.6, 2.25) === 0.6);
+    assert('clamp zoom high', clamp(9, 0.6, 2.25) === 2.25);
+
+    // zoom math
+    const base = GRID.baseSize;
+    const prev = ZOOM;
+    ZOOM = 1.35;
+    applyZoom();
+    assert('applyZoom sets GRID.size', Math.abs(GRID.size - base * 1.35) < 1e-9);
+    ZOOM = prev;
+    applyZoom();
+
+    // sqrt3 / rowStep math
+    assert('sqrt3 constant', Math.abs(sqrt3 - Math.sqrt(3)) < 1e-12);
+    const rs = rowStep();
+    assert('rowStep uses sqrt3', Math.abs(rs - Math.sqrt(3) * GRID.size) < 1e-9);
   }
 
   // ===== Boot =====
@@ -2525,6 +2569,12 @@ Version: v5.92
     const state = getState();
     const floors = getFloorsFromState(state);
     VIEW.floorId = pickActiveFloorId(state, floors);
+
+    // Persisted zoom + SS
+    SUPERSAMPLE = readSupersample();
+    ZOOM = readZoom();
+    applyZoom();
+    syncZoomUI();
 
     const camHex = state && state.view && state.view.camera_hex ? String(state.view.camera_hex) : null;
     if (camHex) {
