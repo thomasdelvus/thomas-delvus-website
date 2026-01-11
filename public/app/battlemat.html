@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v5.95
+Version: v5.96
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v5.95</title>
+  <title>Battlemat Core v5.96</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v5.95
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.95</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v5.96</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v5.95
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v5.95
+  // Battlemat Core Rewrite v5.96
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v5.95';
+  const VERSION = 'v5.96';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -776,7 +776,7 @@ Version: v5.95
       exploredAlpha: 0.55,
     },
 
-    floors: [
+      floors: [
       {
         id: 'upper',
         name: 'Upper',
@@ -956,7 +956,7 @@ Version: v5.95
       { id: 'g3', name: 'Goblin 3', side: 'NPC', hex: 'W19', label: 'G3', init: 10, hp: 8, floorId: 'upper' },
     ]
   };
-
+    
   // ===== State access =====
   function getState() {
     // 1) If we have a fetched state, use it.
@@ -1324,7 +1324,31 @@ Version: v5.95
     return clamp(Number.isFinite(s) ? s : 1, 0.5, 4);
   }
 
-  function cutOpeningHole(targetCtx, opening, wallSegs) {
+  // Opening length in world-units (CSS px). For thresholds, we auto-size to the parent room's
+  // interior span so the knockout matches the parent floor space exactly.
+  function openingLengthWorld(opening, rooms) {
+    const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
+    const orient = openingOrientation(opening);
+
+    if (kind === 'threshold') {
+      const parentId = (opening && opening.parent != null) ? String(opening.parent) : '';
+      const parent = parentId ? roomById(rooms, parentId) : null;
+      if (parent) {
+        const box = roomToWallBox(parent);
+        const fr = roomFloorRectWorld(parent, box);
+        const worldLen = (orient === 'h') ? Math.abs(fr.x2 - fr.x1) : Math.abs(fr.y2 - fr.y1);
+        // Guardrails: never return something absurdly tiny.
+        return Math.max(worldLen, GRID.size * 0.6);
+      }
+      // If no parent is provided/found, fall back to span sizing.
+    }
+
+    const baseLen = GRID.size * 1.2;
+    const span = openingSpan(opening);
+    return baseLen * span;
+  }
+
+  function cutOpeningHole(targetCtx, opening, wallSegs, rooms) {
     const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
     if (kind === 'portal' || kind === 'connector') return;
 
@@ -1335,9 +1359,7 @@ Version: v5.95
     const hexWorld = hexCenterWorld(p.col, p.row);
     const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
 
-    const baseLen = GRID.size * 1.2;
-    const span = openingSpan(opening);
-    const len = baseLen * span;
+    const len = openingLengthWorld(opening, rooms);
 
     const cx = hexWorld.x;
     const cy = hexWorld.y;
@@ -1563,9 +1585,7 @@ Version: v5.95
       const hexWorld = hexCenterWorld(p.col, p.row);
       const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
 
-      const baseLen = GRID.size * 1.2;
-      const span = openingSpan(o);
-      const len = baseLen * span;
+      const len = openingLengthWorld(o, rooms);
 
       const cx = hexWorld.x;
       const cy = hexWorld.y;
@@ -2180,8 +2200,7 @@ Version: v5.95
       const isActive = activeId && String(t.id) === activeId;
       const name = t.name ? String(t.name) : String(t.id);
       const right = (t.hp != null) ? ('HP ' + t.hp) : '';
-      return '<div class="turnRow' + (isActive ? ' active' : '') + '">' 
-        + '<div>' + escapeHtml(name) + ' <span style="opacity:0.65">(' + escapeHtml(String(t.init ?? '')) + ')</span></div>'
+      return '<div class="turnRow' + (isActive ? ' active' : '') + '">' + '<div>' + escapeHtml(name) + ' <span style="opacity:0.65">(' + escapeHtml(String(t.init ?? '')) + ')</span></div>'
         + '<div style="opacity:0.85">' + escapeHtml(right) + '</div>'
         + '</div>';
     }).join('');
@@ -2331,7 +2350,7 @@ Version: v5.95
     for (const o of openingsToDraw) {
       const k = String(o && o.kind ? o.kind : 'door').toLowerCase();
       wallCtx.globalAlpha = (k === 'window') ? 0.25 : 1;
-      cutOpeningHole(wallCtx, o, wallSegs);
+      cutOpeningHole(wallCtx, o, wallSegs, rooms);
     }
 
     wallCtx.restore();
@@ -2550,6 +2569,26 @@ Version: v5.95
     // texture alias
     const td = resolveTextureDef('floor', 'wood');
     assert('resolveTextureDef alias', !!td && td.file === 'wood_oak.png');
+
+    // threshold auto-span sizing
+    const testRooms = [{
+      id: 'TestRoom',
+      corners: ['A6', 'D6', 'D3', 'A3'],
+      thickness: 20,
+      floor: { kind: 'wood' },
+      wall: { kind: 'brick' },
+    }];
+    const testRoom = testRooms[0];
+    const box = roomToWallBox(testRoom);
+    const fr = roomFloorRectWorld(testRoom, box);
+
+    const thH = { kind: 'threshold', hex: 'B5', orientation: 'h', parent: 'TestRoom' };
+    const thV = { kind: 'threshold', hex: 'D4', orientation: 'v', parent: 'TestRoom' };
+    assert('openingLengthWorld threshold-h uses parent span', Math.abs(openingLengthWorld(thH, testRooms) - Math.abs(fr.x2 - fr.x1)) < 1e-6);
+    assert('openingLengthWorld threshold-v uses parent span', Math.abs(openingLengthWorld(thV, testRooms) - Math.abs(fr.y2 - fr.y1)) < 1e-6);
+
+    const noParent = { kind: 'threshold', hex: 'B5', orientation: 'h', span: 2 };
+    assert('openingLengthWorld threshold fallback to span', Math.abs(openingLengthWorld(noParent, testRooms) - (GRID.size * 1.2 * 2)) < 1e-6);
 
     // query parsing
     const qp = getQueryParams('?stateUrl=%2Fdata%2Fbattle.json&pollMs=1500');
