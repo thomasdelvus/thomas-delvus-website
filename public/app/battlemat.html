@@ -630,7 +630,7 @@ Version: v6.08
       stone_cobble:     { file: 'stone_cobble.png',     scale: 0.45 },
       stone_gravel:     { file: 'stone_gravel.png',     scale: 0.55 },
 
-      brick_gray:       { file: 'brick_gray.png',       scale: 0.15 },
+      brick_gray:       { file: 'brick_gray.png',       scale: 0.40 },
       brick_red:        { file: 'brick_red.png',        scale: 0.40 },
       brick_dark:       { file: 'brick_dark.png',       scale: 0.40 },
 
@@ -649,7 +649,7 @@ Version: v6.08
       stone_cobble:     { file: 'stone_cobble.png',     scale: 0.45 },
       stone_gravel:     { file: 'stone_gravel.png',     scale: 0.55 },
 
-      brick_gray:       { file: 'brick_gray.png',       scale: 0.1 },
+      brick_gray:       { file: 'brick_gray.png',       scale: 0.40 },
       brick_red:        { file: 'brick_red.png',        scale: 0.40 },
       brick_dark:       { file: 'brick_dark.png',       scale: 0.40 },
 
@@ -1032,7 +1032,7 @@ Version: v6.08
 
     tokens: [
       { id: 'a', name: 'Aelar', side: 'PC', hex: 'U16', label: 'A', init: 14, hp: 42, floorId: 'upper' },
-      { id: 'b', name: 'Bran', side: 'PC', hex: 'T15', label: 'B', init: 12, hp: 35, floorId: 'ground', spriteFile: 'ranger_male' },
+      { id: 'b', name: 'Bran', side: 'PC', hex: 'T15', label: 'B', init: 12, hp: 35, floorId: 'ground' },
       { id: 'g1', name: 'Goblin 1', side: 'NPC', hex: 'U19', label: 'G1', init: 10, hp: 8, floorId: 'upper' },
       { id: 'g2', name: 'Goblin 2', side: 'NPC', hex: 'V19', label: 'G2', init: 10, hp: 8, floorId: 'upper' },
       { id: 'g3', name: 'Goblin 3', side: 'NPC', hex: 'W19', label: 'G3', init: 10, hp: 8, floorId: 'upper' },
@@ -2242,25 +2242,15 @@ Version: v6.08
     const isPC = isPlayerToken(t);
 
     if (elSpriteToggle && elSpriteToggle.checked) {
-      const req = getTokenSpriteRequest(t, isPC);
-
-      let img = null;
-      if (req.file) {
-        img = loadSprite(req.file);
-      } else {
-        const def = getSpriteDef(req.kind);
-        if (def) img = loadSprite(def.file);
-      }
-
-      if (img) {
-        const size = r * 2.2 * (req.scale || 1);
-        const ok = drawSprite(img, c.x, c.y, size, size, 0);
+      const def = getSpriteDef(isPC ? 'token.pc' : 'token.npc');
+      if (def) {
+        const img = loadSprite(def.file);
+        const ok = drawSprite(img, c.x, c.y, r * 2.2, r * 2.2, 0);
         if (ok) {
           drawTokenLabel(t, c.x, c.y, isPC);
           return;
         }
       }
-    }
     }
 
     ctx.save();
