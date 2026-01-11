@@ -912,7 +912,7 @@ Version: v6.11
           { id:'room4_chair3', kind: 'chair', hex: 'U13', rotDeg: 240, ox: 0.20, oy: 0.00, spriteScale:0.8  },
           { id:'room4_table', kind: 'table.round', hex: 'V13', wHex: 1.2, hHex: 1.2, rotDeg: 0, spriteScale:1.5 },
           { id:'room4_chest', kind: 'chest', hex: 'S15', rotDeg: 0, ox: 0.00, oy: -0.25, scale: 1.0, spriteScale:0.75 },
-          { id:'room4_hearth', kind: 'hearth', hex: 'W15', rotDeg: 0, wHex: 1.1, hHex: 1.1, ox: 0.00, oy: -0.30 },
+          { id:'room4_hearth', kind: 'hearth', hex: 'X14', rotDeg: 90, wHex: 1.1, hHex: 1.1, ox: -0.50, oy: -0.30 },
           { id:'room4_side1', kind: 'table.sqr', hex: 'S13', ox: -1.0, oy: 0.00, rotDeg: 90, spriteScale:0.5 },
           { id:'room4_side2', kind: 'table.sqr', hex: 'S15', ox: -1.0, oy: 0.00, rotDeg: 90, spriteScale:0.5 },
 
@@ -938,7 +938,7 @@ Version: v6.11
           { id:'room7_chair4', kind: 'chair', hex: 'Y14', rotDeg: 300, ox: 0.20, oy: 0.00, spriteScale:0.8  },
           { id:'room7_table', kind: 'table.round', hex: 'Z13', wHex: 1.2, hHex: 1.2, rotDeg: 0, spriteScale:1.5 },
           { id:'room7_chest', kind: 'chest', hex: 'AC15', rotDeg: 0, ox: 0.00, oy: -0.25, scale: 1.0, spriteScale:0.75 },
-          { id:'room7_hearth', kind: 'hearth', hex: 'Y15', rotDeg: 0, wHex: 1.1, hHex: 1.1, ox: 0.00, oy: -0.30 },
+          { id:'room7_hearth', kind: 'hearth', hex: 'X14', rotDeg: 270, wHex: 1.1, hHex: 1.1, ox: 0.50, oy: -0.30 },
           { id:'room7_side1', kind: 'table.sqr', hex: 'AC13', ox: 1.0, oy: 0.00, rotDeg: 90, spriteScale:0.5 },
           { id:'room7_side2', kind: 'table.sqr', hex: 'AC15', ox: 1.0, oy: 0.00, rotDeg: 90, spriteScale:0.5 },
 
@@ -985,6 +985,7 @@ Version: v6.11
           { id: 'door_to_upstairs', kind:'door', hex:'X20.25', orientation:'v', openPct: 1.0 },
           { id: 'door_out1', kind:'door', hex:'M17', orientation:'v', openPct: 1.0 },
           { id: 'door_out2', kind:'door', hex:'U13', orientation:'h', openPct: 1.0 },
+          { id: 'door_pantry', kind: 'door.wood', hex: 'AE20', orientation: 'h',  openPct: 1.0  },
 
           // Portals
           { id: 'portal_up_AA21', kind:'portal', hex:'AA21', trigger:'enter', to:{ floorId:'upper', hex:'AC21' } },
@@ -1029,10 +1030,14 @@ Version: v6.11
           { id: 'pub_table6_c5', kind: 'chair', hex: 'V16', rotDeg: 180, ox: 0.00, oy: 0.00, spriteScale:0.75  },
 
           { id:'pub_hearth', kind: 'hearth', hex: 'X18', rotDeg: 90, wHex: 1.1, hHex: 1.1, ox: -0.56, oy: 0.00, spriteScale:1.5  },
+          { id:'stairs_up', kind:'stairs', hex:'AA21', wHex: 0.68, hHex: 1.09, rotDeg: 270, ox: 0.0, oy: +0.50, spriteScale:4.70 },
+
 
 
           //Kitchen Area
           { id:'room6_hearth', kind: 'cooking.hearth', hex: 'Z18', wHex: 1.1, hHex: 1.1, rotDeg: 270, ox: -0.94, oy: 0.00 },
+
+
         ],
       }
     ],
