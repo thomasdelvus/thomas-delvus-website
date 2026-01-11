@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v5.90
+Version: v5.92
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v5.90</title>
+  <title>Battlemat Core v5.92</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -248,7 +248,7 @@ Version: v5.90
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v5.90';
+  const VERSION = 'v5.92';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -339,6 +339,186 @@ Version: v5.90
 
   const PAN_STEP = 2;
   const STORAGE_SS = 'battlemat.supersample';
+
+  // ===== Remote state (DB/API) =====
+  // If provided, we will fetch JSON state from a URL and keep it updated via polling.
+  // Priority (highest first):
+  //  1) ?stateUrl=... (URL-encoded)
+  //  2) window.BATTLE_STATE_URL
+  //  3) window.BATTLE_STATE (injected object/string)
+  //  4) DEFAULT_STATE
+  //
+  // Polling interval default: 1000ms. Set ?pollMs=0 or window.BATTLE_STATE_POLL_MS=0 to disable polling.
+  const DEFAULT_POLL_MS = 1000;
+  let CURRENT_STATE = null;
+  let STATE_URL = null;
+  let STATE_POLL_TIMER = null;
+  let LAST_STATE_JSON = '';
+
+  function getQueryParams(search = window.location.search) {
+    const s = String(search || '').trim();
+    const out = new Map();
+    if (!s || s === '?') return out;
+    const q = (s[0] === '?') ? s.slice(1) : s;
+    for (const part of q.split('&')) {
+      if (!part) continue;
+      const [kRaw, vRaw] = part.split('=');
+      const k = decodeURIComponent((kRaw || '').replaceAll('+', ' ')).trim();
+      const v = decodeURIComponent((vRaw || '').replaceAll('+', ' ')).trim();
+      if (k) out.set(k, v);
+    }
+    return out;
+  }
+
+  function resolveBattleIdFromUrl() {
+    const qp = getQueryParams();
+    const bid = (
+      qp.get('battle_id') ||
+      qp.get('battleId') ||
+      qp.get('battle') ||
+      qp.get('id') ||
+      ''
+    ).trim();
+    return bid || null;
+  }
+
+  function resolveStateUrl() {
+    const qp = getQueryParams();
+    const fromQuery = qp.get('stateUrl') || qp.get('state_url') || qp.get('state') || '';
+    const fromWindow = (window && window.BATTLE_STATE_URL) ? String(window.BATTLE_STATE_URL) : '';
+    const url = (fromQuery || fromWindow || '').trim();
+    if (url) return url;
+
+    // Canonical site routing: /play/27 -> /app/battlemat?battle_id=27
+    // We can auto-derive the API URL from battle_id.
+    const battleId = resolveBattleIdFromUrl();
+    if (battleId) return `/api/battles/${encodeURIComponent(battleId)}`;
+
+    return null;
+  }
+
+  function resolvePollMs() {
+    const qp = getQueryParams();
+    const qv = qp.get('pollMs') || qp.get('poll_ms') || '';
+    const wv = (window && window.BATTLE_STATE_POLL_MS != null) ? String(window.BATTLE_STATE_POLL_MS) : '';
+    const raw = (qv || wv || '').trim();
+    if (raw === '') return DEFAULT_POLL_MS;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return DEFAULT_POLL_MS;
+    return Math.max(0, Math.floor(n));
+  }
+
+  async function fetchStateOnce(url) {
+    const u = String(url || '').trim();
+    if (!u) return null;
+
+    // Cache-bust so you can serve plain JSON from static hosting or through proxies.
+    const sep = u.includes('?') ? '&' : '?';
+    const fetchUrl = u + sep + '_ts=' + Date.now();
+
+    const res = await fetch(fetchUrl, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: { 'Accept': 'application/json' },
+    });
+
+    if (!res.ok) throw new Error('State fetch failed: ' + res.status + ' ' + res.statusText);
+
+    const txt = await res.text();
+    const jsonText = txt.trim();
+    if (!jsonText) throw new Error('State fetch returned empty body');
+
+    let parsedOuter;
+    try { parsedOuter = JSON.parse(jsonText); }
+    catch (e) {
+      throw new Error('State fetch returned non-JSON: ' + (e && e.message ? e.message : String(e)));
+    }
+
+    // Common DB shape: { ..., state_json: "{...}" }
+    if (parsedOuter && typeof parsedOuter === 'object' && parsedOuter.state_json != null) {
+      const sj = parsedOuter.state_json;
+
+      if (typeof sj === 'string') {
+        const sjText = sj.trim();
+        if (!sjText) throw new Error('Battle record has empty state_json');
+
+        let parsedState;
+        try { parsedState = JSON.parse(sjText); }
+        catch (e) {
+          throw new Error('Battle record has invalid state_json JSON: ' + (e && e.message ? e.message : String(e)));
+        }
+
+        // Use state_json text for change detection (avoids redrawing if other DB fields change).
+        return { parsed: parsedState, jsonText: sjText };
+      }
+
+      // state_json provided as object already
+      try {
+        const stable = JSON.stringify(sj);
+        return { parsed: sj, jsonText: stable };
+      } catch {
+        // Fallback: if it can't stringify, still apply it
+        return { parsed: sj, jsonText: '[[state_json_object]]' };
+      }
+    }
+
+    // If the endpoint returns the scene JSON directly.
+    return { parsed: parsedOuter, jsonText };
+  }
+
+  function applyFetchedState(parsed, jsonText) {
+    CURRENT_STATE = parsed;
+    LAST_STATE_JSON = String(jsonText || '');
+
+    // If the DB state specifies a floor/camera, apply it.
+    try {
+      const st = CURRENT_STATE;
+      const floors = getFloorsFromState(st);
+      const fid = pickActiveFloorId(st, floors);
+      VIEW.floorId = fid;
+
+      const camHex = st && st.view && st.view.camera_hex ? String(st.view.camera_hex) : null;
+      if (camHex) {
+        const p = parseHexId(camHex);
+        VIEW.camera.col = p.col;
+        VIEW.camera.row = p.row;
+      }
+    } catch {}
+  }
+
+  async function pollStateLoop() {
+    if (!STATE_URL) return;
+
+    try {
+      const got = await fetchStateOnce(STATE_URL);
+      if (!got) return;
+
+      // Only apply when the server payload changes.
+      if (got.jsonText !== LAST_STATE_JSON) {
+        applyFetchedState(got.parsed, got.jsonText);
+        safeRedraw();
+      }
+    } catch (e) {
+      console.warn('[Battlemat] state poll error:', e);
+      // Show last error in UI, but don't spam.
+      if (elError) {
+        elError.hidden = false;
+        elError.textContent = 'State fetch error:' + String.fromCharCode(10) + String(e && e.stack ? e.stack : e);
+      }
+    }
+  }
+
+  function startStatePolling() {
+    const pollMs = resolvePollMs();
+    if (!STATE_URL) return;
+
+    // Always do one immediate fetch.
+    pollStateLoop();
+
+    if (pollMs <= 0) return;
+    if (STATE_POLL_TIMER) clearInterval(STATE_POLL_TIMER);
+    STATE_POLL_TIMER = setInterval(pollStateLoop, pollMs);
+  }
 
   // ===== Sprites (core, optional) =====
   const SPRITES = {
@@ -714,7 +894,7 @@ Version: v5.90
           { id: 'pub_table1_c3', kind: 'chair', hex: 'N20', rotDeg: 270, ox: -0.00, oy: -0.00, spriteScale:0.75  },
           { id: 'pub_table1_c4', kind: 'chair', hex: 'N19', rotDeg: 270, ox: -0.00, oy: -0.00, spriteScale:0.75  },
 
-          
+
           { id:'Kitchen_hearth', kind: 'cooking.hearth', hex: 'X18', rotDeg: 270, ox: 0.94, oy: -0.00 },
         ],
       }
@@ -749,6 +929,10 @@ Version: v5.90
 
   // ===== State access =====
   function getState() {
+    // 1) If we have a fetched state, use it.
+    if (CURRENT_STATE && typeof CURRENT_STATE === 'object') return CURRENT_STATE;
+
+    // 2) Otherwise fall back to injected state.
     const injected = (window && window.BATTLE_STATE != null) ? window.BATTLE_STATE : null;
     const raw = injected != null ? injected : DEFAULT_STATE;
     if (typeof raw === 'string') {
@@ -2329,6 +2513,11 @@ Version: v5.90
     // texture alias
     const td = resolveTextureDef('floor', 'wood');
     assert('resolveTextureDef alias', !!td && td.file === 'wood_oak.png');
+
+    // query parsing
+    const qp = getQueryParams('?stateUrl=%2Fdata%2Fbattle.json&pollMs=1500');
+    assert('getQueryParams stateUrl', qp.get('stateUrl') === '/data/battle.json');
+    assert('getQueryParams pollMs', qp.get('pollMs') === '1500');
   }
 
   // ===== Boot =====
@@ -2369,6 +2558,10 @@ Version: v5.90
     }
 
     wireUI();
+
+    // Remote state (DB/API) hookup
+    STATE_URL = resolveStateUrl();
+    if (STATE_URL) startStatePolling();
 
     const ro = new ResizeObserver(() => resize());
     ro.observe(document.getElementById('canvasWrap'));
