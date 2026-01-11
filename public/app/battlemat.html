@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.07
+Version: v6.08
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.07</title>
+  <title>Battlemat Core v6.08</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.07
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.07</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.08</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.07
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.07
+  // Battlemat Core Rewrite v6.08
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.07';
+  const VERSION = 'v6.08';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -960,8 +960,8 @@ Version: v6.07
         name: 'Ground',
         rooms: [
           { id: 'CrossKeysGroundFloor', buildingId:'CrossKeysInn', corners: ['M21.5','AJ21','AJ12.5','M13'], thickness: 15, floor: { kind: 'fog' }, wall: { kind: 'brick' } },
-          { id: 'Pub', buildingId:'CrossKeysInn', corners: ['M21.5','X21','X12.5','M13'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
-          { id: 'Kitchen', buildingId:'CrossKeysInn', corners: ['X21','AJ21','AJ12.5','X12.5'], thickness: 20, floor: { kind: 'wood' }, wall: { kind: 'brick' } },
+          { id: 'Pub', buildingId:'CrossKeysInn', corners: ['M21.5','X21','X12.5','M13'], thickness: 20, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
+          { id: 'Kitchen', buildingId:'CrossKeysInn', corners: ['X21','AJ21','AJ12.5','X12.5'], thickness: 20, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
         ],
         openings: [
           { id: 'pub_window1', kind:'window', hex:'M20', orientation:'v' },
@@ -1032,7 +1032,7 @@ Version: v6.07
 
     tokens: [
       { id: 'a', name: 'Aelar', side: 'PC', hex: 'U16', label: 'A', init: 14, hp: 42, floorId: 'upper' },
-      { id: 'b', name: 'Bran', side: 'PC', hex: 'S16', label: 'B', init: 12, hp: 35, floorId: 'ground' },
+      { id: 'b', name: 'Bran', side: 'PC', hex: 'T15', label: 'B', init: 12, hp: 35, floorId: 'ground', spriteFile: 'ranger_male' },
       { id: 'g1', name: 'Goblin 1', side: 'NPC', hex: 'U19', label: 'G1', init: 10, hp: 8, floorId: 'upper' },
       { id: 'g2', name: 'Goblin 2', side: 'NPC', hex: 'V19', label: 'G2', init: 10, hp: 8, floorId: 'upper' },
       { id: 'g3', name: 'Goblin 3', side: 'NPC', hex: 'W19', label: 'G3', init: 10, hp: 8, floorId: 'upper' },
@@ -2204,6 +2204,33 @@ Version: v6.07
     ctx.fillText(label, x, y);
   }
 
+  function getTokenSpriteRequest(t, isPC) {
+    if (!t || typeof t !== 'object') {
+      return { kind: isPC ? 'token.pc' : 'token.npc', file: '', scale: 1 };
+    }
+
+    const kind = String(
+      t.sprite ??
+      t.spriteKind ??
+      t.sprite_key ??
+      t.spriteId ??
+      t.sprite_id ??
+      ''
+    ).trim();
+
+    const file = String(t.spriteFile ?? t.sprite_file ?? '').trim();
+
+    let scale = 1;
+    const s = Number(t.spriteScale ?? t.sprite_scale);
+    if (Number.isFinite(s) && s > 0) scale *= s;
+
+    return {
+      kind: kind || (isPC ? 'token.pc' : 'token.npc'),
+      file,
+      scale,
+    };
+  }
+
   function drawToken(t, roomMetaAll) {
     if (!t || !t.hex) return;
     if (!tokenVisible(t, roomMetaAll)) return;
@@ -2215,15 +2242,25 @@ Version: v6.07
     const isPC = isPlayerToken(t);
 
     if (elSpriteToggle && elSpriteToggle.checked) {
-      const def = getSpriteDef(isPC ? 'token.pc' : 'token.npc');
-      if (def) {
-        const img = loadSprite(def.file);
-        const ok = drawSprite(img, c.x, c.y, r * 2.2, r * 2.2, 0);
+      const req = getTokenSpriteRequest(t, isPC);
+
+      let img = null;
+      if (req.file) {
+        img = loadSprite(req.file);
+      } else {
+        const def = getSpriteDef(req.kind);
+        if (def) img = loadSprite(def.file);
+      }
+
+      if (img) {
+        const size = r * 2.2 * (req.scale || 1);
+        const ok = drawSprite(img, c.x, c.y, size, size, 0);
         if (ok) {
           drawTokenLabel(t, c.x, c.y, isPC);
           return;
         }
       }
+    }
     }
 
     ctx.save();
