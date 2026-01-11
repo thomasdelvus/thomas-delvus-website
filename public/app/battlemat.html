@@ -965,10 +965,14 @@ Version: v6.11
         rooms: [
           { id: 'CrossKeysGroundFloor', buildingId:'CrossKeysInn', corners: ['M21.5','AJ21','AJ12.5','M13'], thickness: 15, floor: { kind: 'fog' }, wall: { kind: 'brick' } },
           { id: 'Pub', buildingId:'CrossKeysInn', corners: ['M21.5','X21','X12.5','M13'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
-          { id: 'Kitchen', buildingId:'CrossKeysInn', corners: ['X19.5','AJ19.5','AJ12.5','X12.5'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
+          { id: 'Kitchen', buildingId:'CrossKeysInn', corners: ['Y20','AJ19.5','AJ12.5','Y13'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
           { id: 'StairsUp', buildingId:'CrossKeysInn', corners: ['X21','AC21.5','AC20','X19.5'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
           { id: 'Pantry', buildingId:'CrossKeysInn', corners: ['AC21.5','AJ21','AJ19.5','AC20'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
+          { id: 'Cupboard1', buildingId:'CrossKeysInn', corners: ['X17','Y17.5','Y15.5','X15'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
+          { id: 'Cupboard2', buildingId:'CrossKeysInn', corners: ['X14','Y14.5','Y13','X12.5'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
+          { id: 'Passage', buildingId:'CrossKeysInn', corners: ['X15','Y15.5','Y14.4','X14'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'brick' } },
 
+          
         ],
         openings: [
           { id: 'pub_window1', kind:'window', hex:'M20', orientation:'v' },
@@ -981,15 +985,21 @@ Version: v6.11
           { id: 'pub_window8', kind:'window', hex:'Z12.5', orientation:'h' },
           { id: 'pub_window9', kind:'window', hex:'AB12.5', orientation:'h' },
 
-          { id: 'kitchen_door', kind:'door', hex:'X14', orientation:'v', openPct: 1.0 },
+          { id: 'kitchen_door', kind:'door', hex:'X14.5', orientation:'v', openPct: 1.0 },
           { id: 'door_to_upstairs', kind:'door', hex:'X20.25', orientation:'v', openPct: 1.0 },
           { id: 'door_out1', kind:'door', hex:'M17', orientation:'v', openPct: 1.0 },
           { id: 'door_out2', kind:'door', hex:'U13', orientation:'h', openPct: 1.0 },
           { id: 'door_pantry', kind: 'door.wood', hex: 'AE20', orientation: 'h',  openPct: 1.0  },
+          { id: 'Cupboard1_door', kind:'door', hex:'Y16.5', orientation:'v', openPct: 1.0 },
+          { id: 'Cupboard2_door', kind:'door', hex:'Y14', orientation:'v', openPct: 1.0 },
 
           // Portals
           { id: 'portal_up_AA21', kind:'portal', hex:'AA21', trigger:'enter', to:{ floorId:'upper', hex:'AC21' } },
           { id: 'portal_up_AA20', kind:'portal', hex:'AA20', trigger:'enter', to:{ floorId:'upper', hex:'AC20' } },
+
+          //Thresholds
+          { id:'thresh_R16',  kind: 'threshold', hex: 'Y15',  orientation: 'v', parent: 'Passage' },
+          
         ],
         objects: [
           
