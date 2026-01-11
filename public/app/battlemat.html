@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.02
+Version: v6.04
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.02</title>
+  <title>Battlemat Core v6.04</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.02
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.02</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.04</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.02
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.01
+  // Battlemat Core Rewrite v6.04
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.02';
+  const VERSION = 'v6.04';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -842,15 +842,15 @@ Version: v6.02
           { id: 'Bedroom10', buildingId:'CrossKeysInn', corners: ['AF21','AJ21','AJ19','AF19'], thickness: 20, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
         ],
         openings: [
-          { id: 'door_room1', kind: 'door.wood', hex: 'P19',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1, spriteScale:1.5 },
-          { id: 'door_room2', kind: 'door.wood', hex: 'P16',  orientation: 'v',  openPct: 0.0, hinge: 'right', swing: 1, spriteScale:1.5 },
-          { id: 'door_room3', kind: 'door.wood', hex: 'P13',  orientation: 'v',  openPct: 0.5, hinge: 'right', swing: 1, spriteScale:1.5 },
+          { id: 'door_room1', kind: 'door.wood', hex: 'P19',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1  },
+          { id: 'door_room2', kind: 'door.wood', hex: 'P16',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1 },
+          { id: 'door_room3', kind: 'door.wood', hex: 'P13',  orientation: 'v',  openPct: 1.0, hinge: 'right', swing: 1  },
           { id: 'door_room4', kind:'door.wood', hex:'V15', orientation:'h', openPct: 1.0, hinge: 'left', swing: 1 },
 
           { id: 'door_room5', kind: 'door.wood', hex: 'V17',  orientation: 'h',  openPct: 1.0  },
           { id: 'door_room5_closet', kind: 'door.wood', hex: 'X20',  orientation: 'v',  openPct: 1.0  },
           { id: 'door_room6', kind: 'door.wood', hex: 'AB17', orientation: 'h',  openPct: 1.0  },
-          { id: 'door_room7', kind: 'door.wood', hex: 'Z15', orientation: 'h',  openPct: 1.0, hinge: 'right'  },
+          { id: 'door_room7', kind: 'door.wood', hex: 'Z15', orientation: 'h',  openPct: 1.0, hinge: 'right', swing: 1   },
           { id: 'door_room8', kind: 'door.wood', hex: 'AF13', orientation: 'v', hinge: 'left',  openPct: 1.0  },
           { id: 'door_room9', kind: 'door.wood', hex: 'AF17', orientation: 'v',  openPct: 1.0  },
           { id: 'door_room10',kind: 'door.wood', hex: 'AF20', orientation: 'v',  openPct: 1.0  },
@@ -909,8 +909,8 @@ Version: v6.02
           { id:'room4_table', kind: 'table.round', hex: 'V13', wHex: 1.2, hHex: 1.2, rotDeg: 0, spriteScale:1.5 },
           { id:'room4_chest', kind: 'chest', hex: 'S15', rotDeg: 0, ox: 0.00, oy: -0.25, scale: 1.0, spriteScale:0.75 },
           { id:'room4_hearth', kind: 'hearth', hex: 'W15', rotDeg: 0, wHex: 1.1, hHex: 1.1, ox: 0.00, oy: -0.30 },
-          { id:'room4_side1', kind: 'table.sqr', hex: 'S13', ox: -1.0, oy: -0.25, rotDeg: 90, spriteScale:0.5 },
-          { id:'room4_side2', kind: 'table.sqr', hex: 'S15', ox: -1.0, oy: 0.25, rotDeg: 90, spriteScale:0.5 },
+          { id:'room4_side1', kind: 'table.sqr', hex: 'S13', ox: -1.0, oy: 0.00, rotDeg: 90, spriteScale:0.5 },
+          { id:'room4_side2', kind: 'table.sqr', hex: 'S15', ox: -1.0, oy: 0.00, rotDeg: 90, spriteScale:0.5 },
 
           // Bedroom 5
           { id:'room5_bed', kind: 'bed.double', hex: 'S20', rotDeg: 270, ox: 0.00, oy: 0.00, spriteScale:2.4 },
@@ -1510,13 +1510,31 @@ Version: v6.02
           const boxW = leafLen;
           const boxH = thickness * 1.25;
 
+          // Allow door openings to scale their sprite just like objects do.
+          // (e.g. { kind:'door.wood', ..., spriteScale: 1.3 })
+          let sx = 1, sy = 1;
+          if (isFiniteNum(def.scale)) { sx *= Number(def.scale); sy *= Number(def.scale); }
+          if (isFiniteNum(def.scaleX)) sx *= Number(def.scaleX);
+          if (isFiniteNum(def.scaleY)) sy *= Number(def.scaleY);
+          if (isFiniteNum(opening.spriteScale)) { sx *= Number(opening.spriteScale); sy *= Number(opening.spriteScale); }
+          if (isFiniteNum(opening.spriteScaleX)) sx *= Number(opening.spriteScaleX);
+          if (isFiniteNum(opening.spriteScaleY)) sy *= Number(opening.spriteScaleY);
+
           const ang = openPct * (Math.PI / 2);
 
           ctx.save();
           ctx.translate(hingeX, hingeY);
           ctx.rotate(swingSign * ang);
 
-          const ok = drawSpriteContainAnchored(img, 0, 0, boxW, boxH, hingeRight ? 1 : 0, 0.5);
+          const ok = drawSpriteContainAnchored(
+            img,
+            0,
+            0,
+            boxW * sx,
+            boxH * sy,
+            hingeRight ? 1 : 0,
+            0.5
+          );
           ctx.restore();
 
           if (ok) {
@@ -2072,6 +2090,14 @@ Version: v6.02
       ctx.fillStyle = COLORS.objectWood;
       ctx.beginPath();
       ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+    } else if (kind === 'table.sqr' || kind === 'table.square') {
+      // Square side-table (used as a non-sprite fallback)
+      const s = Math.min(w, h) * 0.75;
+      ctx.fillStyle = COLORS.objectWood;
+      roundRectPath(ctx, -s/2, -s/2, s, s, Math.min(10, s/5));
       ctx.fill();
       ctx.stroke();
 
@@ -2709,6 +2735,20 @@ Version: v6.02
     assert('isDoorKind door.wood', isDoorKind('door.wood') === true);
     assert('isDoorKind door.steel (prefix)', isDoorKind('door.steel') === true);
     assert('isDoorKind window false', isDoorKind('window') === false);
+
+    // door sprite scaling (openings)
+    const doorDef = getSpriteDef('door.wood');
+    const sOpen = { kind: 'door.wood', spriteScale: 1.5, spriteScaleX: 2, spriteScaleY: 0.5 };
+    let sx = 1, sy = 1;
+    if (doorDef) {
+      if (isFiniteNum(doorDef.scale)) { sx *= Number(doorDef.scale); sy *= Number(doorDef.scale); }
+      if (isFiniteNum(doorDef.scaleX)) sx *= Number(doorDef.scaleX);
+      if (isFiniteNum(doorDef.scaleY)) sy *= Number(doorDef.scaleY);
+    }
+    if (isFiniteNum(sOpen.spriteScale)) { sx *= Number(sOpen.spriteScale); sy *= Number(sOpen.spriteScale); }
+    if (isFiniteNum(sOpen.spriteScaleX)) sx *= Number(sOpen.spriteScaleX);
+    if (isFiniteNum(sOpen.spriteScaleY)) sy *= Number(sOpen.spriteScaleY);
+    assert('door opening spriteScale combines', Math.abs(sx - (1.5 * 2)) < 1e-12 && Math.abs(sy - (1.5 * 0.5)) < 1e-12);
 
     // query parsing
     const qp = getQueryParams('?stateUrl=%2Fdata%2Fbattle.json&pollMs=1500');
