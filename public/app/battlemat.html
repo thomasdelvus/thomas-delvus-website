@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.08
+Version: v6.06
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.08</title>
+  <title>Battlemat Core v6.06</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.08
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.08</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.06</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.08
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.08
+  // Battlemat Core Rewrite v6.06
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.08';
+  const VERSION = 'v6.06';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -823,11 +823,10 @@ Version: v6.08
           { id:'NextDoor', corners: ['L26','V26','V21','L21'], thickness: 20, floor: { kind: 'fog' }, wall: { kind: 'brick_gray' } },
 
           //Cross Keys Inn
-          { id: 'CrossKeysUpperFloor', buildingId:'CrossKeysInn', corners: ['L21','AJ21','AJ12','L12'], thickness: 15, floor: { kind: 'brick' }, wall: { kind: 'wood_dark' } },
+          { id: 'CrossKeysUpperFloor', buildingId:'CrossKeysInn', corners: ['L21','AJ21','AJ12','L12'], thickness: 15, floor: { kind: 'fog' }, wall: { kind: 'wood_dark' } },
           { id: 'Hallway1', buildingId:'CrossKeysInn', corners: ['AD21','AF21','AF12','AD12'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Hallway2', buildingId:'CrossKeysInn', corners: ['R17','AD17','AD15','R15'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
           { id: 'Hallway3', buildingId:'CrossKeysInn', corners: ['P21','R21','R12','P12'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
-          { id: 'Flue', buildingId:'CrossKeysInn', corners: ['X19','Y19.5','Y17.5','X17'], thickness: 15, floor: { kind: 'br' }, wall: { kind: 'wood_dark' } },         
           { id: '1stFloorStairsDown', buildingId:'CrossKeysInn', corners: ['Z21','AD21','AD19','Z19'], thickness: 20, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
 
           { id: 'Bedroom1', buildingId:'CrossKeysInn', corners: ['L21','P21','P18','L18'], thickness: 15, floor: { kind: 'wood_oak' }, wall: { kind: 'wood_dark' } },
@@ -926,7 +925,7 @@ Version: v6.08
           { id:'room5_side2', kind: 'table.sqr', hex: 'S19', ox: -1.0, oy: 0.00, rotDeg: 90, spriteScale:0.5 },
 
           // Bedroom 6
-          { id:'room6_hearth', kind: 'hearth', hex: 'X18', rotDeg: 270, wHex: 1.1, hHex: 1.1, ox: -0.56, oy: 0.00 },
+          { id:'room6_hearth', kind: 'cooking.hearth', hex: 'X18', wHex: 1.1, hHex: 1.1, rotDeg: 270, ox: 0.94, oy: 0.00 },
 
           // Bedroom 7
           { id:'room7_bed', kind: 'bed.double', hex: 'AC14', rotDeg: 90, ox: 0.00, oy: 0.00, spriteScale:2.4 },
@@ -2374,16 +2373,11 @@ Version: v6.08
 
   // ===== Main render =====
   function clear() {
-    // Clear in device-pixel space to guarantee we cover the full backing store.
-    // This eliminates the occasional 1px line on the right/bottom caused by subpixel rounding.
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.max(1, rect.width);
+    const h = Math.max(1, rect.height);
     ctx.fillStyle = COLORS.bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.restore();
-
-    // Restore our normal "CSS pixel" drawing transform.
-    ctx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
+    ctx.fillRect(0, 0, w, h);
   }
 
   function redraw() {
@@ -2659,9 +2653,8 @@ Version: v6.08
     const wrap = document.getElementById('canvasWrap');
     const rect = wrap.getBoundingClientRect();
 
-    // Use the actual CSS size (can be fractional) so the math stays consistent.
-    const cssW = Math.max(1, rect.width);
-    const cssH = Math.max(1, rect.height);
+    const cssW = Math.max(1, Math.floor(rect.width));
+    const cssH = Math.max(1, Math.floor(rect.height));
 
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     const scale = dpr * SUPERSAMPLE;
@@ -2673,9 +2666,8 @@ Version: v6.08
     if (elDpr) elDpr.textContent = dpr.toFixed(2);
     if (elSs) elSs.textContent = String(SUPERSAMPLE);
 
-    // Backing store is integer device pixels.
-    canvas.width = Math.max(1, Math.round(cssW * scale));
-    canvas.height = Math.max(1, Math.round(cssH * scale));
+    canvas.width = Math.max(1, Math.floor(cssW * scale));
+    canvas.height = Math.max(1, Math.floor(cssH * scale));
 
     wallCanvas.width = canvas.width;
     wallCanvas.height = canvas.height;
