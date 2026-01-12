@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.19
+Version: v6.20
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.19</title>
+  <title>Battlemat Core v6.20</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.19
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.19</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.20</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.19
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.19
+  // Battlemat Core Rewrite v6.20
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.19';
+  const VERSION = 'v6.20';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -1083,6 +1083,30 @@ Version: v6.19
     return raw;
   }
 
+
+  // ===== State compatibility helpers =====
+  // v6.20+: tolerate older schema variants while keeping the renderer deterministic.
+  function getTokensArray(state) {
+    const s = (state && typeof state === 'object') ? state : null;
+    const arr = s && (s.tokens != null ? s.tokens : s.actors);
+    return Array.isArray(arr) ? arr : [];
+  }
+
+  function getMeta(state) {
+    const s = (state && typeof state === 'object') ? state : null;
+    return (s && s.meta && typeof s.meta === 'object') ? s.meta : {};
+  }
+
+  function getLastAction(state) {
+    const s = (state && typeof state === 'object') ? state : null;
+    return String((s && (s.last_action ?? s.lastAction ?? '')) || '');
+  }
+
+  function getNarration(state) {
+    const s = (state && typeof state === 'object') ? state : null;
+    return String((s && (s.narration ?? s.narrative ?? '')) || '');
+  }
+
   // ===== Hex id helpers =====
   function colToLetters(col) {
     let n = col + 1;
@@ -1210,7 +1234,7 @@ Version: v6.19
   }
 
   function tokensOnFloor(state, floorId) {
-    const all = Array.isArray(state && state.tokens) ? state.tokens : [];
+    const all = getTokensArray(state);
     return all.filter(t => {
       const fid = entityFloorId(t);
       return fid ? fid === String(floorId) : true;
@@ -2536,7 +2560,7 @@ Version: v6.19
     elTitle.textContent = title;
 
     if (VIEW.followTokenId) {
-      const allTokens = Array.isArray(state.tokens) ? state.tokens : [];
+      const allTokens = getTokensArray(state);
       const t = allTokens.find(x => x && x.id === VIEW.followTokenId);
       if (t && t.hex) {
         const fid = entityFloorId(t) || VIEW.floorId;
@@ -2986,7 +3010,7 @@ Version: v6.19
         VIEW.camera.row = p.row;
       } catch {}
     } else {
-      const pc = (Array.isArray(state.tokens) ? state.tokens : []).find(isPlayerToken);
+      const pc = (getTokensArray(state)).find(isPlayerToken);
       if (pc && pc.hex) {
         try {
           const p = parseHexId(pc.hex);
