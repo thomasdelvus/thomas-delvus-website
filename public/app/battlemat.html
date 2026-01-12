@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.16
+Version: v6.18
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.16</title>
+  <title>Battlemat Core v6.18</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.16
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.16</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.18</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.16
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.16
+  // Battlemat Core Rewrite v6.18
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.16';
+  const VERSION = 'v6.18';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -327,8 +327,6 @@ Version: v6.16
     // Camera is in hex coords (col,row), row 0 is "row 1" at the bottom.
     camera: { col: 6, row: 6 },
     anchor: { x: 0, y: 0 },
-    dx: 0,
-    dy: 0,
 
     // Active floor id (single-floor states still work)
     floorId: null,
@@ -624,54 +622,64 @@ Version: v6.16
   }
 
   // ===== Repeat textures (optional) =====
-  const TEXTURE_DEFS = {
-    aliases: {
-      wall: { brick: 'stone_brick_red' },
+  // One texture catalog; per-category scales + aliases.
+  const TEXTURES = {
+    files: {
+      wood_oak:     'wood_oak.png',
+      wood_elm:     'wood_elm.png',
+      wood_dark:    'wood_dark.png',
+
+      stone_cobble: 'stone_cobble.png',
+      stone_gravel: 'stone_gravel.png',
+
+      brick_gray:   'brick_gray.png',
+      brick_red:    'brick_red.png',
+      brick_dark:   'brick_dark.png',
+    },
+
+    scales: {
+      wall: {
+        wood_oak:     0.50,
+        wood_elm:     0.50,
+        wood_dark:    0.50,
+
+        stone_cobble: 0.45,
+        stone_gravel: 0.55,
+
+        brick_gray:   0.40,
+        brick_red:    0.20,
+        brick_dark:   0.40,
+      },
       floor: {
-        wood: 'wood_oak',
-        stone: 'stone_cobble',
-        cobble: 'stone_cobble',
-        gravel: 'stone_gravel',
+        wood_oak:     0.50,
+        wood_elm:     0.50,
+        wood_dark:    0.50,
+
+        stone_cobble: 0.45,
+        stone_gravel: 0.55,
+
+        brick_gray:   0.40,
+        brick_red:    0.40,
+        brick_dark:   0.40,
       },
     },
 
-    wall: {
-      wood_oak:         { file: 'wood_oak.png',         scale: 0.50 },
-      wood_elm:         { file: 'wood_elm.png',         scale: 0.50 },
-      wood_dark:        { file: 'wood_dark.png',        scale: 0.50 },
-
-      stone_cobble:     { file: 'stone_cobble.png',     scale: 0.45 },
-      stone_gravel:     { file: 'stone_gravel.png',     scale: 0.55 },
-
-      brick_gray:       { file: 'brick_gray.png',       scale: 0.40 },
-      brick_red:        { file: 'brick_red.png',        scale: 0.20 },
-      brick_dark:       { file: 'brick_dark.png',       scale: 0.40 },
-
-      // Convenience / compatibility
-      wood:             { file: 'wood_oak.png',         scale: 0.50 },
-      cobble:           { file: 'stone_cobble.png',     scale: 0.45 },
-      stone:            { file: 'stone_cobble.png',     scale: 0.45 },
-      brick:            { file: 'brick_gray.png',       scale: 0.2 },
+    aliases: {
+      wall: {
+        brick:  'brick_gray',
+        wood:   'wood_oak',
+        cobble: 'stone_cobble',
+        stone:  'stone_cobble',
+        gravel: 'stone_gravel',
+      },
+      floor: {
+        wood:   'wood_oak',
+        stone:  'stone_cobble',
+        cobble: 'stone_cobble',
+        gravel: 'stone_gravel',
+        brick:  'brick_gray',
+      },
     },
-
-    floor: {
-      wood_oak:         { file: 'wood_oak.png',         scale: 0.50 },
-      wood_elm:         { file: 'wood_elm.png',         scale: 0.50 },
-      wood_dark:        { file: 'wood_dark.png',        scale: 0.50 },
-
-      stone_cobble:     { file: 'stone_cobble.png',     scale: 0.45 },
-      stone_gravel:     { file: 'stone_gravel.png',     scale: 0.55 },
-
-      brick_gray:       { file: 'brick_gray.png',       scale: 0.40 },
-      brick_red:        { file: 'brick_red.png',        scale: 0.40 },
-      brick_dark:       { file: 'brick_dark.png',       scale: 0.40 },
-
-      // Convenience / compatibility
-      wood:             { file: 'wood_oak.png',         scale: 0.50 },
-      cobble:           { file: 'stone_cobble.png',     scale: 0.45 },
-      stone:            { file: 'stone_cobble.png',     scale: 0.45 },
-      brick:            { file: 'brick_gray.png',       scale: 0.2 },
-    }
   };
 
   function resolveTextureDef(category, kind) {
@@ -679,16 +687,15 @@ Version: v6.16
     const k0 = String(kind || '').toLowerCase();
     if (!cat || !k0) return null;
 
-    const group = (TEXTURE_DEFS && TEXTURE_DEFS[cat]) ? TEXTURE_DEFS[cat] : null;
-    if (!group) return null;
+    const files = TEXTURES && TEXTURES.files ? TEXTURES.files : null;
+    const scales = (TEXTURES && TEXTURES.scales && TEXTURES.scales[cat]) ? TEXTURES.scales[cat] : null;
+    const aliases = (TEXTURES && TEXTURES.aliases && TEXTURES.aliases[cat]) ? TEXTURES.aliases[cat] : null;
+    if (!files || !scales) return null;
 
-    if (group[k0]) return group[k0];
+    const key = (k0 in files) ? k0 : (aliases && aliases[k0] ? String(aliases[k0]).toLowerCase() : '');
+    if (!key || !(key in files)) return null;
 
-    const aliases = (TEXTURE_DEFS.aliases && TEXTURE_DEFS.aliases[cat]) ? TEXTURE_DEFS.aliases[cat] : null;
-    const aliased = aliases && aliases[k0] ? String(aliases[k0]).toLowerCase() : '';
-    if (aliased && group[aliased]) return group[aliased];
-
-    return null;
+    return { file: files[key], scale: (key in scales) ? Number(scales[key]) : 1 };
   }
 
   const PATTERN_CACHE = new Map();
@@ -1109,11 +1116,6 @@ Version: v6.16
     try { return parseHexId(hex); } catch { return null; }
   }
 
-  function isHalfStep(n) {
-    const v = Number(n);
-    if (!Number.isFinite(v)) return false;
-    return Math.abs(v * 2 - Math.round(v * 2)) < 1e-6;
-  }
 
   // Openings (doors/windows/thresholds) may use quarter-step rows (e.g. AD20.25)
   // to support odd hall geometries. Corners already allow arbitrary decimals.
@@ -1169,7 +1171,7 @@ Version: v6.16
 
   function worldToScreen(p) {
     const cam = cameraWorld();
-    return { x: VIEW.anchor.x + (p.x - cam.x) + VIEW.dx, y: VIEW.anchor.y + (p.y - cam.y) + VIEW.dy };
+    return { x: VIEW.anchor.x + (p.x - cam.x), y: VIEW.anchor.y + (p.y - cam.y) };
   }
 
   // ===== Floors (multi-floor) =====
@@ -1382,13 +1384,22 @@ Version: v6.16
   }
 
   // ===== Floor fills =====
-  function floorColor(kind) {
+  function floorBaseColor(kind) {
     const k = String(kind || 'wood').toLowerCase();
     if (k === 'fog') return COLORS.fogUnseen;
     if (k === 'stone') return COLORS.floorStone;
     if (k === 'cobble') return COLORS.floorCobble;
     if (k.startsWith('stairs')) return COLORS.floorWood;
     return COLORS.floorWood;
+  }
+
+  function getFloorFillStyle(kind, wantTextures, targetCtx = ctx) {
+    const fk = String(kind || 'wood').toLowerCase();
+    if (!wantTextures) return floorBaseColor(fk);
+    const def = resolveTextureDef('floor', fk);
+    if (!def) return floorBaseColor(fk);
+    const pat = getRepeatPatternForCtx(targetCtx, def);
+    return pat || floorBaseColor(fk);
   }
 
   function isFogFloorRoom(room) {
@@ -1409,19 +1420,9 @@ Version: v6.16
       if (w <= 0 || h <= 0) continue;
 
       const fk = (r && r.floor && r.floor.kind) ? String(r.floor.kind).toLowerCase() : 'wood';
-
-      let fill = floorColor(fk);
-      if (wantTextures) {
-        const def = resolveTextureDef('floor', fk);
-        if (def) {
-          const pat = getRepeatPatternForCtx(ctx, def);
-          if (pat) fill = pat;
-        }
-      }
-
-      ctx.fillStyle = fill;
+      ctx.fillStyle = getFloorFillStyle(fk, wantTextures, ctx);
       ctx.fillRect(p1.x, p1.y, w, h);
-}
+    }
   }
 
   // ===== Openings =====
@@ -1667,14 +1668,6 @@ Version: v6.16
     return (room && room.floor && room.floor.kind) ? String(room.floor.kind) : 'wood';
   }
 
-  function floorFillStyle(kind, wantTextures) {
-    const fk = String(kind || 'wood').toLowerCase();
-    if (!wantTextures) return floorColor(fk);
-    const def = resolveTextureDef('floor', fk);
-    if (!def) return floorColor(fk);
-    const pat = getRepeatPatternForCtx(ctx, def);
-    return pat || floorColor(fk);
-  }
 
   function buildRoomMeta(rooms) {
     const meta = new Map();
@@ -1706,20 +1699,22 @@ Version: v6.16
     return bestId;
   }
 
-  function openingRoomIds(opening, roomMeta) {
+  function openingRoomIds(opening, roomMeta, wallSegs = null) {
     const orient = openingOrientation(opening);
     const p = parseOpeningHex(opening.hex);
     if (!p) return [];
 
     const hw = hexCenterWorld(p.col, p.row);
 
-    // NOTE: this is only used to derive thickness for sampling.
-    const seg = findNearestWallSegment(buildWallSegments([...roomMeta.values()].map(v => v.room)), orient, hw);
+    // If we have wall segments, sample thickness from the nearest wall. Otherwise default.
+    const seg = (wallSegs && Array.isArray(wallSegs))
+      ? findNearestWallSegment(wallSegs, orient, hw)
+      : null;
 
-    let cx = hw.x, cy = hw.y;
     let thickness = 28;
-    if (seg) thickness = seg.thickness;
+    if (seg && seg.thickness) thickness = seg.thickness;
 
+    const cx = hw.x, cy = hw.y;
     const eps = Math.max(6, thickness * 0.6);
     const samples = (orient === 'h')
       ? [{ x: cx, y: cy - eps }, { x: cx, y: cy + eps }]
@@ -1735,11 +1730,10 @@ Version: v6.16
 
   let RENDER_FOG = null;
 
-  function openingPreferredRoomId(opening, rooms) {
+  function openingPreferredRoomId(opening, roomMetaAll) {
     const parentId = opening && opening.parent ? String(opening.parent) : '';
     if (parentId) return parentId;
 
-    const roomMetaAll = buildRoomMeta(rooms);
     const ids = openingRoomIds(opening, roomMetaAll);
     if (!ids.length) return '';
 
@@ -1750,20 +1744,21 @@ Version: v6.16
     return String(ids[0] || '');
   }
 
-  function openingKnockoutFill(opening, rooms, fogEnabled, wantTextures) {
-    const rid = openingPreferredRoomId(opening, rooms);
+  function openingKnockoutFill(opening, rooms, roomMetaAll, fogEnabled, wantTextures) {
+    const rid = openingPreferredRoomId(opening, roomMetaAll);
     const room = rid ? roomById(rooms, rid) : null;
     const fk = room ? roomFloorKind(room) : 'wood';
 
-    if (!fogEnabled) return floorFillStyle(fk, wantTextures);
+    if (!fogEnabled) return getFloorFillStyle(fk, wantTextures, ctx);
 
     if (RENDER_FOG && RENDER_FOG.enabled && rid && RENDER_FOG.visible && RENDER_FOG.visible.has(rid)) {
-      return floorFillStyle(fk, wantTextures);
+      return getFloorFillStyle(fk, wantTextures, ctx);
     }
-    return floorColor('fog');
+
+    return floorBaseColor('fog');
   }
 
-  function drawOpeningSeamFills(openings, rooms, wallSegs, fogEnabled) {
+  function drawOpeningSeamFills(openings, rooms, roomMetaAll, wallSegs, fogEnabled) {
     const wantTextures = !!(elSpriteToggle && elSpriteToggle.checked);
 
     for (const o of (Array.isArray(openings) ? openings : [])) {
@@ -1794,7 +1789,7 @@ Version: v6.16
       const h = baseH + (pad.y || 0);
 
       ctx.save();
-      ctx.fillStyle = openingKnockoutFill(o, rooms, fogEnabled, wantTextures);
+      ctx.fillStyle = openingKnockoutFill(o, rooms, roomMetaAll, fogEnabled, wantTextures);
       const rr = snappedRectFromCenter(centerS, w, h);
       ctx.fillRect(rr.x, rr.y, rr.w, rr.h);
       ctx.restore();
@@ -2226,11 +2221,7 @@ Version: v6.16
       ctx.stroke();
     }
 
-    ctx.fillStyle = 'rgba(233,238,247,0.55)';
-    ctx.font = '11px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(kind).replaceAll('.', ' '), 0, 0);
+
 
     ctx.restore();
   }
@@ -2297,10 +2288,20 @@ Version: v6.16
     const isPC = isPlayerToken(t);
 
     if (elSpriteToggle && elSpriteToggle.checked) {
-      const def = getSpriteDef(isPC ? 'token.pc' : 'token.npc');
-      if (def) {
-        const img = loadSprite(def.file);
-        const ok = drawSprite(img, c.x, c.y, r * 2.2, r * 2.2, 0);
+      const req = getTokenSpriteRequest(t, isPC);
+
+      // Prefer explicit spriteFile, else sprite kind, else the default pc/npc tokens.
+      let file = String(req.file || '').trim();
+      if (!file) {
+        const defK = getSpriteDef(req.kind);
+        const defD = getSpriteDef(isPC ? 'token.pc' : 'token.npc');
+        file = defK ? defK.file : (defD ? defD.file : '');
+      }
+
+      if (file) {
+        const img = loadSprite(file);
+        const s = (Number.isFinite(Number(req.scale)) && Number(req.scale) > 0) ? Number(req.scale) : 1;
+        const ok = drawSprite(img, c.x, c.y, r * 2.2 * s, r * 2.2 * s, 0);
         if (ok) {
           drawTokenLabel(t, c.x, c.y, isPC);
           return;
@@ -2473,10 +2474,10 @@ Version: v6.16
     elFloorSelect.value = String(VIEW.floorId || (floors[0] ? floors[0].id : ''));
   }
 
-  function populateCenterOn(state) {
+  function populateCenterOn(state, tokensOnThisFloor) {
     if (!elCenterOn) return;
 
-    const tokens = tokensOnFloor(state, VIEW.floorId);
+    const tokens = Array.isArray(tokensOnThisFloor) ? tokensOnThisFloor : tokensOnFloor(state, VIEW.floorId);
     const pcs = tokens.filter(isPlayerToken);
     const wanted = VIEW.followTokenId || '';
 
@@ -2540,6 +2541,8 @@ Version: v6.16
     const objects = Array.isArray(floor && floor.objects) ? floor.objects : [];
     const tokens = tokensOnFloor(state, VIEW.floorId);
 
+    const roomMetaAll = buildRoomMeta(rooms);
+
     const fogEnabled = !!elFogToggle.checked;
     if (state.fog && typeof state.fog === 'object') state.fog.enabled = fogEnabled;
 
@@ -2566,7 +2569,6 @@ Version: v6.16
         return renderableRoomIds.has(id);
       });
 
-      const roomMetaAll = buildRoomMeta(rooms);
       openingsToDraw = openings.filter(o => {
         const ids = openingRoomIds(o, roomMetaAll);
         if (ids.length === 2) return (renderableRoomIds.has(ids[0]) || renderableRoomIds.has(ids[1]));
@@ -2575,7 +2577,7 @@ Version: v6.16
     }
 
     populateFloorSelect(floors);
-    populateCenterOn(state);
+    populateCenterOn(state, tokens);
 
     clear();
 
@@ -2589,7 +2591,7 @@ Version: v6.16
     const wallSegs = dedupeWallSegments(wallSegsRaw);
 
     // Floor-aware knockout fills for doors/thresholds (so wall openings match the underlying texture)
-    drawOpeningSeamFills(openingsToDraw, rooms, wallSegs, fogEnabled);
+    drawOpeningSeamFills(openingsToDraw, rooms, roomMetaAll, wallSegs, fogEnabled);
 
     wallCtx.save();
     wallCtx.setTransform(1, 0, 0, 1, 0, 0);
@@ -2621,7 +2623,6 @@ Version: v6.16
 
     for (const o of openingsToDraw) drawOpeningMarker(o, wallSegs);
 
-    const roomMetaAll = buildRoomMeta(rooms);
     for (const o of objects) drawObject(o, roomMetaAll);
 
     drawRememberedRoomOverlays(rooms);
