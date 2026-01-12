@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.20
+Version: v6.21
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.20</title>
+  <title>Battlemat Core v6.21</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.20
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.20</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.21</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.20
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.20
+  // Battlemat Core Rewrite v6.21
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.20';
+  const VERSION = 'v6.21';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -976,7 +976,7 @@ Version: v6.20
           // Bedroom 10
           { id:'room10_bed1',kind:'bed',hex:'AI21',rotDeg:90,spriteScale:2.3},
 
-          { id:'stairs_down',kind:'stairs',hex:'AC21',rotDeg:270,ox:-0.5,oy:0.43,spriteScaleX:1.95,spriteScaleY:2.0},
+          { id:'stairs_down',kind:'stairs',hex:'AC21',rotDeg:270,ox:-1.0,oy:0.43,spriteScaleX:1.95,spriteScaleY:3.0},
         ],
      },
       {
@@ -2724,11 +2724,23 @@ Version: v6.20
     const f = floorById(floors, target);
     if (!f) return;
 
+    // Preserve the current camera unless explicitly told to re-center.
+    const prevCam = { col: VIEW.camera.col, row: VIEW.camera.row };
+
+    // If the user manually switched floors, stop following a token.
+    if (!opts.fromFollow) {
+      VIEW.followTokenId = null;
+      if (elCenterOn) elCenterOn.value = '';
+    }
+
     VIEW.floorId = target;
 
     if (state.view && typeof state.view === 'object') state.view.floorId = target;
 
-    if (!opts.fromFollow) {
+    const keepCamera = !!opts.keepCamera;
+
+    // Old behavior: when not keeping camera (and not switching due to follow), snap to a PC on that floor.
+    if (!opts.fromFollow && !keepCamera) {
       const pcs = tokensOnFloor(state, target).filter(isPlayerToken);
       if (pcs.length && pcs[0].hex) {
         try {
@@ -2737,6 +2749,10 @@ Version: v6.20
           VIEW.camera.row = p.row;
         } catch {}
       }
+    } else {
+      // Default requested behavior: keep the same map spot centered.
+      VIEW.camera.col = prevCam.col;
+      VIEW.camera.row = prevCam.row;
     }
 
     safeRedraw();
@@ -2781,7 +2797,7 @@ Version: v6.20
     if (elLabelBoldToggle) elLabelBoldToggle.onchange = () => safeRedraw();
 
     if (elFloorSelect) {
-      elFloorSelect.onchange = () => setActiveFloor(elFloorSelect.value, { fromFollow: false });
+      elFloorSelect.onchange = () => setActiveFloor(elFloorSelect.value, { fromFollow: false, keepCamera: true });
     }
 
     if (elCenterOn) {
