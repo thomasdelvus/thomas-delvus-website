@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.15
+Version: v6.16
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.15</title>
+  <title>Battlemat Core v6.16</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.15
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.15</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.16</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.15
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.15
+  // Battlemat Core Rewrite v6.16
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.15';
+  const VERSION = 'v6.16';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -864,7 +864,7 @@ Version: v6.15
           { id:'door_room4',kind:'door.wood',hex:'U15.5',orientation:'h',openPct:1.0,hinge:'left',swing:1},
 
           { id:'door_room5',kind:'door.wood',hex:'V17',orientation:'h',openPct:1.0 },
-          { id:'door_to_closet',kind:'door',hex:'X20.25',orientation:'v',openPct:1.0},
+          { id:'door_to_closet',kind:'door.wood',hex:'X20.25',orientation:'v',openPct:1.0},
           { id:'door_room6',kind:'door.wood',hex:'AB17',orientation:'h',openPct:1.0 },
           { id:'door_room7',kind:'door.wood',hex:'AA15.5',orientation:'h',openPct:1.0,hinge:'right',swing:1  },
           
@@ -942,7 +942,7 @@ Version: v6.15
 
           // Bedroom 6
           { id:'room6_hearth',kind:'hearth',hex:'Z18',rotDeg:270,ox:-0.94,oy:0.00,spriteScale:1.1},
-          { id:'room6_bath',kind:'bath',hex:'AB19',rotDeg:0,ox:-0.0,oy:0.50,spriteScale:2.5},
+          { id:'room6_bath',kind:'bath',hex:'AB19',ox:0.0,oy:0.50,spriteScale:2.5},
 
           // Bedroom 7
           { id:'room7_bed',kind:'bed.double',hex:'AC14',rotDeg:90,ox:0.00,oy:0.00,spriteScale:2.4},
@@ -1043,10 +1043,10 @@ Version: v6.15
           { id:'pub_table6_c5',kind:'chair',hex:'V16',rotDeg:180,spriteScale:0.75},
 
           { id:'pub_hearth',kind:'hearth',hex:'X18',rotDeg:90,ox:-0.56,oy:0.00,spriteScale:1.65},
-          { id:'stairs_up',kind:'stairs',hex:'AA21',rotDeg:270,ox:0.0,oy:+0.43,spriteScaleX:1.95,spriteScaleY:5.0},
+          { id:'stairs_up',kind:'stairs',hex:'AA21',rotDeg:270,ox:0.0,oy:+0.4,spriteScaleX:1.95,spriteScaleY:5.0},
 
           //Kitchen Area
-          { id:'room6_hearth',kind:'cooking.hearth',hex:'Z18',wHex:1.1,hHex:1.1,rotDeg:270,ox:-0.94,oy:0.00},
+          { id:'room6_hearth',kind:'cooking.hearth',hex:'Z18',rotDeg:270,ox:-0.94,oy:0.00,spriteScale:2.42},
 
 
         ],
@@ -1055,7 +1055,7 @@ Version: v6.15
 
     tokens:[
       { id:'a',name:'Aelar',side:'PC',hex:'AE19',label:'A',init:14,hp:42,floorId:'upper'},
-      { id:'b',name:'Bran',side:'PC',hex:'T15',label:'B',init:12,hp:35,floorId:'ground',spriteFile:'ranger_male.png',spriteScale:1.00},
+      { id:'b',name:'Bran',side:'PC',hex:'T15',label:'B',init:12,hp:35,floorId:'ground',spriteFile:'ranger_male.png'},
       { id:'g1',name:'Goblin 1',side:'NPC',hex:'U19',label:'G1',init:10,hp:8,floorId:'upper'},
       { id:'g2',name:'Goblin 2',side:'NPC',hex:'V19',label:'G2',init:10,hp:8,floorId:'upper'},
       { id:'g3',name:'Goblin 3',side:'NPC',hex:'W19',label:'G3',init:10,hp:8,floorId:'upper'},
@@ -1962,21 +1962,10 @@ Version: v6.15
   // ===== Objects / tokens orientation =====
   function degToRad(deg) { return (deg * Math.PI) / 180; }
 
-  function facingToDeg(facing) {
-    const f = String(facing || '').toUpperCase();
-    const map = { N:0, NE:60, E:90, SE:120, S:180, SW:240, W:270, NW:300 };
-    return map[f] != null ? map[f] : 0;
-  }
-
   function objectRotationRad(o) {
     if (!o) return 0;
-    if (Number.isFinite(o.rotDeg)) return degToRad(Number(o.rotDeg));
-    if (Number.isFinite(o.deg)) return degToRad(Number(o.deg));
-    if (Number.isFinite(o.rot)) return degToRad(Number(o.rot));
-    if (o.facing) return degToRad(facingToDeg(o.facing));
-    if (o.orientation && typeof o.orientation === 'number') return degToRad(o.orientation);
-    if (o.head) return degToRad(facingToDeg(o.head));
-    return 0;
+    const deg = Number(o.rotDeg);
+    return Number.isFinite(deg) ? degToRad(deg) : 0;
   }
 
   function objectCenterWorld(o) {
@@ -1985,10 +1974,13 @@ Version: v6.15
 
     const base = hexCenterWorld(p.col, p.row);
 
-    const ox = Number.isFinite(Number(o && (o.ox ?? o.offsetX ?? o.xOffset ?? o.dx))) ? Number(o.ox ?? o.offsetX ?? o.xOffset ?? o.dx) : 0;
-    const oy = Number.isFinite(Number(o && (o.oy ?? o.offsetY ?? o.yOffset ?? o.dy))) ? Number(o.oy ?? o.offsetY ?? o.yOffset ?? o.dy) : 0;
+    const ox = Number(o && o.ox);
+    const oy = Number(o && o.oy);
 
-    return { x: base.x + ox * GRID.size, y: base.y + oy * GRID.size };
+    return {
+      x: base.x + (Number.isFinite(ox) ? ox : 0) * GRID.size,
+      y: base.y + (Number.isFinite(oy) ? oy : 0) * GRID.size,
+    };
   }
 
   function objectCenterScreen(o) {
@@ -1999,15 +1991,7 @@ Version: v6.15
 
   function objectSizePx(o) {
     const base = GRID.size * 1.15;
-
-    const wHex = Number.isFinite(Number(o && o.wHex)) ? Number(o.wHex) : 1;
-    const hHex = Number.isFinite(Number(o && o.hHex)) ? Number(o.hHex) : 1;
-    const scale = Number.isFinite(Number(o && o.scale)) ? Number(o.scale) : 1;
-
-    const kind = String(o && o.kind ? o.kind : '').toLowerCase();
-    const kindMul = (kind === 'cooking.hearth') ? 2.2 : 1.0;
-
-    return { w: base * wHex * scale * kindMul, h: base * hHex * scale * kindMul };
+    return { w: base, h: base };
   }
 
   function objectVisible(o, roomMetaAll) {
