@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.14
+Version: v6.15
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.14</title>
+  <title>Battlemat Core v6.15</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.14
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.14</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.15</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.14
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.12
+  // Battlemat Core Rewrite v6.15
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.14';
+  const VERSION = 'v6.15';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -590,6 +590,18 @@ Version: v6.14
     ctx.translate(x, y);
     if (rotRad) ctx.rotate(rotRad);
     ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+    ctx.restore();
+    return true;
+  }
+
+  function drawSpriteStretch(img, x, y, w, h, rotRad = 0) {
+    // Non-uniform scale ("stretch" behavior). Use when spriteScaleX/Y are provided.
+    if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return false;
+
+    ctx.save();
+    ctx.translate(x, y);
+    if (rotRad) ctx.rotate(rotRad);
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
     ctx.restore();
     return true;
   }
@@ -2049,16 +2061,30 @@ Version: v6.14
         const img = loadSprite(def.file);
 
         let sx = 1, sy = 1;
-        if (isFiniteNum(def.scale)) { sx = Number(def.scale); sy = Number(def.scale); }
-        if (isFiniteNum(def.scaleX)) sx = Number(def.scaleX);
-        if (isFiniteNum(def.scaleY)) sy = Number(def.scaleY);
+        // Sprite-def defaults are always applied first.
+        if (isFiniteNum(def.scale)) { sx *= Number(def.scale); sy *= Number(def.scale); }
+        if (isFiniteNum(def.scaleX)) sx *= Number(def.scaleX);
+        if (isFiniteNum(def.scaleY)) sy *= Number(def.scaleY);
 
-        if (isFiniteNum(o.spriteScale)) { sx *= Number(o.spriteScale); sy *= Number(o.spriteScale); }
-        if (isFiniteNum(o.spriteScaleX)) sx *= Number(o.spriteScaleX);
-        if (isFiniteNum(o.spriteScaleY)) sy *= Number(o.spriteScaleY);
+        // Scaling rules:
+        // - spriteScale => proportional (uniform) scaling
+        // - spriteScaleX / spriteScaleY => absolute per-axis scaling (non-uniform), and ignores spriteScale
+        const hasAxisScale = isFiniteNum(o.spriteScaleX) || isFiniteNum(o.spriteScaleY);
 
-        const ok = drawSprite(img, c.x, c.y, w * sx, h * sy, def.rotate === 'deg' ? rot : 0);
-        if (ok) return;
+        if (!hasAxisScale && isFiniteNum(o.spriteScale)) {
+          sx *= Number(o.spriteScale);
+          sy *= Number(o.spriteScale);
+        }
+
+        if (hasAxisScale) {
+          if (isFiniteNum(o.spriteScaleX)) sx *= Number(o.spriteScaleX);
+          if (isFiniteNum(o.spriteScaleY)) sy *= Number(o.spriteScaleY);
+          const ok = drawSpriteStretch(img, c.x, c.y, w * sx, h * sy, def.rotate === 'deg' ? rot : 0);
+          if (ok) return;
+        } else {
+          const ok = drawSprite(img, c.x, c.y, w * sx, h * sy, def.rotate === 'deg' ? rot : 0);
+          if (ok) return;
+        }
       }
     }
 
