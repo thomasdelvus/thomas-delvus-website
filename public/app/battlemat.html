@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.11
+Version: v6.13
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.11</title>
+  <title>Battlemat Core v6.13</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.11
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.09</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.13</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.11
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.11
+  // Battlemat Core Rewrite v6.12
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.11';
+  const VERSION = 'v6.13';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -537,6 +537,7 @@ Version: v6.11
       'door':         { file: 'door_wood.png', rotate: 'none' },
       'door.wood':    { file: 'door_wood.png', rotate: 'none' },
       'door_wood':    { file: 'door_wood.png', rotate: 'none' },
+      'bath':        { file: 'bath.png', rotate: 'deg' },
 
       // Tokens (optional)
       'token.pc':    { file: 'token_pc.png', rotate: 'none' },
@@ -930,6 +931,7 @@ Version: v6.11
 
           // Bedroom 6
           { id:'room6_hearth', kind: 'hearth', hex: 'Z18', wHex: 1.1, hHex: 1.1, rotDeg: 270, ox: -0.94, oy: 0.00 },
+          { id:'room6_bath',  kind: 'bath',   hex: 'AA18', wHex: 1.6, hHex: 1.1, rotDeg: 0,   ox: 0.10,  oy: 0.00, spriteScale: 2.2 },
           { id:'room6_bath', kind: 'bath', hex: 'AB19', wHex: 1.0, hHex: 1.0, rotDeg: 0, ox: -0.0, oy: 0.50 },
 
           // Bedroom 7
@@ -957,7 +959,7 @@ Version: v6.11
           // Bedroom 10
           { id:'room10_bed1', kind: 'bed', hex: 'AI21', rotDeg: 90, ox: 0.00, oy: 0.00, spriteScale:2.3 },
 
-          { id:'stairs_down', kind:'stairs', hex:'AB20', wHex: 1.00, hHex: 1.00, rotDeg: 270, ox: 0.0, oy: -0.50 },
+          { id:'stairs_down', kind:'stairs', hex:'AB20', wHex: 0.68, hHex: 1.09, rotDeg: 270, ox: 0.0, oy: -0.50, spriteScale:4.70 },
         ],
       },
       {
@@ -2082,6 +2084,32 @@ Version: v6.11
       ctx.lineTo( topW/2, -rh/2);
       ctx.lineTo(-topW/2, -rh/2);
       ctx.closePath();
+      ctx.fill();
+
+    } else if (kind === 'bath') {
+      // Simple non-sprite fallback for bath.png (top-down oval tub)
+      const rw = w * 2.05;
+      const rh = h * 1.20;
+
+      // Outer tub
+      ctx.fillStyle = 'rgba(90, 58, 32, 0.85)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, rw / 2, rh / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Inner basin (water)
+      ctx.fillStyle = 'rgba(20, 28, 40, 0.55)';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, (rw * 0.82) / 2, (rh * 0.70) / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Water sheen
+      ctx.fillStyle = 'rgba(210, 230, 255, 0.18)';
+      ctx.beginPath();
+      ctx.ellipse(0, -rh * 0.06, (rw * 0.30), (rh * 0.18), 0, 0, Math.PI * 2);
       ctx.fill();
 
     } else if (kind === 'chest') {
