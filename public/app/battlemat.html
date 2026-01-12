@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.23
+Version: v6.24
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.23</title>
+  <title>Battlemat Core v6.24</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.23
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.23</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.24</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -254,7 +254,7 @@ Version: v6.23
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.23';
+  const VERSION = 'v6.24';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -530,6 +530,11 @@ Version: v6.23
       'hearth':      { file: 'hearth.png', rotate: 'deg' },
       'cooking.hearth': { file: 'cooking_hearth.png', rotate: 'deg' },
       'stairs':      { file: 'stairs.png', rotate: 'deg' },
+
+      // New 1-hex props
+      'keg':         { file: 'keg.png', rotate: 'deg' },
+      'barrel':      { file: 'barrel.png', rotate: 'deg' },
+      'crate':       { file: 'crate.png', rotate: 'deg' },
 
       // Doors (prefer dot-style kinds, but keep aliases for convenience/compat)
       'door':         { file: 'door_wood.png', rotate: 'none' },
@@ -2201,6 +2206,72 @@ Version: v6.23
         ctx.beginPath();
         ctx.moveTo(x, -rh/2);
         ctx.lineTo(x, rh/2);
+        ctx.stroke();
+      }
+
+    } else if (kind === 'crate') {
+      // 1-hex square crate
+      const s = Math.min(w, h) * 0.82;
+      ctx.fillStyle = COLORS.objectWood;
+      ctx.strokeStyle = 'rgba(0,0,0,0.26)';
+      ctx.lineWidth = 2;
+      roundRectPath(ctx, -s/2, -s/2, s, s, Math.min(10, s/5));
+      ctx.fill();
+      ctx.stroke();
+
+      // simple plank/X bracing
+      ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-s/2, -s/2);
+      ctx.lineTo(s/2, s/2);
+      ctx.moveTo(-s/2, s/2);
+      ctx.lineTo(s/2, -s/2);
+      ctx.stroke();
+
+      ctx.globalAlpha = 0.75;
+      ctx.beginPath();
+      ctx.moveTo(-s/2, 0);
+      ctx.lineTo(s/2, 0);
+      ctx.moveTo(0, -s/2);
+      ctx.lineTo(0, s/2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+    } else if (kind === 'keg' || kind === 'barrel') {
+      // 1-hex circular prop; barrel gets a taller oval
+      const isBarrel = (kind === 'barrel');
+      const rx = Math.min(w, h) * 0.42;
+      const ry = Math.min(w, h) * (isBarrel ? 0.52 : 0.42);
+
+      // body
+      ctx.fillStyle = COLORS.objectWood;
+      ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // hoops/bands
+      ctx.strokeStyle = 'rgba(0,0,0,0.34)';
+      ctx.lineWidth = 3;
+      const bands = isBarrel ? [-0.55, 0, 0.55] : [-0.30, 0.30];
+      for (const t of bands) {
+        ctx.beginPath();
+        ctx.ellipse(0, ry * t, rx * 0.98, ry * 0.18, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // staves
+      ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+      ctx.lineWidth = 1;
+      const staves = isBarrel ? 7 : 6;
+      for (let i = 0; i < staves; i++) {
+        const x = -rx + (2 * rx) * (i / (staves - 1));
+        ctx.beginPath();
+        ctx.moveTo(x, -ry * 0.85);
+        ctx.lineTo(x, ry * 0.85);
         ctx.stroke();
       }
 
