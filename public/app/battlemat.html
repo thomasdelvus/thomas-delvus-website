@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.18
+Version: v6.19
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.18</title>
+  <title>Battlemat Core v6.19</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.18
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.18</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.19</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.18
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.18
+  // Battlemat Core Rewrite v6.19
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.18';
+  const VERSION = 'v6.19';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -1062,7 +1062,7 @@ Version: v6.18
 
     tokens:[
       { id:'a',name:'Aelar',side:'PC',hex:'AE19',label:'A',init:14,hp:42,floorId:'upper'},
-      { id:'b',name:'Bran',side:'PC',hex:'T15',label:'B',init:12,hp:35,floorId:'ground',spriteFile:'ranger_male.png',spriteScale:3.0},
+      { id:'b',name:'Bran',side:'PC',hex:'T15',label:'B',init:12,hp:35,floorId:'ground',spriteFile:'ranger_male.png'},
       { id:'g1',name:'Goblin 1',side:'NPC',hex:'U19',label:'G1',init:10,hp:8,floorId:'upper'},
       { id:'g2',name:'Goblin 2',side:'NPC',hex:'V19',label:'G2',init:10,hp:8,floorId:'upper'},
       { id:'g3',name:'Goblin 3',side:'NPC',hex:'W19',label:'G3',init:10,hp:8,floorId:'upper'},
@@ -1499,10 +1499,17 @@ Version: v6.18
     const hexWorld = hexCenterWorld(p.col, p.row);
     const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
 
-    const len = openingLengthWorld(opening, rooms);
+    // Important: snap the cutout centerline onto the actual wall segment axis.
+    // At extreme zoom levels, tiny float/quantization differences can otherwise mean
+    // the cutout misses the wall by ~<1px, making the "knockout" look like it vanished.
+    let cx = hexWorld.x;
+    let cy = hexWorld.y;
+    if (seg) {
+      if (orient === 'h' && Number.isFinite(seg.y)) cy = seg.y;
+      if (orient === 'v' && Number.isFinite(seg.x)) cx = seg.x;
+    }
 
-    const cx = hexWorld.x;
-    const cy = hexWorld.y;
+    const len = openingLengthWorld(opening, rooms);
     const thickness = seg ? seg.thickness : 28;
 
     const centerS = worldToScreen({ x: cx, y: cy });
@@ -1530,8 +1537,14 @@ Version: v6.18
     const hexWorld = hexCenterWorld(p.col, p.row);
     const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
 
-    const cx = hexWorld.x;
-    const cy = hexWorld.y;
+    // Keep the marker aligned to the wall segment axis (same reason as cutOpeningHole).
+    let cx = hexWorld.x;
+    let cy = hexWorld.y;
+    if (seg) {
+      if (orient === 'h' && Number.isFinite(seg.y)) cy = seg.y;
+      if (orient === 'v' && Number.isFinite(seg.x)) cx = seg.x;
+    }
+
     const thickness = seg ? seg.thickness : 28;
 
     const c = worldToScreen({ x: cx, y: cy });
@@ -1773,10 +1786,15 @@ Version: v6.18
       const hexWorld = hexCenterWorld(p.col, p.row);
       const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
 
-      const len = openingLengthWorld(o, rooms);
+      // Snap onto the wall axis so seam fills always overlap the wall cutout.
+      let cx = hexWorld.x;
+      let cy = hexWorld.y;
+      if (seg) {
+        if (orient === 'h' && Number.isFinite(seg.y)) cy = seg.y;
+        if (orient === 'v' && Number.isFinite(seg.x)) cx = seg.x;
+      }
 
-      const cx = hexWorld.x;
-      const cy = hexWorld.y;
+      const len = openingLengthWorld(o, rooms);
       const thickness = seg ? seg.thickness : 28;
 
       const centerS = worldToScreen({ x: cx, y: cy });
