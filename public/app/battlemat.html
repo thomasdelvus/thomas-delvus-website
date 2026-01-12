@@ -904,18 +904,18 @@ Version: v6.15
         ],
         objects:[
           // Bedroom 1
-          { id:'room1_bed1',kind:'bed',hex:'M21',rotDeg:0,ox:-0.5,oy:0.70,spriteScale:2.3},
-          { id:'room1_bed2',kind:'bed',hex:'N20',rotDeg:0,ox:0.00,oy:-0.17,spriteScale:2.3},
-          { id:'room1_bed3',kind:'bed',hex:'O21',rotDeg:0,ox:+0.5,oy:0.70,spriteScale:2.3},
+          { id:'room1_bed1',kind:'bed',hex:'M21',ox:-0.5,oy:0.70,spriteScale:2.3},
+          { id:'room1_bed2',kind:'bed',hex:'N20',ox:0.00,oy:-0.17,spriteScale:2.3},
+          { id:'room1_bed3',kind:'bed',hex:'O21',ox:+0.5,oy:0.70,spriteScale:2.3},
           
           // Bedroom 2
           { id:'room2_bed1',kind:'bed',hex:'M18',rotDeg:270,spriteScale:2.3},
           { id:'room2_bed2',kind:'bed',hex:'M16',rotDeg:270,spriteScale:2.3},
           
           // Bedroom 3
-          { id:'room3_bed1',kind:'bed',hex:'M15',rotDeg:0,ox:-0.50,oy:0.70,spriteScale:2.3},
-          { id:'room3_bed2',kind:'bed',hex:'N14',rotDeg:0,ox:0.00,oy:-0.17,spriteScale:2.3},
-          { id:'room3_bed3',kind:'bed',hex:'O15',rotDeg:0,ox:0.50,oy:0.70,spriteScale:2.3},
+          { id:'room3_bed1',kind:'bed',hex:'M15',ox:-0.50,oy:0.70,spriteScale:2.3},
+          { id:'room3_bed2',kind:'bed',hex:'N14',ox:0.00,oy:-0.17,spriteScale:2.3},
+          { id:'room3_bed3',kind:'bed',hex:'O15',ox:0.50,oy:0.70,spriteScale:2.3},
 
           // Bedroom 4
           { id:'room4_bed',kind:'bed.double',hex:'S14',rotDeg:270,spriteScale:2.4},
@@ -923,7 +923,7 @@ Version: v6.15
           { id:'room4_chair2',kind:'chair',hex:'W13',rotDeg:120,ox:-0.20,oy:0.00,spriteScale:0.8 },
           { id:'room4_chair3',kind:'chair',hex:'U13',rotDeg:240,ox:0.20,oy:0.00,spriteScale:0.8 },
           { id:'room4_table',kind:'table.round',hex:'V13',rotDeg:0,spriteScale:1.8},
-          { id:'room4_chest',kind:'chest',hex:'S15',rotDeg:0,ox:0.00,oy:-0.25,spriteScale:0.75},
+          { id:'room4_chest',kind:'chest',hex:'S15',ox:0.00,oy:-0.25,spriteScale:0.75},
           { id:'room4_hearth',kind:'hearth',hex:'X14',rotDeg:90,ox:-0.50,oy:-0.30,spriteScale:1.1},
           { id:'room4_side1',kind:'table.sqr',hex:'S13',ox:-1.0,oy:0.00,rotDeg:90,spriteScale:0.5},
           { id:'room4_side2',kind:'table.sqr',hex:'S15',ox:-1.0,oy:0.00,rotDeg:90,spriteScale:0.5},
@@ -956,9 +956,9 @@ Version: v6.15
           { id:'room7_side2',kind:'table.sqr',hex:'AC15',rotDeg:90,ox:1.0,oy:0.00,spriteScale:0.5},
 
           // Bedroom 8
-          { id:'room8_bed1',kind:'bed',hex:'AG15',rotDeg:0,ox:-0.50,oy:0.70,spriteScale:2.3},
-          { id:'room8_bed2',kind:'bed',hex:'AH14',rotDeg:0,ox:0.00,oy:-0.17,spriteScale:2.3},
-          { id:'room8_bed3',kind:'bed',hex:'AI15',rotDeg:0,ox:0.50,oy:0.70,spriteScale:2.3},
+          { id:'room8_bed1',kind:'bed',hex:'AG15',ox:-0.50,oy:0.70,spriteScale:2.3},
+          { id:'room8_bed2',kind:'bed',hex:'AH14',ox:0.00,oy:-0.17,spriteScale:2.3},
+          { id:'room8_bed3',kind:'bed',hex:'AI15',ox:0.50,oy:0.70,spriteScale:2.3},
 
           // Bedroom 9
           { id:'room9_bed1',kind:'bed',hex:'AI19',rotDeg:90,spriteScale:2.3},
@@ -967,7 +967,7 @@ Version: v6.15
           { id:'room9_bed4',kind:'bed',hex:'AI16',rotDeg:90,spriteScale:2.3},
 
           // Bedroom 10
-          { id:'room10_bed1',kind:'bed',hex:'AI21',rotDeg:90,ox:0.00,oy:0.00,spriteScale:2.3},
+          { id:'room10_bed1',kind:'bed',hex:'AI21',rotDeg:90,spriteScale:2.3},
 
           { id:'stairs_down',kind:'stairs',hex:'AB20',rotDeg:270,ox:0.0,oy:-0.43,spriteScaleX:1.95,spriteScaleY:4.0},
         ],
@@ -1007,45 +1007,43 @@ Version: v6.15
         objects:[
           
           //Pub Area
-          { id:'pub_table1',kind:'table.rect',hex:'O20',rotDeg:90,wHex:1.0,hHex:1.0,spriteScale:3.5},
-          { id:'pub_table1_c1',kind:'chair',hex:'P20',rotDeg:90,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table1_c2',kind:'chair',hex:'P19',rotDeg:90,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table1_c3',kind:'chair',hex:'N20',rotDeg:270,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table1_c4',kind:'chair',hex:'N19',rotDeg:270,ox:0.00,oy:0.00,spriteScale:0.75},
+          { id:'pub_table1',kind:'table.rect',hex:'O20',rotDeg:90,spriteScale:3.5},
+          { id:'pub_table1_c1',kind:'chair',hex:'P20',rotDeg:90,spriteScale:0.75},
+          { id:'pub_table1_c2',kind:'chair',hex:'P19',rotDeg:90,spriteScale:0.75},
+          { id:'pub_table1_c3',kind:'chair',hex:'N20',rotDeg:270,spriteScale:0.75},
+          { id:'pub_table1_c4',kind:'chair',hex:'N19',rotDeg:270,spriteScale:0.75},
 
-          { id:'pub_table2',kind:'table.rect',hex:'O15',rotDeg:30,wHex:1.0,hHex:1.0,spriteScale:3.5},
-          { id:'pub_table2_c1',kind:'chair',hex:'O16',rotDeg:30,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table2_c2',kind:'chair',hex:'P15',rotDeg:30,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table2_c3',kind:'chair',hex:'O14',rotDeg:210,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table2_c4',kind:'chair',hex:'N14',rotDeg:210,ox:0.00,oy:0.00,spriteScale:0.75},
+          { id:'pub_table2',kind:'table.rect',hex:'O15',rotDeg:30,spriteScale:3.5},
+          { id:'pub_table2_c1',kind:'chair',hex:'O16',rotDeg:30,spriteScale:0.75},
+          { id:'pub_table2_c2',kind:'chair',hex:'P15',rotDeg:30,spriteScale:0.75},
+          { id:'pub_table2_c3',kind:'chair',hex:'O14',rotDeg:210,spriteScale:0.75},
+          { id:'pub_table2_c4',kind:'chair',hex:'N14',rotDeg:210,spriteScale:0.75},
 
-          { id:'pub_table3',kind:'table.rect',hex:'S20',rotDeg:150,wHex:1.0,hHex:1.0,spriteScale:3.5},
-          { id:'pub_table3_c1',kind:'chair',hex:'T19',rotDeg:150,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table3_c2',kind:'chair',hex:'S19',rotDeg:150,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table3_c3',kind:'chair',hex:'R20',rotDeg:330,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table3_c4',kind:'chair',hex:'S21',rotDeg:330,ox:0.00,oy:0.00,spriteScale:0.75},
+          { id:'pub_table3',kind:'table.rect',hex:'S20',rotDeg:150,spriteScale:3.5},
+          { id:'pub_table3_c1',kind:'chair',hex:'T19',rotDeg:150,spriteScale:0.75},
+          { id:'pub_table3_c2',kind:'chair',hex:'S19',rotDeg:150,spriteScale:0.75},
+          { id:'pub_table3_c3',kind:'chair',hex:'R20',rotDeg:330,spriteScale:0.75},
+          { id:'pub_table3_c4',kind:'chair',hex:'S21',rotDeg:330,spriteScale:0.75},
 
-          { id:'pub_table4',kind:'table.round',hex:'Q18',wHex:1.2,hHex:1.2,rotDeg:0,spriteScale:2},
-          { id:'pub_table4_c1',kind:'chair',hex:'Q19',rotDeg:0,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table4_c2',kind:'chair',hex:'P17',rotDeg:240,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table4_c3',kind:'chair',hex:'R17',rotDeg:120,ox:0.00,oy:0.00,spriteScale:0.75},
+          { id:'pub_table4',kind:'table.round',hex:'Q18',rotDeg:0,spriteScale:2.4},
+          { id:'pub_table4_c1',kind:'chair',hex:'Q19',rotDeg:0,spriteScale:0.75},
+          { id:'pub_table4_c2',kind:'chair',hex:'P17',rotDeg:240,spriteScale:0.75},
+          { id:'pub_table4_c3',kind:'chair',hex:'R17',rotDeg:120,spriteScale:0.75},
 
-          { id:'pub_table5',kind:'table.round',hex:'S15',wHex:1.2,hHex:1.2,rotDeg:0,spriteScale:2},
-          { id:'pub_table5_c1',kind:'chair',hex:'T15',rotDeg:60,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table5_c2',kind:'chair',hex:'S14',rotDeg:180,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table5_c3',kind:'chair',hex:'R15',rotDeg:300,ox:0.00,oy:0.00,spriteScale:0.75},
+          { id:'pub_table5',kind:'table.round',hex:'S15',rotDeg:0,spriteScale:2.4},
+          { id:'pub_table5_c1',kind:'chair',hex:'T15',rotDeg:60,spriteScale:0.75},
+          { id:'pub_table5_c2',kind:'chair',hex:'S14',rotDeg:180,spriteScale:0.75},
+          { id:'pub_table5_c3',kind:'chair',hex:'R15',rotDeg:300,spriteScale:0.75},
 
-          { id:'pub_table6',kind:'table.round',hex:'V17',wHex:1.2,hHex:1.2,rotDeg:0,spriteScale:2},
-          { id:'pub_table6_c1',kind:'chair',hex:'V18',rotDeg:0,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table6_c2',kind:'chair',hex:'U17',rotDeg:240,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table6_c3',kind:'chair',hex:'W17',rotDeg:120,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table6_c4',kind:'chair',hex:'U18',rotDeg:300,ox:0.00,oy:0.00,spriteScale:0.75},
-          { id:'pub_table6_c5',kind:'chair',hex:'V16',rotDeg:180,ox:0.00,oy:0.00,spriteScale:0.75},
+          { id:'pub_table6',kind:'table.round',hex:'V17',rotDeg:0,spriteScale:2.4},
+          { id:'pub_table6_c1',kind:'chair',hex:'V18',rotDeg:0,spriteScale:0.75},
+          { id:'pub_table6_c2',kind:'chair',hex:'U17',rotDeg:240,spriteScale:0.75},
+          { id:'pub_table6_c3',kind:'chair',hex:'W17',rotDeg:120,spriteScale:0.75},
+          { id:'pub_table6_c4',kind:'chair',hex:'U18',rotDeg:300,spriteScale:0.75},
+          { id:'pub_table6_c5',kind:'chair',hex:'V16',rotDeg:180,spriteScale:0.75},
 
           { id:'pub_hearth',kind:'hearth',hex:'X18',rotDeg:90,ox:-0.56,oy:0.00,spriteScale:1.65},
-          { id:'stairs_up',kind:'stairs',hex:'AA21',wHex:0.68,hHex:1.09,rotDeg:270,ox:0.0,oy:+0.50,spriteScale:4.70},
-
-
+          { id:'stairs_up',kind:'stairs',hex:'AA21',rotDeg:270,ox:0.0,oy:+0.50,spriteScaleX:1.95,spriteScaleY:4.0},
 
           //Kitchen Area
           { id:'room6_hearth',kind:'cooking.hearth',hex:'Z18',wHex:1.1,hHex:1.1,rotDeg:270,ox:-0.94,oy:0.00},
