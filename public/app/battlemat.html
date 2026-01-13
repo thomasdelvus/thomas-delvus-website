@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.33
+Version: v6.34
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.33</title>
+  <title>Battlemat Core v6.34</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,9 +186,10 @@ Version: v6.33
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.33</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.34</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
+      <div class="mini" id="sceneWrap">Scene <select id="recordSelect"></select></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
       <div class="pill" title="DevicePixelRatio × Supersample">
         DPR <span id="dprText">?</span>
@@ -250,11 +251,11 @@ Version: v6.33
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.33
+  // Battlemat Core Rewrite v6.34
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.33';
+  const VERSION = 'v6.34';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -270,6 +271,8 @@ Version: v6.33
   const elSpriteToggle = document.getElementById('spriteToggle');
   const elLabelBoldToggle = document.getElementById('labelBoldToggle');
   const elFloorSelect = document.getElementById('floorSelect');
+  const elSceneWrap = document.getElementById('sceneWrap');
+  const elRecordSelect = document.getElementById('recordSelect');
   const elCenterOn = document.getElementById('centerOn');
   const elJumpHex = document.getElementById('jumpHex');
   const elError = document.getElementById('errorBox');
@@ -493,6 +496,10 @@ Version: v6.33
 
     // Keep VIEW synced to the scene.
     applyViewFromState(scene);
+
+    // Keep scene/record UI synced.
+    syncRecordSelectFromWorld();
+    syncTopbarTitle(scene);
   }
 
   function applyFetchedState(parsed, jsonText) {
@@ -2897,6 +2904,9 @@ Version: v6.33
   }
 
   function updateSidebar(state, floor, rooms, openings, objects, tokens) {
+    // Keep topbar UI synced to the latest state.
+    syncRecordSelectFromWorld();
+    syncTopbarTitle(state);
     const kvs = document.getElementById('kvs');
     const turns = document.getElementById('turns');
     if (!kvs || !turns) return;
@@ -2948,7 +2958,105 @@ Version: v6.33
     }).join('');
   }
 
- function populateFloorSelect(floors) {
+ function recordDisplayName(recordId) {
+  const rid = String(recordId || '').trim();
+  if (!rid) return '';
+  const w = WORLD_STATE;
+  const rec = (w && w.records) ? w.records[rid] : null;
+  const title = rec && rec.meta && rec.meta.title ? String(rec.meta.title) : '';
+  return title || rid;
+}
+
+function syncTopbarTitle(sceneOrState) {
+  if (!elTitle) return;
+  const st = (sceneOrState && typeof sceneOrState === 'object') ? sceneOrState : null;
+  const meta = st && st.meta && typeof st.meta === 'object' ? st.meta : {};
+
+  const base = meta && meta.title ? String(meta.title) : 'Battlemat';
+  const wname = (WORLD_STATE && WORLD_STATE.world) ? String(WORLD_STATE.world) : '';
+  const rid = (WORLD_STATE && WORLD_STATE.active && WORLD_STATE.active.recordId) ? String(WORLD_STATE.active.recordId) : (st && st.__activeRecordId ? String(st.__activeRecordId) : '');
+
+  // If we have a world wrapper, show: "World — Scene Title".
+  // Otherwise just show the scene title.
+  const label = wname ? (wname + ' — ' + base) : base;
+  elTitle.textContent = label;
+
+  // Also keep the record dropdown on the right value (if present).
+  if (elRecordSelect && rid) {
+    try {
+      if (elRecordSelect.value !== rid) elRecordSelect.value = rid;
+    } catch {}
+  }
+}
+
+function syncRecordSelectFromWorld() {
+  if (!elRecordSelect || !elSceneWrap) return;
+
+  const w = WORLD_STATE;
+  const ids = (w && w.records) ? Object.keys(w.records) : [];
+
+  // Hide when not in world-record mode (or only one scene).
+  if (ids.length <= 1) {
+    elSceneWrap.style.display = 'none';
+    return;
+  }
+  elSceneWrap.style.display = '';
+
+  ids.sort((a, b) => a.localeCompare(b));
+
+  const active = (w && w.active && w.active.recordId) ? String(w.active.recordId) : ids[0];
+
+  const options = ids.map(rid => {
+    const name = recordDisplayName(rid);
+    return '<option value="' + escapeHtml(rid) + '">' + escapeHtml(name) + '</option>';
+  }).join('');
+
+  // Preserve selection when possible.
+  const prev = elRecordSelect.value;
+  elRecordSelect.innerHTML = options;
+
+  const toSet = (prev && ids.includes(prev)) ? prev : active;
+  elRecordSelect.value = toSet;
+}
+
+// Scene/record switcher
+if (elRecordSelect) {
+  elRecordSelect.addEventListener('change', () => {
+    try {
+      const rid = String(elRecordSelect.value || '').trim();
+      if (!rid) return;
+
+      // Ensure we are in world-wrapper mode.
+      const w = ensureWorldWrapper(rid);
+      if (!w || !w.records || !w.records[rid]) return;
+
+      const scene = w.records[rid];
+      const floors = getFloorsFromState(scene);
+
+      // Pick floor: keep current if it exists on that scene; otherwise use scene.view.floorId; else first.
+      let floorId = String(VIEW.floorId || '');
+      const hasFloor = floorId && floors.some(f => String((f && f.id) != null ? f.id : '') === floorId);
+      if (!hasFloor) {
+        const wanted = scene && scene.view ? (scene.view.floorId || scene.view.floor_id || scene.view.floor || scene.view.level) : null;
+        const wFloor = wanted != null ? String(wanted) : '';
+        floorId = (wFloor && floors.some(f => String(f.id) === wFloor)) ? wFloor : (floors[0] ? String(floors[0].id) : '');
+      }
+
+      // Pick camera: use scene view camera if present; else keep current.
+      const camHex = (scene && scene.view && scene.view.camera_hex) ? String(scene.view.camera_hex) : (cameraHexFromView() || null);
+
+      window.BattlematSetActive(rid, floorId || null, camHex);
+    } catch (e) {
+      console.warn('[Battlemat] record switch failed:', e);
+      if (elError) {
+        elError.hidden = false;
+        elError.textContent = 'Record switch error:' + String.fromCharCode(10) + (e && e.stack ? e.stack : e);
+      }
+    }
+  });
+}
+
+function populateFloorSelect(floors) {
   if (!elFloorSelect) return;
 
   const list = Array.isArray(floors) ? floors : [];
