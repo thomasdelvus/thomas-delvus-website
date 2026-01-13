@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.25 
+Version: v6.30 
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.25</title>
+  <title>Battlemat Core v6.30</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.25
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.25</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.30</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -254,7 +254,7 @@ Version: v6.25
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.25';
+  const VERSION = 'v6.30';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -817,277 +817,375 @@ Version: v6.25
   }
 
   // ===== Canonical state (demo) =====
-  const DEFAULT_STATE = {
-    meta: { title: 'Cross Keys Inn — Demo (upper + ground)', battleId: 'local', round: 1 },
+  // PHASE 1 of "World Record" support:
+  // - We now support *either* a legacy battlemat state OR a world-record wrapper.
+  // - World-record wrapper format:
+  //     { world, version, meta, active:{recordId,floorId,camera_hex}, records:{[recordId]:<sceneState>}, links:[] }
+  // - The renderer continues to run on a *sceneState* (floors/openings/objects/tokens).
+  // - normalizeStateForRenderer() extracts the active scene and hydrates it for the current renderer.
+  //
+  // NOTE: Embedded data is intentionally JSON (not JS object-literal) so you can copy/paste into state_json.
+  // Keep it JSON-valid: double quotes only, no comments, no trailing commas.
 
-    pois: [
-      { poiNumber: 1, id: 'CrossKeysInn',  name: 'The Cross Keys Inn',  zone: 'Downtown' },
-      { poiNumber: 2, id: 'EightBellsInn', name: 'The Eight Bells Inn', zone: 'Downtown' },
-    ],
+  const EMBEDDED_WORLD_JSON = `{
+    "world": "Saffrondale",
+    "version": 1,
+    "meta": { "scale": "1 hex = 5 ft", "fogMode": "room" },
+    "active": { "recordId": "CrossKeysInn", "floorId": "upper", "camera_hex": "U16" },
+    "records": {
+      "CrossKeysInn": {
+        "meta": { "title": "Cross Keys Inn — Demo (upper + ground)", "battleId": "local", "round": 1 },
+        "pois": [
+          { "poiNumber": 1, "id": "CrossKeysInn", "name": "The Cross Keys Inn", "zone": "Downtown" },
+          { "poiNumber": 2, "id": "EightBellsInn", "name": "The Eight Bells Inn", "zone": "Downtown" }
+        ],
+        "view": { "camera_hex": "U16", "floorId": "upper" },
+        "fog": {
+          "enabled": true,
+          "mode": "room",
+          "visibleRoomIdsByFloor": { "upper": [], "ground": [] },
+          "exploredRoomIdsByFloor": { "upper": ["Hallway1", "Hallway2"], "ground": ["Kitchen"] },
+          "autoCompute": true,
+          "autoExplore": true,
+          "maxDepth": 1,
+          "unseenAlpha": 0.92,
+          "exploredAlpha": 0.55
+        },
+        "floors": [
+          {
+            "id": "upper",
+            "name": "Upper",
+            "rooms": [
+              { "id": "NextDoor", "corners": ["L26", "V26", "V21", "L21"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } },
+              { "id": "CrossKeysUpperFloor", "buildingId": "CrossKeysInn", "corners": ["L21", "AJ21", "AJ12", "L12"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } },
+              { "id": "Hallway1", "buildingId": "CrossKeysInn", "corners": ["AD21", "AF21", "AF12", "AD12"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
+              { "id": "Hallway2", "buildingId": "CrossKeysInn", "corners": ["R17", "AD17", "AD15", "R15"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
+              { "id": "Hallway3", "buildingId": "CrossKeysInn", "corners": ["P21", "R21", "R12", "P12"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
+              { "id": "1stFloorStairsDown", "buildingId": "CrossKeysInn", "corners": ["AA21.5", "AD21", "AD19.5", "AA20"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
 
-    view: { camera_hex: 'U16', floorId: 'upper' },
+              { "id": "Bedroom1", "buildingId": "CrossKeysInn", "corners": ["L21", "P21", "P18", "L18"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
+              { "id": "Bedroom2", "buildingId": "CrossKeysInn", "corners": ["L18", "P18", "P15", "L15"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
+              { "id": "Bedroom3", "buildingId": "CrossKeysInn", "corners": ["L15", "P15", "P12", "L12"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
+              { "id": "Bedroom4", "buildingId": "CrossKeysInn", "corners": ["R15", "X15", "X12", "R12"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
+              { "id": "Bedroom5", "buildingId": "CrossKeysInn", "corners": ["R21", "X21", "X17", "R17"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
+              { "id": "Bedroom5_closet", "buildingId": "CrossKeysInn", "corners": ["X21", "Y21.5", "Y20", "X19.5"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
+              { "id": "Bathroom6", "buildingId": "CrossKeysInn", "corners": ["Y20", "AD19.5", "AD17", "Y17.5"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
+              { "id": "Bathroom6_closet", "buildingId": "CrossKeysInn", "corners": ["Y21.5", "AA21.5", "AA20", "Y20"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
+              { "id": "Bedroom7", "buildingId": "CrossKeysInn", "corners": ["X15", "AD15", "AD12", "X12"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
+              { "id": "Bedroom8", "buildingId": "CrossKeysInn", "corners": ["AF15", "AJ15", "AJ12", "AF12"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
+              { "id": "Bedroom9", "buildingId": "CrossKeysInn", "corners": ["AF19", "AJ19", "AJ15", "AF15"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
+              { "id": "Bedroom10", "buildingId": "CrossKeysInn", "corners": ["AF21", "AJ21", "AJ19", "AF19"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } }
+            ],
+            "openings": [
+              { "id": "door_room1", "kind": "door.wood", "hex": "P19", "orientation": "v", "openPct": 1.0, "hinge": "right", "swing": 1 },
+              { "id": "door_room2", "kind": "door.wood", "hex": "P16", "orientation": "v", "openPct": 1.0, "hinge": "right", "swing": 1 },
+              { "id": "door_room3", "kind": "door.wood", "hex": "P13", "orientation": "v", "openPct": 1.0, "hinge": "right", "swing": 1 },
+              { "id": "door_room4", "kind": "door.wood", "hex": "U15.5", "orientation": "h", "openPct": 1.0, "hinge": "left", "swing": 1 },
 
-    fog: {
-      enabled: true,
-      mode: 'room',
-      visibleRoomIdsByFloor: { upper: [], ground: [] },
-      exploredRoomIdsByFloor: { upper: ['Hallway1','Hallway2'], ground: ['Kitchen'] },
-      autoCompute: true,
-      autoExplore: true,
-      maxDepth: 1,
-      unseenAlpha: 0.92,
-      exploredAlpha: 0.55,
+              { "id": "door_room5", "kind": "door.wood", "hex": "V17", "orientation": "h", "openPct": 1.0 },
+              { "id": "door_to_closet", "kind": "door.wood", "hex": "X20.25", "orientation": "v", "openPct": 1.0, "swing": 1 },
+              { "id": "door_room6", "kind": "door.wood", "hex": "AB17", "orientation": "h", "openPct": 1.0 },
+              { "id": "door_room6_closet", "kind": "door.wood", "hex": "Z19.5", "orientation": "h", "openPct": 1.0, "swing": 1 },
+              { "id": "door_room7", "kind": "door.wood", "hex": "AA15.5", "orientation": "h", "openPct": 1.0, "hinge": "right", "swing": 1 },
+
+              { "id": "door_room8", "kind": "door.wood", "hex": "AF13", "orientation": "v", "hinge": "left", "openPct": 0.0 },
+              { "id": "door_room9", "kind": "door.wood", "hex": "AF17", "orientation": "v", "openPct": 0.0 },
+              { "id": "door_room10", "kind": "door.wood", "hex": "AF20", "orientation": "v", "openPct": 0.0 },
+
+              { "id": "portal_down_AB20", "kind": "portal", "hex": "AB20", "trigger": "enter", "to": { "floorId": "ground", "hex": "Z20" } },
+
+              { "id": "bedroom1_window1", "kind": "window", "hex": "L20", "orientation": "v" },
+              { "id": "bedroom1_window2", "kind": "window", "hex": "L19", "orientation": "v" },
+              { "id": "bedroom2_window1", "kind": "window", "hex": "L17", "orientation": "v" },
+              { "id": "bedroom2_window2", "kind": "window", "hex": "L16", "orientation": "v" },
+              { "id": "bedroom3_window1", "kind": "window", "hex": "L14", "orientation": "v" },
+              { "id": "bedroom3_window2", "kind": "window", "hex": "L13", "orientation": "v" },
+              { "id": "bedroom3_window3", "kind": "window", "hex": "M12.5", "orientation": "h" },
+              { "id": "bedroom3_window4", "kind": "window", "hex": "N12", "orientation": "h" },
+              { "id": "hallway3_window1", "kind": "window", "hex": "Q12.5", "orientation": "h" },
+              { "id": "bedroom4_window1", "kind": "window", "hex": "U12.5", "orientation": "h" },
+              { "id": "bedroom4_window2", "kind": "window", "hex": "V12", "orientation": "h" },
+              { "id": "bedroom5_window1", "kind": "window", "hex": "Z12", "orientation": "h" },
+              { "id": "bedroom5_window2", "kind": "window", "hex": "AA12.5", "orientation": "h" },
+              { "id": "hallway1_window1", "kind": "window", "hex": "AE12.5", "orientation": "h" },
+              { "id": "bedroom8_window1", "kind": "window", "hex": "AH12", "orientation": "h" },
+
+              { "id": "thresh_R16", "kind": "threshold", "hex": "R16", "orientation": "v", "parent": "Hallway2" },
+              { "id": "thresh_AD16", "kind": "threshold", "hex": "AD16", "orientation": "v", "parent": "Hallway2" },
+              { "id": "thresh_AD20", "kind": "threshold", "hex": "AD20.25", "orientation": "v", "parent": "1stFloorStairsDown" }
+            ],
+            "objects": [
+              { "id": "room1_bed1", "kind": "bed", "hex": "M21", "ox": -0.5, "oy": 0.7, "spriteScale": 2.3 },
+              { "id": "room1_bed2", "kind": "bed", "hex": "N20", "ox": 0.0, "oy": -0.17, "spriteScale": 2.3 },
+              { "id": "room1_bed3", "kind": "bed", "hex": "O21", "ox": 0.5, "oy": 0.7, "spriteScale": 2.3 },
+
+              { "id": "room2_bed1", "kind": "bed", "hex": "M18", "rotDeg": 270, "spriteScale": 2.3 },
+              { "id": "room2_bed2", "kind": "bed", "hex": "M16", "rotDeg": 270, "spriteScale": 2.3 },
+
+              { "id": "room3_bed1", "kind": "bed", "hex": "M15", "ox": -0.5, "oy": 0.7, "spriteScale": 2.3 },
+              { "id": "room3_bed2", "kind": "bed", "hex": "N14", "ox": 0.0, "oy": -0.17, "spriteScale": 2.3 },
+              { "id": "room3_bed3", "kind": "bed", "hex": "O15", "ox": 0.5, "oy": 0.7, "spriteScale": 2.3 },
+
+              { "id": "room4_bed", "kind": "bed.double", "hex": "S14", "rotDeg": 270, "spriteScale": 2.4 },
+              { "id": "room4_chair1", "kind": "chair", "hex": "W14", "rotDeg": 60, "ox": -0.2, "oy": 0.0, "spriteScale": 0.8 },
+              { "id": "room4_chair2", "kind": "chair", "hex": "W13", "rotDeg": 120, "ox": -0.2, "oy": 0.0, "spriteScale": 0.8 },
+              { "id": "room4_chair3", "kind": "chair", "hex": "U13", "rotDeg": 240, "ox": 0.2, "oy": 0.0, "spriteScale": 0.8 },
+              { "id": "room4_table", "kind": "table.round", "hex": "V13", "rotDeg": 0, "spriteScale": 1.8 },
+              { "id": "room4_chest", "kind": "chest", "hex": "S15", "ox": 0.0, "oy": -0.25, "spriteScale": 0.75 },
+              { "id": "room4_hearth", "kind": "hearth", "hex": "X14", "rotDeg": 90, "ox": -0.5, "oy": -0.3, "spriteScale": 1.1 },
+              { "id": "room4_side1", "kind": "table.sqr", "hex": "S13", "ox": -1.0, "oy": 0.0, "rotDeg": 90, "spriteScale": 0.5 },
+              { "id": "room4_side2", "kind": "table.sqr", "hex": "S15", "ox": -1.0, "oy": 0.0, "rotDeg": 90, "spriteScale": 0.5 },
+
+              { "id": "room5_bed", "kind": "bed.double", "hex": "S20", "rotDeg": 270, "spriteScale": 2.4 },
+              { "id": "room5_chair1", "kind": "chair", "hex": "W21", "rotDeg": 60, "ox": -0.2, "oy": 0.0, "spriteScale": 0.8 },
+              { "id": "room5_chair2", "kind": "chair", "hex": "W20", "rotDeg": 120, "ox": -0.2, "oy": 0.0, "spriteScale": 0.8 },
+              { "id": "room5_chair3", "kind": "chair", "hex": "U20", "rotDeg": 240, "ox": 0.2, "oy": 0.0, "spriteScale": 0.8 },
+              { "id": "room5_chair4", "kind": "chair", "hex": "U21", "rotDeg": 300, "ox": 0.2, "oy": 0.0, "spriteScale": 0.8 },
+              { "id": "room5_table", "kind": "table.round", "hex": "V20", "rotDeg": 0, "spriteScale": 1.8 },
+              { "id": "room5_chest", "kind": "chest", "hex": "S18", "rotDeg": 180, "ox": 0.0, "oy": 0.25, "spriteScale": 0.75 },
+              { "id": "room5_hearth", "kind": "hearth", "hex": "X18", "rotDeg": 90, "ox": -0.56, "oy": 0.0, "spriteScale": 1.1 },
+              { "id": "room5_side1", "kind": "table.sqr", "hex": "S21", "rotDeg": 90, "ox": -1.0, "oy": 0.0, "spriteScale": 0.5 },
+              { "id": "room5_side2", "kind": "table.sqr", "hex": "S19", "rotDeg": 90, "ox": -1.0, "oy": 0.0, "spriteScale": 0.5 },
+
+              { "id": "room6_hearth", "kind": "hearth", "hex": "Z18", "rotDeg": 270, "ox": -0.94, "oy": 0.0, "spriteScale": 1.1 },
+              { "id": "room6_bath", "kind": "bath", "hex": "AB19", "ox": 0.0, "oy": 0.5, "spriteScale": 2.5 },
+
+              { "id": "room7_bed", "kind": "bed.double", "hex": "AC14", "rotDeg": 90, "ox": 0.0, "oy": 0.0, "spriteScale": 2.4 },
+              { "id": "room7_chair1", "kind": "chair", "hex": "AA14", "rotDeg": 60, "ox": -0.2, "oy": 0.0, "spriteScale": 0.8 },
+              { "id": "room7_chair3", "kind": "chair", "hex": "Y13", "rotDeg": 240, "ox": 0.2, "oy": 0.0, "spriteScale": 0.8 },
+              { "id": "room7_chair4", "kind": "chair", "hex": "Y14", "rotDeg": 300, "ox": 0.2, "oy": 0.0, "spriteScale": 0.8 },
+              { "id": "room7_table", "kind": "table.round", "hex": "Z13", "rotDeg": 0, "spriteScale": 1.8 },
+              { "id": "room7_chest", "kind": "chest", "hex": "AC15", "rotDeg": 0, "ox": 0.0, "oy": -0.25, "spriteScale": 0.75 },
+              { "id": "room7_hearth", "kind": "hearth", "hex": "X14", "rotDeg": 270, "ox": 0.5, "oy": -0.3, "spriteScale": 1.1 },
+              { "id": "room7_side1", "kind": "table.sqr", "hex": "AC13", "rotDeg": 90, "ox": 1.0, "oy": 0.0, "spriteScale": 0.5 },
+              { "id": "room7_side2", "kind": "table.sqr", "hex": "AC15", "rotDeg": 90, "ox": 1.0, "oy": 0.0, "spriteScale": 0.5 },
+
+              { "id": "room8_bed1", "kind": "bed", "hex": "AG15", "ox": -0.5, "oy": 0.7, "spriteScale": 2.3 },
+              { "id": "room8_bed2", "kind": "bed", "hex": "AH14", "ox": 0.0, "oy": -0.17, "spriteScale": 2.3 },
+              { "id": "room8_bed3", "kind": "bed", "hex": "AI15", "ox": 0.5, "oy": 0.7, "spriteScale": 2.3 },
+
+              { "id": "room9_bed1", "kind": "bed", "hex": "AI19", "rotDeg": 90, "spriteScale": 2.3 },
+              { "id": "room9_bed2", "kind": "bed", "hex": "AI18", "rotDeg": 90, "spriteScale": 2.3 },
+              { "id": "room9_bed3", "kind": "bed", "hex": "AI17", "rotDeg": 90, "spriteScale": 2.3 },
+              { "id": "room9_bed4", "kind": "bed", "hex": "AI16", "rotDeg": 90, "spriteScale": 2.3 },
+
+              { "id": "room10_bed1", "kind": "bed", "hex": "AI21", "rotDeg": 90, "spriteScale": 2.3 },
+
+              { "id": "stairs_down_to_ground", "kind": "stairs", "hex": "AC21", "rotDeg": 270, "ox": -1.0, "oy": 0.43, "spriteScaleX": 1.95, "spriteScaleY": 3.1 }
+            ]
+          },
+          {
+            "id": "ground",
+            "name": "Ground",
+            "rooms": [
+              { "id": "CrossKeysGroundFloor", "buildingId": "CrossKeysInn", "corners": ["M21.5", "AJ21", "AJ12.5", "M13"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "brick" } },
+              { "id": "Pub", "buildingId": "CrossKeysInn", "corners": ["M21.5", "X21", "X12.5", "M13"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "brick" } },
+              { "id": "Kitchen", "buildingId": "CrossKeysInn", "corners": ["X19.5", "AJ19.5", "AJ12.5", "X12.5"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "brick" } },
+              { "id": "StairsUp", "buildingId": "CrossKeysInn", "corners": ["X21", "AA21.5", "AA20", "X19.5"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "brick" } },
+              { "id": "Pantry", "buildingId": "CrossKeysInn", "corners": ["AA21.5", "AJ21", "AJ19.5", "AA20"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "brick" } }
+            ],
+            "openings": [
+              { "id": "pub_window1", "kind": "window", "hex": "M20", "orientation": "v" },
+              { "id": "pub_window2", "kind": "window", "hex": "M19", "orientation": "v" },
+              { "id": "pub_window3", "kind": "window", "hex": "M15", "orientation": "v" },
+              { "id": "pub_window4", "kind": "window", "hex": "M14", "orientation": "v" },
+              { "id": "pub_window5", "kind": "window", "hex": "N12.5", "orientation": "h" },
+              { "id": "pub_window6", "kind": "window", "hex": "O12", "orientation": "h" },
+              { "id": "pub_window7", "kind": "window", "hex": "P12.5", "orientation": "h" },
+              { "id": "pub_window8", "kind": "window", "hex": "Z12.5", "orientation": "h" },
+              { "id": "pub_window9", "kind": "window", "hex": "AB12.5", "orientation": "h" },
+
+              { "id": "kitchen_door", "kind": "door", "hex": "X14", "orientation": "v", "openPct": 1.0 },
+              { "id": "door_to_upstairs", "kind": "door", "hex": "X20.25", "orientation": "v", "openPct": 1.0, "swing": 1 },
+              { "id": "door_out1", "kind": "door", "hex": "M17", "orientation": "v", "openPct": 1.0 },
+              { "id": "door_out2", "kind": "door", "hex": "U13", "orientation": "h", "openPct": 1.0 },
+              { "id": "door_pantry", "kind": "door.wood", "hex": "AE20", "orientation": "h", "openPct": 1.0, "swing": 1 },
+
+              { "id": "portal_up_AA21", "kind": "portal", "hex": "AA21", "trigger": "enter", "to": { "floorId": "upper", "hex": "AC21" } },
+              { "id": "portal_up_AA20", "kind": "portal", "hex": "AA20", "trigger": "enter", "to": { "floorId": "upper", "hex": "AC20" } }
+            ],
+            "objects": [
+              { "id": "pub_table1", "kind": "table.rect", "hex": "O20", "rotDeg": 90, "spriteScale": 3.5 },
+              { "id": "pub_table1_c1", "kind": "chair", "hex": "P20", "rotDeg": 90, "spriteScale": 0.75 },
+              { "id": "pub_table1_c2", "kind": "chair", "hex": "P19", "rotDeg": 90, "spriteScale": 0.75 },
+              { "id": "pub_table1_c3", "kind": "chair", "hex": "N20", "rotDeg": 270, "spriteScale": 0.75 },
+              { "id": "pub_table1_c4", "kind": "chair", "hex": "N19", "rotDeg": 270, "spriteScale": 0.75 },
+
+              { "id": "pub_table2", "kind": "table.rect", "hex": "O15", "rotDeg": 30, "spriteScale": 3.5 },
+              { "id": "pub_table2_c1", "kind": "chair", "hex": "O16", "rotDeg": 30, "spriteScale": 0.75 },
+              { "id": "pub_table2_c2", "kind": "chair", "hex": "P15", "rotDeg": 30, "spriteScale": 0.75 },
+              { "id": "pub_table2_c3", "kind": "chair", "hex": "O14", "rotDeg": 210, "spriteScale": 0.75 },
+              { "id": "pub_table2_c4", "kind": "chair", "hex": "N14", "rotDeg": 210, "spriteScale": 0.75 },
+
+              { "id": "pub_table3", "kind": "table.rect", "hex": "S20", "rotDeg": 150, "spriteScale": 3.5 },
+              { "id": "pub_table3_c1", "kind": "chair", "hex": "T19", "rotDeg": 150, "spriteScale": 0.75 },
+              { "id": "pub_table3_c2", "kind": "chair", "hex": "S19", "rotDeg": 150, "spriteScale": 0.75 },
+              { "id": "pub_table3_c3", "kind": "chair", "hex": "R20", "rotDeg": 330, "spriteScale": 0.75 },
+              { "id": "pub_table3_c4", "kind": "chair", "hex": "S21", "rotDeg": 330, "spriteScale": 0.75 },
+
+              { "id": "pub_table4", "kind": "table.round", "hex": "Q18", "rotDeg": 0, "spriteScale": 2.4 },
+              { "id": "pub_table4_c1", "kind": "chair", "hex": "Q19", "rotDeg": 0, "spriteScale": 0.75 },
+              { "id": "pub_table4_c2", "kind": "chair", "hex": "P17", "rotDeg": 240, "spriteScale": 0.75 },
+              { "id": "pub_table4_c3", "kind": "chair", "hex": "R17", "rotDeg": 120, "spriteScale": 0.75 },
+
+              { "id": "pub_table5", "kind": "table.round", "hex": "S15", "rotDeg": 0, "spriteScale": 2.4 },
+              { "id": "pub_table5_c1", "kind": "chair", "hex": "T15", "rotDeg": 60, "spriteScale": 0.75 },
+              { "id": "pub_table5_c2", "kind": "chair", "hex": "S14", "rotDeg": 180, "spriteScale": 0.75 },
+              { "id": "pub_table5_c3", "kind": "chair", "hex": "R15", "rotDeg": 300, "spriteScale": 0.75 },
+
+              { "id": "pub_table6", "kind": "table.round", "hex": "V17", "rotDeg": 0, "spriteScale": 2.4 },
+              { "id": "pub_table6_c1", "kind": "chair", "hex": "V18", "rotDeg": 0, "spriteScale": 0.75 },
+              { "id": "pub_table6_c2", "kind": "chair", "hex": "U17", "rotDeg": 240, "spriteScale": 0.75 },
+              { "id": "pub_table6_c3", "kind": "chair", "hex": "W17", "rotDeg": 120, "spriteScale": 0.75 },
+              { "id": "pub_table6_c4", "kind": "chair", "hex": "U18", "rotDeg": 300, "spriteScale": 0.75 },
+              { "id": "pub_table6_c5", "kind": "chair", "hex": "V16", "rotDeg": 180, "spriteScale": 0.75 },
+
+              { "id": "pub_hearth", "kind": "hearth", "hex": "X18", "rotDeg": 90, "ox": -0.56, "oy": 0.0, "spriteScale": 1.65 },
+
+              { "id": "stairs_up_to_upper", "kind": "stairs", "hex": "Y21", "rotDeg": 270, "ox": 1.0, "oy": 0.43, "spriteScaleX": 1.95, "spriteScaleY": 3.1 },
+              { "id": "stairs_down_to_basement", "kind": "stairs", "hex": "AC21", "rotDeg": 270, "ox": -1.0, "oy": 0.43, "spriteScaleX": 1.95, "spriteScaleY": 3.1 },
+
+              { "id": "kitchen_hearth", "kind": "cooking.hearth", "hex": "Z18", "rotDeg": 270, "ox": -0.94, "oy": 0.0, "spriteScale": 2.42 },
+              { "id": "kitchen_prep_table", "kind": "table.rect", "hex": "Z15.5", "rotDeg": 90, "ox": 0.0, "oy": -0.5, "spriteScale": 3.0 },
+              { "id": "kitchen_sort_table", "kind": "table.rect", "hex": "AC18", "rotDeg": 0, "ox": 0.0, "oy": -0.5, "spriteScale": 3.0 },
+              { "id": "kitchen_misc_table", "kind": "table.rect", "hex": "AF16.5", "rotDeg": 90, "ox": 0.0, "oy": -0.5, "spriteScale": 3.0 },
+              { "id": "kitchen_plate_table", "kind": "table.rect", "hex": "AC15.5", "rotDeg": 90, "ox": 0.0, "oy": -0.5, "spriteScale": 3.0 },
+              { "id": "kitchen_chop_block", "kind": "table.sqr", "hex": "AA16", "ox": 0.0, "oy": 0.0, "rotDeg": 90, "spriteScale": 1.25 },
+              { "id": "kitchen_keg1", "kind": "keg", "hex": "AI14", "ox": 0.5, "oy": 0.0, "rotDeg": 0, "spriteScale": 2.0 },
+              { "id": "kitchen_keg2", "kind": "keg", "hex": "AI15", "ox": 0.5, "oy": 0.0, "rotDeg": 0, "spriteScale": 2.0 },
+              { "id": "kitchen_keg3", "kind": "keg", "hex": "AI16", "ox": 0.5, "oy": 0.0, "rotDeg": 0, "spriteScale": 2.0 },
+              { "id": "kitchen_crate1", "kind": "crate", "hex": "AI19", "ox": 0.5, "oy": -0.5, "rotDeg": 0, "spriteScale": 1.25 },
+              { "id": "kitchen_crate2", "kind": "crate", "hex": "AI18", "ox": 0.5, "oy": 0.0, "rotDeg": 60, "spriteScale": 1.25 },
+              { "id": "kitchen_barrel1", "kind": "barrel", "hex": "AH19", "rotDeg": 0, "spriteScale": 1.25 }
+            ]
+          }
+        ],
+        "tokens": [
+          { "id": "a", "name": "Aelar", "side": "PC", "hex": "AE19", "label": "A", "init": 14, "hp": 42, "floorId": "upper" },
+          { "id": "b", "name": "Bran", "side": "PC", "hex": "T15", "label": "B", "init": 12, "hp": 35, "floorId": "ground", "spriteFile": "ranger_male.png" },
+          { "id": "g1", "name": "Goblin 1", "side": "NPC", "hex": "U19", "label": "G1", "init": 10, "hp": 8, "floorId": "upper" },
+          { "id": "g2", "name": "Goblin 2", "side": "NPC", "hex": "V19", "label": "G2", "init": 10, "hp": 8, "floorId": "upper" },
+          { "id": "g3", "name": "Goblin 3", "side": "NPC", "hex": "W19", "label": "G3", "init": 10, "hp": 8, "floorId": "upper" }
+        ]
+      }
     },
-  floors:[
-      {
-        id:'upper',
-        name:'Upper',
-        rooms:[
-          //Closed buildings
-          { id:'NextDoor',corners:['L26','V26','V21','L21'],thickness:15,floor:{ kind:'fog'},wall:{ kind:'wood_dark'}},
+    "links": []
+  }`;
 
-          //Cross Keys Inn
-          { id:'CrossKeysUpperFloor',buildingId:'CrossKeysInn',corners:['L21','AJ21','AJ12','L12'],thickness:15,floor:{ kind:'fog'},wall:{ kind:'wood_dark'}},
-          { id:'Hallway1',buildingId:'CrossKeysInn',corners:['AD21','AF21','AF12','AD12'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
-          { id:'Hallway2',buildingId:'CrossKeysInn',corners:['R17','AD17','AD15','R15'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
-          { id:'Hallway3',buildingId:'CrossKeysInn',corners:['P21','R21','R12','P12'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
-          { id:'1stFloorStairsDown',buildingId:'CrossKeysInn',corners:['AA21.5','AD21','AD19.5','AA20'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
+  let WORLD_STATE = null; // holds the last parsed *world record* (if provided)
 
-          { id:'Bedroom1',buildingId:'CrossKeysInn',corners:['L21','P21','P18','L18'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
-          { id:'Bedroom2',buildingId:'CrossKeysInn',corners:['L18','P18','P15','L15'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
-          { id:'Bedroom3',buildingId:'CrossKeysInn',corners:['L15','P15','P12','L12'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
-          { id:'Bedroom4',buildingId:'CrossKeysInn',corners:['R15','X15','X12','R12'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
-          { id:'Bedroom5',buildingId:'CrossKeysInn',corners:['R21','X21','X17','R17'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
-          { id:'Bedroom5_closet',buildingId:'CrossKeysInn',corners:['X21','Y21.5','Y20','X19.5'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
-          { id:'Bathroom6',buildingId:'CrossKeysInn',corners:['Y20','AD19.5','AD17','Y17.5'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
-          { id:'Bathroom6_closet',buildingId:'CrossKeysInn',corners:['Y21.5','AA21.5','AA20','Y20'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
-          { id:'Bedroom7',buildingId:'CrossKeysInn',corners:['X15','AD15','AD12','X12'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
-          { id:'Bedroom8',buildingId:'CrossKeysInn',corners:['AF15','AJ15','AJ12','AF12'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
-          { id:'Bedroom9',buildingId:'CrossKeysInn',corners:['AF19','AJ19','AJ15','AF15'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
-          { id:'Bedroom10',buildingId:'CrossKeysInn',corners:['AF21','AJ21','AJ19','AF19'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'wood_dark'}},
+  const FALLBACK_STATE_MIN = {
+    meta: { title: 'Fallback', battleId: 'local', round: 1 },
+    floors: [],
+    tokens: []
+  };
 
-          
-        ],
-        openings:[
-       
-          { id:'door_room1',kind:'door.wood',hex:'P19',orientation:'v',openPct:1.0,hinge:'right',swing:1 },
-          { id:'door_room2',kind:'door.wood',hex:'P16',orientation:'v',openPct:1.0,hinge:'right',swing:1},
-          { id:'door_room3',kind:'door.wood',hex:'P13',orientation:'v',openPct:1.0,hinge:'right',swing:1 },
-          { id:'door_room4',kind:'door.wood',hex:'U15.5',orientation:'h',openPct:1.0,hinge:'left',swing:1},
+  function cloneDeepSafe(obj) {
+    if (obj == null) return obj;
+    if (typeof structuredClone === 'function') return structuredClone(obj);
+    return JSON.parse(JSON.stringify(obj));
+  }
 
-          { id:'door_room5',kind:'door.wood',hex:'V17',orientation:'h',openPct:1.0 },
-          { id:'door_to_closet',kind:'door.wood',hex:'X20.25',orientation:'v',openPct:1.0,swing:1},
-          { id:'door_room6',kind:'door.wood',hex:'AB17',orientation:'h',openPct:1.0 },
-          { id:'door_room6_closet',kind:'door.wood',hex:'Z19.5',orientation:'h',openPct:1.0,swing:1},
-          { id:'door_room7',kind:'door.wood',hex:'AA15.5',orientation:'h',openPct:1.0,hinge:'right',swing:1},
-          
-          { id:'door_room8',kind:'door.wood',hex:'AF13',orientation:'v',hinge:'left',openPct:0.0},
-          { id:'door_room9',kind:'door.wood',hex:'AF17',orientation:'v',openPct:0.0 },
-          { id:'door_room10',kind:'door.wood',hex:'AF20',orientation:'v',openPct:0.0 },
+  function hydrateSceneForRenderer(scene) {
+    if (!scene || typeof scene !== 'object') return null;
 
-          // Portals
-          { id:'portal_down_AB20',kind:'portal',hex:'AB20',trigger:'enter',to:{ floorId:'ground',hex:'Z20'}},
+    // If objects are stored per-floor, also expose a top-level flattened list so older rendering paths continue to work.
+    if (!Array.isArray(scene.objects)) scene.objects = [];
 
-          { id:'bedroom1_window1',kind:'window',hex:'L20',orientation:'v'},
-          { id:'bedroom1_window2',kind:'window',hex:'L19',orientation:'v'},
+    if (Array.isArray(scene.floors)) {
+      for (const f of scene.floors) {
+        if (!f || typeof f !== 'object') continue;
+        const fid = f.id;
+        if (Array.isArray(f.objects) && f.objects.length) {
+          for (const o of f.objects) {
+            if (!o || typeof o !== 'object') continue;
+            if (!('floorId' in o) && fid) o.floorId = fid;
+            scene.objects.push(o);
+          }
+        }
+      }
+    }
 
-          { id:'bedroom2_window1',kind:'window',hex:'L17',orientation:'v'},
-          { id:'bedroom2_window2',kind:'window',hex:'L16',orientation:'v'},
+    return scene;
+  }
 
-          { id:'bedroom3_window1',kind:'window',hex:'L14',orientation:'v'},
-          { id:'bedroom3_window2',kind:'window',hex:'L13',orientation:'v'},
-          { id:'bedroom3_window3',kind:'window',hex:'M12.5',orientation:'h'},
-          { id:'bedroom3_window4',kind:'window',hex:'N12',orientation:'h'},
+  function normalizeStateForRenderer(rawState) {
+    if (!rawState || typeof rawState !== 'object') return null;
 
-          { id:'hallway3_window1',kind:'window',hex:'Q12.5',orientation:'h'},
+    // World-record wrapper
+    if (rawState.records && rawState.active && rawState.active.recordId) {
+      WORLD_STATE = rawState;
+      const recordId = rawState.active.recordId;
+      const rec = rawState.records ? rawState.records[recordId] : null;
+      if (!rec) {
+        console.warn('[Battlemat] World record missing active record:', recordId);
+        return null;
+      }
 
-          { id:'bedroom4_window1',kind:'window',hex:'U12.5',orientation:'h'},
-          { id:'bedroom4_window2',kind:'window',hex:'V12',orientation:'h'},
+      const scene = cloneDeepSafe(rec);
+      if (!scene.view || typeof scene.view !== 'object') scene.view = {};
 
-          { id:'bedroom5_window1',kind:'window',hex:'Z12',orientation:'h'},
-          { id:'bedroom5_window2',kind:'window',hex:'AA12.5',orientation:'h'},
+      // Active pointer overrides scene view (camera/floor)
+      if (rawState.active.camera_hex) scene.view.camera_hex = rawState.active.camera_hex;
+      if (rawState.active.floorId) scene.view.floorId = rawState.active.floorId;
 
-          { id:'hallway1_window1',kind:'window',hex:'AE12.5',orientation:'h'},
+      // Carry through helpful context for UI/debugging (non-canonical for now)
+      scene.__activeRecordId = recordId;
+      scene.__worldName = rawState.world || null;
 
-          { id:'bedroom8_window1',kind:'window',hex:'AH12',orientation:'h'},
+      return hydrateSceneForRenderer(scene);
+    }
 
-          { id:'thresh_R16',kind:'threshold',hex:'R16',orientation:'v',parent:'Hallway2'},
-          { id:'thresh_AD16',kind:'threshold',hex:'AD16',orientation:'v',parent:'Hallway2'},
-          { id:'thresh_AD20',kind:'threshold',hex:'AD20.25',orientation:'v',parent:'1stFloorStairsDown'},
-        ],
-        objects:[
-          // Bedroom 1
-          { id:'room1_bed1',kind:'bed',hex:'M21',ox:-0.5,oy:0.70,spriteScale:2.3},
-          { id:'room1_bed2',kind:'bed',hex:'N20',ox:0.00,oy:-0.17,spriteScale:2.3},
-          { id:'room1_bed3',kind:'bed',hex:'O21',ox:+0.5,oy:0.70,spriteScale:2.3},
-          
-          // Bedroom 2
-          { id:'room2_bed1',kind:'bed',hex:'M18',rotDeg:270,spriteScale:2.3},
-          { id:'room2_bed2',kind:'bed',hex:'M16',rotDeg:270,spriteScale:2.3},
-          
-          // Bedroom 3
-          { id:'room3_bed1',kind:'bed',hex:'M15',ox:-0.50,oy:0.70,spriteScale:2.3},
-          { id:'room3_bed2',kind:'bed',hex:'N14',ox:0.00,oy:-0.17,spriteScale:2.3},
-          { id:'room3_bed3',kind:'bed',hex:'O15',ox:0.50,oy:0.70,spriteScale:2.3},
+    // Legacy battlemat state
+    WORLD_STATE = null;
+    return hydrateSceneForRenderer(cloneDeepSafe(rawState));
+  }
 
-          // Bedroom 4
-          { id:'room4_bed',kind:'bed.double',hex:'S14',rotDeg:270,spriteScale:2.4},
-          { id:'room4_chair1',kind:'chair',hex:'W14',rotDeg:60,ox:-0.20,oy:0.00,spriteScale:0.8 },
-          { id:'room4_chair2',kind:'chair',hex:'W13',rotDeg:120,ox:-0.20,oy:0.00,spriteScale:0.8 },
-          { id:'room4_chair3',kind:'chair',hex:'U13',rotDeg:240,ox:0.20,oy:0.00,spriteScale:0.8 },
-          { id:'room4_table',kind:'table.round',hex:'V13',rotDeg:0,spriteScale:1.8},
-          { id:'room4_chest',kind:'chest',hex:'S15',ox:0.00,oy:-0.25,spriteScale:0.75},
-          { id:'room4_hearth',kind:'hearth',hex:'X14',rotDeg:90,ox:-0.50,oy:-0.30,spriteScale:1.1},
-          { id:'room4_side1',kind:'table.sqr',hex:'S13',ox:-1.0,oy:0.00,rotDeg:90,spriteScale:0.5},
-          { id:'room4_side2',kind:'table.sqr',hex:'S15',ox:-1.0,oy:0.00,rotDeg:90,spriteScale:0.5},
+  function readEmbeddedWorld() {
+    try {
+      return JSON.parse(EMBEDDED_WORLD_JSON);
+    } catch (e) {
+      console.warn('[Battlemat] Embedded world JSON parse failed:', e);
+      return null;
+    }
+  }
 
-          // Bedroom 5
-          { id:'room5_bed',kind:'bed.double',hex:'S20',rotDeg:270,spriteScale:2.4},
-          { id:'room5_chair1',kind:'chair',hex:'W21',rotDeg:60,ox:-0.20,oy:0.00,spriteScale:0.8 },
-          { id:'room5_chair2',kind:'chair',hex:'W20',rotDeg:120,ox:-0.20,oy:0.00,spriteScale:0.8 },
-          { id:'room5_chair3',kind:'chair',hex:'U20',rotDeg:240,ox:0.20,oy:0.00,spriteScale:0.8 },
-          { id:'room5_chair4',kind:'chair',hex:'U21',rotDeg:300,ox:0.20,oy:0.00,spriteScale:0.8 },
-          { id:'room5_table',kind:'table.round',hex:'V20',rotDeg:0,spriteScale:1.8},
-          { id:'room5_chest',kind:'chest',hex:'S18',rotDeg:180,ox:0.00,oy:0.25,spriteScale:0.75},
-          { id:'room5_hearth',kind:'hearth',hex:'X18',rotDeg:90,ox:-0.56,oy:0.00,spriteScale:1.1},
-          { id:'room5_side1',kind:'table.sqr',hex:'S21',rotDeg:90,ox:-1.0,oy:0.00,spriteScale:0.5},
-          { id:'room5_side2',kind:'table.sqr',hex:'S19',rotDeg:90,ox:-1.0,oy:0.00,spriteScale:0.5},
+  // PHASE 2: Allow the host page (or a future DB bootstrap) to provide state_json up-front.
+  // If present, it should be either:
+  //   - a JSON string (world-record wrapper OR legacy scene state), OR
+  //   - a parsed object (same)
+  // We intentionally support multiple variable names to make integration easy.
+  function readBootstrapState() {
+    const injected =
+      (typeof window !== 'undefined' && (window.__BATTLEMAT_BOOTSTRAP_STATE_JSON ?? window.BATTLEMAT_BOOTSTRAP_STATE_JSON)) ||
+      null;
 
-          // Bedroom 6
-          { id:'room6_hearth',kind:'hearth',hex:'Z18',rotDeg:270,ox:-0.94,oy:0.00,spriteScale:1.1},
-          { id:'room6_bath',kind:'bath',hex:'AB19',ox:0.0,oy:0.50,spriteScale:2.5},
+    if (!injected) return readEmbeddedWorld();
 
-          // Bedroom 7
-          { id:'room7_bed',kind:'bed.double',hex:'AC14',rotDeg:90,ox:0.00,oy:0.00,spriteScale:2.4},
-          { id:'room7_chair1',kind:'chair',hex:'AA14',rotDeg:60,ox:-0.20,oy:0.00,spriteScale:0.8 },
-          { id:'room7_chair3',kind:'chair',hex:'Y13',rotDeg:240,ox:0.20,oy:0.00,spriteScale:0.8 },
-          { id:'room7_chair4',kind:'chair',hex:'Y14',rotDeg:300,ox:0.20,oy:0.00,spriteScale:0.8 },
-          { id:'room7_table',kind:'table.round',hex:'Z13',rotDeg:0,spriteScale:1.8},
-          { id:'room7_chest',kind:'chest',hex:'AC15',rotDeg:0,ox:0.00,oy:-0.25,spriteScale:0.75},
-          { id:'room7_hearth',kind:'hearth',hex:'X14',rotDeg:270,ox:0.50,oy:-0.30,spriteScale:1.1},
-          { id:'room7_side1',kind:'table.sqr',hex:'AC13',rotDeg:90,ox:1.0,oy:0.00,spriteScale:0.5},
-          { id:'room7_side2',kind:'table.sqr',hex:'AC15',rotDeg:90,ox:1.0,oy:0.00,spriteScale:0.5},
+    try {
+      if (typeof injected === 'string') return JSON.parse(injected);
+      if (typeof injected === 'object') return injected;
+    } catch (e) {
+      console.warn('[Battlemat] Bootstrap state parse failed; falling back to embedded demo:', e);
+      return readEmbeddedWorld();
+    }
 
-          // Bedroom 8
-          { id:'room8_bed1',kind:'bed',hex:'AG15',ox:-0.50,oy:0.70,spriteScale:2.3},
-          { id:'room8_bed2',kind:'bed',hex:'AH14',ox:0.00,oy:-0.17,spriteScale:2.3},
-          { id:'room8_bed3',kind:'bed',hex:'AI15',ox:0.50,oy:0.70,spriteScale:2.3},
+    console.warn('[Battlemat] Bootstrap state was neither string nor object; falling back to embedded demo.');
+    return readEmbeddedWorld();
+  }
 
-          // Bedroom 9
-          { id:'room9_bed1',kind:'bed',hex:'AI19',rotDeg:90,spriteScale:2.3},
-          { id:'room9_bed2',kind:'bed',hex:'AI18',rotDeg:90,spriteScale:2.3},
-          { id:'room9_bed3',kind:'bed',hex:'AI17',rotDeg:90,spriteScale:2.3},
-          { id:'room9_bed4',kind:'bed',hex:'AI16',rotDeg:90,spriteScale:2.3},
+  // This is the in-page demo default. It is parsed from JSON so it matches state_json storage.
+  const DEFAULT_STATE = normalizeStateForRenderer(readBootstrapState()) || FALLBACK_STATE_MIN;
 
-          // Bedroom 10
-          { id:'room10_bed1',kind:'bed',hex:'AI21',rotDeg:90,spriteScale:2.3},
+  // Debug helper: lets you easily copy the canonical "raw" JSON (world wrapper if present).
+  // Note: This returns the last parsed WORLD_STATE if you loaded a world wrapper; otherwise it returns DEFAULT_STATE.
+  if (typeof window !== 'undefined') {
+    window.BattlematExportRawState = function () {
+      const raw = WORLD_STATE || DEFAULT_STATE;
+      return JSON.stringify(raw, null, 2);
+    };
+  }
 
-          { id:'stairs_down_to_ground',kind:'stairs',hex:'AC21',rotDeg:270,ox:-1.0,oy:0.43,spriteScaleX:1.95,spriteScaleY:3.1},
-        ],
-     },
-      {
-        id:'ground',
-        name:'Ground',
-        rooms:[
-          { id:'CrossKeysGroundFloor',buildingId:'CrossKeysInn',corners:['M21.5','AJ21','AJ12.5','M13'],thickness:15,floor:{ kind:'fog'},wall:{ kind:'brick'}},
-          { id:'Pub',buildingId:'CrossKeysInn',corners:['M21.5','X21','X12.5','M13'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'brick'}},
-          { id:'Kitchen',buildingId:'CrossKeysInn',corners:['X19.5','AJ19.5','AJ12.5','X12.5'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'brick'}},
-          { id:'StairsUp',buildingId:'CrossKeysInn',corners:['X21','AA21.5','AA20','X19.5'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'brick'}},
-          { id:'Pantry',buildingId:'CrossKeysInn',corners:['AA21.5','AJ21','AJ19.5','AA20'],thickness:15,floor:{ kind:'wood_oak'},wall:{ kind:'brick'}},
-
-        ],
-        openings:[
-          { id:'pub_window1',kind:'window',hex:'M20',orientation:'v'},
-          { id:'pub_window2',kind:'window',hex:'M19',orientation:'v'},
-          { id:'pub_window3',kind:'window',hex:'M15',orientation:'v'},
-          { id:'pub_window4',kind:'window',hex:'M14',orientation:'v'},
-          { id:'pub_window5',kind:'window',hex:'N12.5',orientation:'h'},
-          { id:'pub_window6',kind:'window',hex:'O12',orientation:'h'},
-          { id:'pub_window7',kind:'window',hex:'P12.5',orientation:'h'},
-          { id:'pub_window8',kind:'window',hex:'Z12.5',orientation:'h'},
-          { id:'pub_window9',kind:'window',hex:'AB12.5',orientation:'h'},
-
-          { id:'kitchen_door',kind:'door',hex:'X14',orientation:'v',openPct:1.0},
-          { id:'door_to_upstairs',kind:'door',hex:'X20.25',orientation:'v',openPct:1.0,swing:1},
-          { id:'door_out1',kind:'door',hex:'M17',orientation:'v',openPct:1.0},
-          { id:'door_out2',kind:'door',hex:'U13',orientation:'h',openPct:1.0},
-          { id:'door_pantry',kind:'door.wood',hex:'AE20',orientation:'h',openPct:1.0,swing:1},
-
-          // Portals
-          { id:'portal_up_AA21',kind:'portal',hex:'AA21',trigger:'enter',to:{ floorId:'upper',hex:'AC21'}},
-          { id:'portal_up_AA20',kind:'portal',hex:'AA20',trigger:'enter',to:{ floorId:'upper',hex:'AC20'}},
-        ],
-        objects:[
-          
-          //Pub Area
-          { id:'pub_table1',kind:'table.rect',hex:'O20',rotDeg:90,spriteScale:3.5},
-          { id:'pub_table1_c1',kind:'chair',hex:'P20',rotDeg:90,spriteScale:0.75},
-          { id:'pub_table1_c2',kind:'chair',hex:'P19',rotDeg:90,spriteScale:0.75},
-          { id:'pub_table1_c3',kind:'chair',hex:'N20',rotDeg:270,spriteScale:0.75},
-          { id:'pub_table1_c4',kind:'chair',hex:'N19',rotDeg:270,spriteScale:0.75},
-
-          { id:'pub_table2',kind:'table.rect',hex:'O15',rotDeg:30,spriteScale:3.5},
-          { id:'pub_table2_c1',kind:'chair',hex:'O16',rotDeg:30,spriteScale:0.75},
-          { id:'pub_table2_c2',kind:'chair',hex:'P15',rotDeg:30,spriteScale:0.75},
-          { id:'pub_table2_c3',kind:'chair',hex:'O14',rotDeg:210,spriteScale:0.75},
-          { id:'pub_table2_c4',kind:'chair',hex:'N14',rotDeg:210,spriteScale:0.75},
-
-          { id:'pub_table3',kind:'table.rect',hex:'S20',rotDeg:150,spriteScale:3.5},
-          { id:'pub_table3_c1',kind:'chair',hex:'T19',rotDeg:150,spriteScale:0.75},
-          { id:'pub_table3_c2',kind:'chair',hex:'S19',rotDeg:150,spriteScale:0.75},
-          { id:'pub_table3_c3',kind:'chair',hex:'R20',rotDeg:330,spriteScale:0.75},
-          { id:'pub_table3_c4',kind:'chair',hex:'S21',rotDeg:330,spriteScale:0.75},
-
-          { id:'pub_table4',kind:'table.round',hex:'Q18',rotDeg:0,spriteScale:2.4},
-          { id:'pub_table4_c1',kind:'chair',hex:'Q19',rotDeg:0,spriteScale:0.75},
-          { id:'pub_table4_c2',kind:'chair',hex:'P17',rotDeg:240,spriteScale:0.75},
-          { id:'pub_table4_c3',kind:'chair',hex:'R17',rotDeg:120,spriteScale:0.75},
-
-          { id:'pub_table5',kind:'table.round',hex:'S15',rotDeg:0,spriteScale:2.4},
-          { id:'pub_table5_c1',kind:'chair',hex:'T15',rotDeg:60,spriteScale:0.75},
-          { id:'pub_table5_c2',kind:'chair',hex:'S14',rotDeg:180,spriteScale:0.75},
-          { id:'pub_table5_c3',kind:'chair',hex:'R15',rotDeg:300,spriteScale:0.75},
-
-          { id:'pub_table6',kind:'table.round',hex:'V17',rotDeg:0,spriteScale:2.4},
-          { id:'pub_table6_c1',kind:'chair',hex:'V18',rotDeg:0,spriteScale:0.75},
-          { id:'pub_table6_c2',kind:'chair',hex:'U17',rotDeg:240,spriteScale:0.75},
-          { id:'pub_table6_c3',kind:'chair',hex:'W17',rotDeg:120,spriteScale:0.75},
-          { id:'pub_table6_c4',kind:'chair',hex:'U18',rotDeg:300,spriteScale:0.75},
-          { id:'pub_table6_c5',kind:'chair',hex:'V16',rotDeg:180,spriteScale:0.75},
-
-          { id:'pub_hearth',kind:'hearth',hex:'X18',rotDeg:90,ox:-0.56,oy:0.00,spriteScale:1.65},
-          
-          { id:'stairs_up_to_upper',kind:'stairs',hex:'Y21',rotDeg:270,ox:1.0,oy:0.43,spriteScaleX:1.95,spriteScaleY:3.1},
-          { id:'stairs_down_to_basement',kind:'stairs',hex:'AC21',rotDeg:270,ox:-1.0,oy:0.43,spriteScaleX:1.95,spriteScaleY:3.1},
-
-
-          //Kitchen Area
-          { id:'room6_hearth',kind:'cooking.hearth',hex:'Z18',rotDeg:270,ox:-0.94,oy:0.00,spriteScale:2.42},
-          { id:'kitchen_prep_table',kind:'table.rect',hex:'Z15.5',rotDeg:90,ox:0.0,oy:-0.50,spriteScale:3.0},
-          { id:'kitchen_sort_table',kind:'table.rect',hex:'AC18',rotDeg:0,ox:0.0,oy:-0.50,spriteScale:3.0},
-          { id:'kitchen_misc_table',kind:'table.rect',hex:'AF16.5',rotDeg:90,ox:0.0,oy:-0.50,spriteScale:3.0},
-          { id:'kitchen_plate_table',kind:'table.rect',hex:'AC15.5',rotDeg:90,ox:0.0,oy:-0.50,spriteScale:3.0},
-          { id:'kitchen_chop_block',kind:'table.sqr',hex:'AA16',ox:-0.0,oy:0.00,rotDeg:90,spriteScale:1.25},
-          { id:'kitchen_keg1',kind:'keg',hex:'AI14',ox:0.50,oy:0.00,rotDeg:0,spriteScale:2},
-          { id:'kitchen_keg2',kind:'keg',hex:'AI15',ox:0.50,oy:0.00,rotDeg:0,spriteScale:2},
-          { id:'kitchen_keg3',kind:'keg',hex:'AI16',ox:0.50,oy:0.00,rotDeg:0,spriteScale:2},
-          { id:'kitchen_crate1',kind:'crate',hex:'AI19',ox:0.50,oy:-0.50,rotDeg:0,spriteScale:1.25},
-          { id:'kitchen_crate2',kind:'crate',hex:'AI18',ox:0.50,oy:-0.0,rotDeg:60,spriteScale:1.25},
-          { id:'kitchen_barrel1',kind:'barrel',hex:'AH19',rotDeg:0,spriteScale:1.25},
-
-        ],
-     }
-    ],
-
-    tokens:[
-      { id:'a',name:'Aelar',side:'PC',hex:'AE19',label:'A',init:14,hp:42,floorId:'upper'},
-      { id:'b',name:'Bran',side:'PC',hex:'T15',label:'B',init:12,hp:35,floorId:'ground',spriteFile:'ranger_male.png'},
-      { id:'g1',name:'Goblin 1',side:'NPC',hex:'U19',label:'G1',init:10,hp:8,floorId:'upper'},
-      { id:'g2',name:'Goblin 2',side:'NPC',hex:'V19',label:'G2',init:10,hp:8,floorId:'upper'},
-      { id:'g3',name:'Goblin 3',side:'NPC',hex:'W19',label:'G3',init:10,hp:8,floorId:'upper'},
-    ]
- };
-    
   // ===== State access =====
   function getState() {
     // 1) If we have a fetched state, use it.
