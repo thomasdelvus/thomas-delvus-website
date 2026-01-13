@@ -1,13 +1,13 @@
 <!--
 Battlemat Core Rewrite
-Version: v6.30 
+Version: v6.33
 -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.30</title>
+  <title>Battlemat Core v6.33</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.30
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.30</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.33</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.30
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.22
+  // Battlemat Core Rewrite v6.33
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.30';
+  const VERSION = 'v6.33';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -460,13 +460,16 @@ Version: v6.30
     return { parsed: parsedOuter, jsonText };
   }
 
-  function applyFetchedState(parsed, jsonText) {
-    CURRENT_STATE = parsed;
-    LAST_STATE_JSON = String(jsonText || '');
+  let CURRENT_RAW_STATE = null; // last raw payload from DB/API (world wrapper OR legacy)
 
-    // If the DB state specifies a floor/camera, apply it.
+  function stableJsonTextFor(raw) {
+    try { return JSON.stringify(raw); } catch { return '[[unstringifiable_state]]'; }
+  }
+
+  function applyViewFromState(state) {
+    // If the state specifies a floor/camera, apply it.
     try {
-      const st = CURRENT_STATE;
+      const st = state;
       const floors = getFloorsFromState(st);
       const fid = pickActiveFloorId(st, floors);
       VIEW.floorId = fid;
@@ -478,6 +481,22 @@ Version: v6.30
         VIEW.camera.row = p.row;
       }
     } catch {}
+  }
+
+  function setCanonicalStateFromRaw(raw, jsonTextHint) {
+    CURRENT_RAW_STATE = raw;
+    LAST_STATE_JSON = String(jsonTextHint != null ? jsonTextHint : stableJsonTextFor(raw));
+
+    // Normalize (world wrapper -> active record scene; legacy scene -> scene)
+    const scene = normalizeStateForRenderer(raw) || FALLBACK_STATE_MIN;
+    CURRENT_STATE = scene;
+
+    // Keep VIEW synced to the scene.
+    applyViewFromState(scene);
+  }
+
+  function applyFetchedState(parsed, jsonText) {
+    setCanonicalStateFromRaw(parsed, jsonText);
   }
 
   async function pollStateLoop() {
@@ -1089,8 +1108,13 @@ Version: v6.30
   function hydrateSceneForRenderer(scene) {
     if (!scene || typeof scene !== 'object') return null;
 
+    // Prevent double-hydration if we normalize the same object more than once.
+    // We keep this marker internal; it's only used in-memory.
+    if (scene.__hydratedObjectsFlat) return scene;
+
     // If objects are stored per-floor, also expose a top-level flattened list so older rendering paths continue to work.
-    if (!Array.isArray(scene.objects)) scene.objects = [];
+    // Always rebuild the flattened list so we never accidentally duplicate entries.
+    scene.objects = [];
 
     if (Array.isArray(scene.floors)) {
       for (const f of scene.floors) {
@@ -1106,6 +1130,7 @@ Version: v6.30
       }
     }
 
+    scene.__hydratedObjectsFlat = true;
     return scene;
   }
 
@@ -1185,6 +1210,216 @@ Version: v6.30
       return JSON.stringify(raw, null, 2);
     };
   }
+  function parseMaybeJson(rawOrJson) {
+    if (rawOrJson == null) return null;
+    if (typeof rawOrJson === 'string') {
+      try { return JSON.parse(rawOrJson); } catch { return null; }
+    }
+    if (typeof rawOrJson === 'object') return rawOrJson;
+    return null;
+  }
+
+  function cameraHexFromView() {
+    try {
+      return colToLetters(VIEW.camera.col) + String((Math.round(VIEW.camera.row) + 1));
+    } catch {
+      return null;
+    }
+  }
+
+  function ensureWorldWrapper(recordId) {
+    const rid = String(recordId || 'Scene').trim() || 'Scene';
+    if (WORLD_STATE && WORLD_STATE.records && WORLD_STATE.active) return WORLD_STATE;
+
+    const scene = cloneDeepSafe(CURRENT_STATE || DEFAULT_STATE || FALLBACK_STATE_MIN);
+    const floorId =
+      VIEW.floorId ||
+      (scene.view && scene.view.floorId) ||
+      (Array.isArray(scene.floors) && scene.floors[0] ? scene.floors[0].id : null) ||
+      null;
+
+    const camHex = cameraHexFromView() || (scene.view && scene.view.camera_hex) || null;
+
+    WORLD_STATE = {
+      world: (scene.__worldName || 'World'),
+      version: 1,
+      meta: { scale: '1 hex = 5 ft' },
+      active: { recordId: rid, floorId, camera_hex: camHex },
+      records: { [rid]: scene },
+      links: []
+    };
+
+    return WORLD_STATE;
+  }
+
+  function parsePathParts(path) {
+    if (Array.isArray(path)) return path.slice();
+    const s = String(path || '').trim();
+    if (!s) return [];
+
+    const out = [];
+    let i = 0;
+
+    while (i < s.length) {
+      const ch = s[i];
+
+      if (ch === '.') { i++; continue; }
+
+      if (ch === '[') {
+        i++;
+        let numStr = '';
+        while (i < s.length && s[i] !== ']') {
+          numStr += s[i];
+          i++;
+        }
+        i++; // skip ]
+        const n = Number(numStr);
+        if (!Number.isFinite(n)) throw new Error('Bad array index in path: ' + numStr);
+        out.push(n);
+        continue;
+      }
+
+      // plain token
+      let tok = '';
+      while (i < s.length) {
+        const c = s[i];
+        if (c === '.' || c === '[') break;
+        tok += c;
+        i++;
+      }
+      tok = tok.trim();
+      if (tok) out.push(tok);
+    }
+
+    return out;
+  }
+
+  function getContainerForSet(root, parts) {
+    let cur = root;
+
+    for (let i = 0; i < parts.length - 1; i++) {
+      const k = parts[i];
+      const nextK = parts[i + 1];
+      const nextIsIndex = typeof nextK === 'number';
+
+      if (typeof k === 'number') {
+        if (!Array.isArray(cur)) throw new Error('Path expects array at segment ' + i);
+        if (cur[k] == null) cur[k] = nextIsIndex ? [] : {};
+        cur = cur[k];
+      } else {
+        if (cur[k] == null) cur[k] = nextIsIndex ? [] : {};
+        cur = cur[k];
+      }
+    }
+
+    return cur;
+  }
+
+  function applyOnePatch(root, patch) {
+    const op = String(patch && (patch.op || 'set')).toLowerCase();
+    const parts = parsePathParts(patch && (patch.pathParts || patch.path));
+    if (!parts.length) throw new Error('Patch missing path');
+
+    const parent = getContainerForSet(root, parts);
+    const key = parts[parts.length - 1];
+
+    if (op === 'delete' || op === 'del' || op === 'remove') {
+      if (typeof key === 'number') {
+        if (!Array.isArray(parent)) throw new Error('Delete expects array at leaf');
+        parent.splice(key, 1);
+      } else {
+        delete parent[key];
+      }
+      return;
+    }
+
+    if (op === 'merge') {
+      const val = patch && patch.value;
+      const curVal = (typeof key === 'number') ? parent[key] : parent[key];
+
+      if (val && typeof val === 'object' && !Array.isArray(val) &&
+          curVal && typeof curVal === 'object' && !Array.isArray(curVal)) {
+        Object.assign(curVal, val);
+      } else {
+        if (typeof key === 'number') {
+          if (!Array.isArray(parent)) throw new Error('Set expects array at leaf');
+          parent[key] = val;
+        } else {
+          parent[key] = val;
+        }
+      }
+      return;
+    }
+
+    // default: set
+    if (typeof key === 'number') {
+      if (!Array.isArray(parent)) throw new Error('Set expects array at leaf');
+      parent[key] = patch.value;
+    } else {
+      parent[key] = patch.value;
+    }
+  }
+
+  function refreshFromWorld() {
+    if (WORLD_STATE && WORLD_STATE.records && WORLD_STATE.active && WORLD_STATE.active.recordId) {
+      setCanonicalStateFromRaw(WORLD_STATE, stableJsonTextFor(WORLD_STATE));
+      return;
+    }
+    if (CURRENT_RAW_STATE) {
+      setCanonicalStateFromRaw(CURRENT_RAW_STATE, LAST_STATE_JSON);
+      return;
+    }
+    CURRENT_STATE = DEFAULT_STATE;
+    applyViewFromState(CURRENT_STATE);
+  }
+
+  window.BattlematGetWorld = function () {
+    return WORLD_STATE ? cloneDeepSafe(WORLD_STATE) : null;
+  };
+
+  window.BattlematGetWorldJson = function () {
+    return WORLD_STATE ? JSON.stringify(WORLD_STATE, null, 2) : null;
+  };
+
+  window.BattlematSetWorldState = function (rawOrJson) {
+    const parsed = parseMaybeJson(rawOrJson);
+    if (!parsed) throw new Error('BattlematSetWorldState: invalid JSON');
+    setCanonicalStateFromRaw(parsed, (typeof rawOrJson === 'string') ? rawOrJson : null);
+    safeRedraw();
+    return true;
+  };
+
+  window.BattlematEnsureWorld = function (recordId) {
+    ensureWorldWrapper(recordId || 'Scene');
+    refreshFromWorld();
+    safeRedraw();
+    return true;
+  };
+
+  window.BattlematSetActive = function (recordId, floorId, camera_hex) {
+    const w = ensureWorldWrapper();
+    const rid = String(recordId || '').trim();
+    if (!rid) throw new Error('BattlematSetActive: recordId required');
+    if (!w.records || !w.records[rid]) throw new Error('BattlematSetActive: unknown recordId ' + rid);
+
+    if (!w.active || typeof w.active !== 'object') w.active = { recordId: rid };
+    w.active.recordId = rid;
+    if (floorId != null) w.active.floorId = String(floorId);
+    if (camera_hex != null) w.active.camera_hex = String(camera_hex);
+
+    refreshFromWorld();
+    safeRedraw();
+    return true;
+  };
+
+  window.BattlematApplyPatches = function (patches) {
+    const w = ensureWorldWrapper();
+    const list = Array.isArray(patches) ? patches : [patches];
+    for (const p of list) applyOnePatch(w, p);
+    refreshFromWorld();
+    safeRedraw();
+    return true;
+  };
 
   // ===== State access =====
   function getState() {
@@ -1613,13 +1848,18 @@ Version: v6.30
     // No padding needed for portals (they don't cut walls/floors).
     if (kind === 'portal' || kind === 'connector') return { x: 0, y: 0 };
 
+    // Scale padding with backing-store resolution (DPR × supersample) to prevent 1px seams
+    // at high zoom levels.
+    const d = Number(VIEW && VIEW.dpr) || 1;
+    const pad = clamp(Math.ceil(2 * d), 4, 12);
+
     // Thresholds: buffer only perpendicular to the opening orientation.
     if (kind === 'threshold') {
-      return (orient === 'v') ? { x: 4, y: 0 } : { x: 0, y: 4 };
+      return (orient === 'v') ? { x: pad, y: 0 } : { x: 0, y: pad };
     }
 
     // Doors/windows: small buffer in both axes helps hide seams.
-    return { x: 4, y: 4 };
+    return { x: pad, y: pad };
   }
 
   // Opening length in world-units (CSS px). For thresholds, we auto-size to the parent room's
@@ -1848,6 +2088,8 @@ Version: v6.30
       const f = roomFloorRectWorld(r, box);
       meta.set(String(r.id), { room: r, floorRect: f });
     }
+    // Keep a global copy for any code paths that expect `roomMetaAll` to exist.
+    roomMetaAll = meta;
     return meta;
   }
 
@@ -1900,6 +2142,9 @@ Version: v6.30
   }
 
   let RENDER_FOG = null;
+  // Cached per-redraw room metadata (Map roomId -> {room,floorRect}).
+  // Some call-sites pass `roomMetaAll` by name; keep a global to avoid ReferenceErrors.
+  var roomMetaAll = null;
 
   function openingPreferredRoomId(opening, roomMetaAll) {
     const parentId = opening && opening.parent ? String(opening.parent) : '';
@@ -2703,18 +2948,27 @@ Version: v6.30
     }).join('');
   }
 
-  function populateFloorSelect(floors) {
-    if (!elFloorSelect) return;
+ function populateFloorSelect(floors) {
+  if (!elFloorSelect) return;
 
-    const opts = floors.map(f => {
-      const id = String(f.id);
-      const name = f.name ? String(f.name) : id;
-      return '<option value="' + escapeHtml(id) + '">' + escapeHtml(name) + '</option>';
-    });
+  const list = Array.isArray(floors) ? floors : [];
+  const current = String(VIEW.floorId || '');
 
-    elFloorSelect.innerHTML = opts.join('');
-    elFloorSelect.value = String(VIEW.floorId || (floors[0] ? floors[0].id : ''));
-  }
+  // Build options
+  elFloorSelect.innerHTML = list.map(f => {
+    const id = String((f && f.id) != null ? f.id : '');
+    const name = (f && f.name) ? String(f.name) : id;
+    return '<option value="' + escapeHtml(id) + '">' + escapeHtml(name) + '</option>';
+  }).join('');
+
+  // Pick selected value: current (if present in list) else first item's id else ''
+  const hasCurrent = current && list.some(f => String((f && f.id) != null ? f.id : '') === current);
+  const fallback = list.length ? String((list[0] && list[0].id) != null ? list[0].id : '') : '';
+
+  elFloorSelect.value = hasCurrent ? current : fallback;
+}
+
+  
 
   function populateCenterOn(state, tokensOnThisFloor) {
     if (!elCenterOn) return;
