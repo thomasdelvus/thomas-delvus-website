@@ -1,13 +1,13 @@
 <!--
 Battlemat Core
-Version: v6.39
+Version: v6.40
 --> 
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.39</title>
+  <title>Battlemat Core v6.40</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.39
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.38</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.40</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.39
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.39
+  // Battlemat Core Rewrite v6.40
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.39';
+  const VERSION = 'v6.40';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -598,50 +598,38 @@ Version: v6.39
     return img;
   }
 
-  function drawSprite(img, x, y, w, h, rotRad = 0) {
-    // Always preserve sprite aspect ratio ("contain" behavior).
+  function drawSprite(
+    img,
+    x,
+    y,
+    w,
+    h,
+    opts = {}
+  ) {
+    // Unified sprite draw helper: contain/stretch + optional anchor + rotation.
     if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return false;
 
-    const iw = img.naturalWidth;
-    const ih = img.naturalHeight;
-    const s = Math.min(w / iw, h / ih);
-    const dw = iw * s;
-    const dh = ih * s;
+    const fit = opts && opts.fit ? String(opts.fit) : 'contain';
+    const rotRad = opts && Number.isFinite(opts.rotRad) ? opts.rotRad : 0;
+    const ax = clamp(Number(opts && opts.anchorX != null ? opts.anchorX : 0.5), 0, 1);
+    const ay = clamp(Number(opts && opts.anchorY != null ? opts.anchorY : 0.5), 0, 1);
+
+    let drawW = w;
+    let drawH = h;
+
+    if (fit === 'contain') {
+      const iw = img.naturalWidth;
+      const ih = img.naturalHeight;
+      const s = Math.min(w / iw, h / ih);
+      drawW = iw * s;
+      drawH = ih * s;
+    }
 
     ctx.save();
     ctx.translate(x, y);
     if (rotRad) ctx.rotate(rotRad);
-    ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+    ctx.drawImage(img, -drawW * ax, -drawH * ay, drawW, drawH);
     ctx.restore();
-    return true;
-  }
-
-  function drawSpriteStretch(img, x, y, w, h, rotRad = 0) {
-    // Non-uniform scale ("stretch" behavior). Use when spriteScaleX/Y are provided.
-    if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return false;
-
-    ctx.save();
-    ctx.translate(x, y);
-    if (rotRad) ctx.rotate(rotRad);
-    ctx.drawImage(img, -w / 2, -h / 2, w, h);
-    ctx.restore();
-    return true;
-  }
-
-  function drawSpriteContainAnchored(img, x, y, w, h, anchorX = 0.5, anchorY = 0.5) {
-    // "Contain" fit, but with a specific anchor point (0..1) inside the drawn sprite.
-    if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return false;
-
-    const iw = img.naturalWidth;
-    const ih = img.naturalHeight;
-    const s = Math.min(w / iw, h / ih);
-    const dw = iw * s;
-    const dh = ih * s;
-
-    const ax = clamp(Number(anchorX), 0, 1);
-    const ay = clamp(Number(anchorY), 0, 1);
-
-    ctx.drawImage(img, x - dw * ax, y - dh * ay, dw, dh);
     return true;
   }
 
@@ -2215,15 +2203,11 @@ Version: v6.39
           ctx.translate(hingeX, hingeY);
           ctx.rotate((hingeRight ? -1 : 1) * swingSign * ang);
 
-          const ok = drawSpriteContainAnchored(
-            img,
-            0,
-            0,
-            boxW * sx,
-            boxH * sy,
-            hingeRight ? 1 : 0,
-            0.5
-          );
+          const ok = drawSprite(img, 0, 0, boxW * sx, boxH * sy, {
+            fit: 'contain',
+            anchorX: hingeRight ? 1 : 0,
+            anchorY: 0.5,
+          });
           ctx.restore();
 
           if (ok) {
@@ -2682,10 +2666,16 @@ Version: v6.39
         if (hasAxisScale) {
           if (isFiniteNum(o.spriteScaleX)) sx *= Number(o.spriteScaleX);
           if (isFiniteNum(o.spriteScaleY)) sy *= Number(o.spriteScaleY);
-          const ok = drawSpriteStretch(img, c.x, c.y, w * sx, h * sy, def.rotate === 'deg' ? rot : 0);
+          const ok = drawSprite(img, c.x, c.y, w * sx, h * sy, {
+            fit: 'stretch',
+            rotRad: def.rotate === 'deg' ? rot : 0,
+          });
           if (ok) return;
         } else {
-          const ok = drawSprite(img, c.x, c.y, w * sx, h * sy, def.rotate === 'deg' ? rot : 0);
+          const ok = drawSprite(img, c.x, c.y, w * sx, h * sy, {
+            fit: 'contain',
+            rotRad: def.rotate === 'deg' ? rot : 0,
+          });
           if (ok) return;
         }
       }
@@ -2993,7 +2983,10 @@ Version: v6.39
       if (file) {
         const img = loadSprite(file);
         const s = (Number.isFinite(Number(req.scale)) && Number(req.scale) > 0) ? Number(req.scale) : 1;
-        const ok = drawSprite(img, c.x, c.y, r * 2.2 * s, r * 2.2 * s, 0);
+        const ok = drawSprite(img, c.x, c.y, r * 2.2 * s, r * 2.2 * s, {
+          fit: 'contain',
+          rotRad: 0,
+        });
         if (ok) {
           drawTokenLabel(t, c.x, c.y, isPC);
           return;
