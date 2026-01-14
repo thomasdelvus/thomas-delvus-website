@@ -1,13 +1,13 @@
 <!--
 Battlemat Core
-Version: v6.37
+Version: v6.39
 --> 
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.37</title>
+  <title>Battlemat Core v6.39</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.37
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.37</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.38</span></div>
       <div class="mini" id="battleTitle">Battlemat</div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.37
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.37
+  // Battlemat Core Rewrite v6.39
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.37';
+  const VERSION = 'v6.39';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -307,7 +307,7 @@ Version: v6.37
     stairsWood: 'rgb(140, 98, 64)',
 
     // Beds (placeholder colors)
-    bedFabric: 'rgb(147, 116, 84)',
+    bedFabric: 'rgb(173, 131, 89)', // match table color
     bedPillow: 'rgb(175, 159, 141)',
 
     // Hearth (placeholder color)
@@ -1132,12 +1132,190 @@ Version: v6.37
     return JSON.parse(JSON.stringify(obj));
   }
 
+  // ===== Data normalization =====
+  function numOr(v, d = 0) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : d;
+  }
+
+  function normStr(v, d = '') {
+    const s = (v == null) ? '' : String(v);
+    return s.trim() || d;
+  }
+
+  function normKind(v, d = '') {
+    return normStr(v, d).toLowerCase();
+  }
+
+  function normOrient(v) {
+    const o = normKind(v, 'h');
+    return (o === 'v' || o === 'vert' || o === 'vertical') ? 'v' : 'h';
+  }
+
+  function normDoorKind(kind) {
+    const k = normKind(kind, 'door');
+    // Unify common door aliases.
+    if (k === 'door_wood' || k === 'doorwood' || k === 'door.wood' || k === 'door-wood') return 'door.wood';
+    if (k === 'door_stone' || k === 'doorstone' || k === 'door.stone' || k === 'door-stone') return 'door.stone';
+    if (k.startsWith('door.') || k.startsWith('door_') || k === 'door') return k;
+    return k;
+  }
+
+  function normalizeRooms(list) {
+    const rooms = Array.isArray(list) ? list : [];
+    for (const r of rooms) {
+      if (!r || typeof r !== 'object') continue;
+      if (r.id != null) r.id = String(r.id);
+      if (Array.isArray(r.corners)) r.corners = r.corners.map(c => String(c));
+      r.thickness = numOr(r.thickness, numOr(r.wallThickness, 15));
+      if (!r.floor || typeof r.floor !== 'object') r.floor = {};
+      if (!r.wall || typeof r.wall !== 'object') r.wall = {};
+      r.floor.kind = normKind(r.floor.kind, normKind(r.floor.type, 'wood'));
+      r.wall.kind = normKind(r.wall.kind, normKind(r.wall.type, 'brick'));
+    }
+    return rooms;
+  }
+
+  function normalizeOpenings(list) {
+    const openings = Array.isArray(list) ? list : [];
+    for (const o of openings) {
+      if (!o || typeof o !== 'object') continue;
+      if (o.id != null) o.id = String(o.id);
+      o.hex = normStr(o.hex);
+      o.orientation = normOrient(o.orientation);
+
+      const k0 = normKind(o.kind, 'door');
+      o.kind = (k0 === 'door' || k0.startsWith('door') || k0.startsWith('door_') || k0.startsWith('door.'))
+        ? normDoorKind(k0)
+        : k0;
+
+      if (o.openPct == null && o.open != null) o.openPct = o.open;
+      if (o.openPct == null && o.open_pct != null) o.openPct = o.open_pct;
+      o.openPct = clamp(numOr(o.openPct, 0), 0, 1);
+
+      if (o.span != null) o.span = clamp(numOr(o.span, 1), 0.5, 4);
+      if (o.spriteScale != null) o.spriteScale = numOr(o.spriteScale, 1);
+      if (o.spriteScaleX != null) o.spriteScaleX = numOr(o.spriteScaleX, 1);
+      if (o.spriteScaleY != null) o.spriteScaleY = numOr(o.spriteScaleY, 1);
+
+      if (o.parent != null) o.parent = String(o.parent);
+      if (o.hinge != null) o.hinge = String(o.hinge);
+      if (o.swing != null) o.swing = numOr(o.swing, o.swing);
+    }
+    return openings;
+  }
+
+  function normalizeObjects(list, floorIdFallback = null) {
+    const objects = Array.isArray(list) ? list : [];
+    for (const o of objects) {
+      if (!o || typeof o !== 'object') continue;
+      if (o.id != null) o.id = String(o.id);
+      o.kind = normKind(o.kind, 'object');
+      o.hex = normStr(o.hex);
+
+      if (o.floorId == null && o.floor_id != null) o.floorId = o.floor_id;
+      if (o.floorId == null && floorIdFallback != null) o.floorId = String(floorIdFallback);
+      if (o.floorId != null) o.floorId = String(o.floorId);
+
+      if (o.ox != null) o.ox = numOr(o.ox, 0);
+      if (o.oy != null) o.oy = numOr(o.oy, 0);
+      if (o.rotDeg != null) o.rotDeg = numOr(o.rotDeg, 0);
+
+      if (o.spriteScale != null) o.spriteScale = numOr(o.spriteScale, 1);
+      if (o.spriteScaleX != null) o.spriteScaleX = numOr(o.spriteScaleX, 1);
+      if (o.spriteScaleY != null) o.spriteScaleY = numOr(o.spriteScaleY, 1);
+    }
+    return objects;
+  }
+
+  function normalizeTokens(list, floorIdFallback = null) {
+    const tokens = Array.isArray(list) ? list : [];
+    for (const t of tokens) {
+      if (!t || typeof t !== 'object') continue;
+      if (t.id != null) t.id = String(t.id);
+      t.hex = normStr(t.hex);
+
+      const side = normStr(t.side ?? t.team ?? t.faction, 'NPC').toUpperCase();
+      t.side = (side === 'PC' || side === 'NPC') ? side : 'NPC';
+
+      if (t.floorId == null && t.floor_id != null) t.floorId = t.floor_id;
+      if (t.floorId == null && floorIdFallback != null) t.floorId = String(floorIdFallback);
+      if (t.floorId != null) t.floorId = String(t.floorId);
+
+      if (t.init != null) t.init = numOr(t.init, 0);
+      if (t.hp != null) t.hp = numOr(t.hp, t.hp);
+
+      if (t.label != null) t.label = String(t.label);
+      if (t.name != null) t.name = String(t.name);
+    }
+    return tokens;
+  }
+
+  function normalizeSceneShape(scene) {
+    if (!scene || typeof scene !== 'object') return null;
+
+    if (!scene.meta || typeof scene.meta !== 'object') scene.meta = {};
+    if (!scene.view || typeof scene.view !== 'object') scene.view = {};
+
+    // Normalize floors into an array. If we only have legacy top-level rooms/openings/objects,
+    // fold them into a single floor.
+    let floors = null;
+
+    if (Array.isArray(scene.floors)) {
+      floors = scene.floors;
+    } else if (scene.floors && typeof scene.floors === 'object') {
+      floors = Object.entries(scene.floors).map(([id, data]) => ({ id, ...(data || {}) }));
+      scene.floors = floors;
+    } else {
+      const fid = String(scene.view.floorId || scene.view.floor_id || scene.view.floor || 'floor1');
+      floors = [{
+        id: fid,
+        name: 'Floor',
+        rooms: Array.isArray(scene.rooms) ? scene.rooms : [],
+        openings: Array.isArray(scene.openings) ? scene.openings : [],
+        objects: Array.isArray(scene.objects) ? scene.objects : [],
+      }];
+      scene.floors = floors;
+    }
+
+    // Ensure view.floorId is set to a valid floor id.
+    const firstId = floors && floors.length ? String(floors[0].id ?? 'floor1') : 'floor1';
+    const wanted = String(scene.view.floorId || scene.view.floor_id || scene.view.floor || '') || '';
+    const ok = wanted && floors.some(f => String(f && f.id) === wanted);
+    scene.view.floorId = ok ? wanted : firstId;
+
+    // Normalize per-floor arrays.
+    for (const f of floors) {
+      if (!f || typeof f !== 'object') continue;
+      if (f.id == null) f.id = firstId;
+      f.id = String(f.id);
+      if (f.name != null) f.name = String(f.name);
+
+      f.rooms = normalizeRooms(f.rooms);
+      f.openings = normalizeOpenings(f.openings);
+      f.objects = normalizeObjects(f.objects, f.id);
+    }
+
+    // Normalize tokens.
+    const tok = (scene.tokens != null) ? scene.tokens : (scene.actors != null ? scene.actors : []);
+    scene.tokens = normalizeTokens(tok, scene.view.floorId);
+
+    // Keep legacy top-level lists present but consistent (for compatibility).
+    scene.rooms = floors[0] ? floors[0].rooms : [];
+    scene.openings = floors[0] ? floors[0].openings : [];
+
+    return scene;
+  }
+
   function hydrateSceneForRenderer(scene) {
     if (!scene || typeof scene !== 'object') return null;
 
     // Prevent double-hydration if we normalize the same object more than once.
     // We keep this marker internal; it's only used in-memory.
     if (scene.__hydratedObjectsFlat) return scene;
+
+    // Normalize shape + fields before we derive any compatibility views.
+    normalizeSceneShape(scene);
 
     // If objects are stored per-floor, also expose a top-level flattened list so older rendering paths continue to work.
     // Always rebuild the flattened list so we never accidentally duplicate entries.
