@@ -1,13 +1,13 @@
 <!--
 Battlemat Core
-Version: v6.40
+Version: v6.41
 --> 
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.40</title>
+  <title>Battlemat Core v6.41</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -250,11 +250,11 @@ Version: v6.40
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.40
+  // Battlemat Core Rewrite v6.41
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.40';
+  const VERSION = 'v6.41';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -936,8 +936,8 @@ const EMBEDDED_WORLD_JSON = `{
 					"id": "upper",
 					"name": "Upper",
 					"rooms": [
-						{ "id": "KingStreet", "corners": ["L12", "AP12", "AP8", "L8"], "thickness": 0, "floor": { "kind": "cobble" }, "wall": { "kind": "cobble" } },
-                        { "id": "HighStreet", "corners": ["F24", "L24", "L8", "F8"], "thickness": 0, "floor": { "kind": "cobble" }, "wall": { "kind": "cobble" } },
+						{ "id": "KingStreet", "corners": ["L12", "AP12", "AP8", "L8"], "thickness": 15, "floor": { "kind": "cobble" }, "wall": { "kind": "none" } },
+                        { "id": "HighStreet", "corners": ["F24", "L24", "L8", "F8"], "thickness": 15, "floor": { "kind": "cobble" }, "wall": { "kind": "none" } },
 						{ "id": "CrossKeysUpperFloor", "buildingId": "CrossKeysInn", "corners": ["L21", "AJ21", "AJ12", "L12"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } },
 						{ "id": "Hallway1", "buildingId": "CrossKeysInn", "corners": ["AD21", "AF21", "AF12", "AD12"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
 						{ "id": "Hallway2", "buildingId": "CrossKeysInn", "corners": ["R17", "AD17", "AD15", "R15"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
@@ -1851,9 +1851,16 @@ const EMBEDDED_WORLD_JSON = `{
   }
 
   // ===== Rooms / walls geometry =====
+  function roomWallKind(room) {
+    const w = (room && room.wall && typeof room.wall === 'object') ? room.wall : null;
+    const k = (w && w.kind != null) ? String(w.kind) : '';
+    const t = (w && w.type != null) ? String(w.type) : '';
+    return String((k || t || 'brick')).toLowerCase();
+  }
+
   function roomHasWalls(room) {
     const thick = Number(room && room.thickness != null ? room.thickness : 0);
-    const wk = room && room.wall && room.wall.kind ? String(room.wall.kind).toLowerCase() : 'brick';
+    const wk = roomWallKind(room);
     return thick > 0 && wk !== 'none';
   }
 
@@ -1903,7 +1910,7 @@ const EMBEDDED_WORLD_JSON = `{
       const t = box.thickness;
 
       const color = (r && r.color) ? String(r.color) : COLORS.wall;
-      const wallKind = (r && r.wall && r.wall.kind) ? String(r.wall.kind).toLowerCase() : 'brick';
+      const wallKind = roomWallKind(r);
 
       segs.push({ orientation: 'h', y: box.yTop, x1: box.xL, x2: box.xR, thickness: t, color, wallKind });
       segs.push({ orientation: 'h', y: box.yBot, x1: box.xL, x2: box.xR, thickness: t, color, wallKind });
