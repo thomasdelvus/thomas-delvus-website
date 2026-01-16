@@ -1,13 +1,13 @@
 <!--
 Battlemat Core
-Version: v6.39
+Version: v6.40
 --> 
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.39</title>
+  <title>Battlemat Core v6.40</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -187,7 +187,7 @@ Version: v6.39
   <div id="topbar">
     <div id="status">
       <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.38</span></div>
-      <div class="mini" id="battleTitle">Battlemat</div>
+      <div class="mini">Scene <select id="sceneSelect"></select></div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
       <div class="pill" title="DevicePixelRatio × Supersample">
@@ -250,11 +250,11 @@ Version: v6.39
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.39
+  // Battlemat Core Rewrite v6.40
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.39';
+  const VERSION = 'v6.40';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -265,7 +265,7 @@ Version: v6.39
   const wallCtx = wallCanvas.getContext('2d', { alpha: true, desynchronized: true });
 
   const elVersion = document.getElementById('versionText');
-  const elTitle = document.getElementById('battleTitle');
+  const elSceneSelect = document.getElementById('sceneSelect');
   const elFogToggle = document.getElementById('fogToggle');
   const elSpriteToggle = document.getElementById('spriteToggle');
   const elLabelBoldToggle = document.getElementById('labelBoldToggle');
@@ -3189,7 +3189,39 @@ const EMBEDDED_WORLD_JSON = `{
     }).join('');
   }
 
- function populateFloorSelect(floors) {
+ function populateSceneSelect(state) {
+  if (!elSceneSelect) return;
+
+  const w = (WORLD_STATE && WORLD_STATE.records && WORLD_STATE.active) ? WORLD_STATE : null;
+
+  // Legacy mode (no world wrapper): show a single disabled option.
+  if (!w) {
+    const title = (state && state.meta && state.meta.title) ? String(state.meta.title) : 'Scene';
+    elSceneSelect.innerHTML = '<option value="Scene">' + escapeHtml(title) + '</option>';
+    elSceneSelect.value = 'Scene';
+    elSceneSelect.disabled = true;
+    return;
+  }
+
+  const recordIds = Object.keys(w.records || {}).sort();
+  const activeRid = String((w.active && w.active.recordId) ? w.active.recordId : '');
+
+  // Build options once per render (cheap) — but avoid stomping the dropdown while it's focused.
+  if (document.activeElement !== elSceneSelect) {
+    elSceneSelect.innerHTML = recordIds.map(rid => {
+      const rec = w.records[rid];
+      const label = (rec && rec.meta && rec.meta.title) ? String(rec.meta.title) : rid;
+      return '<option value="' + escapeHtml(rid) + '">' + escapeHtml(label) + '</option>';
+    }).join('');
+
+    if (recordIds.includes(activeRid)) elSceneSelect.value = activeRid;
+    else if (recordIds.length) elSceneSelect.value = recordIds[0];
+  }
+
+  elSceneSelect.disabled = recordIds.length <= 1;
+}
+
+function populateFloorSelect(floors) {
   if (!elFloorSelect) return;
 
   const list = Array.isArray(floors) ? floors : [];
@@ -3251,8 +3283,7 @@ const EMBEDDED_WORLD_JSON = `{
     const floor = floorById(floors, activeFloorId) || floors[0];
     VIEW.floorId = floor ? String(floor.id) : activeFloorId;
 
-    const title = (state.meta && state.meta.title) ? String(state.meta.title) : 'Battlemat';
-    elTitle.textContent = title;
+    populateSceneSelect(state);
 
     if (VIEW.followTokenId) {
       const allTokens = getTokensArray(state);
@@ -3411,7 +3442,32 @@ const EMBEDDED_WORLD_JSON = `{
     safeRedraw();
   }
 
-  function setActiveFloor(floorId, opts = {}) {
+  function setActiveRecord(recordId) {
+  const rid = String(recordId || '').trim();
+  if (!rid) return;
+
+  const w = ensureWorldWrapper();
+  if (!w || !w.records || !w.records[rid]) return;
+
+  const rec = w.records[rid];
+  const floors = Array.isArray(rec && rec.floors) ? rec.floors : [];
+  const defaultFloorId = (rec && rec.view && rec.view.floorId) ? String(rec.view.floorId) : (floors[0] ? String(floors[0].id) : null);
+  const defaultCameraHex = (rec && rec.view && rec.view.camera_hex) ? String(rec.view.camera_hex) : null;
+
+  if (!w.active || typeof w.active !== 'object') w.active = { recordId: rid };
+  w.active.recordId = rid;
+  if (defaultFloorId) w.active.floorId = defaultFloorId;
+  if (defaultCameraHex) w.active.camera_hex = defaultCameraHex;
+
+  // Manual scene switch stops following a token.
+  VIEW.followTokenId = null;
+  if (elCenterOn) elCenterOn.value = '';
+
+  refreshFromWorld();
+  safeRedraw();
+}
+
+function setActiveFloor(floorId, opts = {}) {
     const state = getState();
     const floors = getFloorsFromState(state);
 
@@ -3490,6 +3546,10 @@ const EMBEDDED_WORLD_JSON = `{
     if (elFogToggle) elFogToggle.onchange = () => safeRedraw();
     if (elSpriteToggle) elSpriteToggle.onchange = () => safeRedraw();
     if (elLabelBoldToggle) elLabelBoldToggle.onchange = () => safeRedraw();
+
+    if (elSceneSelect) {
+      elSceneSelect.onchange = () => setActiveRecord(elSceneSelect.value);
+    }
 
     if (elFloorSelect) {
       elFloorSelect.onchange = () => setActiveFloor(elFloorSelect.value, { fromFollow: false, keepCamera: true });
