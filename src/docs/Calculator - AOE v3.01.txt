@@ -1,0 +1,496 @@
+<!-- AoE Radius Calculator v1.00 (flat-top, odd-q, A1 bottom-left labels) -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hex AoE Radius Calculator (flat-top odd-q)</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b0f14; color:#e6edf3; }
+    header { padding: 12px 16px; border-bottom: 1px solid #1f2a37; display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+    header h1 { font-size: 14px; margin: 0; opacity:.9; }
+    .ctrl { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    label { font-size: 12px; opacity:.9; display:flex; gap:8px; align-items:center; }
+    input, select, button { background:#0f1720; color:#e6edf3; border:1px solid #223041; border-radius:10px; padding:8px 10px; font-size: 12px; }
+    button { cursor:pointer; }
+    button:hover { border-color:#2f415a; }
+    main { display:grid; grid-template-columns: 1fr 340px; gap: 0; height: calc(100vh - 54px); }
+    #stage { position: relative; overflow:hidden; }
+    canvas { display:block; width:100%; height:100%; }
+    aside { border-left:1px solid #1f2a37; padding: 12px 14px; overflow:auto; }
+    .card { background:#0f1720; border:1px solid #223041; border-radius:14px; padding: 12px; margin-bottom: 12px; }
+    .k { font-size: 12px; opacity:.75; }
+    .v { font-size: 13px; margin-top:6px; white-space: pre-wrap; word-break: break-word; }
+    .tiny { font-size: 11px; opacity:.75; }
+    .pill { display:inline-block; border:1px solid #223041; background:#0b1220; border-radius:999px; padding: 3px 8px; font-size: 11px; margin-right: 6px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Hex AoE Radius Calculator (flat-top, odd-q)</h1>
+    <div class="ctrl">
+      <label>Board
+        <select id="boardSel">
+          <option value="17x11" selected>17×11 (A–Q, 1–11)</option>
+          <option value="20x15">20×15 (A–T, 1–15)</option>
+          <option value="custom">Custom…</option>
+        </select>
+      </label>
+      <label>Cols <input id="cols" type="number" min="1" step="1" value="17" style="width:70px" /></label>
+      <label>Rows <input id="rows" type="number" min="1" step="1" value="11" style="width:70px" /></label>
+      <label>Center
+        <select id="centerSel"></select>
+      </label>
+      <label>Radius (hexes)
+        <input id="radius" type="number" min="0" step="1" value="2" style="width:70px" />
+      </label>
+      <button id="resetView">Reset view</button>
+      <span class="tiny">Tip: click a hex to set center.</span>
+    </div>
+  </header>
+
+  <main>
+    <div id="stage"><canvas id="c"></canvas></div>
+    <aside>
+      <div class="card">
+        <div class="k">Center</div>
+        <div class="v" id="centerOut">—</div>
+        <div class="k" style="margin-top:10px">Radius</div>
+        <div class="v" id="radiusOut">—</div>
+      </div>
+      <div class="card">
+        <div class="k">Affected hexes</div>
+        <div class="v" id="hexesOut">—</div>
+      </div>
+      <div class="card">
+        <div class="k">Sanity tests</div>
+        <div class="v" id="testsOut">Run from DevTools console: <span class="pill">runTests()</span></div>
+      </div>
+      <div class="tiny">v1.00 — Geometry matches Worker: flat-top + odd-q, labels A1 bottom-up.</div>
+    </aside>
+  </main>
+
+<script>
+(() => {
+  // ============================================================
+  // Geometry (must match Worker)
+  // Flat-top hexes, odd-q offset
+  // Labels: A1 is bottom row; r is 0-based bottom-up
+  // ============================================================
+
+  const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const SQRT3 = Math.sqrt(3);
+
+  let COLS = 17;
+  let ROWS = 11;
+
+  // Visual settings
+  let size = 34;                 // hex radius in pixels
+  let panX = 60, panY = 60;
+  let zoom = 1;
+
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  const els = {
+    boardSel: document.getElementById('boardSel'),
+    cols: document.getElementById('cols'),
+    rows: document.getElementById('rows'),
+    centerSel: document.getElementById('centerSel'),
+    radius: document.getElementById('radius'),
+    resetView: document.getElementById('resetView'),
+    centerOut: document.getElementById('centerOut'),
+    radiusOut: document.getElementById('radiusOut'),
+    hexesOut: document.getElementById('hexesOut'),
+    testsOut: document.getElementById('testsOut')
+  };
+
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  function inBounds(q, r) { return q >= 0 && q < COLS && r >= 0 && r < ROWS; }
+
+  function qrToLabel(q, r) {
+    return `${LETTERS[q]}${r + 1}`;
+  }
+
+  function labelToQR(label) {
+    const m = String(label).trim().toUpperCase().match(/^([A-Z])([0-9]{1,3})$/);
+    if (!m) return null;
+    const q = LETTERS.indexOf(m[1]);
+    const r = Number(m[2]) - 1;
+    if (q < 0 || !Number.isFinite(r)) return null;
+    if (!inBounds(q, r)) return null;
+    return { q, r };
+  }
+
+  // Label r is bottom-up; drawR is top-down
+  function rLabelToDrawR(rLabel) { return ROWS - 1 - rLabel; }
+  function drawRToRLabel(drawR) { return ROWS - 1 - drawR; }
+
+  // Pixel center for a hex (flat-top odd-q)
+  function offsetToPixel(q, rLabel) {
+    const drawR = rLabelToDrawR(rLabel);
+    const colOffset = (q & 1) ? 0.5 : 0;
+
+    // normalized coordinates (Worker uses size=1):
+    // x = 1.5*q
+    // y = sqrt(3)*(drawR + colOffset)
+    const xn = 1.5 * q;
+    const yn = SQRT3 * (drawR + colOffset);
+
+    // scale to pixels (size is hex radius)
+    return {
+      x: (xn * size),
+      y: (yn * size)
+    };
+  }
+
+  // odd-q offset (drawR) -> cube
+  function offsetToCube(q, rLabel) {
+    const drawR = rLabelToDrawR(rLabel);
+    const x = q;
+    const z = drawR - ((q - (q & 1)) / 2);
+    const y = -x - z;
+    return { x, y, z };
+  }
+
+  function cubeDistance(a, b) {
+    return Math.max(
+      Math.abs(a.x - b.x),
+      Math.abs(a.y - b.y),
+      Math.abs(a.z - b.z)
+    );
+  }
+
+  function aoeRadius(centerQR, radius) {
+    const cCube = offsetToCube(centerQR.q, centerQR.r);
+    const hits = [];
+    for (let q = 0; q < COLS; q++) {
+      for (let r = 0; r < ROWS; r++) {
+        const d = cubeDistance(cCube, offsetToCube(q, r));
+        if (d <= radius) hits.push({ q, r, d, label: qrToLabel(q, r) });
+      }
+    }
+    // Sort by distance then label for stable display
+    hits.sort((a, b) => (a.d - b.d) || (a.q - b.q) || (a.r - b.r));
+    return hits;
+  }
+
+  // ============================================================
+  // UI state
+  // ============================================================
+
+  let center = { q: 0, r: 0 };
+  let radius = 2;
+
+  function populateCenters() {
+    els.centerSel.innerHTML = '';
+    for (let r = ROWS - 1; r >= 0; r--) {
+      // show bottom-up groups (higher r first looks nicer)
+      for (let q = 0; q < COLS; q++) {
+        const opt = document.createElement('option');
+        opt.value = qrToLabel(q, r);
+        opt.textContent = qrToLabel(q, r);
+        els.centerSel.appendChild(opt);
+      }
+    }
+    els.centerSel.value = qrToLabel(center.q, center.r);
+  }
+
+  function setBoard(cols, rows) {
+    COLS = cols;
+    ROWS = rows;
+    els.cols.value = String(cols);
+    els.rows.value = String(rows);
+
+    // clamp center
+    center.q = clamp(center.q, 0, COLS - 1);
+    center.r = clamp(center.r, 0, ROWS - 1);
+
+    populateCenters();
+    draw();
+    syncOutputs();
+  }
+
+  function syncOutputs() {
+    els.centerOut.textContent = `${qrToLabel(center.q, center.r)}  (q=${center.q}, r=${center.r})`;
+    els.radiusOut.textContent = `${radius} hex${radius === 1 ? '' : 'es'}`;
+    const hits = aoeRadius(center, radius);
+
+    // Pretty print
+    const labels = hits.map(h => h.label);
+    els.hexesOut.textContent = `${labels.length} hexes\n\n` + labels.join(', ');
+  }
+
+  // ============================================================
+  // Drawing
+  // ============================================================
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+
+  function hexPath(cx, cy) {
+    // Flat-top hex corners (radius = size)
+    // angles: 0,60,120,180,240,300 deg
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const ang = (Math.PI / 3) * i;
+      const x = cx + size * Math.cos(ang);
+      const y = cy + size * Math.sin(ang);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+  }
+
+  function worldToScreen(p) {
+    return { x: (p.x * zoom) + panX, y: (p.y * zoom) + panY };
+  }
+  function screenToWorld(x, y) {
+    return { x: (x - panX) / zoom, y: (y - panY) / zoom };
+  }
+
+  function pixelToNearestHex(worldX, worldY) {
+    // brute-force snap (board is tiny)
+    let best = null;
+    let bestD2 = Infinity;
+    for (let q = 0; q < COLS; q++) {
+      for (let r = 0; r < ROWS; r++) {
+        const p = offsetToPixel(q, r);
+        const dx = worldX - p.x;
+        const dy = worldY - p.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestD2) {
+          bestD2 = d2;
+          best = { q, r };
+        }
+      }
+    }
+    return best;
+  }
+
+  function draw() {
+    if (!canvas.width || !canvas.height) return;
+
+    ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+    // Background
+    ctx.fillStyle = '#0b0f14';
+    ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+    const hits = aoeRadius(center, radius);
+    const hitSet = new Set(hits.map(h => h.label));
+
+    // Draw hexes
+    for (let q = 0; q < COLS; q++) {
+      for (let r = 0; r < ROWS; r++) {
+        const lab = qrToLabel(q, r);
+        const wp = offsetToPixel(q, r);
+        const sp = worldToScreen(wp);
+
+        // Fill
+        const isCenter = (q === center.q && r === center.r);
+        const isHit = hitSet.has(lab);
+
+        if (isHit) {
+          ctx.fillStyle = isCenter ? 'rgba(70, 210, 255, 0.26)' : 'rgba(255, 190, 80, 0.18)';
+        } else {
+          ctx.fillStyle = 'rgba(255,255,255,0.03)';
+        }
+
+        hexPath(sp.x, sp.y);
+        ctx.fill();
+
+        // Stroke
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = isHit ? 'rgba(255, 190, 80, 0.35)' : 'rgba(180, 200, 230, 0.10)';
+        if (isCenter) ctx.strokeStyle = 'rgba(70, 210, 255, 0.65)';
+        ctx.stroke();
+
+        // Label
+        ctx.fillStyle = 'rgba(230, 237, 243, 0.70)';
+        ctx.font = '11px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(lab, sp.x, sp.y);
+      }
+    }
+
+    // Title overlay
+    ctx.fillStyle = 'rgba(230,237,243,0.55)';
+    ctx.font = '12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`Center: ${qrToLabel(center.q, center.r)}   Radius: ${radius}`, 12, 10);
+  }
+
+  // ============================================================
+  // Input
+  // ============================================================
+
+  let dragging = false;
+  let last = null;
+
+  canvas.addEventListener('mousedown', (e) => {
+    dragging = true;
+    last = { x: e.clientX, y: e.clientY };
+  });
+  window.addEventListener('mouseup', () => { dragging = false; last = null; });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    // Pan with right/middle, or shift+drag
+    if (e.buttons === 2 || e.buttons === 4 || e.shiftKey) {
+      const dx = e.clientX - last.x;
+      const dy = e.clientY - last.y;
+      panX += dx;
+      panY += dy;
+      last = { x: e.clientX, y: e.clientY };
+      draw();
+    }
+  });
+
+  // prevent context menu
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  canvas.addEventListener('click', (e) => {
+    // set center
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+    const w = screenToWorld(sx, sy);
+    const h = pixelToNearestHex(w.x, w.y);
+    if (h && inBounds(h.q, h.r)) {
+      center = h;
+      els.centerSel.value = qrToLabel(center.q, center.r);
+      syncOutputs();
+      draw();
+    }
+  });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+
+    const before = screenToWorld(sx, sy);
+
+    const factor = Math.exp(-e.deltaY * 0.0015);
+    zoom = clamp(zoom * factor, 0.35, 3.0);
+
+    const after = screenToWorld(sx, sy);
+    // Keep cursor point stable
+    panX += (after.x - before.x) * zoom;
+    panY += (after.y - before.y) * zoom;
+
+    draw();
+  }, { passive: false });
+
+  // Controls
+  els.centerSel.addEventListener('change', () => {
+    const qr = labelToQR(els.centerSel.value);
+    if (!qr) return;
+    center = qr;
+    syncOutputs();
+    draw();
+  });
+
+  els.radius.addEventListener('input', () => {
+    radius = clamp(parseInt(els.radius.value || '0', 10) || 0, 0, 99);
+    els.radius.value = String(radius);
+    syncOutputs();
+    draw();
+  });
+
+  els.boardSel.addEventListener('change', () => {
+    const v = els.boardSel.value;
+    if (v === '17x11') setBoard(17, 11);
+    else if (v === '20x15') setBoard(20, 15);
+    else {
+      setBoard(clamp(parseInt(els.cols.value, 10) || 17, 1, 26), clamp(parseInt(els.rows.value, 10) || 11, 1, 50));
+    }
+  });
+
+  function onCustomDims() {
+    els.boardSel.value = 'custom';
+    setBoard(clamp(parseInt(els.cols.value, 10) || 17, 1, 26), clamp(parseInt(els.rows.value, 10) || 11, 1, 50));
+  }
+  els.cols.addEventListener('change', onCustomDims);
+  els.rows.addEventListener('change', onCustomDims);
+
+  els.resetView.addEventListener('click', () => {
+    zoom = 1;
+    panX = 60;
+    panY = 60;
+    draw();
+  });
+
+  // ============================================================
+  // Sanity tests (lightweight)
+  // ============================================================
+
+  window.runTests = function runTests() {
+    const results = [];
+
+    // helper to count hits on an infinite grid would be 1 + 3r(r+1),
+    // but we’re bounded by board size.
+
+    function expect(name, cond, detail='') {
+      results.push({ name, pass: !!cond, detail });
+    }
+
+    // Test 1: radius 0 returns just center
+    {
+      const c = { q: 5, r: 5 };
+      const hits = aoeRadius(c, 0);
+      expect('r=0 returns 1 hex', hits.length === 1, `got=${hits.length}`);
+      expect('r=0 includes center', hits[0].q === c.q && hits[0].r === c.r, `got=${hits[0].label}`);
+    }
+
+    // Test 2: symmetry-ish interior point (avoid edges)
+    {
+      const c = { q: 8, r: 5 };
+      const hits = aoeRadius(c, 2);
+      // On an infinite grid: 1 + 3*2*3 = 19.
+      // With 17x11 and center interior, should still be 19.
+      expect('r=2 interior count is 19', hits.length === 19, `got=${hits.length}`);
+    }
+
+    // Test 3: edge clipping reduces count
+    {
+      const c = { q: 0, r: 0 };
+      const hits = aoeRadius(c, 2);
+      expect('edge r=2 count < 19', hits.length < 19, `got=${hits.length}`);
+      expect('edge includes A1', hits.some(h => h.label === 'A1'), 'missing A1');
+    }
+
+    const lines = results.map(r => `${r.pass ? '✅' : '❌'} ${r.name}${r.detail ? ' — ' + r.detail : ''}`);
+    console.log(lines.join('\n'));
+    els.testsOut.textContent = lines.join('\n');
+    return results;
+  };
+
+  // Init
+  function init() {
+    setBoard(17, 11);
+    center = { q: 10, r: 1 }; // default-ish (K2)
+    radius = 2;
+    els.radius.value = String(radius);
+    populateCenters();
+    els.centerSel.value = qrToLabel(center.q, center.r);
+    syncOutputs();
+    resize();
+  }
+
+  window.addEventListener('resize', resize);
+  init();
+})();
+</script>
+</body>
+</html>

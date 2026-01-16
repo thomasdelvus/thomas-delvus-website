@@ -1,0 +1,793 @@
+<!doctype html>
+<!doctype html>
+<!-- Hex Line Calculator v2.03 (flat-top): adds CONE (widening line).
+     Canonical game math in cube coords; labels & drawing are adapters.
+     Movement line = shortest path with ray-straight tie-break (no detours, no jitter).
+     LoS supercover = conservative ray-march union.
+     Cone = angular sector on hexes (origin=From, direction=To), bounded by hex distance.
+     NOTE: Cone includes hexes whose *area* intersects the cone by using an angular padding
+     based on hex radius vs. distance (helps include the “right in front of caster” hexes).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hex Line Calculator v2.03 (Flat-top)</title>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:#f3f3f3; color:#111; }
+    header { padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.12); background:#fff; font-weight: 650; }
+    main { padding: 12px; display:flex; justify-content:center; }
+    .wrap { display:flex; gap:12px; align-items:flex-start; }
+    canvas { background:#fff; border:1px solid rgba(0,0,0,0.12); border-radius:10px; }
+    .panel { width: 380px; background:#fff; border:1px solid rgba(0,0,0,0.12); border-radius:10px; padding:10px; box-sizing:border-box; }
+    .row { display:flex; gap:8px; align-items:center; margin:8px 0; }
+    label { font-size: 0.9rem; opacity:0.85; }
+    input, select { width: 100%; box-sizing:border-box; padding:8px 10px; border:1px solid rgba(0,0,0,0.18); border-radius:8px; font: inherit; }
+    button { appearance:none; border:1px solid rgba(0,0,0,0.18); background:#fff; border-radius:8px; padding:8px 10px; font: inherit; font-weight:650; cursor:pointer; }
+    button:hover { background: rgba(0,0,0,0.03); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .out { white-space: pre-wrap; background: rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.10); border-radius:8px; padding:8px 10px; font-size: 0.9rem; }
+    .hint { font-size: 0.86rem; opacity: 0.75; line-height: 1.25; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <header>Hex Line &amp; Range Prototype v2.03 (odd-q offset, <b>flat-top</b>)</header>
+  <main>
+    <div class="wrap">
+      <canvas id="c" width="980" height="680" aria-label="Hex grid"></canvas>
+      <div class="panel">
+        <div class="row">
+          <div style="flex:1">
+            <label for="from">From (e.g., K2)</label>
+            <input id="from" class="mono" value="A1" />
+          </div>
+          <div style="flex:1">
+            <label for="to">To (aim) (e.g., F9)</label>
+            <input id="to" class="mono" value="C9" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div style="flex:1">
+            <label for="range">Range (hexes)</label>
+            <input id="range" class="mono" value="6" />
+          </div>
+          <div style="width:170px">
+            <label for="mode">Mode</label>
+            <select id="mode">
+              <option value="ranged" selected>Ranged/Spell</option>
+              <option value="melee">Melee (1)</option>
+              <option value="reach">Reach (2)</option>
+              <option value="cone">Cone (sector)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row" id="coneRow">
+          <div style="flex:1">
+            <label for="coneAngle">Cone angle (deg)</label>
+            <input id="coneAngle" class="mono" value="60" />
+          </div>
+          <div style="width:170px">
+            <label for="coneIncludeOrigin">Include origin?</label>
+            <select id="coneIncludeOrigin">
+              <option value="no" selected>No</option>
+              <option value="yes">Yes</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <button id="go" style="flex:1">Compute</button>
+          <button id="snap" title="Snap inputs to valid board labels" style="width:170px">Validate</button>
+        </div>
+
+        <div class="hint">
+          Board defaults to <b>17×11</b> (A–Q, 1–11).
+          <ul style="margin:6px 0 0 18px; padding:0">
+            <li>min hex distance</li>
+            <li><b>movement</b> line (shortest, straightest)</li>
+            <li>supercover (LoS conservative)</li>
+            <li><b>cone</b> (sector) from <code>From</code> aimed at <code>To</code></li>
+          </ul>
+        </div>
+
+        <div class="row" style="margin-top:10px"><label>Result</label></div>
+        <div id="out" class="out mono">—</div>
+      </div>
+    </div>
+  </main>
+
+<script>
+(() => {
+  // ============================================================
+  // 0) Board + drawing constants
+  // ============================================================
+  const cols = 17; // A..Q
+  const rows = 11; // 1..11
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+  // Drawing scale (visualizer only)
+  const size = 26;     // hex radius (center->corner)
+  const margin = 44;
+  const SQRT3 = Math.sqrt(3);
+
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+
+  // ============================================================
+  // 1) Labels (user-facing)  <->  offset coords (q, rLabel)
+  //    rLabel is bottom-up: A1 is bottom-left => rLabel=0.
+  // ============================================================
+  function parseLabel(label){
+    const m = String(label || '').trim().toUpperCase().match(/^([A-Z])([0-9]{1,2})$/);
+    if (!m) return null;
+    const q = letters.indexOf(m[1]);
+    const r = Number(m[2]) - 1;
+    if (q < 0 || q >= cols) return null;
+    if (r < 0 || r >= rows) return null;
+    return { q, r };
+  }
+
+  function labelFor(q, r){ return `${letters[q]}${r+1}`; }
+
+  // ============================================================
+  // 2) Drawing lattice (flat-top, odd-q offset)
+  //    We draw with a top-down y-axis, so we convert rLabel -> drawR.
+  // ============================================================
+  function rLabelToDrawR(rLabel){ return (rows - 1 - rLabel); }
+  function drawRToRLabel(drawR){ return (rows - 1 - drawR); }
+
+  // Flat-top hex corners
+  function hexCorners(cx, cy){
+    const pts = [];
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 180) * (60 * i); // flat-top
+      pts.push({ x: cx + size * Math.cos(a), y: cy + size * Math.sin(a) });
+    }
+    return pts;
+  }
+
+  // Center of hex in pixels for (q, rLabel)
+  function offsetToPixel(q, rLabel){
+    const drawR = rLabelToDrawR(rLabel);
+    const colOffset = (q & 1) ? 0.5 : 0; // odd-q vertical offset
+
+    const x = size * (3/2) * q;
+    const y = size * SQRT3 * (drawR + colOffset);
+    return { x: x + margin, y: y + margin };
+  }
+
+  // Precompute centers for snapping (187 cells -> trivial)
+  const centers = Array.from({length: cols}, (_, q) =>
+    Array.from({length: rows}, (_, r) => offsetToPixel(q, r))
+  );
+
+  // Pixel -> offset (nearest-center snap; robust and geometry-consistent)
+  function pixelToOffset(px, py){
+    let best = { q: 0, r: 0 };
+    let bestD2 = Infinity;
+    for (let q = 0; q < cols; q++){
+      for (let r = 0; r < rows; r++){
+        const p = centers[q][r];
+        const dx = px - p.x;
+        const dy = py - p.y;
+        const d2 = dx*dx + dy*dy;
+        if (d2 < bestD2){ bestD2 = d2; best = { q, r }; }
+      }
+    }
+    return best;
+  }
+
+  // ============================================================
+  // 3) Canonical game math: cube coords + neighbors
+  //    We convert offset -> cube using DRAW row-space internally.
+  // ============================================================
+  // odd-q offset (drawR) -> cube (redblob)
+  function offsetToCube(q, rLabel){
+    const drawR = rLabelToDrawR(rLabel);
+    const x = q;
+    const z = drawR - ((q - (q & 1)) / 2);
+    const y = -x - z;
+    return { x, y, z };
+  }
+
+  function cubeToOffset(x, y, z){
+    const q = x;
+    const drawR = z + ((x - (x & 1)) / 2);
+    const rLabel = drawRToRLabel(drawR);
+    return { q, r: rLabel };
+  }
+
+  function cubeDistance(a, b){
+    return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y), Math.abs(a.z - b.z));
+  }
+
+  const CUBE_DIRS = [
+    {x:+1, y:-1, z:0}, {x:+1, y:0, z:-1}, {x:0, y:+1, z:-1},
+    {x:-1, y:+1, z:0}, {x:-1, y:0, z:+1}, {x:0, y:-1, z:+1},
+  ];
+
+  function inBounds(q, r){ return q>=0 && q<cols && r>=0 && r<rows; }
+
+  function neighborsOffset(q, r){
+    const c = offsetToCube(q, r);
+    const out = [];
+    for (let i = 0; i < CUBE_DIRS.length; i++){
+      const d = CUBE_DIRS[i];
+      const nc = { x: c.x + d.x, y: c.y + d.y, z: c.z + d.z };
+      const n = cubeToOffset(nc.x, nc.y, nc.z);
+      if (inBounds(n.q, n.r)) out.push({ q: n.q, r: n.r, dir: i });
+    }
+    return out;
+  }
+
+  function isAdjacentLabel(aLab, bLab){
+    const A = parseLabel(aLab), B = parseLabel(bLab);
+    if (!A || !B) return false;
+    return neighborsOffset(A.q, A.r).some(n => n.q === B.q && n.r === B.r);
+  }
+
+  function hexDistanceOffset(a, b){
+    return cubeDistance(offsetToCube(a.q, a.r), offsetToCube(b.q, b.r));
+  }
+
+  // Pixel-space squared distance from point P to segment A->B
+  function pointSegDist2(P, A, B){
+    const vx = B.x - A.x;
+    const vy = B.y - A.y;
+    const wx = P.x - A.x;
+    const wy = P.y - A.y;
+    const vv = vx*vx + vy*vy;
+    if (vv === 0) return wx*wx + wy*wy;
+    let t = (wx*vx + wy*vy) / vv;
+    t = Math.max(0, Math.min(1, t));
+    const px = A.x + t*vx;
+    const py = A.y + t*vy;
+    const dx = P.x - px;
+    const dy = P.y - py;
+    return dx*dx + dy*dy;
+  }
+
+  // ============================================================
+  // 4) Movement line (shortest path, straightest)
+  // ============================================================
+  function movementLine(from, to){
+    const startP = centers[from.q][from.r];
+    const endP   = centers[to.q][to.r];
+
+    const tgtCube = offsetToCube(to.q, to.r);
+
+    const out = [labelFor(from.q, from.r)];
+
+    let cur = { q: from.q, r: from.r };
+    let curCube = offsetToCube(cur.q, cur.r);
+    let curDist = cubeDistance(curCube, tgtCube);
+
+    let prevDir = null; // direction index 0..5
+
+    while (curDist > 0){
+      const neigh = neighborsOffset(cur.q, cur.r);
+      const candidates = [];
+      for (const n of neigh){
+        const nc = offsetToCube(n.q, n.r);
+        const nd = cubeDistance(nc, tgtCube);
+        if (nd === curDist - 1) candidates.push(n);
+      }
+
+      if (candidates.length === 0) break; // should never happen
+
+      let best = candidates[0];
+      let bestScore = Infinity;
+
+      for (const n of candidates){
+        const p = centers[n.q][n.r];
+        const rayScore = pointSegDist2(p, startP, endP);
+        const dirPenalty = (prevDir === null) ? 0 : (n.dir === prevDir ? 0 : 1);
+
+        // Weights: rayScore dominates; dirPenalty breaks ties.
+        const score = rayScore + dirPenalty * 1e-3;
+
+        if (score < bestScore){
+          bestScore = score;
+          best = n;
+        }
+      }
+
+      out.push(labelFor(best.q, best.r));
+      prevDir = best.dir;
+
+      cur = { q: best.q, r: best.r };
+      curCube = offsetToCube(cur.q, cur.r);
+      curDist = cubeDistance(curCube, tgtCube);
+    }
+
+    // Ensure correct endpoint (failsafe)
+    const endLab = labelFor(to.q, to.r);
+    if (out[out.length - 1] !== endLab) out.push(endLab);
+
+    return out;
+  }
+
+  // ============================================================
+  // 5) LoS supercover (conservative)
+  // ============================================================
+  function supercoverLine(from, to){
+    const startP = centers[from.q][from.r];
+    const endP   = centers[to.q][to.r];
+
+    const dx = endP.x - startP.x;
+    const dy = endP.y - startP.y;
+    const len = Math.hypot(dx, dy);
+    if (len === 0) return [labelFor(from.q, from.r)];
+
+    const baseAng = Math.atan2(dy, dx);
+    const step = (SQRT3 * size) / 4; // conservative
+
+    function march(angle){
+      const ux = Math.cos(angle);
+      const uy = Math.sin(angle);
+      const labs = [];
+      for (let t = 0; t <= len + step; t += step){
+        const px = startP.x + ux * t;
+        const py = startP.y + uy * t;
+        const h = pixelToOffset(px, py);
+        const lab = labelFor(h.q, h.r);
+        if (!labs.length || labs[labs.length - 1] !== lab) labs.push(lab);
+      }
+      // ensure endpoints
+      const a = labelFor(from.q, from.r);
+      const b = labelFor(to.q, to.r);
+      if (labs[0] !== a) labs.unshift(a);
+      if (labs[labs.length - 1] !== b) labs.push(b);
+      return labs;
+    }
+
+    const eps = 1e-5;
+    const a = march(baseAng);
+    const b = march(baseAng + eps);
+    const c = march(baseAng - eps);
+
+    // Union while keeping approximate order: interleave by index.
+    const merged = [];
+    const maxLen = Math.max(a.length, b.length, c.length);
+    for (let i = 0; i < maxLen; i++){
+      for (const arr of [a,b,c]){
+        const lab = arr[i];
+        if (!lab) continue;
+        if (!merged.length || merged[merged.length - 1] !== lab) merged.push(lab);
+      }
+    }
+
+    // Final adjacent de-dupe
+    const final = [];
+    for (const lab of merged){
+      if (!final.length || final[final.length - 1] !== lab) final.push(lab);
+    }
+    return final;
+  }
+
+  // ============================================================
+  // 6) Cone (widening line): angular sector on hexes
+  //    - origin = from
+  //    - direction = vector from from->to (aim)
+  //    - include any hex whose cubeDistance(origin, hex) <= range
+  //      AND whose angle-to-direction <= (coneAngle/2)
+  // ============================================================
+  function coneCells(from, aim, rangeHex, coneAngleDeg, includeOrigin){
+    rangeHex = Math.max(0, rangeHex|0);
+    coneAngleDeg = Number.isFinite(coneAngleDeg) ? coneAngleDeg : 60;
+    coneAngleDeg = Math.max(0, Math.min(360, coneAngleDeg));
+
+    const originP = centers[from.q][from.r];
+    const aimP = centers[aim.q][aim.r];
+
+    const dirX = aimP.x - originP.x;
+    const dirY = aimP.y - originP.y;
+    const dirLen = Math.hypot(dirX, dirY);
+    if (dirLen === 0) return [];
+
+    const ux = dirX / dirLen;
+    const uy = dirY / dirLen;
+
+    const half = (coneAngleDeg * Math.PI / 180) / 2;
+    const originCube = offsetToCube(from.q, from.r);
+
+    // To avoid "missing" the first hexes near the origin (especially for narrow cones),
+    // we treat inclusion as "hex intersects cone" rather than "center inside cone".
+    // Approximation: expand the allowed half-angle by an amount proportional to
+    // asin(hexRadius / distanceToHexCenter).
+    const HEX_RADIUS = size; // circumradius in our pixel-space; cancels vs. vLen scale
+
+    const outSet = new Set();
+
+    for (let q = 0; q < cols; q++){
+      for (let r = 0; r < rows; r++){
+        const dHex = cubeDistance(originCube, offsetToCube(q, r));
+        if (dHex > rangeHex) continue;
+        if (!includeOrigin && dHex === 0) continue;
+        if (dHex === 0 && includeOrigin){
+          outSet.add(labelFor(q, r));
+          continue;
+        }
+
+        const p = centers[q][r];
+        const vx = p.x - originP.x;
+        const vy = p.y - originP.y;
+        const vLen = Math.hypot(vx, vy);
+        if (vLen === 0) continue;
+
+        // cos(theta) between axis and vector to this hex center
+        const dotCos = (vx / vLen) * ux + (vy / vLen) * uy;
+
+        // Angular padding for hex "area" intersection.
+        // Clamp to avoid NaNs when extremely close.
+        const ratio = Math.min(1, (HEX_RADIUS * 0.999) / vLen);
+        const pad = Math.asin(ratio);
+        const cosThreshold = Math.cos(half + pad);
+
+        if (dotCos >= cosThreshold - 1e-12) outSet.add(labelFor(q, r));
+      }
+    }
+
+    // Hard guarantee: if range >= 1, always include the immediate "in-front" step
+    // along the straightest shortest line toward the aim point.
+    if (rangeHex >= 1){
+      const stepPath = movementLine(from, aim);
+      if (stepPath.length >= 2){
+        outSet.add(stepPath[1]);
+      }
+    }
+
+    const out = Array.from(outSet);
+
+    // Sort by distance then by forwardness (nice stable output)
+    out.sort((aLab, bLab) => {
+      const A = parseLabel(aLab);
+      const B = parseLabel(bLab);
+      const dA = hexDistanceOffset(from, A);
+      const dB = hexDistanceOffset(from, B);
+      if (dA !== dB) return dA - dB;
+
+      const pA = centers[A.q][A.r];
+      const pB = centers[B.q][B.r];
+      const vAx = pA.x - originP.x, vAy = pA.y - originP.y;
+      const vBx = pB.x - originP.x, vBy = pB.y - originP.y;
+      const aDot = (vAx*ux + vAy*uy);
+      const bDot = (vBx*ux + vBy*uy);
+      return bDot - aDot; // more forward first
+    });
+
+    return out;
+  }
+
+  // ============================================================
+  // 7) Drawing
+  // ============================================================
+  function drawGrid(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    for (let q = 0; q < cols; q++){
+      for (let r = 0; r < rows; r++){
+        const p = centers[q][r];
+        const pts = hexCorners(p.x, p.y);
+
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.closePath();
+
+        ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.font = '11px ui-monospace, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(labelFor(q, r), p.x, p.y);
+      }
+    }
+  }
+
+  function fillHex(label, fill, stroke, alpha=1){
+    const h = parseLabel(label);
+    if (!h) return;
+    const p = centers[h.q][h.r];
+    const pts = hexCorners(p.x, p.y);
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+
+    if (fill){
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
+    if (stroke){
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  function drawPath(movement, supercover){
+    const moveSet = new Set(movement);
+
+    // light fill for supercover-only cells
+    for (const lab of supercover){
+      if (lab === movement[0] || lab === movement[movement.length - 1]) continue;
+      if (!moveSet.has(lab)) fillHex(lab, 'rgba(120,120,120,0.06)', null, 1);
+    }
+
+    // darker fill for movement cells
+    for (let i = 0; i < movement.length; i++){
+      const lab = movement[i];
+      const isEnd = (i === 0 || i === movement.length - 1);
+      if (!isEnd) fillHex(lab, 'rgba(120,120,120,0.14)', null, 1);
+    }
+
+    // endpoints
+    fillHex(movement[0], 'rgba(80,160,220,0.22)', 'rgba(80,160,220,0.65)', 1);
+    fillHex(movement[movement.length - 1], 'rgba(220,120,80,0.22)', 'rgba(220,120,80,0.65)', 1);
+
+    // dashed polyline through movement centers
+    const pts = movement.map(lab => {
+      const h = parseLabel(lab);
+      return centers[h.q][h.r];
+    });
+
+    if (pts.length >= 2){
+      ctx.save();
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 8]);
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+  }
+
+  function drawCone(fromLab, toLab, coneSet){
+    // Fill cone cells
+    for (const lab of coneSet){
+      fillHex(lab, 'rgba(220,160,60,0.20)', null, 1);
+    }
+
+    // Endpoints
+    fillHex(fromLab, 'rgba(80,160,220,0.22)', 'rgba(80,160,220,0.65)', 1);
+    fillHex(toLab, 'rgba(220,120,80,0.22)', 'rgba(220,120,80,0.65)', 1);
+
+    // axis line (dashed) for visual clarity
+    const A = parseLabel(fromLab);
+    const B = parseLabel(toLab);
+    const pA = centers[A.q][A.r];
+    const pB = centers[B.q][B.r];
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 8]);
+    ctx.beginPath();
+    ctx.moveTo(pA.x, pA.y);
+    ctx.lineTo(pB.x, pB.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // ============================================================
+  // 8) UI
+  // ============================================================
+  const elFrom = document.getElementById('from');
+  const elTo = document.getElementById('to');
+  const elRange = document.getElementById('range');
+  const elMode = document.getElementById('mode');
+  const elOut = document.getElementById('out');
+
+  const elConeRow = document.getElementById('coneRow');
+  const elConeAngle = document.getElementById('coneAngle');
+  const elConeIncludeOrigin = document.getElementById('coneIncludeOrigin');
+
+  function normalizeLabel(s){
+    const raw = String(s || '').trim().toUpperCase();
+    return parseLabel(raw) ? raw : null;
+  }
+
+  function validate(){
+    const a = normalizeLabel(elFrom.value);
+    const b = normalizeLabel(elTo.value);
+    if (a) elFrom.value = a;
+    if (b) elTo.value = b;
+
+    const msgs = [];
+    if (!a) msgs.push('From is invalid (A1..Q11).');
+    if (!b) msgs.push('To is invalid (A1..Q11).');
+    elOut.textContent = msgs.length ? msgs.join('\n') : 'Inputs look valid.';
+    return !!(a && b);
+  }
+
+  function updateModeUI(){
+    const mode = elMode.value;
+    const isCone = (mode === 'cone');
+
+    // Keep the cone controls visible so they don't "disappear" between modes.
+    // When not in cone mode, we simply disable them.
+    elConeRow.classList.remove('hidden');
+    elConeAngle.disabled = !isCone;
+    elConeIncludeOrigin.disabled = !isCone;
+    elConeRow.style.opacity = isCone ? '1' : '0.55';
+  }
+
+  function compute(){
+    updateModeUI();
+    if (!validate()){ drawGrid(); return; }
+
+    const from = parseLabel(elFrom.value);
+    const to = parseLabel(elTo.value);
+
+    let rangeHex = Number(elRange.value);
+    if (!Number.isFinite(rangeHex) || rangeHex < 0) rangeHex = 0;
+
+    const mode = elMode.value;
+    if (mode === 'melee') rangeHex = 1;
+    if (mode === 'reach') rangeHex = 2;
+
+    drawGrid();
+
+    if (mode === 'cone'){
+      const ang = Number(elConeAngle.value);
+      const includeOrigin = (elConeIncludeOrigin.value === 'yes');
+      const cone = coneCells(from, to, rangeHex, ang, includeOrigin);
+
+      drawCone(elFrom.value, elTo.value, cone);
+
+      elOut.textContent = `mode: CONE\n` +
+        `origin: ${elFrom.value}    aim: ${elTo.value}\n` +
+        `range_hexes: ${rangeHex}\n` +
+        `cone_angle_deg: ${Number.isFinite(ang) ? ang : 60}\n` +
+        `include_origin: ${includeOrigin}\n\n` +
+        `affected_hexes (${cone.length}):\n` +
+        cone.join(', ');
+
+      return;
+    }
+
+    // Default: line + range
+    const dist = hexDistanceOffset(from, to);
+    const move = movementLine(from, to);
+    const sup = supercoverLine(from, to);
+    const inRange = dist <= rangeHex;
+
+    drawPath(move, sup);
+
+    elOut.textContent = `from: ${elFrom.value}    to: ${elTo.value}\n` +
+      `min_distance_hexes: ${dist}\n` +
+      `movement_steps_hexes: ${Math.max(0, move.length - 1)}\n` +
+      `range_hexes: ${rangeHex}    => ${inRange ? 'IN RANGE ✅' : 'OUT OF RANGE ❌'}\n\n` +
+      `movement_line (${move.length}):\n${move.join(' → ')}\n\n` +
+      `supercover (${sup.length}):\n${sup.join(' → ')}\n\n` +
+      `(note) supercover is conservative for LoS; movement is shortest + straight.`;
+  }
+
+  document.getElementById('go').addEventListener('click', compute);
+  document.getElementById('snap').addEventListener('click', () => { updateModeUI(); validate(); drawGrid(); });
+
+  [elFrom, elTo, elRange, elConeAngle].forEach(el => {
+    el.addEventListener('keydown', (e) => { if (e.key === 'Enter') compute(); });
+  });
+  elMode.addEventListener('change', () => { updateModeUI(); compute(); });
+
+  // ============================================================
+  // 9) Tests (run on load)
+  // ============================================================
+  function assert(cond, msg){ if (!cond) throw new Error(msg); }
+
+  function pathIsAdjacent(path){
+    for (let i = 1; i < path.length; i++){
+      if (!isAdjacentLabel(path[i-1], path[i])) return false;
+    }
+    return true;
+  }
+
+  function runTests(){
+    // (1) Center snap round-trip
+    for (let q = 0; q < cols; q++){
+      for (let r = 0; r < rows; r++){
+        const p = centers[q][r];
+        const h = pixelToOffset(p.x, p.y);
+        assert(h.q === q && h.r === r, `pixelToOffset(center(${labelFor(q,r)})) mismatch`);
+      }
+    }
+
+    // (2) Movement is shortest + adjacent for a few samples
+    const cases = [
+      ['A1','C9'],
+      ['K2','F9'],
+      ['A1','I5'],
+      ['Q11','A1'],
+      ['H6','H11'],
+      ['A1','A11'],
+      ['Q1','Q11'],
+      ['B2','C3'],
+    ];
+
+    for (const [a,b] of cases){
+      const A = parseLabel(a), B = parseLabel(b);
+      const path = movementLine(A, B);
+      const dist = hexDistanceOffset(A, B);
+      assert(path[0] === a && path[path.length-1] === b, `endpoints wrong for ${a}->${b}`);
+      assert(pathIsAdjacent(path), `non-adjacent step for ${a}->${b}`);
+      assert(path.length === dist + 1, `length != dist+1 for ${a}->${b}`);
+    }
+
+    // (3) Regression: A1->C9 should not include B3 under our tie-break policy
+    {
+      const A = parseLabel('A1');
+      const B = parseLabel('C9');
+      const path = movementLine(A, B);
+      assert(!path.includes('B3'), 'Regression: A1->C9 includes B3');
+    }
+
+    // (4) Adjacency symmetry sanity
+    {
+      assert(isAdjacentLabel('A1','B2') === isAdjacentLabel('B2','A1'), 'Adjacency not symmetric');
+      assert(isAdjacentLabel('H6','H7'), 'Expected adjacent H6-H7');
+    }
+
+    // (5) Cone sanity: range 0 -> empty when includeOrigin=false
+    {
+      const A = parseLabel('H6');
+      const B = parseLabel('H7');
+      const cone = coneCells(A, B, 0, 60, false);
+      assert(cone.length === 0, 'Cone range 0 should be empty');
+    }
+
+    // (6) Cone sanity: range 1 should include at least one hex
+    {
+      const A = parseLabel('H6');
+      const B = parseLabel('H7');
+      const cone = coneCells(A, B, 1, 60, false);
+      assert(cone.length >= 1, 'Cone range 1 should include at least one hex');
+    }
+
+    // (7) Cone regression: even for narrow cones, include the immediate "in-front" step
+    {
+      const A = parseLabel('I3');
+      const B = parseLabel('D10');
+      const step = movementLine(A, B)[1];
+      const cone = coneCells(A, B, 8, 30, false);
+      assert(cone.includes(step), `Cone should include first step (${step}) for I3->D10`);
+    }
+
+    return 'All tests passed.';
+  }
+
+  drawGrid();
+  updateModeUI();
+
+  try {
+    console.log(runTests());
+  } catch (e) {
+    console.error('TEST FAILURE:', e);
+    elOut.textContent = `TEST FAILURE: ${e.message}`;
+  }
+
+  compute();
+})();
+</script>
+</body>
+</html>
