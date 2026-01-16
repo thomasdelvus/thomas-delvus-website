@@ -880,8 +880,8 @@ const EMBEDDED_WORLD_JSON = `{
 	"active": { "recordId": "CrossKeysInn", "floorId": "upper", "camera_hex": "U16" },
 	"records": {
 		"NewSceneId": {
-			"meta": { "title": "New Scene Title", "battleId": "local", "round": 1 },
-			"view": { "camera_hex": "D4", "floorId": "ground" },
+			"meta": { "title": "Street View", "battleId": "local", "round": 1 },
+			"view": { "camera_hex": "U14", "floorId": "ground" },
 			"fog": {
 				"enabled": true,
 				"mode": "room",
@@ -898,13 +898,11 @@ const EMBEDDED_WORLD_JSON = `{
 					"id": "ground",
 					"name": "Ground",
 					"rooms": [
-						{
-							"id": "RoomA",
-							"corners": ["B6", "F6", "F2", "B2"],
-							"thickness": 15,
-							"floor": { "kind": "wood_oak" },
-							"wall": { "kind": "brick" }
-						}
+                    	{ "id": "BuildingL26", "corners": ["L26", "V26", "V21", "L21"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } },
+                        { "id": "BuildingAJ21", "corners": ["AJ21", "AP21", "AP12", "AJ12"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } },
+                        { "id": "BuildingAP30", "corners": ["AP30", "AV30", "AV12", "AP12"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } },
+                        { "id": "BuildingAP30", "corners": ["AV20", "AZ20", "AZ12", "AV12"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } },
+						{ "id": "CrossKeysUpperFloor", "buildingId": "CrossKeysInn", "corners": ["L21", "AJ21", "AJ12", "L12"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } }
 					],
 					"openings": [
 						{ "id": "door_1", "kind": "door.wood", "hex": "D6", "orientation": "h", "openPct": 0.0 }
@@ -938,7 +936,7 @@ const EMBEDDED_WORLD_JSON = `{
 					"id": "upper",
 					"name": "Upper",
 					"rooms": [
-						{ "id": "NextDoor", "corners": ["L26", "V26", "V21", "L21"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } },
+						{ "id": "KingStreet", "corners": ["L12", "AP12", "AP8", "L8"], "thickness": 15, "floor": { "kind": "cobble" }, "wall": { "kind": "wood_dark" } },
 						{ "id": "CrossKeysUpperFloor", "buildingId": "CrossKeysInn", "corners": ["L21", "AJ21", "AJ12", "L12"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } },
 						{ "id": "Hallway1", "buildingId": "CrossKeysInn", "corners": ["AD21", "AF21", "AF12", "AD12"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
 						{ "id": "Hallway2", "buildingId": "CrossKeysInn", "corners": ["R17", "AD17", "AD15", "R15"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
