@@ -36,6 +36,7 @@ Version: set in JS (VERSION)
       padding:10px 12px;
       background:var(--panel);
       border-bottom:1px solid var(--border2);
+      flex-wrap:wrap;
     }
     #status{
       display:flex;
@@ -43,6 +44,8 @@ Version: set in JS (VERSION)
       gap:10px;
       min-height:26px;
       flex-wrap:wrap;
+      flex:1 1 auto;
+      min-width:0;
     }
     .pill{
       display:inline-flex;
@@ -199,7 +202,7 @@ Version: set in JS (VERSION)
         </select>
       </div>
       <div class="mini">Battle ID
-        <input id="battleIdInput" type="text" inputmode="numeric" placeholder="28" />
+        <input id="battleIdInput" type="text" inputmode="numeric" placeholder="id" />
         <button id="battleIdApply" title="Use battle id">Use</button>
       </div>
       <div class="pill" title="DevicePixelRatio × Supersample">
@@ -266,7 +269,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.59';
+  const VERSION = 'v6.60';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
