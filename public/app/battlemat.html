@@ -254,7 +254,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.45';
+  const VERSION = 'v6.47';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -369,8 +369,12 @@ Version: set in JS (VERSION)
   };
 
   const PAN_STEP = 2;
-  const STORAGE_SS = 'battlemat.supersample';
-  const STORAGE_ZOOM = 'battlemat.zoom';
+  const STORAGE_PREFIX = (() => {
+    const bid = resolveBattleIdFromUrl();
+    return bid ? ('battlemat.' + bid + '.') : 'battlemat.';
+  })();
+  const STORAGE_SS = STORAGE_PREFIX + 'supersample';
+  const STORAGE_ZOOM = STORAGE_PREFIX + 'zoom';
 
   // ===== Remote state (DB/API) =====
   const DEFAULT_POLL_MS = 1000;
@@ -378,6 +382,7 @@ Version: set in JS (VERSION)
   let STATE_URL = null;
   let STATE_POLL_TIMER = null;
   let LAST_STATE_JSON = '';
+  let LAST_RENDER_SIGNATURE = '';
 
   function getQueryParams(search = window.location.search) {
     const s = String(search || '').trim();
@@ -1741,6 +1746,35 @@ const EMBEDDED_WORLD_JSON = `{
       return v;
     }
     return '';
+  }
+
+  function renderSignatureFor(state, opts = {}) {
+    const s = (state && typeof state === 'object') ? state : {};
+    const {
+      narration,
+      narrative,
+      narrationText,
+      last_action,
+      lastAction,
+      lastActionText,
+      ...rest
+    } = s;
+
+    const sig = {
+      ...rest,
+      __render: {
+        view: { floorId: VIEW.floorId, camera: VIEW.camera },
+        zoom: ZOOM,
+        supersample: SUPERSAMPLE,
+        ui: {
+          fog: !!opts.fogEnabled,
+          sprites: !!opts.spritesEnabled,
+          labels: !!opts.labelsEnabled,
+        },
+      },
+    };
+
+    return stableJsonTextFor(sig);
   }
 
   // ===== Hex id helpers =====
@@ -3437,39 +3471,51 @@ function populateFloorSelect(floors) {
     const roomMetaAll = buildRoomMeta(rooms);
 
     const fogEnabled = !!elFogToggle.checked;
+    const spritesEnabled = !!(elSpriteToggle && elSpriteToggle.checked);
+    const labelsEnabled = !!(elLabelBoldToggle && elLabelBoldToggle.checked);
     if (state.fog && typeof state.fog === 'object') state.fog.enabled = fogEnabled;
 
-    RENDER_FOG = computeRenderFog(state, VIEW.floorId, rooms, openings, tokens);
+    const renderSig = renderSignatureFor(state, {
+      fogEnabled,
+      spritesEnabled,
+      labelsEnabled,
+    });
+    const shouldRender = renderSig !== LAST_RENDER_SIGNATURE;
 
     let roomsToDraw = rooms;
     let openingsToDraw = openings;
 
-    if (!fogEnabled) {
-      roomsToDraw = rooms.filter(r => !isFogFloorRoom(r));
-    }
+    if (shouldRender) {
+      RENDER_FOG = computeRenderFog(state, VIEW.floorId, rooms, openings, tokens);
 
-    if (RENDER_FOG && RENDER_FOG.enabled) {
-      const baseFogRoomIds = new Set();
-      for (const r of rooms) {
-        if (isFogFloorRoom(r) && r && r.id) baseFogRoomIds.add(String(r.id));
+      if (!fogEnabled) {
+        roomsToDraw = rooms.filter(r => !isFogFloorRoom(r));
       }
 
-      const renderableRoomIds = new Set([...RENDER_FOG.explored]);
-      roomsToDraw = rooms.filter(r => {
-        const id = r && r.id ? String(r.id) : '';
-        if (!id) return true;
-        if (baseFogRoomIds.has(id)) return true;
-        return renderableRoomIds.has(id);
-      });
+      if (RENDER_FOG && RENDER_FOG.enabled) {
+        const baseFogRoomIds = new Set();
+        for (const r of rooms) {
+          if (isFogFloorRoom(r) && r && r.id) baseFogRoomIds.add(String(r.id));
+        }
 
-      openingsToDraw = openings.filter(o => {
-        const ids = openingRoomIds(o, roomMetaAll);
-        if (ids.length === 2) return (renderableRoomIds.has(ids[0]) || renderableRoomIds.has(ids[1]));
-        return true;
-      });
+        const renderableRoomIds = new Set([...RENDER_FOG.explored]);
+        roomsToDraw = rooms.filter(r => {
+          const id = r && r.id ? String(r.id) : '';
+          if (!id) return true;
+          if (baseFogRoomIds.has(id)) return true;
+          return renderableRoomIds.has(id);
+        });
+
+        openingsToDraw = openings.filter(o => {
+          const ids = openingRoomIds(o, roomMetaAll);
+          if (ids.length === 2) return (renderableRoomIds.has(ids[0]) || renderableRoomIds.has(ids[1]));
+          return true;
+        });
+      }
+
+      renderScene(rooms, roomsToDraw, openingsToDraw, objects, tokens, roomMetaAll, fogEnabled);
+      LAST_RENDER_SIGNATURE = renderSig;
     }
-
-    renderScene(rooms, roomsToDraw, openingsToDraw, objects, tokens, roomMetaAll, fogEnabled);
     updateUI(state, render, rooms, openings, objects, tokens);
 
     if (state.view && typeof state.view === 'object') state.view.camera_hex = hexId(VIEW.camera.col, VIEW.camera.row);
@@ -3694,6 +3740,8 @@ function setActiveFloor(floorId, opts = {}) {
     ctx.imageSmoothingEnabled = true;
     try { ctx.imageSmoothingQuality = 'high'; } catch {}
 
+    // Force a full render after any resize since the backing store changed.
+    LAST_RENDER_SIGNATURE = '';
     safeRedraw();
   }
 
