@@ -269,7 +269,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.61';
+  const VERSION = 'v6.62';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -391,7 +391,6 @@ Version: set in JS (VERSION)
 
   const PAN_STEP = 2;
   const FILE_STATE_URL = './data.json';
-  const STORAGE_BATTLE_ID = 'battlemat.battle_id';
   const STORAGE_PREFIX = (() => {
     const bid = resolveBattleIdFromUrl();
     return bid ? ('battlemat.' + bid + '.') : 'battlemat.';
@@ -430,37 +429,6 @@ Version: set in JS (VERSION)
       getQueryParamsCached._cached = getQueryParams();
     }
     return getQueryParamsCached._cached;
-  }
-
-  function readStoredBattleId() {
-    try {
-      const v = localStorage.getItem(STORAGE_BATTLE_ID);
-      return v != null ? String(v).trim() : '';
-    } catch {
-      return '';
-    }
-  }
-
-  function writeStoredBattleId(v) {
-    try {
-      const s = String(v || '').trim();
-      if (!s) {
-        localStorage.removeItem(STORAGE_BATTLE_ID);
-        return;
-      }
-      localStorage.setItem(STORAGE_BATTLE_ID, s);
-    } catch {}
-  }
-
-  function readBattleIdInput() {
-    if (!elBattleIdInput) return '';
-    const val = String(elBattleIdInput.value || '').trim();
-    if (val) return val;
-    const ph = String(elBattleIdInput.placeholder || '').trim();
-    if (!ph) return '';
-    const lower = ph.toLowerCase();
-    if (lower === 'id' || lower === 'battle id' || lower === 'battle_id') return '';
-    return ph;
   }
 
   function parseBattleIdFromUrlString(rawUrl) {
@@ -571,16 +539,7 @@ Version: set in JS (VERSION)
   }
 
   function resolveBattleIdFromUrl() {
-    const hint = resolveBattleIdHintFromUrl();
-    if (hint) {
-      writeStoredBattleId(hint);
-      return hint;
-    }
-
-    const stored = readStoredBattleId();
-    if (stored) return stored;
-
-    return null;
+    return resolveBattleIdHintFromUrl();
   }
 
   function resolveStateUrl() {
@@ -762,15 +721,10 @@ Version: set in JS (VERSION)
 
   function syncBattleIdInput() {
     if (!elBattleIdInput) return;
-    const hint = resolveBattleIdHintFromUrl() || '';
     const v = resolveBattleIdFromUrl() || '';
     if (document.activeElement !== elBattleIdInput) {
       elBattleIdInput.value = v;
-      if (hint) {
-        elBattleIdInput.placeholder = hint;
-      } else if (!v) {
-        elBattleIdInput.placeholder = 'id';
-      }
+      if (!v) elBattleIdInput.placeholder = 'id';
     }
   }
 
@@ -810,14 +764,6 @@ Version: set in JS (VERSION)
       }
       syncSourceSelect();
       return;
-    }
-
-    if (!resolveBattleIdFromUrl()) {
-      const hinted = readBattleIdInput();
-      if (hinted) {
-        writeStoredBattleId(hinted);
-        syncBattleIdInput();
-      }
     }
 
     const dbUrl = resolveDatabaseUrl();
@@ -3750,18 +3696,15 @@ function setActiveFloor(floorId, opts = {}) {
       if (!battleIdInput) return;
       const v = String(battleIdInput.value || '').trim();
       if (!v) return;
-      writeStoredBattleId(v);
+      const target = '/play/' + encodeURIComponent(v);
+      try { history.replaceState(null, '', target); } catch {}
       applySourceSelection('database');
       syncBattleIdInput();
     };
 
     if (battleIdInput) {
-      battleIdInput.value = resolveBattleIdFromUrl() || readStoredBattleId() || '';
-      battleIdInput.onchange = () => {
-        const v = String(battleIdInput.value || '').trim();
-        writeStoredBattleId(v);
-        syncBattleIdInput();
-      };
+      battleIdInput.value = resolveBattleIdFromUrl() || '';
+      battleIdInput.onchange = () => syncBattleIdInput();
       battleIdInput.onkeydown = (ev) => {
         if (ev.key === 'Enter') {
           ev.preventDefault();
