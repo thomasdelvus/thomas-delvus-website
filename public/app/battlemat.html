@@ -254,7 +254,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.47';
+  const VERSION = 'v6.48';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -633,50 +633,35 @@ Version: set in JS (VERSION)
     return img;
   }
 
-  function drawSprite(img, x, y, w, h, rotRad = 0) {
-    // Always preserve sprite aspect ratio ("contain" behavior).
+  function drawSpriteImage(img, opts = {}) {
+    // Unified sprite draw: fit=contain or stretch, optional anchor and rotation.
     if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return false;
 
-    const iw = img.naturalWidth;
-    const ih = img.naturalHeight;
-    const s = Math.min(w / iw, h / ih);
-    const dw = iw * s;
-    const dh = ih * s;
+    const x = Number(opts.x || 0);
+    const y = Number(opts.y || 0);
+    const w = Number(opts.w || 0);
+    const h = Number(opts.h || 0);
+    const fit = String(opts.fit || 'contain').toLowerCase();
+    const rotRad = Number(opts.rotRad || 0);
+    const ax = clamp(Number(opts.anchorX != null ? opts.anchorX : 0.5), 0, 1);
+    const ay = clamp(Number(opts.anchorY != null ? opts.anchorY : 0.5), 0, 1);
+
+    let dw = w;
+    let dh = h;
+
+    if (fit === 'contain') {
+      const iw = img.naturalWidth;
+      const ih = img.naturalHeight;
+      const s = Math.min(w / iw, h / ih);
+      dw = iw * s;
+      dh = ih * s;
+    }
 
     ctx.save();
     ctx.translate(x, y);
     if (rotRad) ctx.rotate(rotRad);
-    ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+    ctx.drawImage(img, -dw * ax, -dh * ay, dw, dh);
     ctx.restore();
-    return true;
-  }
-
-  function drawSpriteStretch(img, x, y, w, h, rotRad = 0) {
-    // Non-uniform scale ("stretch" behavior). Use when spriteScaleX/Y are provided.
-    if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return false;
-
-    ctx.save();
-    ctx.translate(x, y);
-    if (rotRad) ctx.rotate(rotRad);
-    ctx.drawImage(img, -w / 2, -h / 2, w, h);
-    ctx.restore();
-    return true;
-  }
-
-  function drawSpriteContainAnchored(img, x, y, w, h, anchorX = 0.5, anchorY = 0.5) {
-    // "Contain" fit, but with a specific anchor point (0..1) inside the drawn sprite.
-    if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return false;
-
-    const iw = img.naturalWidth;
-    const ih = img.naturalHeight;
-    const s = Math.min(w / iw, h / ih);
-    const dw = iw * s;
-    const dh = ih * s;
-
-    const ax = clamp(Number(anchorX), 0, 1);
-    const ay = clamp(Number(anchorY), 0, 1);
-
-    ctx.drawImage(img, x - dw * ax, y - dh * ay, dw, dh);
     return true;
   }
 
@@ -2335,15 +2320,15 @@ const EMBEDDED_WORLD_JSON = `{
           ctx.translate(hingeX, hingeY);
           ctx.rotate((hingeRight ? -1 : 1) * swingSign * ang);
 
-          const ok = drawSpriteContainAnchored(
-            img,
-            0,
-            0,
-            boxW * sx,
-            boxH * sy,
-            hingeRight ? 1 : 0,
-            0.5
-          );
+          const ok = drawSpriteImage(img, {
+            x: 0,
+            y: 0,
+            w: boxW * sx,
+            h: boxH * sy,
+            fit: 'contain',
+            anchorX: hingeRight ? 1 : 0,
+            anchorY: 0.5,
+          });
           ctx.restore();
 
           if (ok) {
@@ -2802,10 +2787,24 @@ const EMBEDDED_WORLD_JSON = `{
         if (hasAxisScale) {
           if (isFiniteNum(o.spriteScaleX)) sx *= Number(o.spriteScaleX);
           if (isFiniteNum(o.spriteScaleY)) sy *= Number(o.spriteScaleY);
-          const ok = drawSpriteStretch(img, c.x, c.y, w * sx, h * sy, def.rotate === 'deg' ? rot : 0);
+          const ok = drawSpriteImage(img, {
+            x: c.x,
+            y: c.y,
+            w: w * sx,
+            h: h * sy,
+            fit: 'stretch',
+            rotRad: def.rotate === 'deg' ? rot : 0,
+          });
           if (ok) return;
         } else {
-          const ok = drawSprite(img, c.x, c.y, w * sx, h * sy, def.rotate === 'deg' ? rot : 0);
+          const ok = drawSpriteImage(img, {
+            x: c.x,
+            y: c.y,
+            w: w * sx,
+            h: h * sy,
+            fit: 'contain',
+            rotRad: def.rotate === 'deg' ? rot : 0,
+          });
           if (ok) return;
         }
       }
@@ -3113,7 +3112,14 @@ const EMBEDDED_WORLD_JSON = `{
       if (file) {
         const img = loadSprite(file);
         const s = (Number.isFinite(Number(req.scale)) && Number(req.scale) > 0) ? Number(req.scale) : 1;
-        const ok = drawSprite(img, c.x, c.y, r * 2.2 * s, r * 2.2 * s, 0);
+        const ok = drawSpriteImage(img, {
+          x: c.x,
+          y: c.y,
+          w: r * 2.2 * s,
+          h: r * 2.2 * s,
+          fit: 'contain',
+          rotRad: 0,
+        });
         if (ok) {
           drawTokenLabel(t, c.x, c.y, isPC);
           return;
