@@ -254,7 +254,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.49';
+  const VERSION = 'v6.50';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -384,6 +384,7 @@ Version: set in JS (VERSION)
   let LAST_STATE_JSON = '';
   let LAST_RENDER_SIGNATURE = '';
   let SPRITE_LOAD_TICK = 0;
+  let SPRITES_ENABLED = true;
 
   function getQueryParams(search = window.location.search) {
     const s = String(search || '').trim();
@@ -400,8 +401,21 @@ Version: set in JS (VERSION)
     return out;
   }
 
+  function getQueryParamsCached() {
+    if (!getQueryParamsCached._cached) {
+      getQueryParamsCached._cached = getQueryParams();
+    }
+    return getQueryParamsCached._cached;
+  }
+
+  function shouldRunSelfTests() {
+    const qp = getQueryParamsCached();
+    if (qp.get('selftest') === '1' || qp.get('selftests') === '1') return true;
+    return !!(window && window.BATTLEMAT_SELFTESTS);
+  }
+
   function resolveBattleIdFromUrl() {
-    const qp = getQueryParams();
+    const qp = getQueryParamsCached();
     const bid = (
       qp.get('battle_id') ||
       qp.get('battleId') ||
@@ -413,7 +427,7 @@ Version: set in JS (VERSION)
   }
 
   function resolveStateUrl() {
-    const qp = getQueryParams();
+    const qp = getQueryParamsCached();
     const fromQuery = qp.get('stateUrl') || qp.get('state_url') || qp.get('state') || '';
     const fromWindow = (window && window.BATTLE_STATE_URL) ? String(window.BATTLE_STATE_URL) : '';
     const url = (fromQuery || fromWindow || '').trim();
@@ -428,7 +442,7 @@ Version: set in JS (VERSION)
   }
 
   function resolvePollMs() {
-    const qp = getQueryParams();
+    const qp = getQueryParamsCached();
     const qv = qp.get('pollMs') || qp.get('poll_ms') || '';
     const wv = (window && window.BATTLE_STATE_POLL_MS != null) ? String(window.BATTLE_STATE_POLL_MS) : '';
     const raw = (qv || wv || '').trim();
@@ -615,7 +629,7 @@ Version: set in JS (VERSION)
     requestAnimationFrame(() => {
       scheduleSpriteRedraw._pending = false;
       SPRITE_LOAD_TICK++;
-      if (elSpriteToggle && elSpriteToggle.checked) safeRedraw();
+      if (SPRITES_ENABLED) safeRedraw();
     });
   }
 
@@ -828,6 +842,7 @@ Version: set in JS (VERSION)
     const n = clamp(parseFloat(String(v)), 1, 3);
     localStorage.setItem(STORAGE_SS, String(n));
     SUPERSAMPLE = n;
+    PATTERN_CACHE.clear();
     if (elSsSelect) elSsSelect.value = String(n);
     resize();
   }
@@ -852,6 +867,7 @@ Version: set in JS (VERSION)
     const n = clamp(parseFloat(String(v)), 0.60, 2.25);
     ZOOM = n;
     applyZoom();
+    PATTERN_CACHE.clear();
     if (opts.persist !== false) localStorage.setItem(STORAGE_ZOOM, String(n));
     syncZoomUI();
     safeRedraw();
@@ -2289,7 +2305,7 @@ const EMBEDDED_WORLD_JSON = `{
     }
 
     // Door sprites (e.g. kind: 'door_wood')
-    if (isDoorKind(kind) && (elSpriteToggle && elSpriteToggle.checked)) {
+    if (isDoorKind(kind) && SPRITES_ENABLED) {
       const def = getSpriteDef(kind);
       if (def) {
         const img = loadSprite(def.file);
@@ -2766,7 +2782,7 @@ const EMBEDDED_WORLD_JSON = `{
 
     const kind = String(o.kind || 'object').toLowerCase();
 
-    if (elSpriteToggle && elSpriteToggle.checked) {
+    if (SPRITES_ENABLED) {
       const def = getSpriteDef(kind);
       if (def) {
         const img = loadSprite(def.file);
@@ -3101,7 +3117,7 @@ const EMBEDDED_WORLD_JSON = `{
     const r = GRID.size * 0.40;
     const isPC = isPlayerToken(t);
 
-    if (elSpriteToggle && elSpriteToggle.checked) {
+    if (SPRITES_ENABLED) {
       const req = getTokenSpriteRequest(t, isPC);
 
       // Prefer explicit spriteFile, else sprite kind, else the default pc/npc tokens.
@@ -3481,6 +3497,7 @@ function populateFloorSelect(floors) {
 
     const fogEnabled = !!elFogToggle.checked;
     const spritesEnabled = !!(elSpriteToggle && elSpriteToggle.checked);
+    SPRITES_ENABLED = spritesEnabled;
     const labelsEnabled = !!(elLabelBoldToggle && elLabelBoldToggle.checked);
     if (state.fog && typeof state.fog === 'object') state.fog.enabled = fogEnabled;
 
@@ -3670,7 +3687,12 @@ function setActiveFloor(floorId, opts = {}) {
     };
 
     if (elFogToggle) elFogToggle.onchange = () => safeRedraw();
-    if (elSpriteToggle) elSpriteToggle.onchange = () => safeRedraw();
+    if (elSpriteToggle) {
+      elSpriteToggle.onchange = () => {
+        SPRITES_ENABLED = !!elSpriteToggle.checked;
+        safeRedraw();
+      };
+    }
     if (elLabelBoldToggle) elLabelBoldToggle.onchange = () => safeRedraw();
 
     if (elSceneSelect) {
@@ -3922,14 +3944,16 @@ function setActiveFloor(floorId, opts = {}) {
     if (state.fog && typeof state.fog === 'object') elFogToggle.checked = !!state.fog.enabled;
     elSsSelect.value = String(readSupersample());
 
-    // Run sanity checks early so we fail loudly with a useful message.
-    try { runSelfTests(); }
-    catch (e) {
-      if (elError) {
-        elError.hidden = false;
-        elError.textContent = String(e && e.stack ? e.stack : e);
+    // Run sanity checks only when explicitly requested.
+    if (shouldRunSelfTests()) {
+      try { runSelfTests(); }
+      catch (e) {
+        if (elError) {
+          elError.hidden = false;
+          elError.textContent = String(e && e.stack ? e.stack : e);
+        }
+        throw e;
       }
-      throw e;
     }
 
     wireUI();
