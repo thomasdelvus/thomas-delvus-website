@@ -198,6 +198,10 @@ Version: set in JS (VERSION)
           <option value="embedded">Embedded</option>
         </select>
       </div>
+      <div class="mini">Battle ID
+        <input id="battleIdInput" type="text" inputmode="numeric" placeholder="28" />
+        <button id="battleIdApply" title="Use battle id">Use</button>
+      </div>
       <div class="pill" title="DevicePixelRatio × Supersample">
         DPR <span id="dprText">?</span>
         &nbsp;·&nbsp; SS <span id="ssText">?</span>
@@ -262,7 +266,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.57';
+  const VERSION = 'v6.58';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -276,6 +280,8 @@ Version: set in JS (VERSION)
     labelBoldToggle: getEl('labelBoldToggle'),
     floorSelect: getEl('floorSelect'),
     sourceSelect: getEl('sourceSelect'),
+    battleIdInput: getEl('battleIdInput'),
+    battleIdApply: getEl('battleIdApply'),
     centerOn: getEl('centerOn'),
     jumpHex: getEl('jumpHex'),
     errorBox: getEl('errorBox'),
@@ -309,6 +315,8 @@ Version: set in JS (VERSION)
   const elLabelBoldToggle = els.labelBoldToggle;
   const elFloorSelect = els.floorSelect;
   const elSourceSelect = els.sourceSelect;
+  const elBattleIdInput = els.battleIdInput;
+  const elBattleIdApply = els.battleIdApply;
   const elCenterOn = els.centerOn;
   const elJumpHex = els.jumpHex;
   const elError = els.errorBox;
@@ -380,6 +388,7 @@ Version: set in JS (VERSION)
 
   const PAN_STEP = 2;
   const FILE_STATE_URL = './data.json';
+  const STORAGE_BATTLE_ID = 'battlemat.battle_id';
   const STORAGE_PREFIX = (() => {
     const bid = resolveBattleIdFromUrl();
     return bid ? ('battlemat.' + bid + '.') : 'battlemat.';
@@ -420,6 +429,71 @@ Version: set in JS (VERSION)
     return getQueryParamsCached._cached;
   }
 
+  function readStoredBattleId() {
+    try {
+      const v = localStorage.getItem(STORAGE_BATTLE_ID);
+      return v != null ? String(v).trim() : '';
+    } catch {
+      return '';
+    }
+  }
+
+  function writeStoredBattleId(v) {
+    try {
+      const s = String(v || '').trim();
+      if (!s) {
+        localStorage.removeItem(STORAGE_BATTLE_ID);
+        return;
+      }
+      localStorage.setItem(STORAGE_BATTLE_ID, s);
+    } catch {}
+  }
+
+  function parseBattleIdFromUrlString(rawUrl) {
+    const base = (window && window.location && window.location.href)
+      ? window.location.href
+      : 'http://localhost/';
+    const s = String(rawUrl || '').trim();
+    if (!s) return null;
+
+    let u = null;
+    try { u = new URL(s, base); } catch { u = null; }
+
+    const search = u ? u.search : '';
+    const hash = u ? u.hash : '';
+    const path = u ? u.pathname : s;
+
+    let bid = (
+      getQueryParams(search).get('battle_id') ||
+      getQueryParams(search).get('battleId') ||
+      getQueryParams(search).get('battle') ||
+      getQueryParams(search).get('id') ||
+      ''
+    ).trim();
+    if (bid) return bid;
+
+    bid = (
+      getQueryParams(hash).get('battle_id') ||
+      getQueryParams(hash).get('battleId') ||
+      getQueryParams(hash).get('battle') ||
+      getQueryParams(hash).get('id') ||
+      ''
+    ).trim();
+    if (bid) return bid;
+
+    const playMatch = String(path || '').match(/\/play\/([^\/?#]+)/i);
+    if (playMatch && playMatch[1]) {
+      try { return decodeURIComponent(playMatch[1]); } catch { return playMatch[1]; }
+    }
+
+    const matMatch = String(path || '').match(/\/battlemat\/([^\/?#]+)/i);
+    if (matMatch && matMatch[1]) {
+      try { return decodeURIComponent(matMatch[1]); } catch { return matMatch[1]; }
+    }
+
+    return null;
+  }
+
   function shouldRunSelfTests() {
     const qp = getQueryParamsCached();
     if (qp.get('selftest') === '1' || qp.get('selftests') === '1') return true;
@@ -435,7 +509,10 @@ Version: set in JS (VERSION)
       qp.get('id') ||
       ''
     ).trim();
-    if (bid) return bid;
+    if (bid) {
+      writeStoredBattleId(bid);
+      return bid;
+    }
 
     const hp = getQueryParams(window.location.hash);
     bid = (
@@ -445,7 +522,10 @@ Version: set in JS (VERSION)
       hp.get('id') ||
       ''
     ).trim();
-    if (bid) return bid;
+    if (bid) {
+      writeStoredBattleId(bid);
+      return bid;
+    }
 
     // Support pretty URLs like /play/28 (rewrites may keep the path in the address bar).
     const path = (window && window.location && window.location.pathname)
@@ -453,12 +533,26 @@ Version: set in JS (VERSION)
       : '';
     const playMatch = path.match(/\/play\/([^\/?#]+)/i);
     if (playMatch && playMatch[1]) {
-      try { return decodeURIComponent(playMatch[1]); } catch { return playMatch[1]; }
+      try {
+        const val = decodeURIComponent(playMatch[1]);
+        writeStoredBattleId(val);
+        return val;
+      } catch {
+        writeStoredBattleId(playMatch[1]);
+        return playMatch[1];
+      }
     }
 
     const matMatch = path.match(/\/battlemat\/([^\/?#]+)/i);
     if (matMatch && matMatch[1]) {
-      try { return decodeURIComponent(matMatch[1]); } catch { return matMatch[1]; }
+      try {
+        const val = decodeURIComponent(matMatch[1]);
+        writeStoredBattleId(val);
+        return val;
+      } catch {
+        writeStoredBattleId(matMatch[1]);
+        return matMatch[1];
+      }
     }
 
     const href = (window && window.location && window.location.href)
@@ -466,12 +560,38 @@ Version: set in JS (VERSION)
       : '';
     const hrefPlayMatch = href.match(/\/play\/([^\/?#]+)/i);
     if (hrefPlayMatch && hrefPlayMatch[1]) {
-      try { return decodeURIComponent(hrefPlayMatch[1]); } catch { return hrefPlayMatch[1]; }
+      try {
+        const val = decodeURIComponent(hrefPlayMatch[1]);
+        writeStoredBattleId(val);
+        return val;
+      } catch {
+        writeStoredBattleId(hrefPlayMatch[1]);
+        return hrefPlayMatch[1];
+      }
     }
     const hrefMatMatch = href.match(/\/battlemat\/([^\/?#]+)/i);
     if (hrefMatMatch && hrefMatMatch[1]) {
-      try { return decodeURIComponent(hrefMatMatch[1]); } catch { return hrefMatMatch[1]; }
+      try {
+        const val = decodeURIComponent(hrefMatMatch[1]);
+        writeStoredBattleId(val);
+        return val;
+      } catch {
+        writeStoredBattleId(hrefMatMatch[1]);
+        return hrefMatMatch[1];
+      }
     }
+
+    const ref = (document && document.referrer) ? String(document.referrer) : '';
+    if (ref) {
+      const refBid = parseBattleIdFromUrlString(ref);
+      if (refBid) {
+        writeStoredBattleId(refBid);
+        return refBid;
+      }
+    }
+
+    const stored = readStoredBattleId();
+    if (stored) return stored;
 
     return null;
   }
@@ -651,6 +771,12 @@ Version: set in JS (VERSION)
       ? STATE_SOURCE
       : 'database';
     if (document.activeElement !== elSourceSelect) elSourceSelect.value = v;
+  }
+
+  function syncBattleIdInput() {
+    if (!elBattleIdInput) return;
+    const v = resolveBattleIdFromUrl() || '';
+    if (document.activeElement !== elBattleIdInput) elBattleIdInput.value = v;
   }
 
   async function applySourceSelection(source) {
@@ -3385,6 +3511,7 @@ function populateFloorSelect(floors) {
     populateCenterOn(state, tokens);
     updateSidebar(state, render.floor, rooms, openings, objects, tokens);
     syncSourceSelect();
+    syncBattleIdInput();
   }
 
   function redraw() {
@@ -3595,6 +3722,8 @@ function setActiveFloor(floorId, opts = {}) {
     const btnRedraw = req('btnRedraw');
     const btnJump = req('btnJump');
     const sourceSelect = req('sourceSelect');
+    const battleIdInput = req('battleIdInput');
+    const battleIdApply = req('battleIdApply');
 
     if (btnLeft) btnLeft.onclick = () => pan(-PAN_STEP, 0);
     if (btnRight) btnRight.onclick = () => pan(PAN_STEP, 0);
@@ -3613,6 +3742,32 @@ function setActiveFloor(floorId, opts = {}) {
       try { setCameraToHex(v, { manual: true }); }
       catch (e) { console.warn('[Battlemat] Bad jump hex:', v, e); }
     };
+
+    const applyBattleId = () => {
+      if (!battleIdInput) return;
+      const v = String(battleIdInput.value || '').trim();
+      if (!v) return;
+      writeStoredBattleId(v);
+      applySourceSelection('database');
+      syncBattleIdInput();
+    };
+
+    if (battleIdInput) {
+      battleIdInput.value = resolveBattleIdFromUrl() || readStoredBattleId() || '';
+      battleIdInput.onchange = () => {
+        const v = String(battleIdInput.value || '').trim();
+        writeStoredBattleId(v);
+        syncBattleIdInput();
+      };
+      battleIdInput.onkeydown = (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          applyBattleId();
+        }
+      };
+    }
+
+    if (battleIdApply) battleIdApply.onclick = () => applyBattleId();
 
     if (elFogToggle) elFogToggle.onchange = () => safeRedraw();
     if (elSpriteToggle) {
