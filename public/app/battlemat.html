@@ -269,7 +269,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.60';
+  const VERSION = 'v6.61';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -457,6 +457,9 @@ Version: set in JS (VERSION)
     const val = String(elBattleIdInput.value || '').trim();
     if (val) return val;
     const ph = String(elBattleIdInput.placeholder || '').trim();
+    if (!ph) return '';
+    const lower = ph.toLowerCase();
+    if (lower === 'id' || lower === 'battle id' || lower === 'battle_id') return '';
     return ph;
   }
 
@@ -505,13 +508,7 @@ Version: set in JS (VERSION)
     return null;
   }
 
-  function shouldRunSelfTests() {
-    const qp = getQueryParamsCached();
-    if (qp.get('selftest') === '1' || qp.get('selftests') === '1') return true;
-    return !!(window && window.BATTLEMAT_SELFTESTS);
-  }
-
-  function resolveBattleIdFromUrl() {
+  function resolveBattleIdHintFromUrl() {
     const qp = getQueryParamsCached();
     let bid = (
       qp.get('battle_id') ||
@@ -520,10 +517,7 @@ Version: set in JS (VERSION)
       qp.get('id') ||
       ''
     ).trim();
-    if (bid) {
-      writeStoredBattleId(bid);
-      return bid;
-    }
+    if (bid) return bid;
 
     const hp = getQueryParams(window.location.hash);
     bid = (
@@ -533,10 +527,7 @@ Version: set in JS (VERSION)
       hp.get('id') ||
       ''
     ).trim();
-    if (bid) {
-      writeStoredBattleId(bid);
-      return bid;
-    }
+    if (bid) return bid;
 
     // Support pretty URLs like /play/28 (rewrites may keep the path in the address bar).
     const path = (window && window.location && window.location.pathname)
@@ -544,26 +535,12 @@ Version: set in JS (VERSION)
       : '';
     const playMatch = path.match(/\/play\/([^\/?#]+)/i);
     if (playMatch && playMatch[1]) {
-      try {
-        const val = decodeURIComponent(playMatch[1]);
-        writeStoredBattleId(val);
-        return val;
-      } catch {
-        writeStoredBattleId(playMatch[1]);
-        return playMatch[1];
-      }
+      try { return decodeURIComponent(playMatch[1]); } catch { return playMatch[1]; }
     }
 
     const matMatch = path.match(/\/battlemat\/([^\/?#]+)/i);
     if (matMatch && matMatch[1]) {
-      try {
-        const val = decodeURIComponent(matMatch[1]);
-        writeStoredBattleId(val);
-        return val;
-      } catch {
-        writeStoredBattleId(matMatch[1]);
-        return matMatch[1];
-      }
+      try { return decodeURIComponent(matMatch[1]); } catch { return matMatch[1]; }
     }
 
     const href = (window && window.location && window.location.href)
@@ -571,34 +548,33 @@ Version: set in JS (VERSION)
       : '';
     const hrefPlayMatch = href.match(/\/play\/([^\/?#]+)/i);
     if (hrefPlayMatch && hrefPlayMatch[1]) {
-      try {
-        const val = decodeURIComponent(hrefPlayMatch[1]);
-        writeStoredBattleId(val);
-        return val;
-      } catch {
-        writeStoredBattleId(hrefPlayMatch[1]);
-        return hrefPlayMatch[1];
-      }
+      try { return decodeURIComponent(hrefPlayMatch[1]); } catch { return hrefPlayMatch[1]; }
     }
     const hrefMatMatch = href.match(/\/battlemat\/([^\/?#]+)/i);
     if (hrefMatMatch && hrefMatMatch[1]) {
-      try {
-        const val = decodeURIComponent(hrefMatMatch[1]);
-        writeStoredBattleId(val);
-        return val;
-      } catch {
-        writeStoredBattleId(hrefMatMatch[1]);
-        return hrefMatMatch[1];
-      }
+      try { return decodeURIComponent(hrefMatMatch[1]); } catch { return hrefMatMatch[1]; }
     }
 
     const ref = (document && document.referrer) ? String(document.referrer) : '';
     if (ref) {
       const refBid = parseBattleIdFromUrlString(ref);
-      if (refBid) {
-        writeStoredBattleId(refBid);
-        return refBid;
-      }
+      if (refBid) return refBid;
+    }
+
+    return null;
+  }
+
+  function shouldRunSelfTests() {
+    const qp = getQueryParamsCached();
+    if (qp.get('selftest') === '1' || qp.get('selftests') === '1') return true;
+    return !!(window && window.BATTLEMAT_SELFTESTS);
+  }
+
+  function resolveBattleIdFromUrl() {
+    const hint = resolveBattleIdHintFromUrl();
+    if (hint) {
+      writeStoredBattleId(hint);
+      return hint;
     }
 
     const stored = readStoredBattleId();
@@ -786,8 +762,16 @@ Version: set in JS (VERSION)
 
   function syncBattleIdInput() {
     if (!elBattleIdInput) return;
+    const hint = resolveBattleIdHintFromUrl() || '';
     const v = resolveBattleIdFromUrl() || '';
-    if (document.activeElement !== elBattleIdInput) elBattleIdInput.value = v;
+    if (document.activeElement !== elBattleIdInput) {
+      elBattleIdInput.value = v;
+      if (hint) {
+        elBattleIdInput.placeholder = hint;
+      } else if (!v) {
+        elBattleIdInput.placeholder = 'id';
+      }
+    }
   }
 
   async function applySourceSelection(source) {
