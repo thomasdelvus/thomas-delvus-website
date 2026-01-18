@@ -266,7 +266,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.58';
+  const VERSION = 'v6.59';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -447,6 +447,14 @@ Version: set in JS (VERSION)
       }
       localStorage.setItem(STORAGE_BATTLE_ID, s);
     } catch {}
+  }
+
+  function readBattleIdInput() {
+    if (!elBattleIdInput) return '';
+    const val = String(elBattleIdInput.value || '').trim();
+    if (val) return val;
+    const ph = String(elBattleIdInput.placeholder || '').trim();
+    return ph;
   }
 
   function parseBattleIdFromUrlString(rawUrl) {
@@ -815,6 +823,14 @@ Version: set in JS (VERSION)
       }
       syncSourceSelect();
       return;
+    }
+
+    if (!resolveBattleIdFromUrl()) {
+      const hinted = readBattleIdInput();
+      if (hinted) {
+        writeStoredBattleId(hinted);
+        syncBattleIdInput();
+      }
     }
 
     const dbUrl = resolveDatabaseUrl();
