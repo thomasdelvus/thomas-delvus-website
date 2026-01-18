@@ -254,28 +254,57 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.43';
+  const VERSION = 'v6.44';
 
   // ===== DOM =====
-  const canvas = document.getElementById('canvas');
+  const getEl = (id) => document.getElementById(id);
+  const els = {
+    canvas: getEl('canvas'),
+    canvasWrap: getEl('canvasWrap'),
+    versionText: getEl('versionText'),
+    sceneSelect: getEl('sceneSelect'),
+    fogToggle: getEl('fogToggle'),
+    spriteToggle: getEl('spriteToggle'),
+    labelBoldToggle: getEl('labelBoldToggle'),
+    floorSelect: getEl('floorSelect'),
+    centerOn: getEl('centerOn'),
+    jumpHex: getEl('jumpHex'),
+    errorBox: getEl('errorBox'),
+    dprText: getEl('dprText'),
+    ssText: getEl('ssText'),
+    ssSelect: getEl('ssSelect'),
+    zoomText: getEl('zoomText'),
+    kvs: getEl('kvs'),
+    turns: getEl('turns'),
+    btnLeft: getEl('btnLeft'),
+    btnRight: getEl('btnRight'),
+    btnUp: getEl('btnUp'),
+    btnDown: getEl('btnDown'),
+    btnZoomOut: getEl('btnZoomOut'),
+    btnZoomIn: getEl('btnZoomIn'),
+    btnRedraw: getEl('btnRedraw'),
+    btnJump: getEl('btnJump'),
+  };
+
+  const canvas = els.canvas;
   const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
 
   // Offscreen wall layer (we punch openings out of walls here, then composite onto main canvas)
   const wallCanvas = document.createElement('canvas');
   const wallCtx = wallCanvas.getContext('2d', { alpha: true, desynchronized: true });
 
-  const elVersion = document.getElementById('versionText');
-  const elSceneSelect = document.getElementById('sceneSelect');
-  const elFogToggle = document.getElementById('fogToggle');
-  const elSpriteToggle = document.getElementById('spriteToggle');
-  const elLabelBoldToggle = document.getElementById('labelBoldToggle');
-  const elFloorSelect = document.getElementById('floorSelect');
-  const elCenterOn = document.getElementById('centerOn');
-  const elJumpHex = document.getElementById('jumpHex');
-  const elError = document.getElementById('errorBox');
-  const elDpr = document.getElementById('dprText');
-  const elSs = document.getElementById('ssText');
-  const elSsSelect = document.getElementById('ssSelect');
+  const elVersion = els.versionText;
+  const elSceneSelect = els.sceneSelect;
+  const elFogToggle = els.fogToggle;
+  const elSpriteToggle = els.spriteToggle;
+  const elLabelBoldToggle = els.labelBoldToggle;
+  const elFloorSelect = els.floorSelect;
+  const elCenterOn = els.centerOn;
+  const elJumpHex = els.jumpHex;
+  const elError = els.errorBox;
+  const elDpr = els.dprText;
+  const elSs = els.ssText;
+  const elSsSelect = els.ssSelect;
 
   if (elVersion) elVersion.textContent = VERSION;
   document.title = 'Battlemat Core ' + VERSION;
@@ -823,7 +852,7 @@ Version: set in JS (VERSION)
   }
 
   function syncZoomUI() {
-    const el = document.getElementById('zoomText');
+    const el = els.zoomText;
     if (el) el.textContent = Math.round(ZOOM * 100) + '%';
   }
 
@@ -3152,8 +3181,8 @@ const EMBEDDED_WORLD_JSON = `{
   }
 
   function updateSidebar(state, floor, rooms, openings, objects, tokens) {
-    const kvs = document.getElementById('kvs');
-    const turns = document.getElementById('turns');
+    const kvs = els.kvs;
+    const turns = els.turns;
     if (!kvs || !turns) return;
 
     const meta = state && state.meta ? state.meta : {};
@@ -3540,7 +3569,7 @@ function setActiveFloor(floorId, opts = {}) {
 
   function wireUI() {
     const req = (id) => {
-      const el = document.getElementById(id);
+      const el = els[id];
       if (!el) console.warn('[Battlemat] missing control #' + id);
       return el;
     };
@@ -3616,7 +3645,7 @@ function setActiveFloor(floorId, opts = {}) {
     applyZoom();
     syncZoomUI();
 
-    const wrap = document.getElementById('canvasWrap');
+    const wrap = els.canvasWrap;
 
     // Prefer integer CSS sizes (clientWidth/Height) to avoid fractional px gaps that
     // can show up as a 1px line along the right/bottom edge.
@@ -3840,7 +3869,7 @@ function setActiveFloor(floorId, opts = {}) {
     if (STATE_URL) startStatePolling();
 
     const ro = new ResizeObserver(() => resize());
-    ro.observe(document.getElementById('canvasWrap'));
+    if (els.canvasWrap) ro.observe(els.canvasWrap);
 
     window.addEventListener('resize', resize, { passive: true });
 
