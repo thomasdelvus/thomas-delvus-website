@@ -254,7 +254,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.44';
+  const VERSION = 'v6.45';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -1733,7 +1733,14 @@ const EMBEDDED_WORLD_JSON = `{
 
   function getNarration(state) {
     const s = (state && typeof state === 'object') ? state : null;
-    return String((s && (s.narration ?? s.narrative ?? '')) || '');
+    if (!s) return '';
+    if (s.narration != null && s.narration !== '') return String(s.narration);
+    if (s.narrative != null && s.narrative !== '') {
+      const v = String(s.narrative);
+      s.narration = v;
+      return v;
+    }
+    return '';
   }
 
   // ===== Hex id helpers =====
@@ -3334,6 +3341,66 @@ function populateFloorSelect(floors) {
     ctx.fillRect(0, 0, w, h);
   }
 
+  function renderScene(roomsAll, roomsToDraw, openingsToDraw, objects, tokens, roomMetaAll, fogEnabled) {
+    clear();
+
+    drawFloorsLayered(roomsToDraw);
+
+    const roomsForWalls = (RENDER_FOG && RENDER_FOG.enabled)
+      ? roomsToDraw.filter(r => (isFogFloorRoom(r) ? roomHasWalls(r) : true))
+      : roomsToDraw;
+
+    const wallSegsRaw = buildWallSegments(roomsForWalls);
+    const wallSegs = dedupeWallSegments(wallSegsRaw);
+
+    // Floor-aware knockout fills for doors/thresholds (so wall openings match the underlying texture)
+    drawOpeningSeamFills(openingsToDraw, roomsAll, roomMetaAll, wallSegs, fogEnabled);
+
+    wallCtx.save();
+    wallCtx.setTransform(1, 0, 0, 1, 0, 0);
+    wallCtx.clearRect(0, 0, wallCanvas.width, wallCanvas.height);
+    wallCtx.restore();
+
+    wallCtx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
+
+    drawWallSegments(wallCtx, wallSegs);
+
+    wallCtx.save();
+    wallCtx.globalCompositeOperation = 'destination-out';
+    wallCtx.fillStyle = '#000';
+
+    for (const o of openingsToDraw) {
+      const k = String(o && o.kind ? o.kind : 'door').toLowerCase();
+      wallCtx.globalAlpha = (k === 'window') ? 0.25 : 1;
+      cutOpeningHole(wallCtx, o, wallSegs, roomsAll);
+    }
+
+    wallCtx.restore();
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(wallCanvas, 0, 0);
+    ctx.restore();
+
+    ctx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
+
+    for (const o of openingsToDraw) drawOpeningMarker(o, wallSegs);
+
+    for (const o of objects) drawObject(o, roomMetaAll);
+
+    drawRememberedRoomOverlays(roomsAll);
+
+    for (const t of tokens) drawToken(t, roomMetaAll);
+
+    drawGrid();
+  }
+
+  function updateUI(state, render, rooms, openings, objects, tokens) {
+    populateFloorSelect(render.floors);
+    populateCenterOn(state, tokens);
+    updateSidebar(state, render.floor, rooms, openings, objects, tokens);
+  }
+
   function redraw() {
     const state = getState();
 
@@ -3402,62 +3469,8 @@ function populateFloorSelect(floors) {
       });
     }
 
-    populateFloorSelect(render.floors);
-    populateCenterOn(state, tokens);
-
-    clear();
-
-    drawFloorsLayered(roomsToDraw);
-
-    const roomsForWalls = (RENDER_FOG && RENDER_FOG.enabled)
-      ? roomsToDraw.filter(r => (isFogFloorRoom(r) ? roomHasWalls(r) : true))
-      : roomsToDraw;
-
-    const wallSegsRaw = buildWallSegments(roomsForWalls);
-    const wallSegs = dedupeWallSegments(wallSegsRaw);
-
-    // Floor-aware knockout fills for doors/thresholds (so wall openings match the underlying texture)
-    drawOpeningSeamFills(openingsToDraw, rooms, roomMetaAll, wallSegs, fogEnabled);
-
-    wallCtx.save();
-    wallCtx.setTransform(1, 0, 0, 1, 0, 0);
-    wallCtx.clearRect(0, 0, wallCanvas.width, wallCanvas.height);
-    wallCtx.restore();
-
-    wallCtx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
-
-    drawWallSegments(wallCtx, wallSegs);
-
-    wallCtx.save();
-    wallCtx.globalCompositeOperation = 'destination-out';
-    wallCtx.fillStyle = '#000';
-
-    for (const o of openingsToDraw) {
-      const k = String(o && o.kind ? o.kind : 'door').toLowerCase();
-      wallCtx.globalAlpha = (k === 'window') ? 0.25 : 1;
-      cutOpeningHole(wallCtx, o, wallSegs, rooms);
-    }
-
-    wallCtx.restore();
-
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(wallCanvas, 0, 0);
-    ctx.restore();
-
-    ctx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
-
-    for (const o of openingsToDraw) drawOpeningMarker(o, wallSegs);
-
-    for (const o of objects) drawObject(o, roomMetaAll);
-
-    drawRememberedRoomOverlays(rooms);
-
-    for (const t of tokens) drawToken(t, roomMetaAll);
-
-    drawGrid();
-
-    updateSidebar(state, render.floor, rooms, openings, objects, tokens);
+    renderScene(rooms, roomsToDraw, openingsToDraw, objects, tokens, roomMetaAll, fogEnabled);
+    updateUI(state, render, rooms, openings, objects, tokens);
 
     if (state.view && typeof state.view === 'object') state.view.camera_hex = hexId(VIEW.camera.col, VIEW.camera.row);
   }
