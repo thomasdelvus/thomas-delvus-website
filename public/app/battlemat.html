@@ -254,7 +254,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.48';
+  const VERSION = 'v6.49';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -383,6 +383,7 @@ Version: set in JS (VERSION)
   let STATE_POLL_TIMER = null;
   let LAST_STATE_JSON = '';
   let LAST_RENDER_SIGNATURE = '';
+  let SPRITE_LOAD_TICK = 0;
 
   function getQueryParams(search = window.location.search) {
     const s = String(search || '').trim();
@@ -613,6 +614,7 @@ Version: set in JS (VERSION)
     scheduleSpriteRedraw._pending = true;
     requestAnimationFrame(() => {
       scheduleSpriteRedraw._pending = false;
+      SPRITE_LOAD_TICK++;
       if (elSpriteToggle && elSpriteToggle.checked) safeRedraw();
     });
   }
@@ -1756,6 +1758,7 @@ const EMBEDDED_WORLD_JSON = `{
           sprites: !!opts.spritesEnabled,
           labels: !!opts.labelsEnabled,
         },
+        spritesLoaded: SPRITE_LOAD_TICK,
       },
     };
 
