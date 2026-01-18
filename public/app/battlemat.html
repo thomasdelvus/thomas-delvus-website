@@ -262,7 +262,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.56';
+  const VERSION = 'v6.57';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -420,6 +420,51 @@ Version: set in JS (VERSION)
     return getQueryParamsCached._cached;
   }
 
+  function parseBattleIdFromUrlString(rawUrl) {
+    const base = (window && window.location && window.location.href)
+      ? window.location.href
+      : 'http://localhost/';
+    const s = String(rawUrl || '').trim();
+    if (!s) return null;
+
+    let u = null;
+    try { u = new URL(s, base); } catch { u = null; }
+
+    const search = u ? u.search : '';
+    const hash = u ? u.hash : '';
+    const path = u ? u.pathname : s;
+
+    let bid = (
+      getQueryParams(search).get('battle_id') ||
+      getQueryParams(search).get('battleId') ||
+      getQueryParams(search).get('battle') ||
+      getQueryParams(search).get('id') ||
+      ''
+    ).trim();
+    if (bid) return bid;
+
+    bid = (
+      getQueryParams(hash).get('battle_id') ||
+      getQueryParams(hash).get('battleId') ||
+      getQueryParams(hash).get('battle') ||
+      getQueryParams(hash).get('id') ||
+      ''
+    ).trim();
+    if (bid) return bid;
+
+    const playMatch = String(path || '').match(/\/play\/([^\/?#]+)/i);
+    if (playMatch && playMatch[1]) {
+      try { return decodeURIComponent(playMatch[1]); } catch { return playMatch[1]; }
+    }
+
+    const matMatch = String(path || '').match(/\/battlemat\/([^\/?#]+)/i);
+    if (matMatch && matMatch[1]) {
+      try { return decodeURIComponent(matMatch[1]); } catch { return matMatch[1]; }
+    }
+
+    return null;
+  }
+
   function shouldRunSelfTests() {
     const qp = getQueryParamsCached();
     if (qp.get('selftest') === '1' || qp.get('selftests') === '1') return true;
@@ -471,6 +516,12 @@ Version: set in JS (VERSION)
     const hrefMatMatch = href.match(/\/battlemat\/([^\/?#]+)/i);
     if (hrefMatMatch && hrefMatMatch[1]) {
       try { return decodeURIComponent(hrefMatMatch[1]); } catch { return hrefMatMatch[1]; }
+    }
+
+    const ref = (document && document.referrer) ? String(document.referrer) : '';
+    if (ref) {
+      const refBid = parseBattleIdFromUrlString(ref);
+      if (refBid) return refBid;
     }
 
     return null;
@@ -3188,12 +3239,15 @@ const EMBEDDED_WORLD_JSON = `{
       ? ('ON (' + fog.visibleRoomIds.length + ' vis / ' + fog.exploredRoomIds.length + ' exp)')
       : 'off';
 
+    const battleId = resolveBattleIdFromUrl() || '';
+    const dbUrl = resolveDatabaseUrl() || '';
+
     const lines = [
       ['Version', VERSION],
       ['Battle', meta.battleId != null ? String(meta.battleId) : ''],
       ['Source', STATE_SOURCE],
-      ['Battle ID', resolveBattleIdFromUrl() || ''],
-      ['DB URL', resolveDatabaseUrl() || ''],
+      ['Battle ID', battleId],
+      ['DB URL', dbUrl],
       ['Floor', floor && floor.name ? String(floor.name) : String(VIEW.floorId || '')],
       ['Round', String(round)],
       ['Camera', camHex],
@@ -3205,6 +3259,14 @@ const EMBEDDED_WORLD_JSON = `{
       ['Fog', fogLabel],
       ['Fog maxDepth', String(fog.maxDepth)],
     ];
+
+    if (!battleId || !dbUrl) {
+      const loc = (window && window.location) ? window.location : null;
+      lines.push(['Path', loc ? String(loc.pathname || '') : '']);
+      lines.push(['Search', loc ? String(loc.search || '') : '']);
+      lines.push(['Hash', loc ? String(loc.hash || '') : '']);
+      lines.push(['Ref', (document && document.referrer) ? String(document.referrer) : '']);
+    }
 
     kvs.innerHTML = lines
       .map(([k, v]) => '<div>' + escapeHtml(k) + '</div><div style="color:var(--text); text-align:right;">' + escapeHtml(v) + '</div>')
