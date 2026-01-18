@@ -1,13 +1,13 @@
 <!--
 Battlemat Core
-Version: v6.42
---> 
+Version: set in JS (VERSION)
+-->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Battlemat Core v6.42</title>
+  <title>Battlemat Core</title>
   <style>
     :root{
       --bg:#0f1115;
@@ -186,7 +186,7 @@ Version: v6.42
 <body>
   <div id="topbar">
     <div id="status">
-      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText">v6.42</span></div>
+      <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText"></span></div>
       <div class="mini">Scene <select id="sceneSelect"></select></div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
@@ -250,11 +250,11 @@ Version: v6.42
 
   <script>
   // =====================================================================================
-  // Battlemat Core Rewrite v6.42
+  // Battlemat Core Rewrite
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.42';
+  const VERSION = 'v6.43';
 
   // ===== DOM =====
   const canvas = document.getElementById('canvas');
@@ -278,6 +278,7 @@ Version: v6.42
   const elSsSelect = document.getElementById('ssSelect');
 
   if (elVersion) elVersion.textContent = VERSION;
+  document.title = 'Battlemat Core ' + VERSION;
 
   // ===== Constants =====
   const sqrt3 = Math.sqrt(3);
@@ -1691,7 +1692,14 @@ const EMBEDDED_WORLD_JSON = `{
 
   function getLastAction(state) {
     const s = (state && typeof state === 'object') ? state : null;
-    return String((s && (s.last_action ?? s.lastAction ?? '')) || '');
+    if (!s) return '';
+    if (s.last_action != null && s.last_action !== '') return String(s.last_action);
+    if (s.lastAction != null && s.lastAction !== '') {
+      const v = String(s.lastAction);
+      s.last_action = v;
+      return v;
+    }
+    return '';
   }
 
   function getNarration(state) {
@@ -3267,6 +3275,24 @@ function populateFloorSelect(floors) {
     if (elCenterOn.value === '') VIEW.followTokenId = null;
   }
 
+  function buildRenderState(state) {
+    const floors = getFloorsFromState(state);
+    const activeFloorId = VIEW.floorId || pickActiveFloorId(state, floors);
+    const floor = floorById(floors, activeFloorId) || floors[0];
+    const floorId = floor ? String(floor.id) : String(activeFloorId || '');
+
+    const tokensAll = getTokensArray(state);
+    const rooms = Array.isArray(floor && floor.rooms) ? floor.rooms : [];
+    const openings = Array.isArray(floor && floor.openings) ? floor.openings : [];
+    const objects = Array.isArray(floor && floor.objects) ? floor.objects : [];
+    const tokens = tokensAll.filter(t => {
+      const fid = entityFloorId(t);
+      return fid ? fid === floorId : true;
+    });
+
+    return { floors, floor, floorId, rooms, openings, objects, tokensAll, tokens };
+  }
+
   // ===== Main render =====
   function clear() {
     // Use backing-store derived CSS size so we always cover the full drawable area.
@@ -3284,16 +3310,13 @@ function populateFloorSelect(floors) {
 
     if (!canvas.width || !canvas.height || !wallCanvas.width || !wallCanvas.height) return;
 
-    const floors = getFloorsFromState(state);
-    const activeFloorId = VIEW.floorId || pickActiveFloorId(state, floors);
-    const floor = floorById(floors, activeFloorId) || floors[0];
-    VIEW.floorId = floor ? String(floor.id) : activeFloorId;
+    const render = buildRenderState(state);
+    VIEW.floorId = render.floorId;
 
     populateSceneSelect(state);
 
     if (VIEW.followTokenId) {
-      const allTokens = getTokensArray(state);
-      const t = allTokens.find(x => x && x.id === VIEW.followTokenId);
+      const t = render.tokensAll.find(x => x && x.id === VIEW.followTokenId);
       if (t && t.hex) {
         const fid = entityFloorId(t) || VIEW.floorId;
         if (fid && fid !== VIEW.floorId) {
@@ -3310,10 +3333,10 @@ function populateFloorSelect(floors) {
       }
     }
 
-    const rooms = Array.isArray(floor && floor.rooms) ? floor.rooms : [];
-    const openings = Array.isArray(floor && floor.openings) ? floor.openings : [];
-    const objects = Array.isArray(floor && floor.objects) ? floor.objects : [];
-    const tokens = tokensOnFloor(state, VIEW.floorId);
+    const rooms = render.rooms;
+    const openings = render.openings;
+    const objects = render.objects;
+    const tokens = render.tokens;
 
     const roomMetaAll = buildRoomMeta(rooms);
 
@@ -3350,7 +3373,7 @@ function populateFloorSelect(floors) {
       });
     }
 
-    populateFloorSelect(floors);
+    populateFloorSelect(render.floors);
     populateCenterOn(state, tokens);
 
     clear();
@@ -3405,7 +3428,7 @@ function populateFloorSelect(floors) {
 
     drawGrid();
 
-    updateSidebar(state, floor, rooms, openings, objects, tokens);
+    updateSidebar(state, render.floor, rooms, openings, objects, tokens);
 
     if (state.view && typeof state.view === 'object') state.view.camera_hex = hexId(VIEW.camera.col, VIEW.camera.row);
   }
