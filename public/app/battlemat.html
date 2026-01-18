@@ -3192,6 +3192,8 @@ const EMBEDDED_WORLD_JSON = `{
       ['Version', VERSION],
       ['Battle', meta.battleId != null ? String(meta.battleId) : ''],
       ['Source', STATE_SOURCE],
+      ['Battle ID', resolveBattleIdFromUrl() || ''],
+      ['DB URL', resolveDatabaseUrl() || ''],
       ['Floor', floor && floor.name ? String(floor.name) : String(VIEW.floorId || '')],
       ['Round', String(round)],
       ['Camera', camHex],
