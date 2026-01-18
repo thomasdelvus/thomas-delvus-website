@@ -190,6 +190,14 @@ Version: set in JS (VERSION)
       <div class="mini">Scene <select id="sceneSelect"></select></div>
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
+      <div class="sep"></div>
+      <div class="mini">Source
+        <select id="sourceSelect">
+          <option value="database">Database</option>
+          <option value="file">File</option>
+          <option value="embedded">Embedded</option>
+        </select>
+      </div>
       <div class="pill" title="DevicePixelRatio × Supersample">
         DPR <span id="dprText">?</span>
         &nbsp;·&nbsp; SS <span id="ssText">?</span>
@@ -267,6 +275,7 @@ Version: set in JS (VERSION)
     spriteToggle: getEl('spriteToggle'),
     labelBoldToggle: getEl('labelBoldToggle'),
     floorSelect: getEl('floorSelect'),
+    sourceSelect: getEl('sourceSelect'),
     centerOn: getEl('centerOn'),
     jumpHex: getEl('jumpHex'),
     errorBox: getEl('errorBox'),
@@ -299,6 +308,7 @@ Version: set in JS (VERSION)
   const elSpriteToggle = els.spriteToggle;
   const elLabelBoldToggle = els.labelBoldToggle;
   const elFloorSelect = els.floorSelect;
+  const elSourceSelect = els.sourceSelect;
   const elCenterOn = els.centerOn;
   const elJumpHex = els.jumpHex;
   const elError = els.errorBox;
@@ -369,6 +379,7 @@ Version: set in JS (VERSION)
   };
 
   const PAN_STEP = 2;
+  const FILE_STATE_URL = './data.json';
   const STORAGE_PREFIX = (() => {
     const bid = resolveBattleIdFromUrl();
     return bid ? ('battlemat.' + bid + '.') : 'battlemat.';
@@ -385,6 +396,7 @@ Version: set in JS (VERSION)
   let LAST_RENDER_SIGNATURE = '';
   let SPRITE_LOAD_TICK = 0;
   let SPRITES_ENABLED = true;
+  let STATE_SOURCE = 'embedded';
 
   function getQueryParams(search = window.location.search) {
     const s = String(search || '').trim();
@@ -547,6 +559,113 @@ Version: set in JS (VERSION)
 
   function applyFetchedState(parsed, jsonText) {
     setCanonicalStateFromRaw(parsed, jsonText);
+    STATE_SOURCE = stateSourceFromUrl(STATE_URL);
+  }
+
+  function stateSourceFromUrl(url) {
+    const u = String(url || '').toLowerCase();
+    if (!u) return 'database';
+    if (u.includes('/api/battles/') || u.includes('/battles/')) return 'database';
+    if (u.endsWith('.json') || u.includes('/data/')) return 'file';
+    return 'database';
+  }
+
+  function stopStatePolling() {
+    if (STATE_POLL_TIMER) clearInterval(STATE_POLL_TIMER);
+    STATE_POLL_TIMER = null;
+  }
+
+  function resolveFileUrl() {
+    const qp = getQueryParamsCached();
+    const fromQuery = qp.get('stateUrl') || qp.get('state_url') || qp.get('state') || '';
+    if (fromQuery && stateSourceFromUrl(fromQuery) === 'file') return fromQuery;
+
+    const fromWindow = (window && window.BATTLE_STATE_URL) ? String(window.BATTLE_STATE_URL) : '';
+    if (fromWindow && stateSourceFromUrl(fromWindow) === 'file') return fromWindow;
+
+    return FILE_STATE_URL;
+  }
+
+  function resolveDatabaseUrl() {
+    const resolved = resolveStateUrl();
+    if (stateSourceFromUrl(resolved) === 'database') return resolved;
+
+    const battleId = resolveBattleIdFromUrl();
+    if (battleId) return `/api/battles/${encodeURIComponent(battleId)}`;
+
+    return null;
+  }
+
+  async function loadStateFromUrl(url, sourceLabel) {
+    const u = String(url || '').trim();
+    if (!u) throw new Error('Missing state URL');
+
+    const got = await fetchStateOnce(u);
+    if (!got) throw new Error('State fetch returned empty body');
+
+    setCanonicalStateFromRaw(got.parsed, got.jsonText);
+    STATE_SOURCE = sourceLabel || stateSourceFromUrl(u);
+  }
+
+  function syncSourceSelect() {
+    if (!elSourceSelect) return;
+    const v = (STATE_SOURCE === 'embedded' || STATE_SOURCE === 'file' || STATE_SOURCE === 'database')
+      ? STATE_SOURCE
+      : 'database';
+    if (document.activeElement !== elSourceSelect) elSourceSelect.value = v;
+  }
+
+  async function applySourceSelection(source) {
+    const s = String(source || '').toLowerCase();
+    if (elError) { elError.hidden = true; elError.textContent = ''; }
+    stopStatePolling();
+
+    if (s === 'embedded') {
+      STATE_URL = null;
+      const raw = readEmbeddedWorld();
+      if (!raw) {
+        if (elError) {
+          elError.hidden = false;
+          elError.textContent = 'Embedded state not available.';
+        }
+        return;
+      }
+      setCanonicalStateFromRaw(raw, stableJsonTextFor(raw));
+      STATE_SOURCE = 'embedded';
+      safeRedraw();
+      syncSourceSelect();
+      return;
+    }
+
+    if (s === 'file') {
+      STATE_URL = null;
+      try {
+        const url = resolveFileUrl();
+        await loadStateFromUrl(url, 'file');
+        safeRedraw();
+      } catch (e) {
+        if (elError) {
+          elError.hidden = false;
+          elError.textContent = 'File state error:' + String.fromCharCode(10) + String(e && e.message ? e.message : e);
+        }
+      }
+      syncSourceSelect();
+      return;
+    }
+
+    const dbUrl = resolveDatabaseUrl();
+    if (!dbUrl) {
+      if (elError) {
+        elError.hidden = false;
+        elError.textContent = 'Database state URL not available.';
+      }
+      return;
+    }
+
+    STATE_URL = dbUrl;
+    STATE_SOURCE = 'database';
+    startStatePolling();
+    syncSourceSelect();
   }
 
   async function pollStateLoop() {
@@ -583,9 +702,18 @@ Version: set in JS (VERSION)
     STATE_POLL_TIMER = setInterval(pollStateLoop, pollMs);
   }
 
+  function resolveSpriteBasePath() {
+    try {
+      // Resolve relative to the current HTML file so /public/ and root deployments both work.
+      return new URL('../assets/sprites/', window.location.href).toString();
+    } catch {
+      return '/assets/sprites/';
+    }
+  }
+
   // ===== Sprites (core, optional) =====
   const SPRITES = {
-    basePath: '/assets/sprites/',
+    basePath: resolveSpriteBasePath(),
     cache: new Map(),
     defs: {
       // Objects
@@ -885,319 +1013,60 @@ Version: set in JS (VERSION)
   // Keep it JSON-valid: double quotes only, no comments, no trailing commas.
 
 const EMBEDDED_WORLD_JSON = `{
-	"world": "Saffrondale",
-	"otherWorlds": {
-		"Wynpole": {
-			"world": "Wynpole",
-			"version": 1,
-			"meta": { "scale": "1 hex = 5 ft" },
-			"active": { "recordId": "WynpoleSquare", "floorId": "ground", "camera_hex": "D4" },
-			"records": {
-				"WynpoleSquare": {
-					"meta": { "title": "Wynpole – Village Square", "battleId": "local", "round": 1 },
-					"view": { "camera_hex": "D4", "floorId": "ground" },
-					"floors": [
-						{
-							"id": "ground",
-							"name": "Ground",
-							"rooms": [
-								{ "id": "Square", "corners": ["B6", "F6", "F2", "B2"], "thickness": 12, "floor": { "kind": "cobble" }, "wall": { "kind": "none" } }
-							],
-							"openings": [],
-							"objects": []
-						}
-					],
-					"tokens": []
-				}
-			},
-			"links": []
-		}
-	},
-	"version": 1,
-	"meta": { "scale": "1 hex = 5 ft", "fogMode": "room" },
-	"active": { "recordId": "CrossKeysInn", "floorId": "upper", "camera_hex": "U16" },
-	"records": {
-		"NewSceneId": {
-			"meta": { "title": "Street View", "battleId": "local", "round": 1 },
-			"view": { "camera_hex": "U14", "floorId": "ground" },
-			"fog": {
-				"enabled": true,
-				"mode": "room",
-				"visibleRoomIdsByFloor": { "ground": [] },
-				"exploredRoomIdsByFloor": { "ground": [] },
-				"autoCompute": true,
-				"autoExplore": true,
-				"maxDepth": 1,
-				"unseenAlpha": 0.92,
-				"exploredAlpha": 0.55
-			},
-			"floors": [
-				{
-					"id": "ground",
-					"name": "Ground",
-					"rooms": [
-                    	{ "id": "BuildingL26", "corners": ["L26", "V26", "V21", "L21"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } },
-                        { "id": "BuildingAJ21", "corners": ["AJ21", "AP21", "AP12", "AJ12"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } },
-                        { "id": "BuildingAP30", "corners": ["AP30", "AV30", "AV12", "AP12"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } },
-                        { "id": "BuildingAP30", "corners": ["AV20", "AZ20", "AZ12", "AV12"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "CrossKeysUpperFloor", "buildingId": "CrossKeysInn", "corners": ["L21", "AJ21", "AJ12", "L12"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } }
-					],
-					"openings": [
-						{ "id": "door_1", "kind": "door.wood", "hex": "D6", "orientation": "h", "openPct": 0.0 }
-					],
-					"objects": [
-						{ "id": "crate_1", "kind": "crate", "hex": "D4", "rotDeg": 0, "spriteScale": 1.25 }
-					]
-				}
-			],
-			"tokens": [
-				{ "id": "pc1", "name": "Hero", "side": "PC", "hex": "D4", "label": "H", "init": 10, "hp": 20, "floorId": "ground" }
-			]
-		},
-
-		"CrossKeysInn": {
-			"meta": { "title": "Cross Keys Inn — Demo (upper + ground)", "battleId": "local", "round": 1 },
-			"view": { "camera_hex": "U16", "floorId": "upper" },
-			"fog": {
-				"enabled": true,
-				"mode": "room",
-				"visibleRoomIdsByFloor": { "upper": [], "ground": [], "basement": [] },
-				"exploredRoomIdsByFloor": { "upper": ["Hallway1", "Hallway2"], "ground": ["Kitchen"], "basement": [] },
-				"autoCompute": true,
-				"autoExplore": true,
-				"maxDepth": 1,
-				"unseenAlpha": 0.92,
-				"exploredAlpha": 0.55
-			},
-			"floors": [
-				{
-					"id": "upper",
-					"name": "Upper",
-					"rooms": [
-						{ "id": "KingStreet", "corners": ["L12", "AP12", "AP8", "L8"], "thickness": 15, "floor": { "kind": "cobble" }, "wall": { "kind": "none" } },
-                        { "id": "HighStreet", "corners": ["F24", "L24", "L8", "F8"], "thickness": 15, "floor": { "kind": "cobble" }, "wall": { "kind": "none" } },
-						{ "id": "CrossKeysUpperFloor", "buildingId": "CrossKeysInn", "corners": ["L21", "AJ21", "AJ12", "L12"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "Hallway1", "buildingId": "CrossKeysInn", "corners": ["AD21", "AF21", "AF12", "AD12"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "Hallway2", "buildingId": "CrossKeysInn", "corners": ["R17", "AD17", "AD15", "R15"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "Hallway3", "buildingId": "CrossKeysInn", "corners": ["P21", "R21", "R12", "P12"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "1stFloorStairsDown", "buildingId": "CrossKeysInn", "corners": ["AA21.5", "AD21", "AD19.5", "AA20"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
-
-						{ "id": "Bedroom1", "buildingId": "CrossKeysInn", "corners": ["L21", "P21", "P18", "L18"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "Bedroom2", "buildingId": "CrossKeysInn", "corners": ["L18", "P18", "P15", "L15"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "Bedroom3", "buildingId": "CrossKeysInn", "corners": ["L15", "P15", "P12", "L12"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "Bedroom4", "buildingId": "CrossKeysInn", "corners": ["R15", "X15", "X12", "R12"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "Bedroom5", "buildingId": "CrossKeysInn", "corners": ["R21", "X21", "X17", "R17"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "Bedroom5_closet", "buildingId": "CrossKeysInn", "corners": ["X21", "Y21.5", "Y20", "X19.5"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "Bathroom6", "buildingId": "CrossKeysInn", "corners": ["Y20", "AD19.5", "AD17", "Y17.5"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "Bathroom6_closet", "buildingId": "CrossKeysInn", "corners": ["Y21.5", "AA21.5", "AA20", "Y20"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "Bedroom7", "buildingId": "CrossKeysInn", "corners": ["X15", "AD15", "AD12", "X12"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "Bedroom8", "buildingId": "CrossKeysInn", "corners": ["AF15", "AJ15", "AJ12", "AF12"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "Bedroom9", "buildingId": "CrossKeysInn", "corners": ["AF19", "AJ19", "AJ15", "AF15"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } },
-						{ "id": "Bedroom10", "buildingId": "CrossKeysInn", "corners": ["AF21", "AJ21", "AJ19", "AF19"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "wood_dark" } }
-					],
-					"openings": [
-						{ "id": "door_room1", "kind": "door.wood", "hex": "P19", "orientation": "v", "openPct": 1.0, "hinge": "right", "swing": 1 },
-						{ "id": "door_room2", "kind": "door.wood", "hex": "P16", "orientation": "v", "openPct": 1.0, "hinge": "right", "swing": 1 },
-						{ "id": "door_room3", "kind": "door.wood", "hex": "P13", "orientation": "v", "openPct": 1.0, "hinge": "right", "swing": 1 },
-						{ "id": "door_room4", "kind": "door.wood", "hex": "U15.5", "orientation": "h", "openPct": 1.0, "hinge": "left", "swing": 1 },
-
-						{ "id": "door_room5", "kind": "door.wood", "hex": "V17", "orientation": "h", "openPct": 1.0 },
-						{ "id": "door_to_closet", "kind": "door.wood", "hex": "X20.25", "orientation": "v", "openPct": 1.0, "swing": 1 },
-						{ "id": "door_room6", "kind": "door.wood", "hex": "AB17", "orientation": "h", "openPct": 1.0 },
-						{ "id": "door_room6_closet", "kind": "door.wood", "hex": "Z19.5", "orientation": "h", "openPct": 1.0, "swing": 1 },
-						{ "id": "door_room7", "kind": "door.wood", "hex": "AA15.5", "orientation": "h", "openPct": 1.0, "hinge": "right", "swing": 1 },
-
-						{ "id": "door_room8", "kind": "door.wood", "hex": "AF13", "orientation": "v", "hinge": "left", "openPct": 0.0 },
-						{ "id": "door_room9", "kind": "door.wood", "hex": "AF17", "orientation": "v", "openPct": 0.0 },
-						{ "id": "door_room10", "kind": "door.wood", "hex": "AF20", "orientation": "v", "openPct": 0.0 },
-
-						{ "id": "portal_down_AB20", "kind": "portal", "hex": "AB20", "trigger": "enter", "to": { "floorId": "ground", "hex": "Z20" } },
-
-						{ "id": "bedroom1_window1", "kind": "window", "hex": "L20", "orientation": "v" },
-						{ "id": "bedroom1_window2", "kind": "window", "hex": "L19", "orientation": "v" },
-						{ "id": "bedroom2_window1", "kind": "window", "hex": "L17", "orientation": "v" },
-						{ "id": "bedroom2_window2", "kind": "window", "hex": "L16", "orientation": "v" },
-						{ "id": "bedroom3_window1", "kind": "window", "hex": "L14", "orientation": "v" },
-						{ "id": "bedroom3_window2", "kind": "window", "hex": "L13", "orientation": "v" },
-						{ "id": "bedroom3_window3", "kind": "window", "hex": "M12.5", "orientation": "h" },
-						{ "id": "bedroom3_window4", "kind": "window", "hex": "N12", "orientation": "h" },
-						{ "id": "hallway3_window1", "kind": "window", "hex": "Q12.5", "orientation": "h" },
-						{ "id": "bedroom4_window1", "kind": "window", "hex": "U12.5", "orientation": "h" },
-						{ "id": "bedroom4_window2", "kind": "window", "hex": "V12", "orientation": "h" },
-						{ "id": "bedroom5_window1", "kind": "window", "hex": "Z12", "orientation": "h" },
-						{ "id": "bedroom5_window2", "kind": "window", "hex": "AA12.5", "orientation": "h" },
-						{ "id": "hallway1_window1", "kind": "window", "hex": "AE12.5", "orientation": "h" },
-						{ "id": "bedroom8_window1", "kind": "window", "hex": "AH12", "orientation": "h" },
-
-						{ "id": "thresh_R16", "kind": "threshold", "hex": "R16", "orientation": "v", "parent": "Hallway2" },
-						{ "id": "thresh_AD16", "kind": "threshold", "hex": "AD16", "orientation": "v", "parent": "Hallway2" },
-						{ "id": "thresh_AD20", "kind": "threshold", "hex": "AD20.25", "orientation": "v", "parent": "1stFloorStairsDown" }
-					],
-					"objects": [
-						{ "id": "room1_bed1", "kind": "bed", "hex": "M21", "ox": -0.5, "oy": 0.7, "spriteScale": 2.3 },
-						{ "id": "room1_bed2", "kind": "bed", "hex": "N20", "ox": 0.0, "oy": -0.17, "spriteScale": 2.3 },
-						{ "id": "room1_bed3", "kind": "bed", "hex": "O21", "ox": 0.5, "oy": 0.7, "spriteScale": 2.3 },
-
-						{ "id": "room2_bed1", "kind": "bed", "hex": "M18", "rotDeg": 270, "spriteScale": 2.3 },
-						{ "id": "room2_bed2", "kind": "bed", "hex": "M16", "rotDeg": 270, "spriteScale": 2.3 },
-
-						{ "id": "room3_bed1", "kind": "bed", "hex": "M15", "ox": -0.5, "oy": 0.7, "spriteScale": 2.3 },
-						{ "id": "room3_bed2", "kind": "bed", "hex": "N14", "ox": 0.0, "oy": -0.17, "spriteScale": 2.3 },
-						{ "id": "room3_bed3", "kind": "bed", "hex": "O15", "ox": 0.5, "oy": 0.7, "spriteScale": 2.3 },
-
-						{ "id": "room4_bed", "kind": "bed.double", "hex": "S14", "rotDeg": 270, "spriteScale": 2.4 },
-						{ "id": "room4_chair1", "kind": "chair", "hex": "W14", "rotDeg": 60, "ox": -0.2, "oy": 0.0, "spriteScale": 0.8 },
-						{ "id": "room4_chair2", "kind": "chair", "hex": "W13", "rotDeg": 120, "ox": -0.2, "oy": 0.0, "spriteScale": 0.8 },
-						{ "id": "room4_chair3", "kind": "chair", "hex": "U13", "rotDeg": 240, "ox": 0.2, "oy": 0.0, "spriteScale": 0.8 },
-						{ "id": "room4_table", "kind": "table.round", "hex": "V13", "rotDeg": 0, "spriteScale": 1.8 },
-						{ "id": "room4_chest", "kind": "chest", "hex": "S15", "ox": 0.0, "oy": -0.25, "spriteScale": 0.75 },
-						{ "id": "room4_hearth", "kind": "hearth", "hex": "X14", "rotDeg": 90, "ox": -0.5, "oy": -0.3, "spriteScale": 1.1 },
-						{ "id": "room4_side1", "kind": "table.sqr", "hex": "S13", "ox": -1.0, "oy": 0.0, "rotDeg": 90, "spriteScale": 0.5 },
-						{ "id": "room4_side2", "kind": "table.sqr", "hex": "S15", "ox": -1.0, "oy": 0.0, "rotDeg": 90, "spriteScale": 0.5 },
-
-						{ "id": "room5_bed", "kind": "bed.double", "hex": "S20", "rotDeg": 270, "spriteScale": 2.4 },
-						{ "id": "room5_chair1", "kind": "chair", "hex": "W21", "rotDeg": 60, "ox": -0.2, "oy": 0.0, "spriteScale": 0.8 },
-						{ "id": "room5_chair2", "kind": "chair", "hex": "W20", "rotDeg": 120, "ox": -0.2, "oy": 0.0, "spriteScale": 0.8 },
-						{ "id": "room5_chair3", "kind": "chair", "hex": "U20", "rotDeg": 240, "ox": 0.2, "oy": 0.0, "spriteScale": 0.8 },
-						{ "id": "room5_chair4", "kind": "chair", "hex": "U21", "rotDeg": 300, "ox": 0.2, "oy": 0.0, "spriteScale": 0.8 },
-						{ "id": "room5_table", "kind": "table.round", "hex": "V20", "rotDeg": 0, "spriteScale": 1.8 },
-						{ "id": "room5_chest", "kind": "chest", "hex": "S18", "rotDeg": 180, "ox": 0.0, "oy": 0.25, "spriteScale": 0.75 },
-						{ "id": "room5_hearth", "kind": "hearth", "hex": "X18", "rotDeg": 90, "ox": -0.56, "oy": 0.0, "spriteScale": 1.1 },
-						{ "id": "room5_side1", "kind": "table.sqr", "hex": "S21", "rotDeg": 90, "ox": -1.0, "oy": 0.0, "spriteScale": 0.5 },
-						{ "id": "room5_side2", "kind": "table.sqr", "hex": "S19", "rotDeg": 90, "ox": -1.0, "oy": 0.0, "spriteScale": 0.5 },
-
-						{ "id": "room6_hearth", "kind": "hearth", "hex": "Z18", "rotDeg": 270, "ox": -0.94, "oy": 0.0, "spriteScale": 1.1 },
-						{ "id": "room6_bath", "kind": "bath", "hex": "AB19", "ox": 0.0, "oy": 0.5, "spriteScale": 2.5 },
-
-						{ "id": "room7_bed", "kind": "bed.double", "hex": "AC14", "rotDeg": 90, "ox": 0.0, "oy": 0.0, "spriteScale": 2.4 },
-						{ "id": "room7_chair1", "kind": "chair", "hex": "AA14", "rotDeg": 60, "ox": -0.2, "oy": 0.0, "spriteScale": 0.8 },
-						{ "id": "room7_chair3", "kind": "chair", "hex": "Y13", "rotDeg": 240, "ox": 0.2, "oy": 0.0, "spriteScale": 0.8 },
-						{ "id": "room7_chair4", "kind": "chair", "hex": "Y14", "rotDeg": 300, "ox": 0.2, "oy": 0.0, "spriteScale": 0.8 },
-						{ "id": "room7_table", "kind": "table.round", "hex": "Z13", "rotDeg": 0, "spriteScale": 1.8 },
-						{ "id": "room7_chest", "kind": "chest", "hex": "AC15", "rotDeg": 0, "ox": 0.0, "oy": -0.25, "spriteScale": 0.75 },
-						{ "id": "room7_hearth", "kind": "hearth", "hex": "X14", "rotDeg": 270, "ox": 0.5, "oy": -0.3, "spriteScale": 1.1 },
-						{ "id": "room7_side1", "kind": "table.sqr", "hex": "AC13", "rotDeg": 90, "ox": 1.0, "oy": 0.0, "spriteScale": 0.5 },
-						{ "id": "room7_side2", "kind": "table.sqr", "hex": "AC15", "rotDeg": 90, "ox": 1.0, "oy": 0.0, "spriteScale": 0.5 },
-
-						{ "id": "room8_bed1", "kind": "bed", "hex": "AG15", "ox": -0.5, "oy": 0.7, "spriteScale": 2.3 },
-						{ "id": "room8_bed2", "kind": "bed", "hex": "AH14", "ox": 0.0, "oy": -0.17, "spriteScale": 2.3 },
-						{ "id": "room8_bed3", "kind": "bed", "hex": "AI15", "ox": 0.5, "oy": 0.7, "spriteScale": 2.3 },
-
-						{ "id": "room9_bed1", "kind": "bed", "hex": "AI19", "rotDeg": 90, "spriteScale": 2.3 },
-						{ "id": "room9_bed2", "kind": "bed", "hex": "AI18", "rotDeg": 90, "spriteScale": 2.3 },
-						{ "id": "room9_bed3", "kind": "bed", "hex": "AI17", "rotDeg": 90, "spriteScale": 2.3 },
-						{ "id": "room9_bed4", "kind": "bed", "hex": "AI16", "rotDeg": 90, "spriteScale": 2.3 },
-
-						{ "id": "room10_bed1", "kind": "bed", "hex": "AI21", "rotDeg": 90, "spriteScale": 2.3 },
-
-						{ "id": "stairs_down_to_ground", "kind": "stairs", "hex": "AC21", "rotDeg": 270, "ox": -1.0, "oy": 0.43, "spriteScaleX": 1.95, "spriteScaleY": 3.1 }
-					]
-				},
-				{
-					"id": "ground",
-					"name": "Ground",
-					"rooms": [
-						{ "id": "CrossKeysGroundFloor", "buildingId": "CrossKeysInn", "corners": ["M21.5", "AJ21", "AJ12.5", "M13"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "brick" } },
-						{ "id": "Pub", "buildingId": "CrossKeysInn", "corners": ["M21.5", "X21", "X12.5", "M13"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "brick" } },
-						{ "id": "Kitchen", "buildingId": "CrossKeysInn", "corners": ["X19.5", "AJ19.5", "AJ12.5", "X12.5"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "brick" } },
-						{ "id": "StairsUp", "buildingId": "CrossKeysInn", "corners": ["X21", "AA21.5", "AA20", "X19.5"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "brick" } },
-						{ "id": "Pantry", "buildingId": "CrossKeysInn", "corners": ["AA21.5", "AJ21", "AJ19.5", "AA20"], "thickness": 15, "floor": { "kind": "wood_oak" }, "wall": { "kind": "brick" } }
-					],
-					"openings": [
-						{ "id": "pub_window1", "kind": "window", "hex": "M20", "orientation": "v" },
-						{ "id": "pub_window2", "kind": "window", "hex": "M19", "orientation": "v" },
-						{ "id": "pub_window3", "kind": "window", "hex": "M15", "orientation": "v" },
-						{ "id": "pub_window4", "kind": "window", "hex": "M14", "orientation": "v" },
-						{ "id": "pub_window5", "kind": "window", "hex": "N12.5", "orientation": "h" },
-						{ "id": "pub_window6", "kind": "window", "hex": "O12", "orientation": "h" },
-						{ "id": "pub_window7", "kind": "window", "hex": "P12.5", "orientation": "h" },
-						{ "id": "pub_window8", "kind": "window", "hex": "Z12.5", "orientation": "h" },
-						{ "id": "pub_window9", "kind": "window", "hex": "AB12.5", "orientation": "h" },
-
-						{ "id": "kitchen_door", "kind": "door", "hex": "X14", "orientation": "v", "openPct": 1.0 },
-						{ "id": "door_to_upstairs", "kind": "door", "hex": "X20.25", "orientation": "v", "openPct": 1.0, "swing": 1 },
-						{ "id": "door_out1", "kind": "door", "hex": "M17", "orientation": "v", "openPct": 1.0 },
-						{ "id": "door_out2", "kind": "door", "hex": "U13", "orientation": "h", "openPct": 1.0 },
-						{ "id": "door_pantry", "kind": "door.wood", "hex": "AE20", "orientation": "h", "openPct": 1.0, "swing": 1 },
-
-						{ "id": "portal_up_AA21", "kind": "portal", "hex": "AA21", "trigger": "enter", "to": { "floorId": "upper", "hex": "AC21" } },
-						{ "id": "portal_up_AA20", "kind": "portal", "hex": "AA20", "trigger": "enter", "to": { "floorId": "upper", "hex": "AC20" } }
-					],
-					"objects": [
-						{ "id": "pub_table1", "kind": "table.rect", "hex": "O20", "rotDeg": 90, "spriteScale": 3.5 },
-						{ "id": "pub_table1_c1", "kind": "chair", "hex": "P20", "rotDeg": 90, "spriteScale": 0.75 },
-						{ "id": "pub_table1_c2", "kind": "chair", "hex": "P19", "rotDeg": 90, "spriteScale": 0.75 },
-						{ "id": "pub_table1_c3", "kind": "chair", "hex": "N20", "rotDeg": 270, "spriteScale": 0.75 },
-						{ "id": "pub_table1_c4", "kind": "chair", "hex": "N19", "rotDeg": 270, "spriteScale": 0.75 },
-
-						{ "id": "pub_table2", "kind": "table.rect", "hex": "O15", "rotDeg": 30, "spriteScale": 3.5 },
-						{ "id": "pub_table2_c1", "kind": "chair", "hex": "O16", "rotDeg": 30, "spriteScale": 0.75 },
-						{ "id": "pub_table2_c2", "kind": "chair", "hex": "P15", "rotDeg": 30, "spriteScale": 0.75 },
-						{ "id": "pub_table2_c3", "kind": "chair", "hex": "O14", "rotDeg": 210, "spriteScale": 0.75 },
-						{ "id": "pub_table2_c4", "kind": "chair", "hex": "N14", "rotDeg": 210, "spriteScale": 0.75 },
-
-						{ "id": "pub_table3", "kind": "table.rect", "hex": "S20", "rotDeg": 150, "spriteScale": 3.5 },
-						{ "id": "pub_table3_c1", "kind": "chair", "hex": "T19", "rotDeg": 150, "spriteScale": 0.75 },
-						{ "id": "pub_table3_c2", "kind": "chair", "hex": "S19", "rotDeg": 150, "spriteScale": 0.75 },
-						{ "id": "pub_table3_c3", "kind": "chair", "hex": "R20", "rotDeg": 330, "spriteScale": 0.75 },
-						{ "id": "pub_table3_c4", "kind": "chair", "hex": "S21", "rotDeg": 330, "spriteScale": 0.75 },
-
-						{ "id": "pub_table4", "kind": "table.round", "hex": "Q18", "rotDeg": 0, "spriteScale": 2.4 },
-						{ "id": "pub_table4_c1", "kind": "chair", "hex": "Q19", "rotDeg": 0, "spriteScale": 0.75 },
-						{ "id": "pub_table4_c2", "kind": "chair", "hex": "P17", "rotDeg": 240, "spriteScale": 0.75 },
-						{ "id": "pub_table4_c3", "kind": "chair", "hex": "R17", "rotDeg": 120, "spriteScale": 0.75 },
-
-						{ "id": "pub_table5", "kind": "table.round", "hex": "S15", "rotDeg": 0, "spriteScale": 2.4 },
-						{ "id": "pub_table5_c1", "kind": "chair", "hex": "T15", "rotDeg": 60, "spriteScale": 0.75 },
-						{ "id": "pub_table5_c2", "kind": "chair", "hex": "S14", "rotDeg": 180, "spriteScale": 0.75 },
-						{ "id": "pub_table5_c3", "kind": "chair", "hex": "R15", "rotDeg": 300, "spriteScale": 0.75 },
-
-						{ "id": "pub_table6", "kind": "table.round", "hex": "V17", "rotDeg": 0, "spriteScale": 2.4 },
-						{ "id": "pub_table6_c1", "kind": "chair", "hex": "V18", "rotDeg": 0, "spriteScale": 0.75 },
-						{ "id": "pub_table6_c2", "kind": "chair", "hex": "U17", "rotDeg": 240, "spriteScale": 0.75 },
-						{ "id": "pub_table6_c3", "kind": "chair", "hex": "W17", "rotDeg": 120, "spriteScale": 0.75 },
-						{ "id": "pub_table6_c4", "kind": "chair", "hex": "U18", "rotDeg": 300, "spriteScale": 0.75 },
-						{ "id": "pub_table6_c5", "kind": "chair", "hex": "V16", "rotDeg": 180, "spriteScale": 0.75 },
-
-						{ "id": "pub_hearth", "kind": "hearth", "hex": "X18", "rotDeg": 90, "ox": -0.56, "oy": 0.0, "spriteScale": 1.65 },
-
-						{ "id": "stairs_up_to_upper", "kind": "stairs", "hex": "Y21", "rotDeg": 270, "ox": 1.0, "oy": 0.43, "spriteScaleX": 1.95, "spriteScaleY": 3.1 },
-						{ "id": "stairs_down_to_basement", "kind": "stairs", "hex": "AC21", "rotDeg": 270, "ox": -1.0, "oy": 0.43, "spriteScaleX": 1.95, "spriteScaleY": 3.1 },
-
-						{ "id": "kitchen_hearth", "kind": "cooking.hearth", "hex": "Z18", "rotDeg": 270, "ox": -0.94, "oy": 0.0, "spriteScale": 2.42 },
-						{ "id": "kitchen_prep_table", "kind": "table.rect", "hex": "Z15.5", "rotDeg": 90, "ox": 0.0, "oy": -0.5, "spriteScale": 3.0 },
-						{ "id": "kitchen_sort_table", "kind": "table.rect", "hex": "AC18", "rotDeg": 0, "ox": 0.0, "oy": -0.5, "spriteScale": 3.0 },
-						{ "id": "kitchen_misc_table", "kind": "table.rect", "hex": "AF16.5", "rotDeg": 90, "ox": 0.0, "oy": -0.5, "spriteScale": 3.0 },
-						{ "id": "kitchen_plate_table", "kind": "table.rect", "hex": "AC15.5", "rotDeg": 90, "ox": 0.0, "oy": -0.5, "spriteScale": 3.0 },
-						{ "id": "kitchen_chop_block", "kind": "table.sqr", "hex": "AA16", "ox": 0.0, "oy": 0.0, "rotDeg": 90, "spriteScale": 1.25 },
-						{ "id": "kitchen_keg1", "kind": "keg", "hex": "AI14", "ox": 0.5, "oy": 0.0, "rotDeg": 0, "spriteScale": 2.0 },
-						{ "id": "kitchen_keg2", "kind": "keg", "hex": "AI15", "ox": 0.5, "oy": 0.0, "rotDeg": 0, "spriteScale": 2.0 },
-						{ "id": "kitchen_keg3", "kind": "keg", "hex": "AI16", "ox": 0.5, "oy": 0.0, "rotDeg": 0, "spriteScale": 2.0 },
-						{ "id": "kitchen_crate1", "kind": "crate", "hex": "AI19", "ox": 0.5, "oy": -0.5, "rotDeg": 0, "spriteScale": 1.25 },
-						{ "id": "kitchen_crate2", "kind": "crate", "hex": "AI18", "ox": 0.5, "oy": 0.0, "rotDeg": 60, "spriteScale": 1.25 },
-						{ "id": "kitchen_barrel1", "kind": "barrel", "hex": "AH19", "rotDeg": 0, "spriteScale": 1.25 }
-					]
-				},
-				{
-					"id": "basement",
-					"name": "Basement",
-					"rooms": [
-						{ "id": "BasementRoom", "buildingId": "CrossKeysInn", "corners": ["M21.5", "AJ21", "AJ12.5", "M13"], "thickness": 15, "floor": { "kind": "stone" }, "wall": { "kind": "brick" } }
-					],
-					"openings": [],
-					"objects": []
-				}
-			],
-			"tokens": [
-				{ "id": "a", "name": "Aelar", "side": "PC", "hex": "AE19", "label": "A", "init": 14, "hp": 42, "floorId": "upper" },
-				{ "id": "b", "name": "Bran", "side": "PC", "hex": "T15", "label": "B", "init": 12, "hp": 35, "floorId": "ground", "spriteFile": "ranger_male.png" },
-				{ "id": "g1", "name": "Goblin 1", "side": "NPC", "hex": "U19", "label": "G1", "init": 10, "hp": 8, "floorId": "upper" },
-				{ "id": "g2", "name": "Goblin 2", "side": "NPC", "hex": "V19", "label": "G2", "init": 10, "hp": 8, "floorId": "upper" },
-				{ "id": "g3", "name": "Goblin 3", "side": "NPC", "hex": "W19", "label": "G3", "init": 10, "hp": 8, "floorId": "upper" }
-			]
-		}
-	},
-	"links": []
+  "world": "Saffrondale",
+  "version": 1,
+  "meta": { "scale": "1 hex = 5 ft", "fogMode": "room" },
+  "active": { "recordId": "CrossKeysInn", "floorId": "ground", "camera_hex": "U16" },
+  "records": {
+    "CrossKeysInn": {
+      "meta": { "title": "Cross Keys Inn - Base", "battleId": "local", "round": 1 },
+      "view": { "camera_hex": "U16", "floorId": "ground" },
+      "fog": {
+        "enabled": true,
+        "mode": "room",
+        "visibleRoomIdsByFloor": { "upper": [], "ground": [], "basement": [] },
+        "exploredRoomIdsByFloor": { "upper": [], "ground": [], "basement": [] },
+        "autoCompute": true,
+        "autoExplore": true,
+        "maxDepth": 1,
+        "unseenAlpha": 0.92,
+        "exploredAlpha": 0.55
+      },
+      "floors": [
+        {
+          "id": "upper",
+          "name": "Upper",
+          "rooms": [
+            { "id": "CrossKeysUpperFloor", "buildingId": "CrossKeysInn", "corners": ["L21", "AJ21", "AJ12", "L12"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "wood_dark" } }
+          ],
+          "openings": [],
+          "objects": []
+        },
+        {
+          "id": "ground",
+          "name": "Ground",
+          "rooms": [
+            { "id": "CrossKeysGroundFloor", "buildingId": "CrossKeysInn", "corners": ["M21.5", "AJ21", "AJ12.5", "M13"], "thickness": 15, "floor": { "kind": "fog" }, "wall": { "kind": "brick" } }
+          ],
+          "openings": [
+            { "id": "door_front", "kind": "door.wood", "hex": "M17", "orientation": "v", "openPct": 0.0 }
+          ],
+          "objects": []
+        },
+        {
+          "id": "basement",
+          "name": "Basement",
+          "rooms": [
+            { "id": "BasementRoom", "buildingId": "CrossKeysInn", "corners": ["P18", "W18", "W14", "P14"], "thickness": 15, "floor": { "kind": "stone" }, "wall": { "kind": "brick" } }
+          ],
+          "openings": [],
+          "objects": []
+        }
+      ],
+      "tokens": []
+    }
+  },
+  "links": []
 }`;
 
   let WORLD_STATE = null; // holds the last parsed *world record* (if provided)
@@ -1455,7 +1324,9 @@ const EMBEDDED_WORLD_JSON = `{
 
   function readEmbeddedWorld() {
     try {
-      return JSON.parse(EMBEDDED_WORLD_JSON);
+      const parsed = JSON.parse(EMBEDDED_WORLD_JSON);
+      STATE_SOURCE = 'embedded';
+      return parsed;
     } catch (e) {
       console.warn('[Battlemat] Embedded world JSON parse failed:', e);
       return null;
@@ -1475,8 +1346,14 @@ const EMBEDDED_WORLD_JSON = `{
     if (!injected) return readEmbeddedWorld();
 
     try {
-      if (typeof injected === 'string') return JSON.parse(injected);
-      if (typeof injected === 'object') return injected;
+      if (typeof injected === 'string') {
+        STATE_SOURCE = 'file';
+        return JSON.parse(injected);
+      }
+      if (typeof injected === 'object') {
+        STATE_SOURCE = 'file';
+        return injected;
+      }
     } catch (e) {
       console.warn('[Battlemat] Bootstrap state parse failed; falling back to embedded demo:', e);
       return readEmbeddedWorld();
@@ -1716,6 +1593,7 @@ const EMBEDDED_WORLD_JSON = `{
     // 2) Otherwise fall back to injected state.
     const injected = (window && window.BATTLE_STATE != null) ? window.BATTLE_STATE : null;
     const raw = injected != null ? injected : DEFAULT_STATE;
+    if (injected != null) STATE_SOURCE = 'file';
     if (typeof raw === 'string') {
       try { return JSON.parse(raw); } catch { return DEFAULT_STATE; }
     }
@@ -3275,6 +3153,7 @@ const EMBEDDED_WORLD_JSON = `{
     const lines = [
       ['Version', VERSION],
       ['Battle', meta.battleId != null ? String(meta.battleId) : ''],
+      ['Source', STATE_SOURCE],
       ['Floor', floor && floor.name ? String(floor.name) : String(VIEW.floorId || '')],
       ['Round', String(round)],
       ['Camera', camHex],
@@ -3467,6 +3346,7 @@ function populateFloorSelect(floors) {
     populateFloorSelect(render.floors);
     populateCenterOn(state, tokens);
     updateSidebar(state, render.floor, rooms, openings, objects, tokens);
+    syncSourceSelect();
   }
 
   function redraw() {
@@ -3676,6 +3556,7 @@ function setActiveFloor(floorId, opts = {}) {
     const btnZoomIn = req('btnZoomIn');
     const btnRedraw = req('btnRedraw');
     const btnJump = req('btnJump');
+    const sourceSelect = req('sourceSelect');
 
     if (btnLeft) btnLeft.onclick = () => pan(-PAN_STEP, 0);
     if (btnRight) btnRight.onclick = () => pan(PAN_STEP, 0);
@@ -3722,6 +3603,10 @@ function setActiveFloor(floorId, opts = {}) {
 
     if (elSsSelect) {
       elSsSelect.onchange = () => setSupersample(elSsSelect.value);
+    }
+
+    if (sourceSelect) {
+      sourceSelect.onchange = () => applySourceSelection(sourceSelect.value);
     }
 
     window.onkeydown = (ev) => {
@@ -3987,3 +3872,4 @@ function setActiveFloor(floorId, opts = {}) {
   </script>
 </body>
 </html>
+
