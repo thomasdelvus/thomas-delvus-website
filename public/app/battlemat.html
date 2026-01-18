@@ -262,7 +262,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.55';
+  const VERSION = 'v6.56';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -401,8 +401,8 @@ Version: set in JS (VERSION)
   function getQueryParams(search = window.location.search) {
     const s = String(search || '').trim();
     const out = new Map();
-    if (!s || s === '?') return out;
-    const q = (s[0] === '?') ? s.slice(1) : s;
+    if (!s || s === '?' || s === '#') return out;
+    const q = (s[0] === '?' || s[0] === '#') ? s.slice(1) : s;
     for (const part of q.split('&')) {
       if (!part) continue;
       const [kRaw, vRaw] = part.split('=');
@@ -428,14 +428,52 @@ Version: set in JS (VERSION)
 
   function resolveBattleIdFromUrl() {
     const qp = getQueryParamsCached();
-    const bid = (
+    let bid = (
       qp.get('battle_id') ||
       qp.get('battleId') ||
       qp.get('battle') ||
       qp.get('id') ||
       ''
     ).trim();
-    return bid || null;
+    if (bid) return bid;
+
+    const hp = getQueryParams(window.location.hash);
+    bid = (
+      hp.get('battle_id') ||
+      hp.get('battleId') ||
+      hp.get('battle') ||
+      hp.get('id') ||
+      ''
+    ).trim();
+    if (bid) return bid;
+
+    // Support pretty URLs like /play/28 (rewrites may keep the path in the address bar).
+    const path = (window && window.location && window.location.pathname)
+      ? String(window.location.pathname)
+      : '';
+    const playMatch = path.match(/\/play\/([^\/?#]+)/i);
+    if (playMatch && playMatch[1]) {
+      try { return decodeURIComponent(playMatch[1]); } catch { return playMatch[1]; }
+    }
+
+    const matMatch = path.match(/\/battlemat\/([^\/?#]+)/i);
+    if (matMatch && matMatch[1]) {
+      try { return decodeURIComponent(matMatch[1]); } catch { return matMatch[1]; }
+    }
+
+    const href = (window && window.location && window.location.href)
+      ? String(window.location.href)
+      : '';
+    const hrefPlayMatch = href.match(/\/play\/([^\/?#]+)/i);
+    if (hrefPlayMatch && hrefPlayMatch[1]) {
+      try { return decodeURIComponent(hrefPlayMatch[1]); } catch { return hrefPlayMatch[1]; }
+    }
+    const hrefMatMatch = href.match(/\/battlemat\/([^\/?#]+)/i);
+    if (hrefMatMatch && hrefMatMatch[1]) {
+      try { return decodeURIComponent(hrefMatMatch[1]); } catch { return hrefMatMatch[1]; }
+    }
+
+    return null;
   }
 
   function resolveStateUrl() {
