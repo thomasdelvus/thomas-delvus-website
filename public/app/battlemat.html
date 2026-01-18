@@ -269,7 +269,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.64';
+  const VERSION = 'v6.65';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -3697,8 +3697,15 @@ function setActiveFloor(floorId, opts = {}) {
       if (!battleIdInput) return;
       const v = String(battleIdInput.value || '').trim();
       if (!v) return;
-      const target = '/play/' + encodeURIComponent(v);
-      try { window.location.href = target; } catch {}
+      const id = encodeURIComponent(v);
+      if (elError) { elError.hidden = true; elError.textContent = ''; }
+      stopStatePolling();
+      try { history.replaceState(null, '', '/play/' + id); } catch {}
+      STATE_URL = '/api/battles/' + id;
+      STATE_SOURCE = 'database';
+      startStatePolling();
+      syncSourceSelect();
+      syncBattleIdInput();
     };
 
     if (battleIdInput) {
