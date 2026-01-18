@@ -269,7 +269,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.63';
+  const VERSION = 'v6.64';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -408,7 +408,6 @@ Version: set in JS (VERSION)
   let SPRITE_LOAD_TICK = 0;
   let SPRITES_ENABLED = true;
   let STATE_SOURCE = 'embedded';
-  let MANUAL_BATTLE_ID = '';
 
   function getQueryParams(search = window.location.search) {
     const s = String(search || '').trim();
@@ -477,10 +476,6 @@ Version: set in JS (VERSION)
     return null;
   }
 
-  function setManualBattleId(v) {
-    MANUAL_BATTLE_ID = String(v || '').trim();
-  }
-
   function resolveBattleIdHintFromUrl() {
     const qp = getQueryParamsCached();
     let bid = (
@@ -544,10 +539,7 @@ Version: set in JS (VERSION)
   }
 
   function resolveBattleIdFromUrl() {
-    const hint = resolveBattleIdHintFromUrl();
-    if (hint) return hint;
-    if (MANUAL_BATTLE_ID) return MANUAL_BATTLE_ID;
-    return null;
+    return resolveBattleIdHintFromUrl();
   }
 
   function resolveStateUrl() {
@@ -730,7 +722,7 @@ Version: set in JS (VERSION)
   function syncBattleIdInput() {
     if (!elBattleIdInput) return;
     const hint = resolveBattleIdHintFromUrl() || '';
-    const v = hint || MANUAL_BATTLE_ID || '';
+    const v = hint || '';
     if (document.activeElement !== elBattleIdInput) {
       elBattleIdInput.value = v;
       if (!v) elBattleIdInput.placeholder = 'id';
@@ -3705,20 +3697,13 @@ function setActiveFloor(floorId, opts = {}) {
       if (!battleIdInput) return;
       const v = String(battleIdInput.value || '').trim();
       if (!v) return;
-      setManualBattleId(v);
       const target = '/play/' + encodeURIComponent(v);
-      try { history.replaceState(null, '', target); } catch {}
-      applySourceSelection('database');
-      syncBattleIdInput();
+      try { window.location.href = target; } catch {}
     };
 
     if (battleIdInput) {
       battleIdInput.value = resolveBattleIdHintFromUrl() || '';
-      battleIdInput.onchange = () => {
-        const v = String(battleIdInput.value || '').trim();
-        setManualBattleId(v);
-        syncBattleIdInput();
-      };
+      battleIdInput.onchange = () => syncBattleIdInput();
       battleIdInput.onkeydown = (ev) => {
         if (ev.key === 'Enter') {
           ev.preventDefault();
