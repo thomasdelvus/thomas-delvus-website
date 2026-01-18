@@ -1684,6 +1684,21 @@ const EMBEDDED_WORLD_JSON = `{
     return Array.isArray(arr) ? arr : [];
   }
 
+  function getMeta(state) {
+    const s = (state && typeof state === 'object') ? state : null;
+    return (s && s.meta && typeof s.meta === 'object') ? s.meta : {};
+  }
+
+  function getLastAction(state) {
+    const s = (state && typeof state === 'object') ? state : null;
+    return String((s && (s.last_action ?? s.lastAction ?? '')) || '');
+  }
+
+  function getNarration(state) {
+    const s = (state && typeof state === 'object') ? state : null;
+    return String((s && (s.narration ?? s.narrative ?? '')) || '');
+  }
+
   // ===== Hex id helpers =====
   function colToLetters(col) {
     let n = col + 1;
