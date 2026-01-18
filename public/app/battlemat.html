@@ -269,7 +269,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.62';
+  const VERSION = 'v6.63';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -408,6 +408,7 @@ Version: set in JS (VERSION)
   let SPRITE_LOAD_TICK = 0;
   let SPRITES_ENABLED = true;
   let STATE_SOURCE = 'embedded';
+  let MANUAL_BATTLE_ID = '';
 
   function getQueryParams(search = window.location.search) {
     const s = String(search || '').trim();
@@ -476,6 +477,10 @@ Version: set in JS (VERSION)
     return null;
   }
 
+  function setManualBattleId(v) {
+    MANUAL_BATTLE_ID = String(v || '').trim();
+  }
+
   function resolveBattleIdHintFromUrl() {
     const qp = getQueryParamsCached();
     let bid = (
@@ -539,7 +544,10 @@ Version: set in JS (VERSION)
   }
 
   function resolveBattleIdFromUrl() {
-    return resolveBattleIdHintFromUrl();
+    const hint = resolveBattleIdHintFromUrl();
+    if (hint) return hint;
+    if (MANUAL_BATTLE_ID) return MANUAL_BATTLE_ID;
+    return null;
   }
 
   function resolveStateUrl() {
@@ -721,7 +729,8 @@ Version: set in JS (VERSION)
 
   function syncBattleIdInput() {
     if (!elBattleIdInput) return;
-    const v = resolveBattleIdFromUrl() || '';
+    const hint = resolveBattleIdHintFromUrl() || '';
+    const v = hint || MANUAL_BATTLE_ID || '';
     if (document.activeElement !== elBattleIdInput) {
       elBattleIdInput.value = v;
       if (!v) elBattleIdInput.placeholder = 'id';
@@ -3696,6 +3705,7 @@ function setActiveFloor(floorId, opts = {}) {
       if (!battleIdInput) return;
       const v = String(battleIdInput.value || '').trim();
       if (!v) return;
+      setManualBattleId(v);
       const target = '/play/' + encodeURIComponent(v);
       try { history.replaceState(null, '', target); } catch {}
       applySourceSelection('database');
@@ -3703,8 +3713,12 @@ function setActiveFloor(floorId, opts = {}) {
     };
 
     if (battleIdInput) {
-      battleIdInput.value = resolveBattleIdFromUrl() || '';
-      battleIdInput.onchange = () => syncBattleIdInput();
+      battleIdInput.value = resolveBattleIdHintFromUrl() || '';
+      battleIdInput.onchange = () => {
+        const v = String(battleIdInput.value || '').trim();
+        setManualBattleId(v);
+        syncBattleIdInput();
+      };
       battleIdInput.onkeydown = (ev) => {
         if (ev.key === 'Enter') {
           ev.preventDefault();
