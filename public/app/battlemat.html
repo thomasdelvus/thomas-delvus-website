@@ -262,7 +262,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.53';
+  const VERSION = 'v6.55';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -435,23 +435,7 @@ Version: set in JS (VERSION)
       qp.get('id') ||
       ''
     ).trim();
-    if (bid) return bid;
-
-    // Support pretty URLs like /play/28 (rewrites may keep the path in the address bar).
-    const path = (window && window.location && window.location.pathname)
-      ? String(window.location.pathname)
-      : '';
-    const playMatch = path.match(/\/play\/([^\/?#]+)/i);
-    if (playMatch && playMatch[1]) {
-      try { return decodeURIComponent(playMatch[1]); } catch { return playMatch[1]; }
-    }
-
-    const matMatch = path.match(/\/battlemat\/([^\/?#]+)/i);
-    if (matMatch && matMatch[1]) {
-      try { return decodeURIComponent(matMatch[1]); } catch { return matMatch[1]; }
-    }
-
-    return null;
+    return bid || null;
   }
 
   function resolveStateUrl() {
