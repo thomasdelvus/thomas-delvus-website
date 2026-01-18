@@ -254,7 +254,7 @@ Version: set in JS (VERSION)
   // Goals: small core renderer (hexes + camera + layers + orientation + fog) + supersample.
   // =====================================================================================
 
-  const VERSION = 'v6.52';
+  const VERSION = 'v6.53';
 
   // ===== DOM =====
   const getEl = (id) => document.getElementById(id);
@@ -961,8 +961,8 @@ const EMBEDDED_WORLD_JSON = `{
 			"fog": {
 				"enabled": true,
 				"mode": "room",
-				"visibleRoomIdsByFloor": { "upper": [], "ground": [] },
-				"exploredRoomIdsByFloor": { "upper": ["Hallway1", "Hallway2"], "ground": ["Kitchen"] },
+				"visibleRoomIdsByFloor": { "upper": [], "ground": [], "basement": [] },
+				"exploredRoomIdsByFloor": { "upper": ["Hallway1", "Hallway2"], "ground": ["Kitchen"], "basement": [] },
 				"autoCompute": true,
 				"autoExplore": true,
 				"maxDepth": 1,
@@ -1177,6 +1177,15 @@ const EMBEDDED_WORLD_JSON = `{
 						{ "id": "kitchen_crate2", "kind": "crate", "hex": "AI18", "ox": 0.5, "oy": 0.0, "rotDeg": 60, "spriteScale": 1.25 },
 						{ "id": "kitchen_barrel1", "kind": "barrel", "hex": "AH19", "rotDeg": 0, "spriteScale": 1.25 }
 					]
+				},
+				{
+					"id": "basement",
+					"name": "Basement",
+					"rooms": [
+						{ "id": "BasementRoom", "buildingId": "CrossKeysInn", "corners": ["M21.5", "AJ21", "AJ12.5", "M13"], "thickness": 15, "floor": { "kind": "stone" }, "wall": { "kind": "brick" } }
+					],
+					"openings": [],
+					"objects": []
 				}
 			],
 			"tokens": [
