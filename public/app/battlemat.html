@@ -1154,6 +1154,20 @@ Version: set in JS (VERSION)
     return false;
   }
 
+  function buildRecordPatchForSave() {
+    const state = getState();
+    if (!state || typeof state !== 'object') return null;
+
+    const out = cloneDeepSafe(state);
+    delete out.__hydratedObjectsFlat;
+    delete out.__activeRecordId;
+    delete out.__worldName;
+    delete out.objects;  // derived flattening (avoid cross-floor pollution)
+    delete out.rooms;    // legacy top-level floor mirrors
+    delete out.openings; // legacy top-level floor mirrors
+    return out;
+  }
+
   async function saveStateToDatabase() {
     if (STATE_SOURCE !== 'database') {
       setToolStatus('DB: not active', 'error');
@@ -1164,7 +1178,7 @@ Version: set in JS (VERSION)
       setToolStatus('DB: missing battle id', 'error');
       return false;
     }
-    const raw = (WORLD_STATE && WORLD_STATE.records) ? WORLD_STATE : (CURRENT_RAW_STATE || CURRENT_STATE);
+    const raw = buildRecordPatchForSave();
     if (!raw) {
       setToolStatus('DB: no state', 'error');
       return false;
@@ -1175,7 +1189,7 @@ Version: set in JS (VERSION)
       const res = await fetch(url, {
         method: 'PUT',
         headers: { 'content-type': 'application/json', 'accept': 'application/json' },
-        body: JSON.stringify({ __full_replace: true, state_json: raw }),
+        body: JSON.stringify({ state_json: raw }),
       });
       if (!res.ok) throw new Error('DB save failed: ' + res.status + ' ' + res.statusText);
       EDITOR.saving = false;
