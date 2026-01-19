@@ -285,6 +285,7 @@ Version: set in JS (VERSION)
   <div id="layout">
     <div id="toolbox">
       <button class="toolBtn" id="toolSelect" data-tool="select">Select</button>
+      <button class="toolBtn" id="toolRoom" data-tool="room">Room</button>
       <button class="toolBtn" id="toolDoor" data-tool="door">Door</button>
       <button class="toolBtn" id="toolDelete" data-tool="delete">Delete</button>
       <div class="toolSep"></div>
@@ -335,6 +336,7 @@ Version: set in JS (VERSION)
     kvs: getEl('kvs'),
     turns: getEl('turns'),
     toolSelect: getEl('toolSelect'),
+    toolRoom: getEl('toolRoom'),
     toolDoor: getEl('toolDoor'),
     toolDelete: getEl('toolDelete'),
     btnSaveDb: getEl('btnSaveDb'),
@@ -372,6 +374,7 @@ Version: set in JS (VERSION)
   const elSs = els.ssText;
   const elSsSelect = els.ssSelect;
   const elToolSelect = els.toolSelect;
+  const elToolRoom = els.toolRoom;
   const elToolDoor = els.toolDoor;
   const elToolDelete = els.toolDelete;
   const elSaveDb = els.btnSaveDb;
@@ -462,6 +465,8 @@ Version: set in JS (VERSION)
   const EDITOR = {
     tool: 'select',
     preview: null,
+    roomStart: null,
+    roomPreview: null,
     selectedId: null,
     selectedFloorId: null,
     lastOpenings: null,
@@ -896,14 +901,17 @@ Version: set in JS (VERSION)
 
   function syncEditorButtons() {
     if (elToolSelect) elToolSelect.classList.toggle('active', EDITOR.tool === 'select');
+    if (elToolRoom) elToolRoom.classList.toggle('active', EDITOR.tool === 'room');
     if (elToolDoor) elToolDoor.classList.toggle('active', EDITOR.tool === 'door');
     if (elToolDelete) elToolDelete.classList.toggle('active', EDITOR.tool === 'delete');
   }
 
   function setEditorTool(tool) {
-    const t = (tool === 'door' || tool === 'delete' || tool === 'select') ? tool : 'select';
+    const t = (tool === 'door' || tool === 'room' || tool === 'delete' || tool === 'select') ? tool : 'select';
     EDITOR.tool = t;
     EDITOR.preview = null;
+    EDITOR.roomStart = null;
+    EDITOR.roomPreview = null;
     syncEditorButtons();
     safeRedraw();
   }
@@ -1084,6 +1092,65 @@ Version: set in JS (VERSION)
     return best;
   }
 
+  function roomHexFromWorld(world) {
+    const hex = openingHexFromWorld(world);
+    if (!hex || !Number.isFinite(hex.col) || !Number.isFinite(hex.row)) return null;
+    return { col: hex.col, row: roundQuarter(hex.row) };
+  }
+
+  function roomCornersFromHexes(a, b) {
+    if (!a || !b) return null;
+    const minCol = Math.min(a.col, b.col);
+    const maxCol = Math.max(a.col, b.col);
+    const minRow = Math.min(a.row, b.row);
+    const maxRow = Math.max(a.row, b.row);
+    if (!Number.isFinite(minCol) || !Number.isFinite(maxCol) || !Number.isFinite(minRow) || !Number.isFinite(maxRow)) return null;
+    if (Math.abs(maxCol - minCol) < 1e-6 || Math.abs(maxRow - minRow) < 1e-6) return null;
+    const tl = openingHexLabelFromCoords(minCol, maxRow);
+    const tr = openingHexLabelFromCoords(maxCol, maxRow);
+    const br = openingHexLabelFromCoords(maxCol, minRow);
+    const bl = openingHexLabelFromCoords(minCol, minRow);
+    if (!tl || !tr || !br || !bl) return null;
+    return [tl, tr, br, bl];
+  }
+
+  function roomDefaultsFor(ctx) {
+    const rooms = Array.isArray(ctx && ctx.rooms) ? ctx.rooms : [];
+    const last = rooms.length ? rooms[rooms.length - 1] : null;
+    const thickness = numOr(last && last.thickness, 15);
+    const floorKind = (last && last.floor && last.floor.kind) ? String(last.floor.kind) : 'wood';
+    const wallKind = (last && last.wall && last.wall.kind) ? String(last.wall.kind) : 'brick';
+    return { thickness, floorKind, wallKind };
+  }
+
+  function buildRoomPreview(ctx, startHex, endHex) {
+    const corners = roomCornersFromHexes(startHex, endHex);
+    if (!corners) return null;
+    const defaults = roomDefaultsFor(ctx);
+    return {
+      id: '__preview_room',
+      corners,
+      thickness: defaults.thickness,
+      floor: { kind: defaults.floorKind },
+      wall: { kind: defaults.wallKind },
+    };
+  }
+
+  function addRoomAtCorners(ctx, corners) {
+    if (!ctx || !ctx.floor || !Array.isArray(corners) || corners.length !== 4) return null;
+    if (!Array.isArray(ctx.floor.rooms)) ctx.floor.rooms = [];
+    const defaults = roomDefaultsFor(ctx);
+    const room = {
+      id: 'room_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e4).toString(36),
+      corners: corners.slice(),
+      thickness: defaults.thickness,
+      floor: { kind: defaults.floorKind },
+      wall: { kind: defaults.wallKind },
+    };
+    ctx.floor.rooms.push(room);
+    return room;
+  }
+
   function clearEditorPendingDeletes() {
     EDITOR.deletedOpeningsByFloor = {};
     EDITOR.deletedObjectsByFloor = {};
@@ -1219,9 +1286,17 @@ Version: set in JS (VERSION)
     const key = ev.key;
     const ctx = getEditorContext();
 
-    if (key === 'Escape' && EDITOR.tool !== 'select') {
-      setEditorTool('select');
-      return true;
+    if (key === 'Escape') {
+      if (EDITOR.tool === 'room' && EDITOR.roomStart) {
+        EDITOR.roomStart = null;
+        EDITOR.roomPreview = null;
+        safeRedraw();
+        return true;
+      }
+      if (EDITOR.tool !== 'select') {
+        setEditorTool('select');
+        return true;
+      }
     }
 
     const sel = ctx ? getSelectedOpening(ctx) : null;
@@ -3014,9 +3089,37 @@ const EMBEDDED_WORLD_JSON = `{
     ctx.restore();
   }
 
+  function drawRoomOverlay(room, opts = {}) {
+    if (!room || !room.corners) return;
+    let box = null;
+    try {
+      box = roomToWallBox(room);
+    } catch {
+      return;
+    }
+    const rect = roomFloorRectWorld(room, box);
+    const p1 = worldToScreen({ x: rect.x1, y: rect.y1 });
+    const p2 = worldToScreen({ x: rect.x2, y: rect.y2 });
+    const x = Math.min(p1.x, p2.x);
+    const y = Math.min(p1.y, p2.y);
+    const w = Math.abs(p2.x - p1.x);
+    const h = Math.abs(p2.y - p1.y);
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = opts.strokeStyle || 'rgba(67,209,122,0.9)';
+    ctx.lineWidth = Number.isFinite(opts.lineWidth) ? opts.lineWidth : 3;
+    if (opts.dash) ctx.setLineDash(opts.dash);
+    ctx.strokeRect(x, y, w, h);
+    ctx.restore();
+  }
+
   function drawEditorOverlays(wallSegs) {
     if (EDITOR.preview && EDITOR.preview.floorId === VIEW.floorId && EDITOR.tool === 'door') {
       drawOpeningOverlay(EDITOR.preview.opening, wallSegs, { dash: [6, 4] });
+    }
+
+    if (EDITOR.roomPreview && EDITOR.roomPreview.floorId === VIEW.floorId && EDITOR.tool === 'room') {
+      drawRoomOverlay(EDITOR.roomPreview.room, { dash: [6, 4] });
     }
 
     const openings = Array.isArray(EDITOR.lastOpenings) ? EDITOR.lastOpenings : [];
@@ -4301,6 +4404,7 @@ function setActiveFloor(floorId, opts = {}) {
     const btnRedraw = req('btnRedraw');
     const btnJump = req('btnJump');
     const toolSelect = req('toolSelect');
+    const toolRoom = req('toolRoom');
     const toolDoor = req('toolDoor');
     const toolDelete = req('toolDelete');
     const btnSaveDb = req('btnSaveDb');
@@ -4327,48 +4431,91 @@ function setActiveFloor(floorId, opts = {}) {
     };
 
     if (toolSelect) toolSelect.onclick = () => setEditorTool('select');
+    if (toolRoom) toolRoom.onclick = () => setEditorTool('room');
     if (toolDoor) toolDoor.onclick = () => setEditorTool('door');
     if (toolDelete) toolDelete.onclick = () => setEditorTool('delete');
     if (btnSaveDb) btnSaveDb.onclick = () => saveStateToDatabase();
 
     if (canvas) {
       canvas.addEventListener('mousemove', (ev) => {
-        if (EDITOR.tool !== 'door') {
-          if (EDITOR.preview) {
-            EDITOR.preview = null;
-            safeRedraw();
-          }
+        const tool = EDITOR.tool;
+        if (tool !== 'door' && tool !== 'room') {
+          let changed = false;
+          if (EDITOR.preview) { EDITOR.preview = null; changed = true; }
+          if (EDITOR.roomPreview) { EDITOR.roomPreview = null; changed = true; }
+          if (changed) safeRedraw();
           return;
         }
+
         const ctx = getEditorContext();
         if (!ctx) return;
         const world = eventToWorld(ev);
-        const placement = computeDoorPlacement(world, ctx);
-        if (!placement) {
-          if (EDITOR.preview) {
-            EDITOR.preview = null;
+
+        if (tool === 'door') {
+          const placement = computeDoorPlacement(world, ctx);
+          if (!placement) {
+            if (EDITOR.preview) {
+              EDITOR.preview = null;
+              safeRedraw();
+            }
+            return;
+          }
+          const prev = EDITOR.preview && EDITOR.preview.opening
+            ? EDITOR.preview.opening
+            : null;
+          if (prev && prev.hex === placement.hex && prev.orientation === placement.orientation && EDITOR.preview.floorId === ctx.floorId) {
+            return;
+          }
+          EDITOR.preview = {
+            floorId: ctx.floorId,
+            opening: { kind: 'door.wood', hex: placement.hex, orientation: placement.orientation }
+          };
+          safeRedraw();
+          return;
+        }
+
+        if (EDITOR.preview) {
+          EDITOR.preview = null;
+        }
+
+        if (EDITOR.roomStart && EDITOR.roomStart.floorId && EDITOR.roomStart.floorId !== ctx.floorId) {
+          EDITOR.roomStart = null;
+          EDITOR.roomPreview = null;
+        }
+
+        if (!EDITOR.roomStart) {
+          if (EDITOR.roomPreview) {
+            EDITOR.roomPreview = null;
             safeRedraw();
           }
           return;
         }
-        const prev = EDITOR.preview && EDITOR.preview.opening
-          ? EDITOR.preview.opening
-          : null;
-        if (prev && prev.hex === placement.hex && prev.orientation === placement.orientation && EDITOR.preview.floorId === ctx.floorId) {
+
+        const endHex = roomHexFromWorld(world);
+        const roomPreview = endHex ? buildRoomPreview(ctx, EDITOR.roomStart, endHex) : null;
+        if (!roomPreview) {
+          if (EDITOR.roomPreview) {
+            EDITOR.roomPreview = null;
+            safeRedraw();
+          }
           return;
         }
-        EDITOR.preview = {
-          floorId: ctx.floorId,
-          opening: { kind: 'door.wood', hex: placement.hex, orientation: placement.orientation }
-        };
+
+        const nextKey = Array.isArray(roomPreview.corners) ? roomPreview.corners.join('|') : '';
+        const prevKey = (EDITOR.roomPreview && EDITOR.roomPreview.room && Array.isArray(EDITOR.roomPreview.room.corners))
+          ? EDITOR.roomPreview.room.corners.join('|')
+          : '';
+        if (nextKey && nextKey === prevKey && EDITOR.roomPreview.floorId === ctx.floorId) return;
+
+        EDITOR.roomPreview = { floorId: ctx.floorId, room: roomPreview };
         safeRedraw();
       }, { passive: true });
 
       canvas.addEventListener('mouseleave', () => {
-        if (EDITOR.preview) {
-          EDITOR.preview = null;
-          safeRedraw();
-        }
+        let changed = false;
+        if (EDITOR.preview) { EDITOR.preview = null; changed = true; }
+        if (EDITOR.roomPreview) { EDITOR.roomPreview = null; changed = true; }
+        if (changed) safeRedraw();
       }, { passive: true });
 
       canvas.addEventListener('mousedown', (ev) => {
@@ -4390,6 +4537,39 @@ function setActiveFloor(floorId, opts = {}) {
           if (!opening) return;
           setSelectedOpening(opening, ctx.floorId);
           scheduleDatabaseSave();
+          safeRedraw();
+          return;
+        }
+
+        if (EDITOR.tool === 'room') {
+          if (EDITOR.roomStart && EDITOR.roomStart.floorId && EDITOR.roomStart.floorId !== ctx.floorId) {
+            EDITOR.roomStart = null;
+            EDITOR.roomPreview = null;
+          }
+
+          const hex = roomHexFromWorld(world);
+          if (!hex) return;
+
+          if (!EDITOR.roomStart) {
+            const start = { col: hex.col, row: hex.row, floorId: ctx.floorId };
+            EDITOR.roomStart = start;
+            const preview = buildRoomPreview(ctx, start, start);
+            EDITOR.roomPreview = preview ? { floorId: ctx.floorId, room: preview } : null;
+            safeRedraw();
+            return;
+          }
+
+          const corners = roomCornersFromHexes(EDITOR.roomStart, hex);
+          if (!corners) {
+            EDITOR.roomPreview = null;
+            safeRedraw();
+            return;
+          }
+
+          const room = addRoomAtCorners(ctx, corners);
+          EDITOR.roomStart = null;
+          EDITOR.roomPreview = null;
+          if (room) scheduleDatabaseSave();
           safeRedraw();
           return;
         }
