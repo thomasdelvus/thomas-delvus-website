@@ -101,11 +101,40 @@ Version: set in JS (VERSION)
 
     #layout{
       display:grid;
-      grid-template-columns: 1fr 320px;
+      grid-template-columns: 64px 1fr 320px;
       gap:12px;
       padding:12px;
       min-height:0;
     }
+
+    #toolbox{
+      background:var(--panel2);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:8px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      min-height:0;
+    }
+
+    .toolBtn{
+      width:100%;
+      padding:8px 6px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,0.06);
+      color:var(--text);
+      cursor:pointer;
+      font-size:11px;
+    }
+    .toolBtn:hover{background:rgba(255,255,255,0.12);}
+    .toolBtn.active{background:rgba(67,209,122,0.18); border-color:rgba(67,209,122,0.35);}
+
+    .toolSep{height:1px;background:var(--border2);margin:2px 0;}
+    .toolStatus{font-size:11px;color:var(--muted);text-align:center;}
+    .toolStatus.ok{color:var(--good);}
+    .toolStatus.error{color:var(--bad);}
 
     #canvasWrap{
       background:#0b0d12;
@@ -182,7 +211,9 @@ Version: set in JS (VERSION)
     .dpad button{padding:6px 8px; border-radius:10px; min-width:34px;}
 
     @media (max-width: 980px){
-      #layout{grid-template-columns:1fr;}
+      #layout{grid-template-columns:1fr; grid-template-rows:auto 1fr auto;}
+      #toolbox{flex-direction:row; flex-wrap:wrap; justify-content:space-between;}
+      .toolBtn{width:auto; flex:1 1 auto;}
     }
   </style>
 </head>
@@ -251,6 +282,14 @@ Version: set in JS (VERSION)
   </div>
 
   <div id="layout">
+    <div id="toolbox">
+      <button class="toolBtn" id="toolSelect" data-tool="select">Select</button>
+      <button class="toolBtn" id="toolDoor" data-tool="door">Door</button>
+      <button class="toolBtn" id="toolDelete" data-tool="delete">Delete</button>
+      <div class="toolSep"></div>
+      <button class="toolBtn" id="btnSaveDb" title="Save edits to database">Save</button>
+      <div class="toolStatus" id="toolStatus">DB: idle</div>
+    </div>
     <div id="canvasWrap"><canvas id="canvas" aria-label="Battlemat canvas"></canvas></div>
     <div id="sidebar">
       <h3>Status</h3>
@@ -294,6 +333,11 @@ Version: set in JS (VERSION)
     zoomText: getEl('zoomText'),
     kvs: getEl('kvs'),
     turns: getEl('turns'),
+    toolSelect: getEl('toolSelect'),
+    toolDoor: getEl('toolDoor'),
+    toolDelete: getEl('toolDelete'),
+    btnSaveDb: getEl('btnSaveDb'),
+    toolStatus: getEl('toolStatus'),
     btnLeft: getEl('btnLeft'),
     btnRight: getEl('btnRight'),
     btnUp: getEl('btnUp'),
@@ -326,6 +370,11 @@ Version: set in JS (VERSION)
   const elDpr = els.dprText;
   const elSs = els.ssText;
   const elSsSelect = els.ssSelect;
+  const elToolSelect = els.toolSelect;
+  const elToolDoor = els.toolDoor;
+  const elToolDelete = els.toolDelete;
+  const elSaveDb = els.btnSaveDb;
+  const elToolStatus = els.toolStatus;
 
   if (elVersion) elVersion.textContent = VERSION;
   document.title = 'Battlemat Core ' + VERSION;
@@ -408,6 +457,16 @@ Version: set in JS (VERSION)
   let SPRITE_LOAD_TICK = 0;
   let SPRITES_ENABLED = true;
   let STATE_SOURCE = 'embedded';
+
+  const EDITOR = {
+    tool: 'select',
+    preview: null,
+    selectedId: null,
+    selectedFloorId: null,
+    lastOpenings: null,
+    saveTimer: null,
+    saving: false,
+  };
 
   function getQueryParams(search = window.location.search) {
     const s = String(search || '').trim();
@@ -746,6 +805,7 @@ Version: set in JS (VERSION)
       }
       setCanonicalStateFromRaw(raw, stableJsonTextFor(raw));
       STATE_SOURCE = 'embedded';
+      setToolStatus('DB: not active');
       safeRedraw();
       syncSourceSelect();
       return;
@@ -757,6 +817,7 @@ Version: set in JS (VERSION)
         const url = resolveFileUrl();
         await loadStateFromUrl(url, 'file');
         safeRedraw();
+        setToolStatus('DB: not active');
       } catch (e) {
         if (elError) {
           elError.hidden = false;
@@ -779,6 +840,7 @@ Version: set in JS (VERSION)
     STATE_URL = dbUrl;
     STATE_SOURCE = 'database';
     startStatePolling();
+    setToolStatus('DB: idle');
     syncSourceSelect();
   }
 
@@ -814,6 +876,329 @@ Version: set in JS (VERSION)
     if (pollMs <= 0) return;
     if (STATE_POLL_TIMER) clearInterval(STATE_POLL_TIMER);
     STATE_POLL_TIMER = setInterval(pollStateLoop, pollMs);
+  }
+
+  // ===== Editor helpers =====
+  function setToolStatus(text, kind) {
+    if (!elToolStatus) return;
+    elToolStatus.textContent = String(text || '');
+    elToolStatus.classList.remove('ok', 'error');
+    if (kind === 'ok') elToolStatus.classList.add('ok');
+    if (kind === 'error') elToolStatus.classList.add('error');
+  }
+
+  function syncEditorButtons() {
+    if (elToolSelect) elToolSelect.classList.toggle('active', EDITOR.tool === 'select');
+    if (elToolDoor) elToolDoor.classList.toggle('active', EDITOR.tool === 'door');
+    if (elToolDelete) elToolDelete.classList.toggle('active', EDITOR.tool === 'delete');
+  }
+
+  function setEditorTool(tool) {
+    const t = (tool === 'door' || tool === 'delete' || tool === 'select') ? tool : 'select';
+    EDITOR.tool = t;
+    EDITOR.preview = null;
+    syncEditorButtons();
+    safeRedraw();
+  }
+
+  function screenToWorld(p) {
+    const cam = cameraWorld();
+    return { x: cam.x + (p.x - VIEW.anchor.x), y: cam.y + (p.y - VIEW.anchor.y) };
+  }
+
+  function eventToWorld(ev) {
+    const rect = canvas.getBoundingClientRect();
+    const x = ev.clientX - rect.left;
+    const y = ev.clientY - rect.top;
+    return screenToWorld({ x, y });
+  }
+
+  function roundQuarter(v) { return Math.round(v * 4) / 4; }
+
+  function formatStep(v) {
+    const s = roundQuarter(v).toFixed(2);
+    return s.replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+  }
+
+  function openingHexFromWorld(world) {
+    const size = GRID.size || 1;
+    const qf = (2 / 3) * (world.x / size);
+    const rf = ((-world.y) / size) / sqrt3 - (qf / 2);
+    const q = Math.round(qf);
+    const rowf = rf + (q - (q & 1)) / 2;
+    const row = roundQuarter(rowf);
+    return { col: q, row };
+  }
+
+  function openingHexLabelFromCoords(col, row) {
+    if (!Number.isFinite(col) || !Number.isFinite(row)) return null;
+    const rowNum = row + 1;
+    return colToLetters(col) + formatStep(rowNum);
+  }
+
+  function wallSegDistance2(seg, p) {
+    if (!seg) return Infinity;
+    if (seg.orientation === 'h') {
+      const dy = Math.abs((p && p.y) - seg.y);
+      let dx = 0;
+      if ((p && p.x) < seg.x1) dx = seg.x1 - (p.x);
+      else if ((p && p.x) > seg.x2) dx = (p.x) - seg.x2;
+      return dx * dx + dy * dy;
+    }
+    const dx = Math.abs((p && p.x) - seg.x);
+    let dy = 0;
+    if ((p && p.y) < seg.y1) dy = seg.y1 - (p.y);
+    else if ((p && p.y) > seg.y2) dy = (p.y) - seg.y2;
+    return dx * dx + dy * dy;
+  }
+
+  function projectToWall(seg, p) {
+    if (!seg) return null;
+    if (seg.orientation === 'h') {
+      return { x: clamp(p.x, seg.x1, seg.x2), y: seg.y };
+    }
+    return { x: seg.x, y: clamp(p.y, seg.y1, seg.y2) };
+  }
+
+  function pickBestWallSegment(wallSegs, p) {
+    const h = findNearestWallSegment(wallSegs, 'h', p);
+    const v = findNearestWallSegment(wallSegs, 'v', p);
+    const dh = wallSegDistance2(h, p);
+    const dv = wallSegDistance2(v, p);
+    if (!h && !v) return null;
+    return (dh <= dv) ? h : v;
+  }
+
+  function getEditorContext() {
+    const state = getState();
+    const render = buildRenderState(state);
+    const rooms = Array.isArray(render.rooms) ? render.rooms : [];
+    let openings = Array.isArray(render.floor && render.floor.openings) ? render.floor.openings : [];
+    if (render.floor && render.floor.openings !== openings) render.floor.openings = openings;
+    const wallSegs = dedupeWallSegments(buildWallSegments(rooms));
+    return { state, ...render, openings, wallSegs };
+  }
+
+  function computeDoorPlacement(world, ctx) {
+    if (!ctx || !ctx.wallSegs || !ctx.wallSegs.length) return null;
+    const seg = pickBestWallSegment(ctx.wallSegs, world);
+    if (!seg) return null;
+    const maxDist = GRID.size * 1.5;
+    if (wallSegDistance2(seg, world) > (maxDist * maxDist)) return null;
+    const proj = projectToWall(seg, world);
+    if (!proj) return null;
+    const hex = openingHexFromWorld(proj);
+    const label = openingHexLabelFromCoords(hex.col, hex.row);
+    if (!label) return null;
+    return { hex: label, orientation: seg.orientation };
+  }
+
+  function openingWorldCenter(opening, wallSegs) {
+    const p = parseOpeningHex(opening && opening.hex);
+    if (!p) return null;
+    const hexWorld = hexCenterWorld(p.col, p.row);
+    const orient = openingOrientation(opening);
+    const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
+    let cx = hexWorld.x;
+    let cy = hexWorld.y;
+    if (seg) {
+      if (orient === 'h') cy = seg.y;
+      else cx = seg.x;
+    }
+    return { x: cx, y: cy };
+  }
+
+  function ensureOpeningId(opening) {
+    if (!opening || opening.id) return opening && opening.id;
+    opening.id = 'opening_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e4).toString(36);
+    return opening.id;
+  }
+
+  function findOpeningNear(world, ctx, maxDist) {
+    const openings = Array.isArray(ctx && ctx.openings) ? ctx.openings : [];
+    const wallSegs = ctx && ctx.wallSegs ? ctx.wallSegs : [];
+    const limit = Number.isFinite(maxDist) ? maxDist : (GRID.size * 0.85);
+    const limit2 = limit * limit;
+    let best = null;
+    let bestD2 = Infinity;
+    for (const o of openings) {
+      const c = openingWorldCenter(o, wallSegs);
+      if (!c) continue;
+      const dx = c.x - world.x;
+      const dy = c.y - world.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 <= limit2 && d2 < bestD2) {
+        best = o;
+        bestD2 = d2;
+      }
+    }
+    return best;
+  }
+
+  function setSelectedOpening(opening, floorId) {
+    if (!opening) {
+      EDITOR.selectedId = null;
+      EDITOR.selectedFloorId = null;
+      return;
+    }
+    EDITOR.selectedId = ensureOpeningId(opening);
+    EDITOR.selectedFloorId = floorId || null;
+  }
+
+  function getSelectedOpening(ctx) {
+    if (!ctx || !ctx.openings || !EDITOR.selectedId) return null;
+    if (EDITOR.selectedFloorId && ctx.floorId && EDITOR.selectedFloorId !== ctx.floorId) return null;
+    return ctx.openings.find(o => o && o.id === EDITOR.selectedId) || null;
+  }
+
+  function addDoorAtPlacement(ctx, placement) {
+    if (!ctx || !ctx.floor || !placement) return null;
+    if (!Array.isArray(ctx.floor.openings)) ctx.floor.openings = [];
+    const openings = ctx.floor.openings;
+    const existing = openings.find(o => o && o.hex === placement.hex && openingOrientation(o) === placement.orientation);
+    if (existing) return existing;
+    const opening = {
+      id: 'door_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e4).toString(36),
+      kind: 'door.wood',
+      hex: placement.hex,
+      orientation: placement.orientation,
+      openPct: 0.0,
+    };
+    openings.push(opening);
+    return opening;
+  }
+
+  function updateOpeningHex(opening, colDelta, rowDelta) {
+    const p = parseOpeningHex(opening && opening.hex);
+    if (!p) return false;
+    const col = p.col + colDelta;
+    const row = roundQuarter(p.row + rowDelta);
+    const label = openingHexLabelFromCoords(col, row);
+    if (!label) return false;
+    opening.hex = label;
+    return true;
+  }
+
+  function removeOpening(ctx, opening) {
+    if (!ctx || !opening) return false;
+    const openings = Array.isArray(ctx.openings) ? ctx.openings : [];
+    const idx = openings.indexOf(opening);
+    if (idx < 0) return false;
+    openings.splice(idx, 1);
+    if (EDITOR.selectedId === opening.id) {
+      setSelectedOpening(null);
+    }
+    return true;
+  }
+
+  function handleEditorKey(ev) {
+    if (ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'SELECT' || ev.target.isContentEditable)) return false;
+    const key = ev.key;
+    const ctx = getEditorContext();
+
+    if (key === 'Escape' && EDITOR.tool !== 'select') {
+      setEditorTool('select');
+      return true;
+    }
+
+    const sel = ctx ? getSelectedOpening(ctx) : null;
+    if (!sel) return false;
+
+    if (key === 'Delete' || key === 'Backspace') {
+      if (removeOpening(ctx, sel)) {
+        scheduleDatabaseSave();
+        safeRedraw();
+      }
+      return true;
+    }
+
+    if (key === 'r' || key === 'R') {
+      sel.orientation = (openingOrientation(sel) === 'h') ? 'v' : 'h';
+      scheduleDatabaseSave();
+      safeRedraw();
+      return true;
+    }
+
+    if (key === 'ArrowLeft') {
+      if (updateOpeningHex(sel, -1, 0)) {
+        scheduleDatabaseSave();
+        safeRedraw();
+      }
+      return true;
+    }
+    if (key === 'ArrowRight') {
+      if (updateOpeningHex(sel, 1, 0)) {
+        scheduleDatabaseSave();
+        safeRedraw();
+      }
+      return true;
+    }
+    if (key === 'ArrowUp') {
+      if (updateOpeningHex(sel, 0, 1)) {
+        scheduleDatabaseSave();
+        safeRedraw();
+      }
+      return true;
+    }
+    if (key === 'ArrowDown') {
+      if (updateOpeningHex(sel, 0, -1)) {
+        scheduleDatabaseSave();
+        safeRedraw();
+      }
+      return true;
+    }
+
+    return false;
+  }
+
+  async function saveStateToDatabase() {
+    if (STATE_SOURCE !== 'database') {
+      setToolStatus('DB: not active', 'error');
+      return false;
+    }
+    const url = resolveDatabaseUrl() || STATE_URL;
+    if (!url) {
+      setToolStatus('DB: missing battle id', 'error');
+      return false;
+    }
+    const raw = (WORLD_STATE && WORLD_STATE.records) ? WORLD_STATE : (CURRENT_RAW_STATE || CURRENT_STATE);
+    if (!raw) {
+      setToolStatus('DB: no state', 'error');
+      return false;
+    }
+    EDITOR.saving = true;
+    setToolStatus('DB: saving...', null);
+    try {
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+        body: JSON.stringify({ state_json: raw }),
+      });
+      if (!res.ok) throw new Error('DB save failed: ' + res.status + ' ' + res.statusText);
+      EDITOR.saving = false;
+      setToolStatus('DB: saved', 'ok');
+      return true;
+    } catch (e) {
+      EDITOR.saving = false;
+      setToolStatus('DB: save error', 'error');
+      if (elError) {
+        elError.hidden = false;
+        elError.textContent = 'Database save error:' + String.fromCharCode(10) + String(e && e.message ? e.message : e);
+      }
+      return false;
+    }
+  }
+
+  function scheduleDatabaseSave() {
+    if (STATE_SOURCE !== 'database') {
+      setToolStatus('DB: not active', 'error');
+      return;
+    }
+    if (EDITOR.saveTimer) clearTimeout(EDITOR.saveTimer);
+    EDITOR.saveTimer = setTimeout(() => {
+      EDITOR.saveTimer = null;
+      saveStateToDatabase();
+    }, 400);
   }
 
   function resolveSpriteBasePath() {
@@ -2399,6 +2784,54 @@ const EMBEDDED_WORLD_JSON = `{
     ctx.restore();
   }
 
+  function drawOpeningOverlay(opening, wallSegs, opts = {}) {
+    const o = opening || {};
+    const orient = openingOrientation(o);
+    const p = parseOpeningHex(o.hex);
+    if (!p) return;
+
+    const hexWorld = hexCenterWorld(p.col, p.row);
+    const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
+    let cx = hexWorld.x;
+    let cy = hexWorld.y;
+    if (seg) {
+      if (orient === 'h') cy = seg.y;
+      else cx = seg.x;
+    }
+
+    const len = (GRID.size * 1.2) * openingSpan(o);
+    const half = len / 2;
+    const centerS = worldToScreen({ x: cx, y: cy });
+
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = opts.strokeStyle || 'rgba(67,209,122,0.9)';
+    ctx.lineWidth = Number.isFinite(opts.lineWidth) ? opts.lineWidth : 3;
+    if (opts.dash) ctx.setLineDash(opts.dash);
+    ctx.beginPath();
+    if (orient === 'h') {
+      ctx.moveTo(centerS.x - half, centerS.y);
+      ctx.lineTo(centerS.x + half, centerS.y);
+    } else {
+      ctx.moveTo(centerS.x, centerS.y - half);
+      ctx.lineTo(centerS.x, centerS.y + half);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawEditorOverlays(wallSegs) {
+    if (EDITOR.preview && EDITOR.preview.floorId === VIEW.floorId && EDITOR.tool === 'door') {
+      drawOpeningOverlay(EDITOR.preview.opening, wallSegs, { dash: [6, 4] });
+    }
+
+    const openings = Array.isArray(EDITOR.lastOpenings) ? EDITOR.lastOpenings : [];
+    if (EDITOR.selectedId && EDITOR.selectedFloorId === VIEW.floorId) {
+      const sel = openings.find(o => o && o.id === EDITOR.selectedId);
+      if (sel) drawOpeningOverlay(sel, wallSegs, { lineWidth: 4 });
+    }
+  }
+
   function roomById(rooms, id) {
     const target = String(id || '');
     if (!target) return null;
@@ -3446,6 +3879,7 @@ function populateFloorSelect(floors) {
     ctx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
 
     for (const o of openingsToDraw) drawOpeningMarker(o, wallSegs);
+    drawEditorOverlays(wallSegs);
 
     for (const o of objects) drawObject(o, roomMetaAll);
 
@@ -3496,6 +3930,7 @@ function populateFloorSelect(floors) {
     const openings = render.openings;
     const objects = render.objects;
     const tokens = render.tokens;
+    EDITOR.lastOpenings = openings;
 
     const roomMetaAll = buildRoomMeta(rooms);
 
@@ -3671,6 +4106,10 @@ function setActiveFloor(floorId, opts = {}) {
     const btnZoomIn = req('btnZoomIn');
     const btnRedraw = req('btnRedraw');
     const btnJump = req('btnJump');
+    const toolSelect = req('toolSelect');
+    const toolDoor = req('toolDoor');
+    const toolDelete = req('toolDelete');
+    const btnSaveDb = req('btnSaveDb');
     const sourceSelect = req('sourceSelect');
     const battleIdInput = req('battleIdInput');
     const battleIdApply = req('battleIdApply');
@@ -3692,6 +4131,92 @@ function setActiveFloor(floorId, opts = {}) {
       try { setCameraToHex(v, { manual: true }); }
       catch (e) { console.warn('[Battlemat] Bad jump hex:', v, e); }
     };
+
+    if (toolSelect) toolSelect.onclick = () => setEditorTool('select');
+    if (toolDoor) toolDoor.onclick = () => setEditorTool('door');
+    if (toolDelete) toolDelete.onclick = () => setEditorTool('delete');
+    if (btnSaveDb) btnSaveDb.onclick = () => saveStateToDatabase();
+
+    if (canvas) {
+      canvas.addEventListener('mousemove', (ev) => {
+        if (EDITOR.tool !== 'door') {
+          if (EDITOR.preview) {
+            EDITOR.preview = null;
+            safeRedraw();
+          }
+          return;
+        }
+        const ctx = getEditorContext();
+        if (!ctx) return;
+        const world = eventToWorld(ev);
+        const placement = computeDoorPlacement(world, ctx);
+        if (!placement) {
+          if (EDITOR.preview) {
+            EDITOR.preview = null;
+            safeRedraw();
+          }
+          return;
+        }
+        const prev = EDITOR.preview && EDITOR.preview.opening
+          ? EDITOR.preview.opening
+          : null;
+        if (prev && prev.hex === placement.hex && prev.orientation === placement.orientation && EDITOR.preview.floorId === ctx.floorId) {
+          return;
+        }
+        EDITOR.preview = {
+          floorId: ctx.floorId,
+          opening: { kind: 'door.wood', hex: placement.hex, orientation: placement.orientation }
+        };
+        safeRedraw();
+      }, { passive: true });
+
+      canvas.addEventListener('mouseleave', () => {
+        if (EDITOR.preview) {
+          EDITOR.preview = null;
+          safeRedraw();
+        }
+      }, { passive: true });
+
+      canvas.addEventListener('mousedown', (ev) => {
+        if (ev.button !== 0) return;
+        const ctx = getEditorContext();
+        if (!ctx) return;
+        const world = eventToWorld(ev);
+
+        if (EDITOR.tool === 'door') {
+          const hit = findOpeningNear(world, ctx);
+          if (hit) {
+            setSelectedOpening(hit, ctx.floorId);
+            safeRedraw();
+            return;
+          }
+          const placement = computeDoorPlacement(world, ctx);
+          if (!placement) return;
+          const opening = addDoorAtPlacement(ctx, placement);
+          if (!opening) return;
+          setSelectedOpening(opening, ctx.floorId);
+          scheduleDatabaseSave();
+          safeRedraw();
+          return;
+        }
+
+        if (EDITOR.tool === 'delete') {
+          const hit = findOpeningNear(world, ctx);
+          if (hit && removeOpening(ctx, hit)) {
+            scheduleDatabaseSave();
+          } else {
+            setSelectedOpening(null);
+          }
+          safeRedraw();
+          return;
+        }
+
+        const hit = findOpeningNear(world, ctx);
+        if (hit) setSelectedOpening(hit, ctx.floorId);
+        else setSelectedOpening(null);
+        safeRedraw();
+      });
+    }
 
     const applyBattleId = () => {
       if (!battleIdInput) return;
@@ -3759,6 +4284,10 @@ function setActiveFloor(floorId, opts = {}) {
 
     window.onkeydown = (ev) => {
       if (ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'SELECT' || ev.target.isContentEditable)) return;
+      if (handleEditorKey(ev)) {
+        ev.preventDefault();
+        return;
+      }
       const k = ev.key;
       if (k === 'ArrowLeft' || k === 'a' || k === 'A') pan(-PAN_STEP, 0);
       else if (k === 'ArrowRight' || k === 'd' || k === 'D') pan(PAN_STEP, 0);
@@ -3999,6 +4528,7 @@ function setActiveFloor(floorId, opts = {}) {
     }
 
     wireUI();
+    syncEditorButtons();
 
     // Remote state (DB/API) hookup with DB default.
     const qp = getQueryParamsCached();
@@ -4015,6 +4545,7 @@ function setActiveFloor(floorId, opts = {}) {
         STATE_SOURCE = 'database';
         startStatePolling();
         syncSourceSelect();
+        setToolStatus('DB: idle');
       }
     } else {
       const battleId = resolveBattleIdHintFromUrl();
@@ -4023,6 +4554,7 @@ function setActiveFloor(floorId, opts = {}) {
         STATE_SOURCE = 'database';
         startStatePolling();
         syncSourceSelect();
+        setToolStatus('DB: idle');
       } else {
         applySourceSelection('embedded');
       }
