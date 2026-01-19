@@ -448,7 +448,7 @@ Version: set in JS (VERSION)
   const STORAGE_ZOOM = STORAGE_PREFIX + 'zoom';
 
   // ===== Remote state (DB/API) =====
-  const DEFAULT_POLL_MS = 1000;
+  const DEFAULT_POLL_MS = 0;
   let CURRENT_STATE = null;
   let STATE_URL = null;
   let STATE_POLL_TIMER = null;
@@ -861,8 +861,10 @@ Version: set in JS (VERSION)
       // Show last error in UI, but don't spam.
       if (elError) {
         elError.hidden = false;
-        elError.textContent = 'State fetch error:' + String.fromCharCode(10) + String(e && e.stack ? e.stack : e);
+        elError.textContent = 'State fetch error (polling paused):' + String.fromCharCode(10) + String(e && e.stack ? e.stack : e);
       }
+      setToolStatus('DB: paused (error)', 'error');
+      stopStatePolling();
     }
   }
 
