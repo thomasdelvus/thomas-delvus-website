@@ -1,0 +1,9 @@
+---
+export const prerender = false;
+
+const { battle_id } = Astro.params;
+const id = encodeURIComponent(battle_id ?? "");
+const target = id ? `/app/battlemat.html?battle_id=${id}` : "/app/battlemat.html";
+
+return Astro.redirect(target, 302);
+---
