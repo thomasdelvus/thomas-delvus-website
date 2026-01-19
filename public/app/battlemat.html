@@ -194,6 +194,13 @@ Version: set in JS (VERSION)
       <div class="sep"></div>
       <div class="mini">Floor <select id="floorSelect"></select></div>
       <div class="sep"></div>
+      <div class="mini">Source
+        <select id="sourceSelect">
+          <option value="database" selected>Database</option>
+          <option value="file">File</option>
+          <option value="embedded">Embedded</option>
+        </select>
+      </div>
       <div class="mini">Battle ID
         <input id="battleIdInput" type="text" inputmode="numeric" placeholder="id" />
         <button id="battleIdApply" title="Use battle id">Use</button>
@@ -400,7 +407,7 @@ Version: set in JS (VERSION)
   let LAST_RENDER_SIGNATURE = '';
   let SPRITE_LOAD_TICK = 0;
   let SPRITES_ENABLED = true;
-  let STATE_SOURCE = 'database';
+  let STATE_SOURCE = 'embedded';
 
   function getQueryParams(search = window.location.search) {
     const s = String(search || '').trim();
@@ -3664,6 +3671,7 @@ function setActiveFloor(floorId, opts = {}) {
     const btnZoomIn = req('btnZoomIn');
     const btnRedraw = req('btnRedraw');
     const btnJump = req('btnJump');
+    const sourceSelect = req('sourceSelect');
     const battleIdInput = req('battleIdInput');
     const battleIdApply = req('battleIdApply');
 
@@ -3743,6 +3751,10 @@ function setActiveFloor(floorId, opts = {}) {
 
     if (elSsSelect) {
       elSsSelect.onchange = () => setSupersample(elSsSelect.value);
+    }
+
+    if (sourceSelect) {
+      sourceSelect.onchange = () => applySourceSelection(sourceSelect.value);
     }
 
     window.onkeydown = (ev) => {
@@ -3988,14 +4000,32 @@ function setActiveFloor(floorId, opts = {}) {
 
     wireUI();
 
-    // Remote state (DB/API) hookup (database-only)
-    STATE_URL = resolveDatabaseUrl();
-    if (STATE_URL) {
-      STATE_SOURCE = 'database';
-      startStatePolling();
-    } else if (elError) {
-      elError.hidden = false;
-      elError.textContent = 'Database state URL not available. Missing battle_id in URL.';
+    // Remote state (DB/API) hookup with DB default.
+    const qp = getQueryParamsCached();
+    const fromQuery = qp.get('stateUrl') || qp.get('state_url') || qp.get('state') || '';
+    const fromWindow = (window && window.BATTLE_STATE_URL) ? String(window.BATTLE_STATE_URL) : '';
+    const explicitUrl = (fromQuery || fromWindow || '').trim();
+
+    if (explicitUrl) {
+      const source = stateSourceFromUrl(explicitUrl);
+      if (source === 'file') {
+        applySourceSelection('file');
+      } else {
+        STATE_URL = explicitUrl;
+        STATE_SOURCE = 'database';
+        startStatePolling();
+        syncSourceSelect();
+      }
+    } else {
+      const battleId = resolveBattleIdHintFromUrl();
+      if (battleId) {
+        STATE_URL = `/api/battles/${encodeURIComponent(battleId)}`;
+        STATE_SOURCE = 'database';
+        startStatePolling();
+        syncSourceSelect();
+      } else {
+        applySourceSelection('embedded');
+      }
     }
 
     const ro = new ResizeObserver(() => resize());
