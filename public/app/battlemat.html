@@ -3702,7 +3702,10 @@ function setActiveFloor(floorId, opts = {}) {
 
     if (battleIdInput) {
       battleIdInput.value = resolveBattleIdHintFromUrl() || '';
-      battleIdInput.onchange = () => syncBattleIdInput();
+      battleIdInput.onchange = () => {
+        const v = String(battleIdInput.value || '').trim();
+        if (!v) syncBattleIdInput();
+      };
       battleIdInput.onkeydown = (ev) => {
         if (ev.key === 'Enter') {
           ev.preventDefault();
