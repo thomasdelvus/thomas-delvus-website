@@ -290,6 +290,8 @@ Version: set in JS (VERSION)
       <button class="toolBtn" id="toolDelete" data-tool="delete">Delete</button>
       <div class="toolSep"></div>
       <button class="toolBtn" id="btnSaveDb" title="Save edits to database">Save</button>
+      <button class="toolBtn" id="btnScanIssues" title="Scan for orphaned or duplicate items">Scan</button>
+      <button class="toolBtn" id="btnCleanOrphans" title="Remove orphan openings">Clean</button>
       <div class="toolStatus" id="toolStatus">DB: idle</div>
     </div>
     <div id="canvasWrap"><canvas id="canvas" aria-label="Battlemat canvas"></canvas></div>
@@ -340,6 +342,8 @@ Version: set in JS (VERSION)
     toolDoor: getEl('toolDoor'),
     toolDelete: getEl('toolDelete'),
     btnSaveDb: getEl('btnSaveDb'),
+    btnScanIssues: getEl('btnScanIssues'),
+    btnCleanOrphans: getEl('btnCleanOrphans'),
     toolStatus: getEl('toolStatus'),
     btnLeft: getEl('btnLeft'),
     btnRight: getEl('btnRight'),
@@ -471,6 +475,7 @@ Version: set in JS (VERSION)
     selectedId: null,
     selectedFloorId: null,
     lastOpenings: null,
+    issueMarkers: [],
     deletedOpeningsByFloor: {},
     deletedObjectsByFloor: {},
     deletedRoomsByFloor: {},
@@ -2340,9 +2345,119 @@ const EMBEDDED_WORLD_JSON = `{
     return removed;
   }
 
+  function findDuplicateIds(items) {
+    const counts = new Map();
+    for (const item of (Array.isArray(items) ? items : [])) {
+      const id = item && item.id != null ? String(item.id) : '';
+      if (!id) continue;
+      counts.set(id, (counts.get(id) || 0) + 1);
+    }
+    const dups = new Set();
+    for (const [id, count] of counts.entries()) {
+      if (count > 1) dups.add(id);
+    }
+    return dups;
+  }
+
+  function buildIssueMarkersForContext(ctx) {
+    const markers = [];
+    const seen = new Set();
+    if (!ctx) return markers;
+    const floorId = ctx.floorId;
+    const rooms = Array.isArray(ctx.rooms) ? ctx.rooms : [];
+    const openings = Array.isArray(ctx.openings) ? ctx.openings : [];
+    const objects = Array.isArray(ctx.objects) ? ctx.objects : [];
+    const tokens = Array.isArray(ctx.tokens) ? ctx.tokens : [];
+
+    const dupRooms = findDuplicateIds(rooms);
+    const dupOpenings = findDuplicateIds(openings);
+    const dupObjects = findDuplicateIds(objects);
+    const dupTokens = findDuplicateIds(tokens);
+
+    const addMarker = (m) => {
+      const key = [
+        m.kind || '',
+        m.floorId || '',
+        m.id || '',
+        m.hex || '',
+        Array.isArray(m.corners) ? m.corners.join(',') : ''
+      ].join('|');
+      if (seen.has(key)) return;
+      m.key = key;
+      markers.push(m);
+      seen.add(key);
+    };
+
+    const roomMeta = buildRoomMeta(rooms);
+
+    for (let i = 0; i < rooms.length; i++) {
+      const r = rooms[i];
+      const id = r && r.id != null ? String(r.id) : '';
+      if (!id) {
+        addMarker({ kind: 'room', floorId, id: '__missing_' + i, corners: r && r.corners ? r.corners.slice() : null, thickness: r && r.thickness, reason: 'missing_id' });
+      } else if (dupRooms.has(id)) {
+        addMarker({ kind: 'room', floorId, id, corners: r && r.corners ? r.corners.slice() : null, thickness: r && r.thickness, reason: 'duplicate_id' });
+      }
+    }
+
+    for (let i = 0; i < openings.length; i++) {
+      const o = openings[i];
+      const id = o && o.id != null ? String(o.id) : '';
+      const hex = o && o.hex ? String(o.hex) : '';
+      const orient = o && o.orientation ? String(o.orientation) : 'h';
+      const ids = openingRoomIds(o, roomMeta);
+      if (!id) {
+        addMarker({ kind: 'opening', floorId, id: '__missing_' + i, hex, orientation: orient, reason: 'missing_id' });
+      } else if (dupOpenings.has(id)) {
+        addMarker({ kind: 'opening', floorId, id, hex, orientation: orient, reason: 'duplicate_id' });
+      }
+      if (!ids.length) {
+        addMarker({ kind: 'opening', floorId, id: id || ('__orphan_' + i), hex, orientation: orient, reason: 'orphan' });
+      }
+    }
+
+    for (let i = 0; i < objects.length; i++) {
+      const o = objects[i];
+      const id = o && o.id != null ? String(o.id) : '';
+      const hex = o && o.hex ? String(o.hex) : '';
+      const ox = o && o.ox != null ? Number(o.ox) : undefined;
+      const oy = o && o.oy != null ? Number(o.oy) : undefined;
+      if (!id) {
+        addMarker({ kind: 'object', floorId, id: '__missing_' + i, hex, ox, oy, reason: 'missing_id' });
+      } else if (dupObjects.has(id)) {
+        addMarker({ kind: 'object', floorId, id, hex, ox, oy, reason: 'duplicate_id' });
+      }
+    }
+
+    for (let i = 0; i < tokens.length; i++) {
+      const t = tokens[i];
+      const id = t && t.id != null ? String(t.id) : '';
+      const hex = t && t.hex ? String(t.hex) : '';
+      if (!id) {
+        addMarker({ kind: 'token', floorId, id: '__missing_' + i, hex, reason: 'missing_id' });
+      } else if (dupTokens.has(id)) {
+        addMarker({ kind: 'token', floorId, id, hex, reason: 'duplicate_id' });
+      }
+    }
+
+    return markers;
+  }
+
+  function setIssueMarkers(markers) {
+    EDITOR.issueMarkers = Array.isArray(markers) ? markers : [];
+    safeRedraw();
+  }
+
   window.BattlematScanIssues = function (opts = {}) {
     const raw = CURRENT_RAW_STATE || WORLD_STATE || DEFAULT_STATE;
     const report = scanRawStateIssues(raw);
+    const ctx = getEditorContext();
+    const markers = buildIssueMarkersForContext(ctx);
+    setIssueMarkers(markers);
+    if (!opts || !opts.silent) {
+      const label = report.summary ? ('Issues: ' + report.summary.total) : 'Issues: ?';
+      setToolStatus(label, report.summary && report.summary.total ? 'error' : 'ok');
+    }
     if (!opts || !opts.silent) {
       console.group('[Battlemat] scan issues');
       console.log('Summary:', report.summary);
@@ -2350,6 +2465,11 @@ const EMBEDDED_WORLD_JSON = `{
       console.groupEnd();
     }
     return report;
+  };
+
+  window.BattlematClearIssues = function () {
+    setIssueMarkers([]);
+    setToolStatus('Issues: 0', 'ok');
   };
 
   window.BattlematCleanOrphanOpenings = function () {
@@ -2360,6 +2480,7 @@ const EMBEDDED_WORLD_JSON = `{
     }
     console.log('[Battlemat] orphan openings removed:', removed.length);
     if (removed.length) console.table(removed);
+    window.BattlematScanIssues({ silent: true });
     return removed;
   };
   }
@@ -2670,12 +2791,16 @@ const EMBEDDED_WORLD_JSON = `{
     const selected = (EDITOR.selectedId && EDITOR.selectedFloorId)
       ? { id: EDITOR.selectedId, floorId: EDITOR.selectedFloorId }
       : null;
+    const issues = Array.isArray(EDITOR.issueMarkers)
+      ? EDITOR.issueMarkers.map(m => String(m && m.key != null ? m.key : '')).filter(Boolean)
+      : [];
     return stableJsonTextFor({
       tool: EDITOR.tool,
       preview,
       roomPreview,
       roomStart,
       selected,
+      issues,
     });
   }
 
@@ -3356,6 +3481,67 @@ const EMBEDDED_WORLD_JSON = `{
     ctx.restore();
   }
 
+  function drawIssueRing(world, radius, opts = {}) {
+    if (!world) return;
+    const center = worldToScreen(world);
+    const r = Number.isFinite(radius) ? radius : (GRID.size * 0.5);
+    ctx.save();
+    ctx.globalAlpha = Number.isFinite(opts.alpha) ? opts.alpha : 0.9;
+    ctx.strokeStyle = opts.strokeStyle || 'rgba(255,80,80,0.95)';
+    ctx.lineWidth = Number.isFinite(opts.lineWidth) ? opts.lineWidth : 3;
+    if (opts.dash) ctx.setLineDash(opts.dash);
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawIssueMarker(marker, wallSegs) {
+    if (!marker) return;
+    const kind = String(marker.kind || '').toLowerCase();
+    if (kind === 'opening') {
+      const p = parseOpeningHex(marker.hex);
+      if (!p) return;
+      const hexWorld = hexCenterWorld(p.col, p.row);
+      const orient = marker.orientation || 'h';
+      const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
+      let cx = hexWorld.x;
+      let cy = hexWorld.y;
+      if (seg) {
+        if (orient === 'h' && Number.isFinite(seg.y)) cy = seg.y;
+        if (orient === 'v' && Number.isFinite(seg.x)) cx = seg.x;
+      }
+      drawIssueRing({ x: cx, y: cy }, GRID.size * 0.45);
+      return;
+    }
+    if (kind === 'object') {
+      const p = parseObjectHex(marker.hex);
+      if (!p) return;
+      const world = objectCenterWorld({ hex: marker.hex, ox: marker.ox, oy: marker.oy });
+      if (!world) return;
+      drawIssueRing(world, GRID.size * 0.45);
+      return;
+    }
+    if (kind === 'token') {
+      const p = parseHex(marker.hex);
+      if (!p) return;
+      drawIssueRing(hexCenterWorld(p.col, p.row), GRID.size * 0.5);
+      return;
+    }
+    if (kind === 'room') {
+      if (!Array.isArray(marker.corners)) return;
+      const room = { corners: marker.corners, thickness: marker.thickness || 0, wall: { kind: 'none' } };
+      let box = null;
+      try { box = roomToWallBox(room); } catch { box = null; }
+      if (!box) return;
+      const rect = roomFloorRectWorld(room, box);
+      const cx = (rect.x1 + rect.x2) / 2;
+      const cy = (rect.y1 + rect.y2) / 2;
+      const radius = Math.max(GRID.size * 0.6, Math.min(Math.abs(rect.x2 - rect.x1), Math.abs(rect.y2 - rect.y1)) * 0.35);
+      drawIssueRing({ x: cx, y: cy }, radius, { dash: [6, 4], lineWidth: 2.5 });
+    }
+  }
+
   function drawHexHighlight(col, row, opts = {}) {
     if (!Number.isFinite(col) || !Number.isFinite(row)) return;
     const center = worldToScreen(hexCenterWorld(col, row));
@@ -3394,6 +3580,12 @@ const EMBEDDED_WORLD_JSON = `{
     }
     if (EDITOR.tool === 'room' && EDITOR.roomStart && EDITOR.roomStart.floorId === VIEW.floorId) {
       drawHexHighlight(EDITOR.roomStart.col, EDITOR.roomStart.row, { fill: true, alpha: 0.55 });
+    }
+
+    const markers = Array.isArray(EDITOR.issueMarkers) ? EDITOR.issueMarkers : [];
+    for (const m of markers) {
+      if (!m || (m.floorId && String(m.floorId) !== String(VIEW.floorId))) continue;
+      drawIssueMarker(m, wallSegs);
     }
 
     const openings = Array.isArray(EDITOR.lastOpenings) ? EDITOR.lastOpenings : [];
@@ -4686,6 +4878,8 @@ function setActiveFloor(floorId, opts = {}) {
     const toolDoor = req('toolDoor');
     const toolDelete = req('toolDelete');
     const btnSaveDb = req('btnSaveDb');
+    const btnScanIssues = req('btnScanIssues');
+    const btnCleanOrphans = req('btnCleanOrphans');
     const sourceSelect = req('sourceSelect');
     const battleIdInput = req('battleIdInput');
     const battleIdApply = req('battleIdApply');
@@ -4713,6 +4907,8 @@ function setActiveFloor(floorId, opts = {}) {
     if (toolDoor) toolDoor.onclick = () => setEditorTool('door');
     if (toolDelete) toolDelete.onclick = () => setEditorTool('delete');
     if (btnSaveDb) btnSaveDb.onclick = () => saveStateToDatabase();
+    if (btnScanIssues) btnScanIssues.onclick = () => window.BattlematScanIssues();
+    if (btnCleanOrphans) btnCleanOrphans.onclick = () => window.BattlematCleanOrphanOpenings();
 
     if (canvas) {
       canvas.addEventListener('mousemove', (ev) => {
