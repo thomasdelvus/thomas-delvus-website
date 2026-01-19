@@ -1207,6 +1207,10 @@ Version: set in JS (VERSION)
     if (idx < 0) return false;
     tokens.splice(idx, 1);
     trackTokenDelete(token);
+    if (token.id && VIEW.followTokenId === token.id) {
+      VIEW.followTokenId = null;
+      if (elCenterOn) elCenterOn.value = '';
+    }
     return true;
   }
 
@@ -4391,11 +4395,21 @@ function setActiveFloor(floorId, opts = {}) {
         }
 
         if (EDITOR.tool === 'delete') {
-          const hit = findOpeningNear(world, ctx);
-          if (hit && removeOpening(ctx, hit)) {
+          const hitOpening = findOpeningNear(world, ctx);
+          if (hitOpening && removeOpening(ctx, hitOpening)) {
             scheduleDatabaseSave();
           } else {
-            setSelectedOpening(null);
+            const hitObject = findObjectNear(world, ctx);
+            if (hitObject && removeObject(ctx, hitObject)) {
+              scheduleDatabaseSave();
+            } else {
+              const hitToken = findTokenNear(world, ctx);
+              if (hitToken && removeToken(ctx, hitToken)) {
+                scheduleDatabaseSave();
+              } else {
+                setSelectedOpening(null);
+              }
+            }
           }
           safeRedraw();
           return;
