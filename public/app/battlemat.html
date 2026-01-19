@@ -466,6 +466,8 @@ Version: set in JS (VERSION)
     selectedFloorId: null,
     lastOpenings: null,
     deletedOpeningsByFloor: {},
+    deletedObjectsByFloor: {},
+    deletedTokens: {},
     saveTimer: null,
     saving: false,
   };
@@ -1040,8 +1042,52 @@ Version: set in JS (VERSION)
     return best;
   }
 
+  function findObjectNear(world, ctx, maxDist) {
+    const objects = Array.isArray(ctx && ctx.objects) ? ctx.objects : [];
+    const limit = Number.isFinite(maxDist) ? maxDist : (GRID.size * 0.9);
+    const limit2 = limit * limit;
+    let best = null;
+    let bestD2 = Infinity;
+    for (const o of objects) {
+      const c = objectCenterWorld(o);
+      if (!c) continue;
+      const dx = c.x - world.x;
+      const dy = c.y - world.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 <= limit2 && d2 < bestD2) {
+        best = o;
+        bestD2 = d2;
+      }
+    }
+    return best;
+  }
+
+  function findTokenNear(world, ctx, maxDist) {
+    const tokens = Array.isArray(ctx && ctx.tokens) ? ctx.tokens : [];
+    const limit = Number.isFinite(maxDist) ? maxDist : (GRID.size * 0.9);
+    const limit2 = limit * limit;
+    let best = null;
+    let bestD2 = Infinity;
+    for (const t of tokens) {
+      if (!t || !t.hex) continue;
+      const p = parseHexId(t.hex);
+      if (!p) continue;
+      const c = hexCenterWorld(p.col, p.row);
+      const dx = c.x - world.x;
+      const dy = c.y - world.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 <= limit2 && d2 < bestD2) {
+        best = t;
+        bestD2 = d2;
+      }
+    }
+    return best;
+  }
+
   function clearEditorPendingDeletes() {
     EDITOR.deletedOpeningsByFloor = {};
+    EDITOR.deletedObjectsByFloor = {};
+    EDITOR.deletedTokens = {};
   }
 
   function trackOpeningDelete(ctx, opening) {
@@ -1054,6 +1100,27 @@ Version: set in JS (VERSION)
     const bucket = EDITOR.deletedOpeningsByFloor;
     if (!bucket[floorId]) bucket[floorId] = {};
     bucket[floorId][openingId] = true;
+  }
+
+  function trackObjectDelete(ctx, object) {
+    const floorId = ctx && ctx.floorId ? String(ctx.floorId) : '';
+    const objectId = object && object.id ? String(object.id) : '';
+    if (!floorId || !objectId) return;
+    if (!EDITOR.deletedObjectsByFloor || typeof EDITOR.deletedObjectsByFloor !== 'object') {
+      EDITOR.deletedObjectsByFloor = {};
+    }
+    const bucket = EDITOR.deletedObjectsByFloor;
+    if (!bucket[floorId]) bucket[floorId] = {};
+    bucket[floorId][objectId] = true;
+  }
+
+  function trackTokenDelete(token) {
+    const tokenId = token && token.id ? String(token.id) : '';
+    if (!tokenId) return;
+    if (!EDITOR.deletedTokens || typeof EDITOR.deletedTokens !== 'object') {
+      EDITOR.deletedTokens = {};
+    }
+    EDITOR.deletedTokens[tokenId] = true;
   }
 
   function setSelectedOpening(opening, floorId) {
