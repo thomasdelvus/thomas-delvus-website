@@ -458,6 +458,7 @@ Version: set in JS (VERSION)
   let STATE_POLL_TIMER = null;
   let LAST_STATE_JSON = '';
   let LAST_RENDER_SIGNATURE = '';
+  let LAST_EDITOR_SIGNATURE = '';
   let SPRITE_LOAD_TICK = 0;
   let SPRITES_ENABLED = true;
   let STATE_SOURCE = 'embedded';
@@ -467,7 +468,6 @@ Version: set in JS (VERSION)
     preview: null,
     roomStart: null,
     roomPreview: null,
-    roomHover: null,
     selectedId: null,
     selectedFloorId: null,
     lastOpenings: null,
@@ -914,7 +914,6 @@ Version: set in JS (VERSION)
     EDITOR.preview = null;
     EDITOR.roomStart = null;
     EDITOR.roomPreview = null;
-    EDITOR.roomHover = null;
     syncEditorButtons();
     safeRedraw();
   }
@@ -2499,6 +2498,28 @@ const EMBEDDED_WORLD_JSON = `{
     return stableJsonTextFor(sig);
   }
 
+  function editorSignatureFor() {
+    const preview = (EDITOR.preview && EDITOR.preview.opening)
+      ? { floorId: EDITOR.preview.floorId || null, hex: EDITOR.preview.opening.hex, orientation: EDITOR.preview.opening.orientation }
+      : null;
+    const roomPreview = (EDITOR.roomPreview && EDITOR.roomPreview.room && Array.isArray(EDITOR.roomPreview.room.corners))
+      ? { floorId: EDITOR.roomPreview.floorId || null, corners: EDITOR.roomPreview.room.corners }
+      : null;
+    const roomStart = EDITOR.roomStart
+      ? { floorId: EDITOR.roomStart.floorId || null, col: EDITOR.roomStart.col, row: EDITOR.roomStart.row }
+      : null;
+    const selected = (EDITOR.selectedId && EDITOR.selectedFloorId)
+      ? { id: EDITOR.selectedId, floorId: EDITOR.selectedFloorId }
+      : null;
+    return stableJsonTextFor({
+      tool: EDITOR.tool,
+      preview,
+      roomPreview,
+      roomStart,
+      selected,
+    });
+  }
+
   // ===== Hex id helpers =====
   function colToLetters(col) {
     let n = col + 1;
@@ -3214,9 +3235,6 @@ const EMBEDDED_WORLD_JSON = `{
     }
     if (EDITOR.tool === 'room' && EDITOR.roomStart && EDITOR.roomStart.floorId === VIEW.floorId) {
       drawHexHighlight(EDITOR.roomStart.col, EDITOR.roomStart.row, { fill: true, alpha: 0.55 });
-    }
-    if (EDITOR.tool === 'room' && EDITOR.roomHover && EDITOR.roomHover.floorId === VIEW.floorId) {
-      drawHexHighlight(EDITOR.roomHover.col, EDITOR.roomHover.row, { fill: false, dash: [4, 4], alpha: 0.7 });
     }
 
     const openings = Array.isArray(EDITOR.lastOpenings) ? EDITOR.lastOpenings : [];
@@ -4339,7 +4357,8 @@ function populateFloorSelect(floors) {
       spritesEnabled,
       labelsEnabled,
     });
-    const shouldRender = renderSig !== LAST_RENDER_SIGNATURE;
+    const editorSig = editorSignatureFor();
+    const shouldRender = (renderSig !== LAST_RENDER_SIGNATURE) || (editorSig !== LAST_EDITOR_SIGNATURE);
 
     let roomsToDraw = rooms;
     let openingsToDraw = openings;
@@ -4374,6 +4393,7 @@ function populateFloorSelect(floors) {
 
       renderScene(rooms, roomsToDraw, openingsToDraw, objects, tokens, roomMetaAll, fogEnabled);
       LAST_RENDER_SIGNATURE = renderSig;
+      LAST_EDITOR_SIGNATURE = editorSig;
     }
     updateUI(state, render, rooms, openings, objects, tokens);
 
@@ -4575,26 +4595,9 @@ function setActiveFloor(floorId, opts = {}) {
           EDITOR.preview = null;
         }
 
-        if (EDITOR.roomHover && EDITOR.roomHover.floorId !== ctx.floorId) {
-          EDITOR.roomHover = null;
-        }
-
-        const hoverHex = roomHexFromWorld(world);
-        if (hoverHex) {
-          const prev = EDITOR.roomHover;
-          if (!prev || prev.col !== hoverHex.col || prev.row !== hoverHex.row || prev.floorId !== ctx.floorId) {
-            EDITOR.roomHover = { col: hoverHex.col, row: hoverHex.row, floorId: ctx.floorId };
-            safeRedraw();
-          }
-        } else if (EDITOR.roomHover) {
-          EDITOR.roomHover = null;
-          safeRedraw();
-        }
-
         if (EDITOR.roomStart && EDITOR.roomStart.floorId && EDITOR.roomStart.floorId !== ctx.floorId) {
           EDITOR.roomStart = null;
           EDITOR.roomPreview = null;
-          EDITOR.roomHover = null;
         }
 
         if (!EDITOR.roomStart) {
