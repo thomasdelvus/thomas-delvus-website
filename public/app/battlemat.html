@@ -2199,10 +2199,169 @@ const EMBEDDED_WORLD_JSON = `{
   // Debug helper: lets you easily copy the canonical "raw" JSON (world wrapper if present).
   // Note: This returns the last parsed WORLD_STATE if you loaded a world wrapper; otherwise it returns DEFAULT_STATE.
   if (typeof window !== 'undefined') {
-    window.BattlematExportRawState = function () {
-      const raw = WORLD_STATE || DEFAULT_STATE;
-      return JSON.stringify(raw, null, 2);
+  window.BattlematExportRawState = function () {
+    const raw = WORLD_STATE || DEFAULT_STATE;
+    return JSON.stringify(raw, null, 2);
+  };
+
+  function scanCollectionIds(items, label, recordId, floorId, issues) {
+    const counts = new Map();
+    for (const item of (Array.isArray(items) ? items : [])) {
+      const id = item && item.id != null ? String(item.id) : '';
+      if (!id) {
+        issues.push({ type: 'missing_id', label, recordId, floorId, id: '', detail: '' });
+        continue;
+      }
+      counts.set(id, (counts.get(id) || 0) + 1);
+    }
+    for (const [id, count] of counts.entries()) {
+      if (count > 1) {
+        issues.push({ type: 'duplicate_id', label, recordId, floorId, id, detail: 'count=' + count });
+      }
+    }
+  }
+
+  function scanSceneIssues(scene, recordId) {
+    const issues = [];
+    const floors = getFloorsFromState(scene);
+    const floorIds = floors.map(f => (f && f.id != null) ? String(f.id) : '');
+    const floorSet = new Set(floorIds.filter(Boolean));
+
+    const tokens = getTokensArray(scene);
+    scanCollectionIds(tokens, 'token', recordId, '', issues);
+    for (const t of tokens) {
+      if (!t || !t.hex) continue;
+      const p = parseHex(t.hex);
+      if (!p) {
+        issues.push({ type: 'bad_hex', label: 'token', recordId, floorId: entityFloorId(t), id: String(t.id || ''), detail: String(t.hex || '') });
+      }
+      const fid = entityFloorId(t);
+      if (fid && !floorSet.has(String(fid))) {
+        issues.push({ type: 'unknown_floor', label: 'token', recordId, floorId: String(fid), id: String(t.id || ''), detail: 'floorId not found' });
+      }
+    }
+
+    for (const floor of floors) {
+      const floorId = floor && floor.id != null ? String(floor.id) : '';
+      const rooms = Array.isArray(floor && floor.rooms) ? floor.rooms : [];
+      const openings = Array.isArray(floor && floor.openings) ? floor.openings : [];
+      const objects = Array.isArray(floor && floor.objects) ? floor.objects : [];
+
+      scanCollectionIds(rooms, 'room', recordId, floorId, issues);
+      scanCollectionIds(openings, 'opening', recordId, floorId, issues);
+      scanCollectionIds(objects, 'object', recordId, floorId, issues);
+
+      for (const r of rooms) {
+        const corners = Array.isArray(r && r.corners) ? r.corners : null;
+        if (!corners || corners.length !== 4) {
+          issues.push({ type: 'bad_corners', label: 'room', recordId, floorId, id: String(r && r.id || ''), detail: 'corners=' + (corners ? corners.length : 0) });
+          continue;
+        }
+        for (const c of corners) {
+          try { parseCornerHexId(c); } catch (e) {
+            issues.push({ type: 'bad_corner_hex', label: 'room', recordId, floorId, id: String(r && r.id || ''), detail: String(c) });
+          }
+        }
+      }
+
+      const roomMeta = buildRoomMeta(rooms);
+      for (const o of openings) {
+        const p = parseOpeningHex(o && o.hex);
+        if (!p) {
+          issues.push({ type: 'bad_hex', label: 'opening', recordId, floorId, id: String(o && o.id || ''), detail: String(o && o.hex || '') });
+          continue;
+        }
+        const ids = openingRoomIds(o, roomMeta);
+        if (!ids.length) {
+          issues.push({ type: 'orphan_opening', label: 'opening', recordId, floorId, id: String(o && o.id || ''), detail: String(o && o.hex || '') });
+        }
+      }
+
+      for (const o of objects) {
+        const p = parseObjectHex(o && o.hex);
+        if (!p) {
+          issues.push({ type: 'bad_hex', label: 'object', recordId, floorId, id: String(o && o.id || ''), detail: String(o && o.hex || '') });
+        }
+      }
+    }
+
+    return { recordId, issues };
+  }
+
+  function scanRawStateIssues(raw) {
+    const report = { issues: [], records: [] };
+    const w = (raw && raw.records && raw.active) ? raw : null;
+    if (w) {
+      const recordIds = Object.keys(w.records || {});
+      for (const rid of recordIds) {
+        const rec = w.records[rid];
+        const res = scanSceneIssues(rec, String(rid));
+        report.records.push(res);
+        report.issues.push(...res.issues);
+      }
+    } else {
+      const res = scanSceneIssues(raw, 'Scene');
+      report.records.push(res);
+      report.issues.push(...res.issues);
+    }
+    report.summary = {
+      total: report.issues.length,
+      duplicate_id: report.issues.filter(i => i.type === 'duplicate_id').length,
+      missing_id: report.issues.filter(i => i.type === 'missing_id').length,
+      bad_hex: report.issues.filter(i => i.type === 'bad_hex').length,
+      orphan_opening: report.issues.filter(i => i.type === 'orphan_opening').length,
+      bad_corners: report.issues.filter(i => i.type === 'bad_corners').length,
+      bad_corner_hex: report.issues.filter(i => i.type === 'bad_corner_hex').length,
+      unknown_floor: report.issues.filter(i => i.type === 'unknown_floor').length,
     };
+    return report;
+  }
+
+  function cleanOrphanOpeningsInScene(scene) {
+    const removed = [];
+    const floors = getFloorsFromState(scene);
+    for (const floor of floors) {
+      const floorId = floor && floor.id != null ? String(floor.id) : '';
+      const rooms = Array.isArray(floor && floor.rooms) ? floor.rooms : [];
+      const openings = Array.isArray(floor && floor.openings) ? floor.openings : [];
+      if (!openings.length) continue;
+      const roomMeta = buildRoomMeta(rooms);
+      for (let i = openings.length - 1; i >= 0; i -= 1) {
+        const o = openings[i];
+        const ids = openingRoomIds(o, roomMeta);
+        if (!ids.length) {
+          const ctx = { openings, floorId };
+          if (removeOpening(ctx, o)) {
+            removed.push({ floorId, id: String(o && o.id || ''), hex: String(o && o.hex || '') });
+          }
+        }
+      }
+    }
+    return removed;
+  }
+
+  window.BattlematScanIssues = function (opts = {}) {
+    const raw = CURRENT_RAW_STATE || WORLD_STATE || DEFAULT_STATE;
+    const report = scanRawStateIssues(raw);
+    if (!opts || !opts.silent) {
+      console.group('[Battlemat] scan issues');
+      console.log('Summary:', report.summary);
+      if (report.issues.length) console.table(report.issues);
+      console.groupEnd();
+    }
+    return report;
+  };
+
+  window.BattlematCleanOrphanOpenings = function () {
+    const scene = getState();
+    const removed = cleanOrphanOpeningsInScene(scene);
+    if (removed.length) {
+      scheduleDatabaseSave();
+    }
+    console.log('[Battlemat] orphan openings removed:', removed.length);
+    if (removed.length) console.table(removed);
+    return removed;
+  };
   }
   function parseMaybeJson(rawOrJson) {
     if (rawOrJson == null) return null;
@@ -4386,8 +4545,10 @@ function populateFloorSelect(floors) {
 
         openingsToDraw = openings.filter(o => {
           const ids = openingRoomIds(o, roomMetaAll);
-          if (ids.length === 2) return (renderableRoomIds.has(ids[0]) || renderableRoomIds.has(ids[1]));
-          return true;
+          if (!ids.length) return false;
+          const isRenderable = (id) => renderableRoomIds.has(id) || baseFogRoomIds.has(id);
+          if (ids.length === 1) return isRenderable(ids[0]);
+          return (isRenderable(ids[0]) || isRenderable(ids[1]));
         });
       }
 
