@@ -467,11 +467,13 @@ Version: set in JS (VERSION)
     preview: null,
     roomStart: null,
     roomPreview: null,
+    roomHover: null,
     selectedId: null,
     selectedFloorId: null,
     lastOpenings: null,
     deletedOpeningsByFloor: {},
     deletedObjectsByFloor: {},
+    deletedRoomsByFloor: {},
     deletedTokens: {},
     saveTimer: null,
     saving: false,
@@ -912,6 +914,7 @@ Version: set in JS (VERSION)
     EDITOR.preview = null;
     EDITOR.roomStart = null;
     EDITOR.roomPreview = null;
+    EDITOR.roomHover = null;
     syncEditorButtons();
     safeRedraw();
   }
@@ -1092,6 +1095,21 @@ Version: set in JS (VERSION)
     return best;
   }
 
+  function findRoomAtWorld(world, ctx) {
+    const rooms = Array.isArray(ctx && ctx.rooms) ? ctx.rooms : [];
+    if (!rooms.length) return null;
+    let meta = null;
+    try {
+      meta = buildRoomMeta(rooms);
+    } catch {
+      meta = null;
+    }
+    if (!meta) return null;
+    const rid = pickRoomAtWorldPoint(meta, world);
+    if (!rid) return null;
+    return rooms.find(r => r && String(r.id) === String(rid)) || null;
+  }
+
   function roomHexFromWorld(world) {
     const hex = openingHexFromWorld(world);
     if (!hex || !Number.isFinite(hex.col) || !Number.isFinite(hex.row)) return null;
@@ -1154,6 +1172,7 @@ Version: set in JS (VERSION)
   function clearEditorPendingDeletes() {
     EDITOR.deletedOpeningsByFloor = {};
     EDITOR.deletedObjectsByFloor = {};
+    EDITOR.deletedRoomsByFloor = {};
     EDITOR.deletedTokens = {};
   }
 
@@ -1179,6 +1198,18 @@ Version: set in JS (VERSION)
     const bucket = EDITOR.deletedObjectsByFloor;
     if (!bucket[floorId]) bucket[floorId] = {};
     bucket[floorId][objectId] = true;
+  }
+
+  function trackRoomDelete(ctx, room) {
+    const floorId = ctx && ctx.floorId ? String(ctx.floorId) : '';
+    const roomId = room && room.id ? String(room.id) : '';
+    if (!floorId || !roomId) return;
+    if (!EDITOR.deletedRoomsByFloor || typeof EDITOR.deletedRoomsByFloor !== 'object') {
+      EDITOR.deletedRoomsByFloor = {};
+    }
+    const bucket = EDITOR.deletedRoomsByFloor;
+    if (!bucket[floorId]) bucket[floorId] = {};
+    bucket[floorId][roomId] = true;
   }
 
   function trackTokenDelete(token) {
@@ -1278,6 +1309,19 @@ Version: set in JS (VERSION)
       VIEW.followTokenId = null;
       if (elCenterOn) elCenterOn.value = '';
     }
+    return true;
+  }
+
+  function removeRoom(ctx, room) {
+    if (!ctx || !room) return false;
+    const rooms = Array.isArray(ctx.rooms) ? ctx.rooms : [];
+    let idx = rooms.indexOf(room);
+    if (idx < 0 && room.id) {
+      idx = rooms.findIndex(r => r && r.id === room.id);
+    }
+    if (idx < 0) return false;
+    rooms.splice(idx, 1);
+    trackRoomDelete(ctx, room);
     return true;
   }
 
@@ -1385,6 +1429,24 @@ Version: set in JS (VERSION)
     }
   }
 
+  function applyPendingRoomDeletes(out) {
+    const pending = EDITOR.deletedRoomsByFloor;
+    if (!pending || !out || !Array.isArray(out.floors)) return;
+    for (const floor of out.floors) {
+      if (!floor || !floor.id) continue;
+      const byId = pending[floor.id];
+      if (!byId) continue;
+      const ids = Object.keys(byId);
+      if (!ids.length) continue;
+      const existing = Array.isArray(floor.rooms) ? floor.rooms : [];
+      const filtered = existing.filter(r => !(r && r.id && byId[r.id]));
+      for (const id of ids) {
+        filtered.push({ id, deleted: true });
+      }
+      floor.rooms = filtered;
+    }
+  }
+
   function applyPendingTokenDeletes(out) {
     const pending = EDITOR.deletedTokens;
     if (!pending || !out) return;
@@ -1401,6 +1463,7 @@ Version: set in JS (VERSION)
   function applyPendingDeletes(out) {
     applyPendingOpeningDeletes(out);
     applyPendingObjectDeletes(out);
+    applyPendingRoomDeletes(out);
     applyPendingTokenDeletes(out);
   }
 
@@ -3113,16 +3176,30 @@ const EMBEDDED_WORLD_JSON = `{
     ctx.restore();
   }
 
-  function drawRoomStartMarker(start) {
-    if (!start) return;
-    const center = worldToScreen(hexCenterWorld(start.col, start.row));
-    const r = Math.max(4, GRID.size * 0.18);
+  function drawHexHighlight(col, row, opts = {}) {
+    if (!Number.isFinite(col) || !Number.isFinite(row)) return;
+    const center = worldToScreen(hexCenterWorld(col, row));
+    const r = GRID.size;
+    const h = (Math.sqrt(3) / 2) * r;
+    const points = [
+      { x: center.x + r, y: center.y },
+      { x: center.x + r / 2, y: center.y + h },
+      { x: center.x - r / 2, y: center.y + h },
+      { x: center.x - r, y: center.y },
+      { x: center.x - r / 2, y: center.y - h },
+      { x: center.x + r / 2, y: center.y - h },
+    ];
     ctx.save();
-    ctx.globalAlpha = 0.85;
-    ctx.strokeStyle = 'rgba(67,209,122,0.9)';
-    ctx.lineWidth = 2;
+    ctx.globalAlpha = Number.isFinite(opts.alpha) ? opts.alpha : 0.5;
+    ctx.strokeStyle = opts.strokeStyle || 'rgba(67,209,122,0.9)';
+    ctx.fillStyle = opts.fillStyle || 'rgba(67,209,122,0.12)';
+    ctx.lineWidth = Number.isFinite(opts.lineWidth) ? opts.lineWidth : 2.5;
+    if (opts.dash) ctx.setLineDash(opts.dash);
     ctx.beginPath();
-    ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+    ctx.closePath();
+    if (opts.fill !== false) ctx.fill();
     ctx.stroke();
     ctx.restore();
   }
@@ -3136,7 +3213,10 @@ const EMBEDDED_WORLD_JSON = `{
       drawRoomOverlay(EDITOR.roomPreview.room, { dash: [6, 4] });
     }
     if (EDITOR.tool === 'room' && EDITOR.roomStart && EDITOR.roomStart.floorId === VIEW.floorId) {
-      drawRoomStartMarker(EDITOR.roomStart);
+      drawHexHighlight(EDITOR.roomStart.col, EDITOR.roomStart.row, { fill: true, alpha: 0.55 });
+    }
+    if (EDITOR.tool === 'room' && EDITOR.roomHover && EDITOR.roomHover.floorId === VIEW.floorId) {
+      drawHexHighlight(EDITOR.roomHover.col, EDITOR.roomHover.row, { fill: false, dash: [4, 4], alpha: 0.7 });
     }
 
     const openings = Array.isArray(EDITOR.lastOpenings) ? EDITOR.lastOpenings : [];
@@ -4495,9 +4575,26 @@ function setActiveFloor(floorId, opts = {}) {
           EDITOR.preview = null;
         }
 
+        if (EDITOR.roomHover && EDITOR.roomHover.floorId !== ctx.floorId) {
+          EDITOR.roomHover = null;
+        }
+
+        const hoverHex = roomHexFromWorld(world);
+        if (hoverHex) {
+          const prev = EDITOR.roomHover;
+          if (!prev || prev.col !== hoverHex.col || prev.row !== hoverHex.row || prev.floorId !== ctx.floorId) {
+            EDITOR.roomHover = { col: hoverHex.col, row: hoverHex.row, floorId: ctx.floorId };
+            safeRedraw();
+          }
+        } else if (EDITOR.roomHover) {
+          EDITOR.roomHover = null;
+          safeRedraw();
+        }
+
         if (EDITOR.roomStart && EDITOR.roomStart.floorId && EDITOR.roomStart.floorId !== ctx.floorId) {
           EDITOR.roomStart = null;
           EDITOR.roomPreview = null;
+          EDITOR.roomHover = null;
         }
 
         if (!EDITOR.roomStart) {
@@ -4604,7 +4701,12 @@ function setActiveFloor(floorId, opts = {}) {
               if (hitToken && removeToken(ctx, hitToken)) {
                 scheduleDatabaseSave();
               } else {
-                setSelectedOpening(null);
+                const hitRoom = findRoomAtWorld(world, ctx);
+                if (hitRoom && removeRoom(ctx, hitRoom)) {
+                  scheduleDatabaseSave();
+                } else {
+                  setSelectedOpening(null);
+                }
               }
             }
           }
