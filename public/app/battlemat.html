@@ -287,6 +287,7 @@ Version: set in JS (VERSION)
       <button class="toolBtn" id="toolSelect" data-tool="select">Select</button>
       <button class="toolBtn" id="toolRoom" data-tool="room">Room</button>
       <button class="toolBtn" id="toolDoor" data-tool="door">Door</button>
+      <button class="toolBtn" id="toolWindow" data-tool="window">Window</button>
       <button class="toolBtn" id="toolDelete" data-tool="delete">Delete</button>
       <div class="toolSep"></div>
       <button class="toolBtn" id="btnSaveDb" title="Save edits to database">Save</button>
@@ -340,6 +341,7 @@ Version: set in JS (VERSION)
     toolSelect: getEl('toolSelect'),
     toolRoom: getEl('toolRoom'),
     toolDoor: getEl('toolDoor'),
+    toolWindow: getEl('toolWindow'),
     toolDelete: getEl('toolDelete'),
     btnSaveDb: getEl('btnSaveDb'),
     btnScanIssues: getEl('btnScanIssues'),
@@ -380,6 +382,7 @@ Version: set in JS (VERSION)
   const elToolSelect = els.toolSelect;
   const elToolRoom = els.toolRoom;
   const elToolDoor = els.toolDoor;
+  const elToolWindow = els.toolWindow;
   const elToolDelete = els.toolDelete;
   const elSaveDb = els.btnSaveDb;
   const elToolStatus = els.toolStatus;
@@ -910,11 +913,12 @@ Version: set in JS (VERSION)
     if (elToolSelect) elToolSelect.classList.toggle('active', EDITOR.tool === 'select');
     if (elToolRoom) elToolRoom.classList.toggle('active', EDITOR.tool === 'room');
     if (elToolDoor) elToolDoor.classList.toggle('active', EDITOR.tool === 'door');
+    if (elToolWindow) elToolWindow.classList.toggle('active', EDITOR.tool === 'window');
     if (elToolDelete) elToolDelete.classList.toggle('active', EDITOR.tool === 'delete');
   }
 
   function setEditorTool(tool) {
-    const t = (tool === 'door' || tool === 'room' || tool === 'delete' || tool === 'select') ? tool : 'select';
+    const t = (tool === 'door' || tool === 'window' || tool === 'room' || tool === 'delete' || tool === 'select') ? tool : 'select';
     EDITOR.tool = t;
     EDITOR.preview = null;
     EDITOR.roomStart = null;
@@ -1250,6 +1254,23 @@ Version: set in JS (VERSION)
     const opening = {
       id: 'door_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e4).toString(36),
       kind: 'door.wood',
+      hex: placement.hex,
+      orientation: placement.orientation,
+      openPct: 0.0,
+    };
+    openings.push(opening);
+    return opening;
+  }
+
+  function addWindowAtPlacement(ctx, placement) {
+    if (!ctx || !ctx.floor || !placement) return null;
+    if (!Array.isArray(ctx.floor.openings)) ctx.floor.openings = [];
+    const openings = ctx.floor.openings;
+    const existing = openings.find(o => o && o.hex === placement.hex && openingOrientation(o) === placement.orientation);
+    if (existing) return existing;
+    const opening = {
+      id: 'window_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e4).toString(36),
+      kind: 'window',
       hex: placement.hex,
       orientation: placement.orientation,
       openPct: 0.0,
@@ -3575,7 +3596,7 @@ const EMBEDDED_WORLD_JSON = `{
   }
 
   function drawEditorOverlays(wallSegs) {
-    if (EDITOR.preview && EDITOR.preview.floorId === VIEW.floorId && EDITOR.tool === 'door') {
+    if (EDITOR.preview && EDITOR.preview.floorId === VIEW.floorId && (EDITOR.tool === 'door' || EDITOR.tool === 'window')) {
       drawOpeningOverlay(EDITOR.preview.opening, wallSegs, { dash: [6, 4] });
     }
 
@@ -4880,6 +4901,7 @@ function setActiveFloor(floorId, opts = {}) {
     const toolSelect = req('toolSelect');
     const toolRoom = req('toolRoom');
     const toolDoor = req('toolDoor');
+    const toolWindow = req('toolWindow');
     const toolDelete = req('toolDelete');
     const btnSaveDb = req('btnSaveDb');
     const btnScanIssues = req('btnScanIssues');
@@ -4909,6 +4931,7 @@ function setActiveFloor(floorId, opts = {}) {
     if (toolSelect) toolSelect.onclick = () => setEditorTool('select');
     if (toolRoom) toolRoom.onclick = () => setEditorTool('room');
     if (toolDoor) toolDoor.onclick = () => setEditorTool('door');
+    if (toolWindow) toolWindow.onclick = () => setEditorTool('window');
     if (toolDelete) toolDelete.onclick = () => setEditorTool('delete');
     if (btnSaveDb) btnSaveDb.onclick = () => saveStateToDatabase();
     if (btnScanIssues) btnScanIssues.onclick = () => window.BattlematScanIssues();
@@ -4917,7 +4940,7 @@ function setActiveFloor(floorId, opts = {}) {
     if (canvas) {
       canvas.addEventListener('mousemove', (ev) => {
         const tool = EDITOR.tool;
-        if (tool !== 'door' && tool !== 'room') {
+        if (tool !== 'door' && tool !== 'window' && tool !== 'room') {
           let changed = false;
           if (EDITOR.preview) { EDITOR.preview = null; changed = true; }
           if (EDITOR.roomPreview) { EDITOR.roomPreview = null; changed = true; }
@@ -4929,7 +4952,7 @@ function setActiveFloor(floorId, opts = {}) {
         if (!ctx) return;
         const world = eventToWorld(ev);
 
-        if (tool === 'door') {
+        if (tool === 'door' || tool === 'window') {
           const placement = computeDoorPlacement(world, ctx);
           if (!placement) {
             if (EDITOR.preview) {
@@ -4946,7 +4969,7 @@ function setActiveFloor(floorId, opts = {}) {
           }
           EDITOR.preview = {
             floorId: ctx.floorId,
-            opening: { kind: 'door.wood', hex: placement.hex, orientation: placement.orientation }
+            opening: { kind: (tool === 'window' ? 'window' : 'door.wood'), hex: placement.hex, orientation: placement.orientation }
           };
           safeRedraw();
           return;
@@ -5012,6 +5035,23 @@ function setActiveFloor(floorId, opts = {}) {
           const placement = computeDoorPlacement(world, ctx);
           if (!placement) return;
           const opening = addDoorAtPlacement(ctx, placement);
+          if (!opening) return;
+          setSelectedOpening(opening, ctx.floorId);
+          scheduleDatabaseSave();
+          safeRedraw();
+          return;
+        }
+
+        if (EDITOR.tool === 'window') {
+          const hit = findOpeningNear(world, ctx);
+          if (hit) {
+            setSelectedOpening(hit, ctx.floorId);
+            safeRedraw();
+            return;
+          }
+          const placement = computeDoorPlacement(world, ctx);
+          if (!placement) return;
+          const opening = addWindowAtPlacement(ctx, placement);
           if (!opening) return;
           setSelectedOpening(opening, ctx.floorId);
           scheduleDatabaseSave();
