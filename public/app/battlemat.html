@@ -1475,6 +1475,7 @@ Version: set in JS (VERSION)
     const state = getState();
     if (!state || typeof state !== 'object') return null;
 
+    const recordId = (state && state.__activeRecordId) ? String(state.__activeRecordId) : '';
     const out = cloneDeepSafe(state);
     applyPendingDeletes(out);
     delete out.__hydratedObjectsFlat;
@@ -1483,6 +1484,9 @@ Version: set in JS (VERSION)
     delete out.objects;  // derived flattening (avoid cross-floor pollution)
     delete out.rooms;    // legacy top-level floor mirrors
     delete out.openings; // legacy top-level floor mirrors
+    if (recordId) {
+      return { records: { [recordId]: out } };
+    }
     return out;
   }
 
