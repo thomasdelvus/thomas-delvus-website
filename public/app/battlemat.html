@@ -465,6 +465,7 @@ Version: set in JS (VERSION)
     selectedId: null,
     selectedFloorId: null,
     lastOpenings: null,
+    deletedOpeningsByFloor: {},
     saveTimer: null,
     saving: false,
   };
@@ -710,6 +711,7 @@ Version: set in JS (VERSION)
   }
 
   function setCanonicalStateFromRaw(raw, jsonTextHint) {
+    clearEditorPendingDeletes();
     CURRENT_RAW_STATE = raw;
     LAST_STATE_JSON = String(jsonTextHint != null ? jsonTextHint : stableJsonTextFor(raw));
 
@@ -1038,6 +1040,22 @@ Version: set in JS (VERSION)
     return best;
   }
 
+  function clearEditorPendingDeletes() {
+    EDITOR.deletedOpeningsByFloor = {};
+  }
+
+  function trackOpeningDelete(ctx, opening) {
+    const floorId = ctx && ctx.floorId ? String(ctx.floorId) : '';
+    const openingId = opening && opening.id ? String(opening.id) : '';
+    if (!floorId || !openingId) return;
+    if (!EDITOR.deletedOpeningsByFloor || typeof EDITOR.deletedOpeningsByFloor !== 'object') {
+      EDITOR.deletedOpeningsByFloor = {};
+    }
+    const bucket = EDITOR.deletedOpeningsByFloor;
+    if (!bucket[floorId]) bucket[floorId] = {};
+    bucket[floorId][openingId] = true;
+  }
+
   function setSelectedOpening(opening, floorId) {
     if (!opening) {
       EDITOR.selectedId = null;
@@ -1088,6 +1106,7 @@ Version: set in JS (VERSION)
     const idx = openings.indexOf(opening);
     if (idx < 0) return false;
     openings.splice(idx, 1);
+    trackOpeningDelete(ctx, opening);
     if (EDITOR.selectedId === opening.id) {
       setSelectedOpening(null);
     }
@@ -1154,11 +1173,30 @@ Version: set in JS (VERSION)
     return false;
   }
 
+  function applyPendingOpeningDeletes(out) {
+    const pending = EDITOR.deletedOpeningsByFloor;
+    if (!pending || !out || !Array.isArray(out.floors)) return;
+    for (const floor of out.floors) {
+      if (!floor || !floor.id) continue;
+      const byId = pending[floor.id];
+      if (!byId) continue;
+      const ids = Object.keys(byId);
+      if (!ids.length) continue;
+      const existing = Array.isArray(floor.openings) ? floor.openings : [];
+      const filtered = existing.filter(o => !(o && o.id && byId[o.id]));
+      for (const id of ids) {
+        filtered.push({ id, deleted: true });
+      }
+      floor.openings = filtered;
+    }
+  }
+
   function buildRecordPatchForSave() {
     const state = getState();
     if (!state || typeof state !== 'object') return null;
 
     const out = cloneDeepSafe(state);
+    applyPendingOpeningDeletes(out);
     delete out.__hydratedObjectsFlat;
     delete out.__activeRecordId;
     delete out.__worldName;
@@ -1193,6 +1231,7 @@ Version: set in JS (VERSION)
       });
       if (!res.ok) throw new Error('DB save failed: ' + res.status + ' ' + res.statusText);
       EDITOR.saving = false;
+      clearEditorPendingDeletes();
       setToolStatus('DB: saved', 'ok');
       return true;
     } catch (e) {
