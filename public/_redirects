@@ -1,2 +1,2 @@
 /play/*  /app/battlemat?battle_id=:splat  200
-/api/battles/*  https://game-api.abbacasa-031.workers.dev/battles/:splat  200
+/api/battles/*  https://game-api.abbacasa-031.workers.dev/battles/:splat  307
