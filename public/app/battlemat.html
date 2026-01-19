@@ -1172,7 +1172,7 @@ Version: set in JS (VERSION)
       const res = await fetch(url, {
         method: 'PUT',
         headers: { 'content-type': 'application/json', 'accept': 'application/json' },
-        body: JSON.stringify({ state_json: raw }),
+        body: JSON.stringify({ __full_replace: true, state_json: raw }),
       });
       if (!res.ok) throw new Error('DB save failed: ' + res.status + ' ' + res.statusText);
       EDITOR.saving = false;
