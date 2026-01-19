@@ -3113,6 +3113,20 @@ const EMBEDDED_WORLD_JSON = `{
     ctx.restore();
   }
 
+  function drawRoomStartMarker(start) {
+    if (!start) return;
+    const center = worldToScreen(hexCenterWorld(start.col, start.row));
+    const r = Math.max(4, GRID.size * 0.18);
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = 'rgba(67,209,122,0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawEditorOverlays(wallSegs) {
     if (EDITOR.preview && EDITOR.preview.floorId === VIEW.floorId && EDITOR.tool === 'door') {
       drawOpeningOverlay(EDITOR.preview.opening, wallSegs, { dash: [6, 4] });
@@ -3120,6 +3134,9 @@ const EMBEDDED_WORLD_JSON = `{
 
     if (EDITOR.roomPreview && EDITOR.roomPreview.floorId === VIEW.floorId && EDITOR.tool === 'room') {
       drawRoomOverlay(EDITOR.roomPreview.room, { dash: [6, 4] });
+    }
+    if (EDITOR.tool === 'room' && EDITOR.roomStart && EDITOR.roomStart.floorId === VIEW.floorId) {
+      drawRoomStartMarker(EDITOR.roomStart);
     }
 
     const openings = Array.isArray(EDITOR.lastOpenings) ? EDITOR.lastOpenings : [];
