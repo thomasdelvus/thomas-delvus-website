@@ -1180,6 +1180,36 @@ Version: set in JS (VERSION)
     return true;
   }
 
+  function removeObject(ctx, object) {
+    if (!ctx || !object) return false;
+    const objects = Array.isArray(ctx.objects) ? ctx.objects : [];
+    let idx = objects.indexOf(object);
+    if (idx < 0 && object.id) {
+      idx = objects.findIndex(o => o && o.id === object.id);
+    }
+    if (idx < 0) return false;
+    objects.splice(idx, 1);
+    trackObjectDelete(ctx, object);
+    return true;
+  }
+
+  function removeToken(ctx, token) {
+    if (!token) return false;
+    const state = ctx && ctx.state ? ctx.state : getState();
+    const tokens = Array.isArray(state && state.tokens)
+      ? state.tokens
+      : (Array.isArray(state && state.actors) ? state.actors : null);
+    if (!tokens) return false;
+    let idx = tokens.indexOf(token);
+    if (idx < 0 && token.id) {
+      idx = tokens.findIndex(t => t && t.id === token.id);
+    }
+    if (idx < 0) return false;
+    tokens.splice(idx, 1);
+    trackTokenDelete(token);
+    return true;
+  }
+
   function handleEditorKey(ev) {
     if (ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'SELECT' || ev.target.isContentEditable)) return false;
     const key = ev.key;
@@ -1258,12 +1288,49 @@ Version: set in JS (VERSION)
     }
   }
 
+  function applyPendingObjectDeletes(out) {
+    const pending = EDITOR.deletedObjectsByFloor;
+    if (!pending || !out || !Array.isArray(out.floors)) return;
+    for (const floor of out.floors) {
+      if (!floor || !floor.id) continue;
+      const byId = pending[floor.id];
+      if (!byId) continue;
+      const ids = Object.keys(byId);
+      if (!ids.length) continue;
+      const existing = Array.isArray(floor.objects) ? floor.objects : [];
+      const filtered = existing.filter(o => !(o && o.id && byId[o.id]));
+      for (const id of ids) {
+        filtered.push({ id, deleted: true });
+      }
+      floor.objects = filtered;
+    }
+  }
+
+  function applyPendingTokenDeletes(out) {
+    const pending = EDITOR.deletedTokens;
+    if (!pending || !out) return;
+    const ids = Object.keys(pending);
+    if (!ids.length) return;
+    const existing = Array.isArray(out.tokens) ? out.tokens : [];
+    const filtered = existing.filter(t => !(t && t.id && pending[t.id]));
+    for (const id of ids) {
+      filtered.push({ id, deleted: true });
+    }
+    out.tokens = filtered;
+  }
+
+  function applyPendingDeletes(out) {
+    applyPendingOpeningDeletes(out);
+    applyPendingObjectDeletes(out);
+    applyPendingTokenDeletes(out);
+  }
+
   function buildRecordPatchForSave() {
     const state = getState();
     if (!state || typeof state !== 'object') return null;
 
     const out = cloneDeepSafe(state);
-    applyPendingOpeningDeletes(out);
+    applyPendingDeletes(out);
     delete out.__hydratedObjectsFlat;
     delete out.__activeRecordId;
     delete out.__worldName;
