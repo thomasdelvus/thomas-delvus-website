@@ -326,6 +326,12 @@ Version: set in JS (VERSION)
           </span>
         </div>
         <div class="mini">Scale <input id="objectScale" type="number" step="0.1" value="1" /></div>
+        <div class="mini">Order
+          <span class="inlineFields">
+            <button id="btnObjBack" title="Send selected object behind others">Send Back</button>
+            <button id="btnObjFront" title="Bring selected object above others">Bring Front</button>
+          </span>
+        </div>
         <div class="mini" id="objectSelected">Selected: none</div>
       </div>
 
@@ -384,6 +390,8 @@ Version: set in JS (VERSION)
     objectOy: getEl('objectOy'),
     objectScale: getEl('objectScale'),
     objectSelected: getEl('objectSelected'),
+    btnObjBack: getEl('btnObjBack'),
+    btnObjFront: getEl('btnObjFront'),
     btnLeft: getEl('btnLeft'),
     btnRight: getEl('btnRight'),
     btnUp: getEl('btnUp'),
@@ -431,6 +439,8 @@ Version: set in JS (VERSION)
   const elObjectOy = els.objectOy;
   const elObjectScale = els.objectScale;
   const elObjectSelected = els.objectSelected;
+  const elObjBack = els.btnObjBack;
+  const elObjFront = els.btnObjFront;
 
   if (elVersion) elVersion.textContent = VERSION;
   document.title = 'Battlemat Core ' + VERSION;
@@ -1478,6 +1488,33 @@ Version: set in JS (VERSION)
     sel.oy = values.oy;
     sel.spriteScale = values.scale;
     syncObjectSelectedLabel(sel);
+    scheduleDatabaseSave();
+    safeRedraw();
+    return true;
+  }
+
+  function moveSelectedObjectZ(ctx, direction) {
+    const sel = ctx ? getSelectedObject(ctx) : null;
+    if (!sel) return false;
+    const objects = Array.isArray(ctx.objects) ? ctx.objects : [];
+    let idx = objects.indexOf(sel);
+    if (idx < 0 && sel.id) idx = objects.findIndex(o => o && o.id === sel.id);
+    if (idx < 0) return false;
+
+    if (direction === 'front') {
+      if (idx === objects.length - 1) return false;
+      captureUndoSnapshot('object order');
+      objects.splice(idx, 1);
+      objects.push(sel);
+    } else if (direction === 'back') {
+      if (idx === 0) return false;
+      captureUndoSnapshot('object order');
+      objects.splice(idx, 1);
+      objects.unshift(sel);
+    } else {
+      return false;
+    }
+
     scheduleDatabaseSave();
     safeRedraw();
     return true;
@@ -5372,6 +5409,8 @@ function setActiveFloor(floorId, opts = {}) {
     const objectOx = req('objectOx');
     const objectOy = req('objectOy');
     const objectScale = req('objectScale');
+    const btnObjBack = req('btnObjBack');
+    const btnObjFront = req('btnObjFront');
     const sourceSelect = req('sourceSelect');
     const battleIdInput = req('battleIdInput');
     const battleIdApply = req('battleIdApply');
@@ -5411,6 +5450,8 @@ function setActiveFloor(floorId, opts = {}) {
     if (objectOx) objectOx.oninput = () => onObjectControlChange();
     if (objectOy) objectOy.oninput = () => onObjectControlChange();
     if (objectScale) objectScale.oninput = () => onObjectControlChange();
+    if (btnObjBack) btnObjBack.onclick = () => moveSelectedObjectZ(getEditorContext(), 'back');
+    if (btnObjFront) btnObjFront.onclick = () => moveSelectedObjectZ(getEditorContext(), 'front');
 
     if (canvas) {
       canvas.addEventListener('mousemove', (ev) => {
