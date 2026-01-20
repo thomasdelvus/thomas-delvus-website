@@ -333,7 +333,16 @@ Version: set in JS (VERSION)
           </span>
         </div>
         <div class="mini" id="objectSelected">Selected: none</div>
+        <div class="mini" style="opacity:0.7;">Room</div>
+        <div class="mini">TL <input id="roomCornerTL" type="text" placeholder="AK21.5" /></div>
+        <div class="mini">BR <input id="roomCornerBR" type="text" placeholder="AO18" /></div>
+        <div class="mini">Floor <input id="roomFloorKind" type="text" list="floorKindList" placeholder="wood_oak" /></div>
+        <div class="mini">Wall <input id="roomWallKind" type="text" list="wallKindList" placeholder="brick" /></div>
+        <div class="mini">Thickness <input id="roomThickness" type="number" step="1" value="15" /></div>
+        <div class="mini" id="roomSelected">Selected: none</div>
       </div>
+      <datalist id="floorKindList"></datalist>
+      <datalist id="wallKindList"></datalist>
 
       <h3>Initiative</h3>
       <div id="turns"></div>
@@ -392,6 +401,14 @@ Version: set in JS (VERSION)
     objectSelected: getEl('objectSelected'),
     btnObjBack: getEl('btnObjBack'),
     btnObjFront: getEl('btnObjFront'),
+    roomCornerTL: getEl('roomCornerTL'),
+    roomCornerBR: getEl('roomCornerBR'),
+    roomFloorKind: getEl('roomFloorKind'),
+    roomWallKind: getEl('roomWallKind'),
+    roomThickness: getEl('roomThickness'),
+    roomSelected: getEl('roomSelected'),
+    floorKindList: getEl('floorKindList'),
+    wallKindList: getEl('wallKindList'),
     btnLeft: getEl('btnLeft'),
     btnRight: getEl('btnRight'),
     btnUp: getEl('btnUp'),
@@ -441,6 +458,14 @@ Version: set in JS (VERSION)
   const elObjectSelected = els.objectSelected;
   const elObjBack = els.btnObjBack;
   const elObjFront = els.btnObjFront;
+  const elRoomCornerTL = els.roomCornerTL;
+  const elRoomCornerBR = els.roomCornerBR;
+  const elRoomFloorKind = els.roomFloorKind;
+  const elRoomWallKind = els.roomWallKind;
+  const elRoomThickness = els.roomThickness;
+  const elRoomSelected = els.roomSelected;
+  const elFloorKindList = els.floorKindList;
+  const elWallKindList = els.wallKindList;
 
   if (elVersion) elVersion.textContent = VERSION;
   document.title = 'Battlemat Core ' + VERSION;
@@ -537,6 +562,8 @@ Version: set in JS (VERSION)
     selectedFloorId: null,
     selectedObjectId: null,
     selectedObjectFloorId: null,
+    selectedRoomId: null,
+    selectedRoomFloorId: null,
     lastOpenings: null,
     lastObjects: null,
     issueMarkers: [],
@@ -552,6 +579,7 @@ Version: set in JS (VERSION)
     objectOy: 0,
     objectScale: 1,
     objectUiLock: false,
+    roomUiLock: false,
     saveTimer: null,
     saving: false,
   };
@@ -1080,6 +1108,11 @@ Version: set in JS (VERSION)
     return s.replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
   }
 
+  function formatCornerStep(v) {
+    const s = Number(v).toFixed(2);
+    return s.replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+  }
+
   function openingHexFromWorld(world) {
     const size = GRID.size || 1;
     const qf = (2 / 3) * (world.x / size);
@@ -1094,6 +1127,12 @@ Version: set in JS (VERSION)
     if (!Number.isFinite(col) || !Number.isFinite(row)) return null;
     const rowNum = row + 1;
     return colToLetters(col) + formatStep(rowNum);
+  }
+
+  function cornerHexLabelFromCoords(col, row) {
+    if (!Number.isFinite(col) || !Number.isFinite(row)) return null;
+    const rowNum = row + 1;
+    return colToLetters(col) + formatCornerStep(rowNum);
   }
 
   function wallSegDistance2(seg, p) {
@@ -1379,7 +1418,10 @@ Version: set in JS (VERSION)
     }
     EDITOR.selectedObjectId = null;
     EDITOR.selectedObjectFloorId = null;
+    EDITOR.selectedRoomId = null;
+    EDITOR.selectedRoomFloorId = null;
     syncObjectSelectedLabel(null);
+    syncRoomSelectedLabel(null);
     EDITOR.selectedId = ensureOpeningId(opening);
     EDITOR.selectedFloorId = floorId || null;
   }
@@ -1421,10 +1463,50 @@ Version: set in JS (VERSION)
     }
     EDITOR.selectedId = null;
     EDITOR.selectedFloorId = null;
+    EDITOR.selectedRoomId = null;
+    EDITOR.selectedRoomFloorId = null;
     EDITOR.selectedObjectId = ensureObjectId(object);
     EDITOR.selectedObjectFloorId = floorId || null;
     syncObjectSelectedLabel(object);
     syncObjectControlsFromObject(object);
+  }
+
+  function syncRoomSelectedLabel(room) {
+    if (!elRoomSelected) return;
+    if (!room) {
+      elRoomSelected.textContent = 'Selected: none';
+      return;
+    }
+    const id = room.id ? String(room.id) : 'room';
+    elRoomSelected.textContent = 'Selected: ' + id;
+  }
+
+  function clearSelectedRoom() {
+    EDITOR.selectedRoomId = null;
+    EDITOR.selectedRoomFloorId = null;
+    syncRoomSelectedLabel(null);
+  }
+
+  function setSelectedRoom(room, floorId) {
+    if (!room) {
+      clearSelectedRoom();
+      return;
+    }
+    EDITOR.selectedId = null;
+    EDITOR.selectedFloorId = null;
+    EDITOR.selectedObjectId = null;
+    EDITOR.selectedObjectFloorId = null;
+    syncObjectSelectedLabel(null);
+    EDITOR.selectedRoomId = String(room.id || '');
+    EDITOR.selectedRoomFloorId = floorId || null;
+    syncRoomSelectedLabel(room);
+    syncRoomControlsFromRoom(room);
+  }
+
+  function getSelectedRoom(ctx) {
+    if (!ctx || !ctx.rooms || !EDITOR.selectedRoomId) return null;
+    if (EDITOR.selectedRoomFloorId && ctx.floorId && EDITOR.selectedRoomFloorId !== ctx.floorId) return null;
+    return ctx.rooms.find(r => r && String(r.id) === String(EDITOR.selectedRoomId)) || null;
   }
 
   function getSelectedObject(ctx) {
@@ -1447,6 +1529,110 @@ Version: set in JS (VERSION)
       oy: roundStep(oyRaw, 0.05),
       scale: scaleRaw,
     };
+  }
+
+  function syncRoomControlsFromRoom(room) {
+    if (!room) return;
+    const corners = Array.isArray(room.corners) ? room.corners : [];
+    let tl = '';
+    let br = '';
+    if (corners.length >= 4) {
+      tl = String(corners[0] ?? '');
+      br = String(corners[2] ?? '');
+    } else if (corners.length >= 2) {
+      tl = String(corners[0] ?? '');
+      br = String(corners[corners.length - 1] ?? '');
+    }
+    if (!tl || !br) {
+      let minCol = Infinity, maxCol = -Infinity, minRow = Infinity, maxRow = -Infinity;
+      for (const c of corners) {
+        try {
+          const p = parseCornerHexId(c);
+          minCol = Math.min(minCol, p.col);
+          maxCol = Math.max(maxCol, p.col);
+          minRow = Math.min(minRow, p.row);
+          maxRow = Math.max(maxRow, p.row);
+        } catch {}
+      }
+      if (Number.isFinite(minCol) && Number.isFinite(maxCol) && Number.isFinite(minRow) && Number.isFinite(maxRow)) {
+        tl = cornerHexLabelFromCoords(minCol, maxRow) || '';
+        br = cornerHexLabelFromCoords(maxCol, minRow) || '';
+      }
+    }
+
+    const floorKind = room && room.floor && room.floor.kind ? String(room.floor.kind) : '';
+    const wallKind = room && room.wall && room.wall.kind ? String(room.wall.kind) : '';
+    const thickness = Number.isFinite(Number(room && room.thickness)) ? Number(room.thickness) : 0;
+
+    EDITOR.roomUiLock = true;
+    if (elRoomCornerTL) elRoomCornerTL.value = tl;
+    if (elRoomCornerBR) elRoomCornerBR.value = br;
+    if (elRoomFloorKind) elRoomFloorKind.value = floorKind;
+    if (elRoomWallKind) elRoomWallKind.value = wallKind;
+    if (elRoomThickness) elRoomThickness.value = String(thickness);
+    EDITOR.roomUiLock = false;
+  }
+
+  function readRoomControls() {
+    return {
+      tl: elRoomCornerTL ? String(elRoomCornerTL.value || '').trim() : '',
+      br: elRoomCornerBR ? String(elRoomCornerBR.value || '').trim() : '',
+      floorKind: elRoomFloorKind ? String(elRoomFloorKind.value || '').trim() : '',
+      wallKind: elRoomWallKind ? String(elRoomWallKind.value || '').trim() : '',
+      thickness: elRoomThickness ? elRoomThickness.value : '',
+    };
+  }
+
+  function computeRoomCornersFromTwoPoints(tlStr, brStr) {
+    if (!tlStr || !brStr) return null;
+    let tl = null;
+    let br = null;
+    try { tl = parseCornerHexId(tlStr); } catch {}
+    try { br = parseCornerHexId(brStr); } catch {}
+    if (!tl || !br) return null;
+    const minCol = Math.min(tl.col, br.col);
+    const maxCol = Math.max(tl.col, br.col);
+    const minRow = Math.min(tl.row, br.row);
+    const maxRow = Math.max(tl.row, br.row);
+    const c0 = cornerHexLabelFromCoords(minCol, maxRow);
+    const c1 = cornerHexLabelFromCoords(maxCol, maxRow);
+    const c2 = cornerHexLabelFromCoords(maxCol, minRow);
+    const c3 = cornerHexLabelFromCoords(minCol, minRow);
+    if (!c0 || !c1 || !c2 || !c3) return null;
+    return [c0, c1, c2, c3];
+  }
+
+  function applyRoomControlsToSelection(ctx, values) {
+    const sel = ctx ? getSelectedRoom(ctx) : null;
+    if (!sel) return false;
+    const tl = String(values.tl || '').trim();
+    const br = String(values.br || '').trim();
+    const corners = computeRoomCornersFromTwoPoints(tl, br) || (Array.isArray(sel.corners) ? sel.corners.slice() : null);
+    const floorKind = values.floorKind ? String(values.floorKind).toLowerCase() : (sel.floor && sel.floor.kind ? String(sel.floor.kind) : '');
+    const wallKind = values.wallKind ? String(values.wallKind).toLowerCase() : (sel.wall && sel.wall.kind ? String(sel.wall.kind) : '');
+    const thicknessRaw = Number(values.thickness);
+    const thickness = Number.isFinite(thicknessRaw) ? thicknessRaw : Number(sel.thickness) || 0;
+
+    captureUndoSnapshot('edit room');
+    if (corners) sel.corners = corners;
+    if (!sel.floor || typeof sel.floor !== 'object') sel.floor = {};
+    if (!sel.wall || typeof sel.wall !== 'object') sel.wall = {};
+    if (floorKind) sel.floor.kind = floorKind;
+    if (wallKind) sel.wall.kind = wallKind;
+    sel.thickness = thickness;
+
+    scheduleDatabaseSave();
+    safeRedraw();
+    return true;
+  }
+
+  function updateRoomControlsFromInputs() {
+    if (EDITOR.roomUiLock) return;
+    const ctx = getEditorContext();
+    const sel = getSelectedRoom(ctx);
+    if (!sel) return;
+    const values = readRoomControls();
+    applyRoomControlsToSelection(ctx, values);
   }
 
   function setObjectControls(values) {
@@ -1503,6 +1689,19 @@ Version: set in JS (VERSION)
     scheduleDatabaseSave();
     safeRedraw();
     return true;
+  }
+
+  function populateRoomKindDatalists() {
+    if (!elFloorKindList || !elWallKindList) return;
+    if (populateRoomKindDatalists._done) return;
+    const baseKinds = Object.keys(TEXTURES.files || {}).map(k => String(k));
+    const floorExtra = ['wood', 'stone', 'cobble', 'gravel', 'brick', 'fog'];
+    const wallExtra = ['wood', 'stone', 'cobble', 'gravel', 'brick', 'none'];
+    const floorKinds = Array.from(new Set([...baseKinds, ...floorExtra])).sort();
+    const wallKinds = Array.from(new Set([...baseKinds, ...wallExtra])).sort();
+    elFloorKindList.innerHTML = floorKinds.map(k => '<option value="' + escapeHtml(k) + '"></option>').join('');
+    elWallKindList.innerHTML = wallKinds.map(k => '<option value="' + escapeHtml(k) + '"></option>').join('');
+    populateRoomKindDatalists._done = true;
   }
 
   function moveSelectedObjectZ(ctx, direction) {
@@ -1707,6 +1906,9 @@ Version: set in JS (VERSION)
     captureUndoSnapshot('delete room');
     rooms.splice(idx, 1);
     trackRoomDelete(ctx, room);
+    if (EDITOR.selectedRoomId && room.id && EDITOR.selectedRoomId === String(room.id)) {
+      clearSelectedRoom();
+    }
     return true;
   }
 
@@ -3255,6 +3457,9 @@ const EMBEDDED_WORLD_JSON = `{
     const selectedObject = (EDITOR.selectedObjectId && EDITOR.selectedObjectFloorId)
       ? { id: EDITOR.selectedObjectId, floorId: EDITOR.selectedObjectFloorId }
       : null;
+    const selectedRoom = (EDITOR.selectedRoomId && EDITOR.selectedRoomFloorId)
+      ? { id: EDITOR.selectedRoomId, floorId: EDITOR.selectedRoomFloorId }
+      : null;
     const issues = Array.isArray(EDITOR.issueMarkers)
       ? EDITOR.issueMarkers.map(m => String(m && m.key != null ? m.key : '')).filter(Boolean)
       : [];
@@ -3266,6 +3471,7 @@ const EMBEDDED_WORLD_JSON = `{
       roomStart,
       selected,
       selectedObject,
+      selectedRoom,
       issues,
     });
   }
@@ -3704,7 +3910,42 @@ const EMBEDDED_WORLD_JSON = `{
     return baseLen * span;
   }
 
-  function cutOpeningHole(targetCtx, opening, wallSegs, rooms) {
+  function openingWallThickness(opening, wallSegs, rooms, roomMetaAll) {
+    const orient = openingOrientation(opening);
+    const p = parseOpeningHex(opening && opening.hex);
+    if (p && Array.isArray(wallSegs)) {
+      const hexWorld = hexCenterWorld(p.col, p.row);
+      const seg = findNearestWallSegment(wallSegs, orient, hexWorld);
+      if (seg && Number.isFinite(seg.thickness) && seg.thickness > 0) return seg.thickness;
+    }
+
+    const parentId = (opening && opening.parent != null) ? String(opening.parent) : '';
+    if (parentId) {
+      const parent = roomById(rooms, parentId);
+      if (parent && roomHasWalls(parent)) {
+        const base = Number(parent.thickness);
+        if (Number.isFinite(base) && base > 0) return base * (Number(ZOOM) || 1);
+      }
+    }
+
+    if (roomMetaAll) {
+      const ids = openingRoomIds(opening, roomMetaAll, wallSegs);
+      for (const id of ids) {
+        const room = roomById(rooms, id);
+        if (room && roomHasWalls(room)) {
+          const base = Number(room.thickness);
+          if (Number.isFinite(base) && base > 0) return base * (Number(ZOOM) || 1);
+        }
+      }
+    }
+
+    const defaults = roomDefaultsFor({ rooms: Array.isArray(rooms) ? rooms : [] });
+    const base = Number(defaults && defaults.thickness);
+    const fallback = (Number.isFinite(base) && base > 0) ? base : 15;
+    return fallback * (Number(ZOOM) || 1);
+  }
+
+  function cutOpeningHole(targetCtx, opening, wallSegs, rooms, roomMetaAll) {
     const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
     if (kind === 'portal' || kind === 'connector') return;
 
@@ -3726,7 +3967,7 @@ const EMBEDDED_WORLD_JSON = `{
     }
 
     const len = openingLengthWorld(opening, rooms);
-    const thickness = seg ? seg.thickness : 28;
+    const thickness = openingWallThickness(opening, wallSegs, rooms, roomMetaAll);
 
     const centerS = worldToScreen({ x: cx, y: cy });
     const pad = openingPadAxes(opening);
@@ -3742,7 +3983,7 @@ const EMBEDDED_WORLD_JSON = `{
     if (rr.w > 0 && rr.h > 0) targetCtx.fillRect(rr.x, rr.y, rr.w, rr.h);
   }
 
-  function drawOpeningMarker(opening, wallSegs) {
+  function drawOpeningMarker(opening, wallSegs, rooms, roomMetaAll) {
     const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
     if (kind === 'threshold' || kind === 'portal' || kind === 'connector') return;
 
@@ -3761,7 +4002,7 @@ const EMBEDDED_WORLD_JSON = `{
       if (orient === 'v' && Number.isFinite(seg.x)) cx = seg.x;
     }
 
-    const thickness = seg ? seg.thickness : 28;
+    const thickness = openingWallThickness(opening, wallSegs, rooms, roomMetaAll);
 
     const c = worldToScreen({ x: cx, y: cy });
     const len = (GRID.size * 1.2) * openingSpan(opening);
@@ -4074,6 +4315,12 @@ const EMBEDDED_WORLD_JSON = `{
         if (w) drawIssueRing(w, GRID.size * 0.55, { strokeStyle: 'rgba(67,209,122,0.9)', lineWidth: 3 });
       }
     }
+
+    if (EDITOR.selectedRoomId && EDITOR.selectedRoomFloorId === VIEW.floorId) {
+      const info = roomMetaAll && roomMetaAll.get ? roomMetaAll.get(String(EDITOR.selectedRoomId)) : null;
+      const room = info ? info.room : null;
+      if (room) drawRoomOverlay(room, { lineWidth: 4 });
+    }
   }
 
   function roomById(rooms, id) {
@@ -4205,7 +4452,7 @@ const EMBEDDED_WORLD_JSON = `{
       }
 
       const len = openingLengthWorld(o, rooms);
-      const thickness = seg ? seg.thickness : 28;
+      const thickness = openingWallThickness(o, wallSegs, rooms, roomMetaAll);
 
       const centerS = worldToScreen({ x: cx, y: cy });
       const pad = openingPadAxes(o);
@@ -5164,7 +5411,7 @@ function populateFloorSelect(floors) {
     for (const o of openingsToDraw) {
       const k = String(o && o.kind ? o.kind : 'door').toLowerCase();
       wallCtx.globalAlpha = (k === 'window') ? 0.25 : 1;
-      cutOpeningHole(wallCtx, o, wallSegs, roomsAll);
+      cutOpeningHole(wallCtx, o, wallSegs, roomsAll, roomMetaAll);
     }
 
     wallCtx.restore();
@@ -5176,7 +5423,7 @@ function populateFloorSelect(floors) {
 
     ctx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
 
-    for (const o of openingsToDraw) drawOpeningMarker(o, wallSegs);
+    for (const o of openingsToDraw) drawOpeningMarker(o, wallSegs, roomsAll, roomMetaAll);
     drawEditorOverlays(wallSegs, roomMetaAll);
 
     for (const o of objects) drawObject(o, roomMetaAll);
@@ -5193,6 +5440,7 @@ function populateFloorSelect(floors) {
     populateCenterOn(state, tokens);
     updateSidebar(state, render.floor, rooms, openings, objects, tokens);
     populateObjectKindSelect(state);
+    populateRoomKindDatalists();
     syncSourceSelect();
     syncBattleIdInput();
   }
@@ -5427,6 +5675,11 @@ function setActiveFloor(floorId, opts = {}) {
     const objectScale = req('objectScale');
     const btnObjBack = req('btnObjBack');
     const btnObjFront = req('btnObjFront');
+    const roomCornerTL = req('roomCornerTL');
+    const roomCornerBR = req('roomCornerBR');
+    const roomFloorKind = req('roomFloorKind');
+    const roomWallKind = req('roomWallKind');
+    const roomThickness = req('roomThickness');
     const sourceSelect = req('sourceSelect');
     const battleIdInput = req('battleIdInput');
     const battleIdApply = req('battleIdApply');
@@ -5468,6 +5721,25 @@ function setActiveFloor(floorId, opts = {}) {
     if (objectScale) objectScale.oninput = () => onObjectControlChange();
     if (btnObjBack) btnObjBack.onclick = () => moveSelectedObjectZ(getEditorContext(), 'back');
     if (btnObjFront) btnObjFront.onclick = () => moveSelectedObjectZ(getEditorContext(), 'front');
+
+    const onRoomControlChange = () => updateRoomControlsFromInputs();
+    if (roomCornerTL) {
+      roomCornerTL.onchange = () => onRoomControlChange();
+      roomCornerTL.onkeydown = (ev) => { if (ev.key === 'Enter') onRoomControlChange(); };
+    }
+    if (roomCornerBR) {
+      roomCornerBR.onchange = () => onRoomControlChange();
+      roomCornerBR.onkeydown = (ev) => { if (ev.key === 'Enter') onRoomControlChange(); };
+    }
+    if (roomFloorKind) {
+      roomFloorKind.onchange = () => onRoomControlChange();
+      roomFloorKind.onkeydown = (ev) => { if (ev.key === 'Enter') onRoomControlChange(); };
+    }
+    if (roomWallKind) {
+      roomWallKind.onchange = () => onRoomControlChange();
+      roomWallKind.onkeydown = (ev) => { if (ev.key === 'Enter') onRoomControlChange(); };
+    }
+    if (roomThickness) roomThickness.oninput = () => onRoomControlChange();
 
     if (canvas) {
       canvas.addEventListener('mousemove', (ev) => {
@@ -5705,6 +5977,8 @@ function setActiveFloor(floorId, opts = {}) {
                   scheduleDatabaseSave();
                 } else {
                   setSelectedOpening(null);
+                  clearSelectedObject();
+                  clearSelectedRoom();
                 }
               }
             }
@@ -5718,10 +5992,16 @@ function setActiveFloor(floorId, opts = {}) {
           setSelectedOpening(hit, ctx.floorId);
         } else {
           const hitObject = findObjectNear(world, ctx);
-          if (hitObject) setSelectedObject(hitObject, ctx.floorId);
-          else {
-            setSelectedOpening(null);
-            clearSelectedObject();
+          if (hitObject) {
+            setSelectedObject(hitObject, ctx.floorId);
+          } else {
+            const hitRoom = findRoomAtWorld(world, ctx);
+            if (hitRoom) setSelectedRoom(hitRoom, ctx.floorId);
+            else {
+              setSelectedOpening(null);
+              clearSelectedObject();
+              clearSelectedRoom();
+            }
           }
         }
         safeRedraw();
