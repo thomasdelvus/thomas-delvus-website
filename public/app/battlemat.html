@@ -291,6 +291,7 @@ Version: set in JS (VERSION)
       <button class="toolBtn" id="toolDelete" data-tool="delete">Delete</button>
       <div class="toolSep"></div>
       <button class="toolBtn" id="btnSaveDb" title="Save edits to database">Save</button>
+      <button class="toolBtn" id="btnUndo" title="Undo last edit">Undo</button>
       <button class="toolBtn" id="btnScanIssues" title="Scan for orphaned or duplicate items">Scan</button>
       <button class="toolBtn" id="btnCleanOrphans" title="Remove orphan openings">Clean</button>
       <div class="toolStatus" id="toolStatus">DB: idle</div>
@@ -344,6 +345,7 @@ Version: set in JS (VERSION)
     toolWindow: getEl('toolWindow'),
     toolDelete: getEl('toolDelete'),
     btnSaveDb: getEl('btnSaveDb'),
+    btnUndo: getEl('btnUndo'),
     btnScanIssues: getEl('btnScanIssues'),
     btnCleanOrphans: getEl('btnCleanOrphans'),
     toolStatus: getEl('toolStatus'),
@@ -385,6 +387,7 @@ Version: set in JS (VERSION)
   const elToolWindow = els.toolWindow;
   const elToolDelete = els.toolDelete;
   const elSaveDb = els.btnSaveDb;
+  const elUndo = els.btnUndo;
   const elToolStatus = els.toolStatus;
 
   if (elVersion) elVersion.textContent = VERSION;
@@ -483,6 +486,8 @@ Version: set in JS (VERSION)
     deletedObjectsByFloor: {},
     deletedRoomsByFloor: {},
     deletedTokens: {},
+    undoSnapshot: null,
+    undoLock: false,
     saveTimer: null,
     saving: false,
   };
@@ -927,6 +932,63 @@ Version: set in JS (VERSION)
     safeRedraw();
   }
 
+  function sanitizeSceneForUndo(scene) {
+    const out = cloneDeepSafe(scene);
+    delete out.__hydratedObjectsFlat;
+    delete out.__activeRecordId;
+    delete out.__worldName;
+    delete out.objects;
+    delete out.rooms;
+    delete out.openings;
+    return out;
+  }
+
+  function captureUndoSnapshot(reason) {
+    if (EDITOR.undoLock) return;
+    const state = getState();
+    if (!state || typeof state !== 'object') return;
+    const recordId = state.__activeRecordId ? String(state.__activeRecordId) : '';
+    EDITOR.undoSnapshot = {
+      recordId,
+      scene: sanitizeSceneForUndo(state),
+      reason: String(reason || ''),
+      ts: Date.now(),
+    };
+  }
+
+  function beginUndoBatch(reason) {
+    if (!EDITOR.undoLock) captureUndoSnapshot(reason);
+    EDITOR.undoLock = true;
+  }
+
+  function endUndoBatch() {
+    EDITOR.undoLock = false;
+  }
+
+  function applyUndoSnapshot() {
+    const snap = EDITOR.undoSnapshot;
+    if (!snap || !snap.scene) {
+      setToolStatus('Undo: none', 'error');
+      return false;
+    }
+    const scene = sanitizeSceneForUndo(snap.scene);
+    if (snap.recordId && WORLD_STATE && WORLD_STATE.records) {
+      WORLD_STATE.records[snap.recordId] = scene;
+      if (!WORLD_STATE.active || typeof WORLD_STATE.active !== 'object') WORLD_STATE.active = {};
+      WORLD_STATE.active.recordId = snap.recordId;
+      if (scene.view && scene.view.floorId) WORLD_STATE.active.floorId = String(scene.view.floorId);
+      if (scene.view && scene.view.camera_hex) WORLD_STATE.active.camera_hex = String(scene.view.camera_hex);
+      setCanonicalStateFromRaw(WORLD_STATE, stableJsonTextFor(WORLD_STATE));
+    } else {
+      setCanonicalStateFromRaw(scene, stableJsonTextFor(scene));
+    }
+    EDITOR.undoSnapshot = null;
+    setToolStatus('Undo: ok', 'ok');
+    safeRedraw();
+    if (STATE_SOURCE === 'database') scheduleDatabaseSave();
+    return true;
+  }
+
   function screenToWorld(p) {
     const cam = cameraWorld();
     return { x: cam.x + (p.x - VIEW.anchor.x), y: cam.y + (p.y - VIEW.anchor.y) };
@@ -1295,6 +1357,7 @@ Version: set in JS (VERSION)
     const openings = Array.isArray(ctx.openings) ? ctx.openings : [];
     const idx = openings.indexOf(opening);
     if (idx < 0) return false;
+    captureUndoSnapshot('delete opening');
     openings.splice(idx, 1);
     trackOpeningDelete(ctx, opening);
     if (EDITOR.selectedId === opening.id) {
@@ -1311,6 +1374,7 @@ Version: set in JS (VERSION)
       idx = objects.findIndex(o => o && o.id === object.id);
     }
     if (idx < 0) return false;
+    captureUndoSnapshot('delete object');
     objects.splice(idx, 1);
     trackObjectDelete(ctx, object);
     return true;
@@ -1328,6 +1392,7 @@ Version: set in JS (VERSION)
       idx = tokens.findIndex(t => t && t.id === token.id);
     }
     if (idx < 0) return false;
+    captureUndoSnapshot('delete token');
     tokens.splice(idx, 1);
     trackTokenDelete(token);
     if (token.id && VIEW.followTokenId === token.id) {
@@ -1345,6 +1410,7 @@ Version: set in JS (VERSION)
       idx = rooms.findIndex(r => r && r.id === room.id);
     }
     if (idx < 0) return false;
+    captureUndoSnapshot('delete room');
     rooms.splice(idx, 1);
     trackRoomDelete(ctx, room);
     return true;
@@ -1371,49 +1437,54 @@ Version: set in JS (VERSION)
     const sel = ctx ? getSelectedOpening(ctx) : null;
     if (!sel) return false;
 
-    if (key === 'Delete' || key === 'Backspace') {
-      if (removeOpening(ctx, sel)) {
-        scheduleDatabaseSave();
-        safeRedraw();
+      if (key === 'Delete' || key === 'Backspace') {
+        if (removeOpening(ctx, sel)) {
+          scheduleDatabaseSave();
+          safeRedraw();
+        }
+        return true;
       }
-      return true;
-    }
 
-    if (key === 'r' || key === 'R') {
-      sel.orientation = (openingOrientation(sel) === 'h') ? 'v' : 'h';
-      scheduleDatabaseSave();
-      safeRedraw();
-      return true;
-    }
+      if (key === 'r' || key === 'R') {
+        captureUndoSnapshot('rotate opening');
+        sel.orientation = (openingOrientation(sel) === 'h') ? 'v' : 'h';
+        scheduleDatabaseSave();
+        safeRedraw();
+        return true;
+      }
 
-    if (key === 'ArrowLeft') {
-      if (updateOpeningHex(sel, -1, 0)) {
-        scheduleDatabaseSave();
-        safeRedraw();
+      if (key === 'ArrowLeft') {
+        captureUndoSnapshot('move opening');
+        if (updateOpeningHex(sel, -1, 0)) {
+          scheduleDatabaseSave();
+          safeRedraw();
+        }
+        return true;
       }
-      return true;
-    }
-    if (key === 'ArrowRight') {
-      if (updateOpeningHex(sel, 1, 0)) {
-        scheduleDatabaseSave();
-        safeRedraw();
+      if (key === 'ArrowRight') {
+        captureUndoSnapshot('move opening');
+        if (updateOpeningHex(sel, 1, 0)) {
+          scheduleDatabaseSave();
+          safeRedraw();
+        }
+        return true;
       }
-      return true;
-    }
-    if (key === 'ArrowUp') {
-      if (updateOpeningHex(sel, 0, 1)) {
-        scheduleDatabaseSave();
-        safeRedraw();
+      if (key === 'ArrowUp') {
+        captureUndoSnapshot('move opening');
+        if (updateOpeningHex(sel, 0, 1)) {
+          scheduleDatabaseSave();
+          safeRedraw();
+        }
+        return true;
       }
-      return true;
-    }
-    if (key === 'ArrowDown') {
-      if (updateOpeningHex(sel, 0, -1)) {
-        scheduleDatabaseSave();
-        safeRedraw();
+      if (key === 'ArrowDown') {
+        captureUndoSnapshot('move opening');
+        if (updateOpeningHex(sel, 0, -1)) {
+          scheduleDatabaseSave();
+          safeRedraw();
+        }
+        return true;
       }
-      return true;
-    }
 
     return false;
   }
@@ -2350,6 +2421,7 @@ const EMBEDDED_WORLD_JSON = `{
   function cleanOrphanOpeningsInScene(scene) {
     const removed = [];
     const floors = getFloorsFromState(scene);
+    beginUndoBatch('clean orphans');
     for (const floor of floors) {
       const floorId = floor && floor.id != null ? String(floor.id) : '';
       const rooms = Array.isArray(floor && floor.rooms) ? floor.rooms : [];
@@ -2367,6 +2439,7 @@ const EMBEDDED_WORLD_JSON = `{
         }
       }
     }
+    endUndoBatch();
     return removed;
   }
 
@@ -4904,6 +4977,7 @@ function setActiveFloor(floorId, opts = {}) {
     const toolWindow = req('toolWindow');
     const toolDelete = req('toolDelete');
     const btnSaveDb = req('btnSaveDb');
+    const btnUndo = req('btnUndo');
     const btnScanIssues = req('btnScanIssues');
     const btnCleanOrphans = req('btnCleanOrphans');
     const sourceSelect = req('sourceSelect');
@@ -4934,6 +5008,7 @@ function setActiveFloor(floorId, opts = {}) {
     if (toolWindow) toolWindow.onclick = () => setEditorTool('window');
     if (toolDelete) toolDelete.onclick = () => setEditorTool('delete');
     if (btnSaveDb) btnSaveDb.onclick = () => saveStateToDatabase();
+    if (btnUndo) btnUndo.onclick = () => applyUndoSnapshot();
     if (btnScanIssues) btnScanIssues.onclick = () => window.BattlematScanIssues();
     if (btnCleanOrphans) btnCleanOrphans.onclick = () => window.BattlematCleanOrphanOpenings();
 
@@ -5034,6 +5109,7 @@ function setActiveFloor(floorId, opts = {}) {
           }
           const placement = computeDoorPlacement(world, ctx);
           if (!placement) return;
+          captureUndoSnapshot('add door');
           const opening = addDoorAtPlacement(ctx, placement);
           if (!opening) return;
           setSelectedOpening(opening, ctx.floorId);
@@ -5051,6 +5127,7 @@ function setActiveFloor(floorId, opts = {}) {
           }
           const placement = computeDoorPlacement(world, ctx);
           if (!placement) return;
+          captureUndoSnapshot('add window');
           const opening = addWindowAtPlacement(ctx, placement);
           if (!opening) return;
           setSelectedOpening(opening, ctx.floorId);
@@ -5084,6 +5161,7 @@ function setActiveFloor(floorId, opts = {}) {
             return;
           }
 
+          captureUndoSnapshot('add room');
           const room = addRoomAtCorners(ctx, corners);
           EDITOR.roomStart = null;
           EDITOR.roomPreview = null;
@@ -5191,6 +5269,11 @@ function setActiveFloor(floorId, opts = {}) {
 
     window.onkeydown = (ev) => {
       if (ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'SELECT' || ev.target.isContentEditable)) return;
+      if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'z' || ev.key === 'Z')) {
+        applyUndoSnapshot();
+        ev.preventDefault();
+        return;
+      }
       if (handleEditorKey(ev)) {
         ev.preventDefault();
         return;
