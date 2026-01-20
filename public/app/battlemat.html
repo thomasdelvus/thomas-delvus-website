@@ -321,8 +321,8 @@ Version: set in JS (VERSION)
         <div class="mini">Rotate <input id="objectRot" type="number" step="15" value="0" /></div>
         <div class="mini">Offset
           <span class="inlineFields">
-            <input id="objectOx" type="number" step="0.25" value="0" />
-            <input id="objectOy" type="number" step="0.25" value="0" />
+            <input id="objectOx" type="number" step="0.05" value="0" />
+            <input id="objectOy" type="number" step="0.05" value="0" />
           </span>
         </div>
         <div class="mini">Scale <input id="objectScale" type="number" step="0.1" value="1" /></div>
@@ -1067,6 +1067,12 @@ Version: set in JS (VERSION)
     return screenToWorld({ x, y });
   }
 
+  function roundStep(v, step) {
+    const s = Number(step);
+    if (!Number.isFinite(s) || s <= 0) return v;
+    return Math.round(v / s) * s;
+  }
+
   function roundQuarter(v) { return Math.round(v * 4) / 4; }
 
   function formatStep(v) {
@@ -1437,8 +1443,8 @@ Version: set in JS (VERSION)
     return {
       kind,
       rotDeg,
-      ox: roundQuarter(oxRaw),
-      oy: roundQuarter(oyRaw),
+      ox: roundStep(oxRaw, 0.05),
+      oy: roundStep(oyRaw, 0.05),
       scale: scaleRaw,
     };
   }
