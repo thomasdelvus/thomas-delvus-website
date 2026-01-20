@@ -71,6 +71,15 @@ Version: set in JS (VERSION)
       color:var(--text);
       outline:none;
     }
+    .mini input[type="number"]{
+      width:72px;
+      padding:4px 8px;
+      border-radius:8px;
+      border:1px solid var(--border);
+      background:rgba(0,0,0,0.25);
+      color:var(--text);
+      outline:none;
+    }
     select{
       padding:4px 8px;
       border-radius:8px;
@@ -136,6 +145,10 @@ Version: set in JS (VERSION)
     .toolStatus{font-size:11px;color:var(--muted);text-align:center;}
     .toolStatus.ok{color:var(--good);}
     .toolStatus.error{color:var(--bad);}
+
+    .inlineFields{display:inline-flex;gap:6px;align-items:center;}
+    #editorPanel{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+    #editorPanel .mini{justify-content:space-between;}
 
     #canvasWrap{
       background:#0b0d12;
@@ -288,6 +301,7 @@ Version: set in JS (VERSION)
       <button class="toolBtn" id="toolRoom" data-tool="room">Room</button>
       <button class="toolBtn" id="toolDoor" data-tool="door">Door</button>
       <button class="toolBtn" id="toolWindow" data-tool="window">Window</button>
+      <button class="toolBtn" id="toolObject" data-tool="object">Object</button>
       <button class="toolBtn" id="toolDelete" data-tool="delete">Delete</button>
       <div class="toolSep"></div>
       <button class="toolBtn" id="btnSaveDb" title="Save edits to database">Save</button>
@@ -300,6 +314,20 @@ Version: set in JS (VERSION)
     <div id="sidebar">
       <h3>Status</h3>
       <div id="kvs"></div>
+
+      <h3>Editor</h3>
+      <div id="editorPanel">
+        <div class="mini">Object <select id="objectKindSelect"></select></div>
+        <div class="mini">Rotate <input id="objectRot" type="number" step="15" value="0" /></div>
+        <div class="mini">Offset
+          <span class="inlineFields">
+            <input id="objectOx" type="number" step="0.25" value="0" />
+            <input id="objectOy" type="number" step="0.25" value="0" />
+          </span>
+        </div>
+        <div class="mini">Scale <input id="objectScale" type="number" step="0.1" value="1" /></div>
+        <div class="mini" id="objectSelected">Selected: none</div>
+      </div>
 
       <h3>Initiative</h3>
       <div id="turns"></div>
@@ -343,12 +371,19 @@ Version: set in JS (VERSION)
     toolRoom: getEl('toolRoom'),
     toolDoor: getEl('toolDoor'),
     toolWindow: getEl('toolWindow'),
+    toolObject: getEl('toolObject'),
     toolDelete: getEl('toolDelete'),
     btnSaveDb: getEl('btnSaveDb'),
     btnUndo: getEl('btnUndo'),
     btnScanIssues: getEl('btnScanIssues'),
     btnCleanOrphans: getEl('btnCleanOrphans'),
     toolStatus: getEl('toolStatus'),
+    objectKindSelect: getEl('objectKindSelect'),
+    objectRot: getEl('objectRot'),
+    objectOx: getEl('objectOx'),
+    objectOy: getEl('objectOy'),
+    objectScale: getEl('objectScale'),
+    objectSelected: getEl('objectSelected'),
     btnLeft: getEl('btnLeft'),
     btnRight: getEl('btnRight'),
     btnUp: getEl('btnUp'),
@@ -385,10 +420,17 @@ Version: set in JS (VERSION)
   const elToolRoom = els.toolRoom;
   const elToolDoor = els.toolDoor;
   const elToolWindow = els.toolWindow;
+  const elToolObject = els.toolObject;
   const elToolDelete = els.toolDelete;
   const elSaveDb = els.btnSaveDb;
   const elUndo = els.btnUndo;
   const elToolStatus = els.toolStatus;
+  const elObjectKindSelect = els.objectKindSelect;
+  const elObjectRot = els.objectRot;
+  const elObjectOx = els.objectOx;
+  const elObjectOy = els.objectOy;
+  const elObjectScale = els.objectScale;
+  const elObjectSelected = els.objectSelected;
 
   if (elVersion) elVersion.textContent = VERSION;
   document.title = 'Battlemat Core ' + VERSION;
@@ -476,11 +518,15 @@ Version: set in JS (VERSION)
   const EDITOR = {
     tool: 'select',
     preview: null,
+    objectPreview: null,
     roomStart: null,
     roomPreview: null,
     selectedId: null,
     selectedFloorId: null,
+    selectedObjectId: null,
+    selectedObjectFloorId: null,
     lastOpenings: null,
+    lastObjects: null,
     issueMarkers: [],
     deletedOpeningsByFloor: {},
     deletedObjectsByFloor: {},
@@ -488,6 +534,12 @@ Version: set in JS (VERSION)
     deletedTokens: {},
     undoSnapshot: null,
     undoLock: false,
+    objectKind: 'chair',
+    objectRotDeg: 0,
+    objectOx: 0,
+    objectOy: 0,
+    objectScale: 1,
+    objectUiLock: false,
     saveTimer: null,
     saving: false,
   };
@@ -919,13 +971,15 @@ Version: set in JS (VERSION)
     if (elToolRoom) elToolRoom.classList.toggle('active', EDITOR.tool === 'room');
     if (elToolDoor) elToolDoor.classList.toggle('active', EDITOR.tool === 'door');
     if (elToolWindow) elToolWindow.classList.toggle('active', EDITOR.tool === 'window');
+    if (elToolObject) elToolObject.classList.toggle('active', EDITOR.tool === 'object');
     if (elToolDelete) elToolDelete.classList.toggle('active', EDITOR.tool === 'delete');
   }
 
   function setEditorTool(tool) {
-    const t = (tool === 'door' || tool === 'window' || tool === 'room' || tool === 'delete' || tool === 'select') ? tool : 'select';
+    const t = (tool === 'door' || tool === 'window' || tool === 'room' || tool === 'object' || tool === 'delete' || tool === 'select') ? tool : 'select';
     EDITOR.tool = t;
     EDITOR.preview = null;
+    EDITOR.objectPreview = null;
     EDITOR.roomStart = null;
     EDITOR.roomPreview = null;
     syncEditorButtons();
@@ -1186,6 +1240,14 @@ Version: set in JS (VERSION)
     return { col: hex.col, row: roundQuarter(hex.row) };
   }
 
+  function objectHexFromWorld(world) {
+    const hex = openingHexFromWorld(world);
+    if (!hex || !Number.isFinite(hex.col) || !Number.isFinite(hex.row)) return null;
+    const label = openingHexLabelFromCoords(hex.col, hex.row);
+    if (!label) return null;
+    return { col: hex.col, row: roundQuarter(hex.row), label };
+  }
+
   function roomCornersFromHexes(a, b) {
     if (!a || !b) return null;
     const minCol = Math.min(a.col, b.col);
@@ -1297,6 +1359,9 @@ Version: set in JS (VERSION)
       EDITOR.selectedFloorId = null;
       return;
     }
+    EDITOR.selectedObjectId = null;
+    EDITOR.selectedObjectFloorId = null;
+    syncObjectSelectedLabel(null);
     EDITOR.selectedId = ensureOpeningId(opening);
     EDITOR.selectedFloorId = floorId || null;
   }
@@ -1305,6 +1370,154 @@ Version: set in JS (VERSION)
     if (!ctx || !ctx.openings || !EDITOR.selectedId) return null;
     if (EDITOR.selectedFloorId && ctx.floorId && EDITOR.selectedFloorId !== ctx.floorId) return null;
     return ctx.openings.find(o => o && o.id === EDITOR.selectedId) || null;
+  }
+
+  function ensureObjectId(object) {
+    if (!object) return '';
+    if (object.id) return object.id;
+    object.id = 'object_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e4).toString(36);
+    return object.id;
+  }
+
+  function syncObjectSelectedLabel(object) {
+    if (!elObjectSelected) return;
+    if (!object) {
+      elObjectSelected.textContent = 'Selected: none';
+      return;
+    }
+    const kind = object.kind ? String(object.kind) : 'object';
+    const id = object.id ? String(object.id) : 'object';
+    elObjectSelected.textContent = 'Selected: ' + kind + ' (' + id + ')';
+  }
+
+  function clearSelectedObject() {
+    EDITOR.selectedObjectId = null;
+    EDITOR.selectedObjectFloorId = null;
+    syncObjectSelectedLabel(null);
+  }
+
+  function setSelectedObject(object, floorId) {
+    if (!object) {
+      clearSelectedObject();
+      return;
+    }
+    EDITOR.selectedId = null;
+    EDITOR.selectedFloorId = null;
+    EDITOR.selectedObjectId = ensureObjectId(object);
+    EDITOR.selectedObjectFloorId = floorId || null;
+    syncObjectSelectedLabel(object);
+    syncObjectControlsFromObject(object);
+  }
+
+  function getSelectedObject(ctx) {
+    if (!ctx || !ctx.objects || !EDITOR.selectedObjectId) return null;
+    if (EDITOR.selectedObjectFloorId && ctx.floorId && EDITOR.selectedObjectFloorId !== ctx.floorId) return null;
+    return ctx.objects.find(o => o && o.id === EDITOR.selectedObjectId) || null;
+  }
+
+  function normalizeObjectControlValues(values) {
+    const v = values || {};
+    const kind = String(v.kind != null ? v.kind : (EDITOR.objectKind || 'object')).trim().toLowerCase() || 'object';
+    const rotDeg = Number.isFinite(Number(v.rotDeg)) ? Number(v.rotDeg) : (Number.isFinite(EDITOR.objectRotDeg) ? EDITOR.objectRotDeg : 0);
+    const oxRaw = Number.isFinite(Number(v.ox)) ? Number(v.ox) : (Number.isFinite(EDITOR.objectOx) ? EDITOR.objectOx : 0);
+    const oyRaw = Number.isFinite(Number(v.oy)) ? Number(v.oy) : (Number.isFinite(EDITOR.objectOy) ? EDITOR.objectOy : 0);
+    const scaleRaw = Number.isFinite(Number(v.scale)) ? Number(v.scale) : (Number.isFinite(EDITOR.objectScale) ? EDITOR.objectScale : 1);
+    return {
+      kind,
+      rotDeg,
+      ox: roundQuarter(oxRaw),
+      oy: roundQuarter(oyRaw),
+      scale: scaleRaw,
+    };
+  }
+
+  function setObjectControls(values) {
+    const v = normalizeObjectControlValues(values);
+    EDITOR.objectUiLock = true;
+    EDITOR.objectKind = v.kind;
+    EDITOR.objectRotDeg = v.rotDeg;
+    EDITOR.objectOx = v.ox;
+    EDITOR.objectOy = v.oy;
+    EDITOR.objectScale = v.scale;
+    if (elObjectKindSelect) elObjectKindSelect.value = v.kind;
+    if (elObjectRot) elObjectRot.value = String(v.rotDeg);
+    if (elObjectOx) elObjectOx.value = String(v.ox);
+    if (elObjectOy) elObjectOy.value = String(v.oy);
+    if (elObjectScale) elObjectScale.value = String(v.scale);
+    EDITOR.objectUiLock = false;
+  }
+
+  function readObjectControls() {
+    return normalizeObjectControlValues({
+      kind: elObjectKindSelect ? elObjectKindSelect.value : EDITOR.objectKind,
+      rotDeg: elObjectRot ? elObjectRot.value : EDITOR.objectRotDeg,
+      ox: elObjectOx ? elObjectOx.value : EDITOR.objectOx,
+      oy: elObjectOy ? elObjectOy.value : EDITOR.objectOy,
+      scale: elObjectScale ? elObjectScale.value : EDITOR.objectScale,
+    });
+  }
+
+  function syncObjectControlsFromObject(object) {
+    if (!object) return;
+    setObjectControls({
+      kind: object.kind,
+      rotDeg: object.rotDeg,
+      ox: object.ox,
+      oy: object.oy,
+      scale: (object.spriteScale != null ? object.spriteScale : 1),
+    });
+  }
+
+  function applyObjectControlsToSelection(ctx, values, reason) {
+    const sel = ctx ? getSelectedObject(ctx) : null;
+    if (!sel) return false;
+    captureUndoSnapshot(reason || 'edit object');
+    sel.kind = values.kind;
+    sel.rotDeg = values.rotDeg;
+    sel.ox = values.ox;
+    sel.oy = values.oy;
+    sel.spriteScale = values.scale;
+    syncObjectSelectedLabel(sel);
+    scheduleDatabaseSave();
+    safeRedraw();
+    return true;
+  }
+
+  function updateObjectControlsFromInputs(opts = {}) {
+    if (EDITOR.objectUiLock) return;
+    const values = readObjectControls();
+    EDITOR.objectKind = values.kind;
+    EDITOR.objectRotDeg = values.rotDeg;
+    EDITOR.objectOx = values.ox;
+    EDITOR.objectOy = values.oy;
+    EDITOR.objectScale = values.scale;
+
+    if (EDITOR.objectPreview && EDITOR.objectPreview.object) {
+      const hex = EDITOR.objectPreview.object.hex;
+      EDITOR.objectPreview.object = {
+        kind: values.kind,
+        hex,
+        ox: values.ox,
+        oy: values.oy,
+        rotDeg: values.rotDeg,
+        spriteScale: values.scale,
+        __forceVisible: true,
+      };
+    }
+
+    const ctx = opts.ctx || getEditorContext();
+    const applied = opts.applyToSelection ? applyObjectControlsToSelection(ctx, values, 'edit object') : false;
+    if (!applied && EDITOR.tool === 'object') safeRedraw();
+  }
+
+  function getObjectToolValues() {
+    return normalizeObjectControlValues({
+      kind: EDITOR.objectKind,
+      rotDeg: EDITOR.objectRotDeg,
+      ox: EDITOR.objectOx,
+      oy: EDITOR.objectOy,
+      scale: EDITOR.objectScale,
+    });
   }
 
   function addDoorAtPlacement(ctx, placement) {
@@ -1339,6 +1552,35 @@ Version: set in JS (VERSION)
     };
     openings.push(opening);
     return opening;
+  }
+
+  function addObjectAtHex(ctx, hexLabel, opts) {
+    if (!ctx || !ctx.floor || !hexLabel) return null;
+    if (!Array.isArray(ctx.floor.objects)) ctx.floor.objects = [];
+    const values = normalizeObjectControlValues(opts || {});
+    const object = {
+      id: 'object_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e4).toString(36),
+      kind: values.kind,
+      hex: hexLabel,
+      ox: values.ox,
+      oy: values.oy,
+      rotDeg: values.rotDeg,
+      spriteScale: values.scale,
+      floorId: ctx.floorId || null,
+    };
+    ctx.floor.objects.push(object);
+    return object;
+  }
+
+  function updateObjectHex(object, colDelta, rowDelta) {
+    const p = parseObjectHex(object && object.hex);
+    if (!p) return false;
+    const col = p.col + colDelta;
+    const row = roundQuarter(p.row + rowDelta);
+    const label = openingHexLabelFromCoords(col, row);
+    if (!label) return false;
+    object.hex = label;
+    return true;
   }
 
   function updateOpeningHex(opening, colDelta, rowDelta) {
@@ -1377,6 +1619,9 @@ Version: set in JS (VERSION)
     captureUndoSnapshot('delete object');
     objects.splice(idx, 1);
     trackObjectDelete(ctx, object);
+    if (EDITOR.selectedObjectId && object.id && EDITOR.selectedObjectId === object.id) {
+      clearSelectedObject();
+    }
     return true;
   }
 
@@ -1430,6 +1675,60 @@ Version: set in JS (VERSION)
       }
       if (EDITOR.tool !== 'select') {
         setEditorTool('select');
+        return true;
+      }
+    }
+
+    const selObj = ctx ? getSelectedObject(ctx) : null;
+    if (selObj) {
+      if (key === 'Delete' || key === 'Backspace') {
+        if (removeObject(ctx, selObj)) {
+          scheduleDatabaseSave();
+          safeRedraw();
+        }
+        return true;
+      }
+
+      if (key === 'r' || key === 'R') {
+        captureUndoSnapshot('rotate object');
+        const cur = Number(selObj.rotDeg) || 0;
+        selObj.rotDeg = cur + (ev.shiftKey ? -15 : 15);
+        syncObjectControlsFromObject(selObj);
+        scheduleDatabaseSave();
+        safeRedraw();
+        return true;
+      }
+
+      if (key === 'ArrowLeft') {
+        captureUndoSnapshot('move object');
+        if (updateObjectHex(selObj, -1, 0)) {
+          scheduleDatabaseSave();
+          safeRedraw();
+        }
+        return true;
+      }
+      if (key === 'ArrowRight') {
+        captureUndoSnapshot('move object');
+        if (updateObjectHex(selObj, 1, 0)) {
+          scheduleDatabaseSave();
+          safeRedraw();
+        }
+        return true;
+      }
+      if (key === 'ArrowUp') {
+        captureUndoSnapshot('move object');
+        if (updateObjectHex(selObj, 0, 1)) {
+          scheduleDatabaseSave();
+          safeRedraw();
+        }
+        return true;
+      }
+      if (key === 'ArrowDown') {
+        captureUndoSnapshot('move object');
+        if (updateObjectHex(selObj, 0, -1)) {
+          scheduleDatabaseSave();
+          safeRedraw();
+        }
         return true;
       }
     }
@@ -2880,6 +3179,17 @@ const EMBEDDED_WORLD_JSON = `{
     const preview = (EDITOR.preview && EDITOR.preview.opening)
       ? { floorId: EDITOR.preview.floorId || null, hex: EDITOR.preview.opening.hex, orientation: EDITOR.preview.opening.orientation }
       : null;
+    const objectPreview = (EDITOR.objectPreview && EDITOR.objectPreview.object)
+      ? {
+          floorId: EDITOR.objectPreview.floorId || null,
+          hex: EDITOR.objectPreview.object.hex,
+          kind: EDITOR.objectPreview.object.kind,
+          rotDeg: EDITOR.objectPreview.object.rotDeg,
+          ox: EDITOR.objectPreview.object.ox,
+          oy: EDITOR.objectPreview.object.oy,
+          spriteScale: EDITOR.objectPreview.object.spriteScale,
+        }
+      : null;
     const roomPreview = (EDITOR.roomPreview && EDITOR.roomPreview.room && Array.isArray(EDITOR.roomPreview.room.corners))
       ? { floorId: EDITOR.roomPreview.floorId || null, corners: EDITOR.roomPreview.room.corners }
       : null;
@@ -2889,15 +3199,20 @@ const EMBEDDED_WORLD_JSON = `{
     const selected = (EDITOR.selectedId && EDITOR.selectedFloorId)
       ? { id: EDITOR.selectedId, floorId: EDITOR.selectedFloorId }
       : null;
+    const selectedObject = (EDITOR.selectedObjectId && EDITOR.selectedObjectFloorId)
+      ? { id: EDITOR.selectedObjectId, floorId: EDITOR.selectedObjectFloorId }
+      : null;
     const issues = Array.isArray(EDITOR.issueMarkers)
       ? EDITOR.issueMarkers.map(m => String(m && m.key != null ? m.key : '')).filter(Boolean)
       : [];
     return stableJsonTextFor({
       tool: EDITOR.tool,
       preview,
+      objectPreview,
       roomPreview,
       roomStart,
       selected,
+      selectedObject,
       issues,
     });
   }
@@ -3668,7 +3983,7 @@ const EMBEDDED_WORLD_JSON = `{
     ctx.restore();
   }
 
-  function drawEditorOverlays(wallSegs) {
+  function drawEditorOverlays(wallSegs, roomMetaAll) {
     if (EDITOR.preview && EDITOR.preview.floorId === VIEW.floorId && (EDITOR.tool === 'door' || EDITOR.tool === 'window')) {
       drawOpeningOverlay(EDITOR.preview.opening, wallSegs, { dash: [6, 4] });
     }
@@ -3678,6 +3993,12 @@ const EMBEDDED_WORLD_JSON = `{
     }
     if (EDITOR.tool === 'room' && EDITOR.roomStart && EDITOR.roomStart.floorId === VIEW.floorId) {
       drawHexHighlight(EDITOR.roomStart.col, EDITOR.roomStart.row, { fill: true, alpha: 0.55 });
+    }
+
+    if (EDITOR.objectPreview && EDITOR.objectPreview.floorId === VIEW.floorId && EDITOR.tool === 'object') {
+      drawObjectGhost(EDITOR.objectPreview.object, roomMetaAll);
+      const w = objectCenterWorld(EDITOR.objectPreview.object);
+      if (w) drawIssueRing(w, GRID.size * 0.5, { strokeStyle: 'rgba(67,209,122,0.9)', dash: [6, 4], lineWidth: 2.5 });
     }
 
     const markers = Array.isArray(EDITOR.issueMarkers) ? EDITOR.issueMarkers : [];
@@ -3690,6 +4011,15 @@ const EMBEDDED_WORLD_JSON = `{
     if (EDITOR.selectedId && EDITOR.selectedFloorId === VIEW.floorId) {
       const sel = openings.find(o => o && o.id === EDITOR.selectedId);
       if (sel) drawOpeningOverlay(sel, wallSegs, { lineWidth: 4 });
+    }
+
+    const objects = Array.isArray(EDITOR.lastObjects) ? EDITOR.lastObjects : [];
+    if (EDITOR.selectedObjectId && EDITOR.selectedObjectFloorId === VIEW.floorId) {
+      const selObj = objects.find(o => o && o.id === EDITOR.selectedObjectId);
+      if (selObj) {
+        const w = objectCenterWorld(selObj);
+        if (w) drawIssueRing(w, GRID.size * 0.55, { strokeStyle: 'rgba(67,209,122,0.9)', lineWidth: 3 });
+      }
     }
   }
 
@@ -4034,7 +4364,17 @@ const EMBEDDED_WORLD_JSON = `{
     return { w: base, h: base };
   }
 
+  function drawObjectGhost(o, roomMetaAll) {
+    if (!o) return;
+    const ghost = { ...o, __forceVisible: true };
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    drawObject(ghost, roomMetaAll);
+    ctx.restore();
+  }
+
   function objectVisible(o, roomMetaAll) {
+    if (o && o.__forceVisible) return true;
     if (!RENDER_FOG || !RENDER_FOG.enabled) return true;
 
     const kind = String(o && o.kind ? o.kind : '').toLowerCase();
@@ -4646,6 +4986,50 @@ function populateFloorSelect(floors) {
   elFloorSelect.value = hasCurrent ? current : fallback;
 }
 
+  function isSelectableObjectKind(kind) {
+    const k = String(kind || '').toLowerCase();
+    if (!k) return false;
+    if (k.startsWith('token')) return false;
+    if (k === 'window' || k === 'portal' || k === 'threshold') return false;
+    if (isDoorKind(k)) return false;
+    return true;
+  }
+
+  function collectObjectKinds(state) {
+    const kinds = new Set();
+
+    for (const key of Object.keys(SPRITES.defs || {})) {
+      if (isSelectableObjectKind(key)) kinds.add(String(key).toLowerCase());
+    }
+
+    const floors = getFloorsFromState(state);
+    for (const f of floors) {
+      const objs = Array.isArray(f && f.objects) ? f.objects : [];
+      for (const o of objs) {
+        const kind = o && o.kind ? String(o.kind).toLowerCase() : '';
+        if (isSelectableObjectKind(kind)) kinds.add(kind);
+      }
+    }
+
+    if (!kinds.size) kinds.add('object');
+    return Array.from(kinds).sort();
+  }
+
+  function populateObjectKindSelect(state) {
+    if (!elObjectKindSelect) return;
+    const kinds = collectObjectKinds(state);
+    const active = (document.activeElement === elObjectKindSelect);
+
+    if (!active) {
+      elObjectKindSelect.innerHTML = kinds
+        .map(k => '<option value="' + escapeHtml(k) + '">' + escapeHtml(k) + '</option>')
+        .join('');
+    }
+
+    if (!kinds.includes(EDITOR.objectKind)) EDITOR.objectKind = kinds[0] || 'object';
+    if (!active) elObjectKindSelect.value = EDITOR.objectKind;
+  }
+
   
 
   function populateCenterOn(state, tokensOnThisFloor) {
@@ -4740,7 +5124,7 @@ function populateFloorSelect(floors) {
     ctx.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0);
 
     for (const o of openingsToDraw) drawOpeningMarker(o, wallSegs);
-    drawEditorOverlays(wallSegs);
+    drawEditorOverlays(wallSegs, roomMetaAll);
 
     for (const o of objects) drawObject(o, roomMetaAll);
 
@@ -4755,6 +5139,7 @@ function populateFloorSelect(floors) {
     populateFloorSelect(render.floors);
     populateCenterOn(state, tokens);
     updateSidebar(state, render.floor, rooms, openings, objects, tokens);
+    populateObjectKindSelect(state);
     syncSourceSelect();
     syncBattleIdInput();
   }
@@ -4792,6 +5177,7 @@ function populateFloorSelect(floors) {
     const objects = render.objects;
     const tokens = render.tokens;
     EDITOR.lastOpenings = openings;
+    EDITOR.lastObjects = objects;
 
     const roomMetaAll = buildRoomMeta(rooms);
 
@@ -4975,11 +5361,17 @@ function setActiveFloor(floorId, opts = {}) {
     const toolRoom = req('toolRoom');
     const toolDoor = req('toolDoor');
     const toolWindow = req('toolWindow');
+    const toolObject = req('toolObject');
     const toolDelete = req('toolDelete');
     const btnSaveDb = req('btnSaveDb');
     const btnUndo = req('btnUndo');
     const btnScanIssues = req('btnScanIssues');
     const btnCleanOrphans = req('btnCleanOrphans');
+    const objectKindSelect = req('objectKindSelect');
+    const objectRot = req('objectRot');
+    const objectOx = req('objectOx');
+    const objectOy = req('objectOy');
+    const objectScale = req('objectScale');
     const sourceSelect = req('sourceSelect');
     const battleIdInput = req('battleIdInput');
     const battleIdApply = req('battleIdApply');
@@ -5006,19 +5398,28 @@ function setActiveFloor(floorId, opts = {}) {
     if (toolRoom) toolRoom.onclick = () => setEditorTool('room');
     if (toolDoor) toolDoor.onclick = () => setEditorTool('door');
     if (toolWindow) toolWindow.onclick = () => setEditorTool('window');
+    if (toolObject) toolObject.onclick = () => setEditorTool('object');
     if (toolDelete) toolDelete.onclick = () => setEditorTool('delete');
     if (btnSaveDb) btnSaveDb.onclick = () => saveStateToDatabase();
     if (btnUndo) btnUndo.onclick = () => applyUndoSnapshot();
     if (btnScanIssues) btnScanIssues.onclick = () => window.BattlematScanIssues();
     if (btnCleanOrphans) btnCleanOrphans.onclick = () => window.BattlematCleanOrphanOpenings();
 
+    const onObjectControlChange = () => updateObjectControlsFromInputs({ applyToSelection: true });
+    if (objectKindSelect) objectKindSelect.onchange = () => onObjectControlChange();
+    if (objectRot) objectRot.oninput = () => onObjectControlChange();
+    if (objectOx) objectOx.oninput = () => onObjectControlChange();
+    if (objectOy) objectOy.oninput = () => onObjectControlChange();
+    if (objectScale) objectScale.oninput = () => onObjectControlChange();
+
     if (canvas) {
       canvas.addEventListener('mousemove', (ev) => {
         const tool = EDITOR.tool;
-        if (tool !== 'door' && tool !== 'window' && tool !== 'room') {
+        if (tool !== 'door' && tool !== 'window' && tool !== 'room' && tool !== 'object') {
           let changed = false;
           if (EDITOR.preview) { EDITOR.preview = null; changed = true; }
           if (EDITOR.roomPreview) { EDITOR.roomPreview = null; changed = true; }
+          if (EDITOR.objectPreview) { EDITOR.objectPreview = null; changed = true; }
           if (changed) safeRedraw();
           return;
         }
@@ -5050,8 +5451,48 @@ function setActiveFloor(floorId, opts = {}) {
           return;
         }
 
+        if (tool === 'object') {
+          const placement = objectHexFromWorld(world);
+          if (!placement) {
+            if (EDITOR.objectPreview) {
+              EDITOR.objectPreview = null;
+              safeRedraw();
+            }
+            return;
+          }
+          const values = getObjectToolValues();
+          const prev = EDITOR.objectPreview && EDITOR.objectPreview.object ? EDITOR.objectPreview.object : null;
+          if (prev &&
+              prev.hex === placement.label &&
+              prev.kind === values.kind &&
+              prev.rotDeg === values.rotDeg &&
+              prev.ox === values.ox &&
+              prev.oy === values.oy &&
+              prev.spriteScale === values.scale &&
+              EDITOR.objectPreview.floorId === ctx.floorId) {
+            return;
+          }
+          EDITOR.objectPreview = {
+            floorId: ctx.floorId,
+            object: {
+              kind: values.kind,
+              hex: placement.label,
+              ox: values.ox,
+              oy: values.oy,
+              rotDeg: values.rotDeg,
+              spriteScale: values.scale,
+              __forceVisible: true,
+            }
+          };
+          safeRedraw();
+          return;
+        }
+
         if (EDITOR.preview) {
           EDITOR.preview = null;
+        }
+        if (EDITOR.objectPreview) {
+          EDITOR.objectPreview = null;
         }
 
         if (EDITOR.roomStart && EDITOR.roomStart.floorId && EDITOR.roomStart.floorId !== ctx.floorId) {
@@ -5091,6 +5532,7 @@ function setActiveFloor(floorId, opts = {}) {
         let changed = false;
         if (EDITOR.preview) { EDITOR.preview = null; changed = true; }
         if (EDITOR.roomPreview) { EDITOR.roomPreview = null; changed = true; }
+        if (EDITOR.objectPreview) { EDITOR.objectPreview = null; changed = true; }
         if (changed) safeRedraw();
       }, { passive: true });
 
@@ -5131,6 +5573,24 @@ function setActiveFloor(floorId, opts = {}) {
           const opening = addWindowAtPlacement(ctx, placement);
           if (!opening) return;
           setSelectedOpening(opening, ctx.floorId);
+          scheduleDatabaseSave();
+          safeRedraw();
+          return;
+        }
+
+        if (EDITOR.tool === 'object') {
+          const hitObject = findObjectNear(world, ctx);
+          if (hitObject) {
+            setSelectedObject(hitObject, ctx.floorId);
+            safeRedraw();
+            return;
+          }
+          const placement = objectHexFromWorld(world);
+          if (!placement) return;
+          captureUndoSnapshot('add object');
+          const object = addObjectAtHex(ctx, placement.label, getObjectToolValues());
+          if (!object) return;
+          setSelectedObject(object, ctx.floorId);
           scheduleDatabaseSave();
           safeRedraw();
           return;
@@ -5197,8 +5657,16 @@ function setActiveFloor(floorId, opts = {}) {
         }
 
         const hit = findOpeningNear(world, ctx);
-        if (hit) setSelectedOpening(hit, ctx.floorId);
-        else setSelectedOpening(null);
+        if (hit) {
+          setSelectedOpening(hit, ctx.floorId);
+        } else {
+          const hitObject = findObjectNear(world, ctx);
+          if (hitObject) setSelectedObject(hitObject, ctx.floorId);
+          else {
+            setSelectedOpening(null);
+            clearSelectedObject();
+          }
+        }
         safeRedraw();
       });
     }
