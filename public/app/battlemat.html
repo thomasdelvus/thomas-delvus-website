@@ -3865,7 +3865,7 @@ const EMBEDDED_WORLD_JSON = `{
   //   - vertical threshold (orientation 'v') => widen horizontally (+4px)
   //   - horizontal threshold (orientation 'h') => widen vertically (+4px)
   // This keeps the threshold span aligned to the parent floor, while still covering subpixel seams.
-  function openingPadAxes(opening) {
+  function openingPadAxes(opening, thickness) {
     const kind = String(opening && opening.kind ? opening.kind : 'door').toLowerCase();
     const orient = openingOrientation(opening);
 
@@ -3875,7 +3875,9 @@ const EMBEDDED_WORLD_JSON = `{
     // Scale padding with backing-store resolution (DPR × supersample) to prevent 1px seams
     // at high zoom levels.
     const d = Number(VIEW && VIEW.dpr) || 1;
-    const pad = clamp(Math.ceil(2 * d), 4, 12);
+    const t = Number.isFinite(thickness) && thickness > 0 ? thickness : (GRID.size * 0.6);
+    const maxPad = Math.max(2, Math.round(t * 0.12));
+    const pad = clamp(Math.ceil(1 * d), 1, maxPad);
 
     // Thresholds: buffer only perpendicular to the opening orientation.
     if (kind === 'threshold') {
@@ -3970,7 +3972,7 @@ const EMBEDDED_WORLD_JSON = `{
     const thickness = openingWallThickness(opening, wallSegs, rooms, roomMetaAll);
 
     const centerS = worldToScreen({ x: cx, y: cy });
-    const pad = openingPadAxes(opening);
+    const pad = openingPadAxes(opening, thickness);
 
     // Axis-aligned screen rect (no rotation) so this matches seam fills exactly.
     // Base rect dimensions depend on orientation, then we apply axis-specific padding.
@@ -4455,7 +4457,7 @@ const EMBEDDED_WORLD_JSON = `{
       const thickness = openingWallThickness(o, wallSegs, rooms, roomMetaAll);
 
       const centerS = worldToScreen({ x: cx, y: cy });
-      const pad = openingPadAxes(o);
+      const pad = openingPadAxes(o, thickness);
 
       // Axis-aligned screen-space rect so patterns stay aligned with the floor.
       const baseW = (orient === 'v') ? thickness : len;
@@ -6189,12 +6191,12 @@ function setActiveFloor(floorId, opts = {}) {
     assert('openingLengthWorld threshold fallback to span', Math.abs(openingLengthWorld(noParent, testRooms) - (GRID.size * 1.2 * 2)) < 1e-6);
 
     // opening padding (axis-specific)
-    const pV = openingPadAxes({ kind: 'threshold', orientation: 'v' });
-    const pH = openingPadAxes({ kind: 'threshold', orientation: 'h' });
-    assert('openingPadAxes threshold v pads X only', pV.x === 4 && pV.y === 0);
-    assert('openingPadAxes threshold h pads Y only', pH.x === 0 && pH.y === 4);
-    const pD = openingPadAxes({ kind: 'door', orientation: 'v' });
-    assert('openingPadAxes door pads both axes', pD.x === 4 && pD.y === 4);
+    const pV = openingPadAxes({ kind: 'threshold', orientation: 'v' }, 20);
+    const pH = openingPadAxes({ kind: 'threshold', orientation: 'h' }, 20);
+    assert('openingPadAxes threshold v pads X only', pV.x === 1 && pV.y === 0);
+    assert('openingPadAxes threshold h pads Y only', pH.x === 0 && pH.y === 1);
+    const pD = openingPadAxes({ kind: 'door', orientation: 'v' }, 20);
+    assert('openingPadAxes door pads both axes', pD.x === 1 && pD.y === 1);
 
     // door kind detection
     assert('isDoorKind door', isDoorKind('door') === true);
