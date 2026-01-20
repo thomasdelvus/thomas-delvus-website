@@ -1477,12 +1477,16 @@ Version: set in JS (VERSION)
 
   function syncObjectControlsFromObject(object) {
     if (!object) return;
+    const rotDeg = Number.isFinite(Number(object.rotDeg)) ? Number(object.rotDeg) : 0;
+    const ox = Number.isFinite(Number(object.ox)) ? Number(object.ox) : 0;
+    const oy = Number.isFinite(Number(object.oy)) ? Number(object.oy) : 0;
+    const scale = Number.isFinite(Number(object.spriteScale)) ? Number(object.spriteScale) : 1;
     setObjectControls({
-      kind: object.kind,
-      rotDeg: object.rotDeg,
-      ox: object.ox,
-      oy: object.oy,
-      scale: (object.spriteScale != null ? object.spriteScale : 1),
+      kind: object.kind || 'object',
+      rotDeg,
+      ox,
+      oy,
+      scale,
     });
   }
 
