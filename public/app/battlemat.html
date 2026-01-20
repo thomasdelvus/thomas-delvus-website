@@ -4677,6 +4677,7 @@ const EMBEDDED_WORLD_JSON = `{
 
   function objectVisible(o, roomMetaAll) {
     if (o && o.__forceVisible) return true;
+    if (EDITOR && EDITOR.tool === 'object') return true;
     if (!RENDER_FOG || !RENDER_FOG.enabled) return true;
 
     const kind = String(o && o.kind ? o.kind : '').toLowerCase();
