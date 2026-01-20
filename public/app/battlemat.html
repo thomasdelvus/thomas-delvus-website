@@ -489,6 +489,8 @@ Version: set in JS (VERSION)
     fogExplored: 'rgb(170,170,170)',
   };
 
+  const TOKEN_DEFAULT_SCALE = 3.0;
+
   const VIEW = {
     // Camera is in hex coords (col,row), row 0 is "row 1" at the bottom.
     camera: { col: 6, row: 6 },
@@ -4754,7 +4756,7 @@ const EMBEDDED_WORLD_JSON = `{
 
   function getTokenSpriteRequest(t, isPC) {
     if (!t || typeof t !== 'object') {
-      return { kind: isPC ? 'token.pc' : 'token.npc', file: '', scale: 1 };
+      return { kind: isPC ? 'token.pc' : 'token.npc', file: '', scale: TOKEN_DEFAULT_SCALE };
     }
 
     const kind = String(
@@ -4768,9 +4770,9 @@ const EMBEDDED_WORLD_JSON = `{
 
     const file = String(t.spriteFile ?? t.sprite_file ?? '').trim();
 
-    let scale = 1;
+    let scale = TOKEN_DEFAULT_SCALE;
     const s = Number(t.spriteScale ?? t.sprite_scale);
-    if (Number.isFinite(s) && s > 0) scale *= s;
+    if (Number.isFinite(s) && s > 0) scale = s;
 
     return {
       kind: kind || (isPC ? 'token.pc' : 'token.npc'),
@@ -4802,7 +4804,7 @@ const EMBEDDED_WORLD_JSON = `{
 
       if (file) {
         const img = loadSprite(file);
-        const s = (Number.isFinite(Number(req.scale)) && Number(req.scale) > 0) ? Number(req.scale) : 1;
+        const s = (Number.isFinite(Number(req.scale)) && Number(req.scale) > 0) ? Number(req.scale) : TOKEN_DEFAULT_SCALE;
         const ok = drawSpriteImage(img, {
           x: c.x,
           y: c.y,
