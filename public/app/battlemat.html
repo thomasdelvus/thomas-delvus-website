@@ -5190,7 +5190,7 @@ const EMBEDDED_WORLD_JSON = `{
   function openCharacterSheet(characterId) {
     const id = String(characterId || '').trim();
     if (!id) return;
-    const url = '/app/character?character_id=' + encodeURIComponent(id);
+    const url = '/app/character.html?character_id=' + encodeURIComponent(id);
     const win = window.open(url, '_blank', 'noopener');
     if (!win) window.location.href = url;
   }
