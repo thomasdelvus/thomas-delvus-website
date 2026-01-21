@@ -220,6 +220,7 @@ Version: set in JS (VERSION)
       border-bottom:1px solid var(--border2);
       white-space:nowrap;
     }
+    #statusTable thead th:first-child{padding-left:12px;}
     #statusTable tbody td{
       padding:6px 8px;
       border-bottom:1px solid rgba(255,255,255,0.06);
@@ -3839,31 +3840,39 @@ const EMBEDDED_WORLD_JSON = `{
       }
       targetCtx.fillStyle = fill;
 
-      if (s.orientation === 'h') {
-        const x1 = s.x1 - half;
-        const x2 = s.x2 + half;
-        const y1 = s.y - half;
-        const y2 = s.y + half;
+        if (s.orientation === 'h') {
+          const x1 = s.x1 - half;
+          const x2 = s.x2 + half;
+          const y1 = s.y - half;
+          const y2 = s.y + half;
 
-        const p1 = worldToScreen({ x: x1, y: y1 });
-        const p2 = worldToScreen({ x: x2, y: y2 });
-        const w = p2.x - p1.x;
-        const h = p2.y - p1.y;
-        if (w > 0 && h > 0) targetCtx.fillRect(p1.x, p1.y, w, h);
-      } else {
-        const x1 = s.x - half;
-        const x2 = s.x + half;
-        const y1 = s.y1 - half;
-        const y2 = s.y2 + half;
+          const p1 = worldToScreen({ x: x1, y: y1 });
+          const p2 = worldToScreen({ x: x2, y: y2 });
+          const sx1 = snapCss(Math.min(p1.x, p2.x));
+          const sx2 = snapCss(Math.max(p1.x, p2.x));
+          const sy1 = snapCss(Math.min(p1.y, p2.y));
+          const sy2 = snapCss(Math.max(p1.y, p2.y));
+          const w = sx2 - sx1;
+          const h = sy2 - sy1;
+          if (w > 0 && h > 0) targetCtx.fillRect(sx1, sy1, w, h);
+        } else {
+          const x1 = s.x - half;
+          const x2 = s.x + half;
+          const y1 = s.y1 - half;
+          const y2 = s.y2 + half;
 
-        const p1 = worldToScreen({ x: x1, y: y1 });
-        const p2 = worldToScreen({ x: x2, y: y2 });
-        const w = p2.x - p1.x;
-        const h = p2.y - p1.y;
-        if (w > 0 && h > 0) targetCtx.fillRect(p1.x, p1.y, w, h);
+          const p1 = worldToScreen({ x: x1, y: y1 });
+          const p2 = worldToScreen({ x: x2, y: y2 });
+          const sx1 = snapCss(Math.min(p1.x, p2.x));
+          const sx2 = snapCss(Math.max(p1.x, p2.x));
+          const sy1 = snapCss(Math.min(p1.y, p2.y));
+          const sy2 = snapCss(Math.max(p1.y, p2.y));
+          const w = sx2 - sx1;
+          const h = sy2 - sy1;
+          if (w > 0 && h > 0) targetCtx.fillRect(sx1, sy1, w, h);
+        }
       }
     }
-  }
 
   // ===== Floor fills =====
   function floorBaseColor(kind) {
@@ -3889,23 +3898,27 @@ const EMBEDDED_WORLD_JSON = `{
     return k === 'fog';
   }
 
-  function drawFloorsLayered(rooms) {
-    const wantTextures = !!(elSpriteToggle && elSpriteToggle.checked);
+    function drawFloorsLayered(rooms) {
+      const wantTextures = !!(elSpriteToggle && elSpriteToggle.checked);
 
-    for (const r of (Array.isArray(rooms) ? rooms : [])) {
-      const box = roomToWallBox(r);
-      const f = roomFloorRectWorld(r, box);
-      const p1 = worldToScreen({ x: f.x1, y: f.y1 });
-      const p2 = worldToScreen({ x: f.x2, y: f.y2 });
-      const w = p2.x - p1.x;
-      const h = p2.y - p1.y;
-      if (w <= 0 || h <= 0) continue;
+      for (const r of (Array.isArray(rooms) ? rooms : [])) {
+        const box = roomToWallBox(r);
+        const f = roomFloorRectWorld(r, box);
+        const p1 = worldToScreen({ x: f.x1, y: f.y1 });
+        const p2 = worldToScreen({ x: f.x2, y: f.y2 });
+        const x1 = snapCss(Math.min(p1.x, p2.x));
+        const x2 = snapCss(Math.max(p1.x, p2.x));
+        const y1 = snapCss(Math.min(p1.y, p2.y));
+        const y2 = snapCss(Math.max(p1.y, p2.y));
+        const w = x2 - x1;
+        const h = y2 - y1;
+        if (w <= 0 || h <= 0) continue;
 
-      const fk = (r && r.floor && r.floor.kind) ? String(r.floor.kind).toLowerCase() : 'wood';
-      ctx.fillStyle = getFloorFillStyle(fk, wantTextures, ctx);
-      ctx.fillRect(p1.x, p1.y, w, h);
+        const fk = (r && r.floor && r.floor.kind) ? String(r.floor.kind).toLowerCase() : 'wood';
+        ctx.fillStyle = getFloorFillStyle(fk, wantTextures, ctx);
+        ctx.fillRect(x1, y1, w, h);
+      }
     }
-  }
 
   // ===== Openings =====
   function openingOrientation(opening) {

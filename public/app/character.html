@@ -116,6 +116,33 @@
       grid-template-columns:1.4fr 0.8fr;
       gap:12px;
     }
+    .equipment-grid{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0,1fr));
+      gap:12px;
+    }
+    .equip-col{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .treasure-table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:12px;
+    }
+    .treasure-table th,
+    .treasure-table td{
+      padding:6px 6px;
+      border-bottom:1px solid rgba(0,0,0,0.1);
+      text-align:left;
+    }
+    .treasure-table th{
+      font-size:10px;
+      letter-spacing:0.16em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
     .sheet-header{
       display:grid;
       grid-template-columns:1.2fr 1.8fr;
@@ -315,6 +342,7 @@
       .sheet-grid{grid-template-columns:1fr;}
       .panel-row{grid-template-columns:1fr;}
       .section-grid{grid-template-columns:1fr;}
+      .equipment-grid{grid-template-columns:1fr;}
     }
     @media (max-width: 640px){
       .header-grid{grid-template-columns:1fr;}
@@ -454,32 +482,39 @@
         <details class="section">
           <summary>Equipment & Treasure</summary>
           <div class="section-body">
-            <div class="section-grid">
-              <section class="panel">
-                <h2>Equipment</h2>
-                <div class="subsection">
+            <div class="equipment-grid">
+              <div class="equip-col">
+                <section class="subsection">
                   <h3>Gear</h3>
                   <div class="list" id="equipmentGear"></div>
-                </div>
-                <div class="subsection">
+                </section>
+                <section class="subsection">
                   <h3>Weapons</h3>
                   <div class="list" id="equipmentWeapons"></div>
-                </div>
-                <div class="subsection">
+                </section>
+              </div>
+
+              <div class="equip-col">
+                <section class="subsection">
                   <h3>Potions</h3>
                   <div class="list" id="equipmentPotions"></div>
-                </div>
-                <div class="subsection">
+                </section>
+                <section class="subsection">
+                  <h3>Scrolls</h3>
+                  <div class="list" id="equipmentScrolls"></div>
+                </section>
+                <section class="subsection">
                   <h3>Supplies</h3>
                   <div class="list" id="equipmentSupplies"></div>
-                </div>
-              </section>
+                </section>
+              </div>
 
-              <section class="panel">
-                <h2>Treasure</h2>
-                <div class="treasure-grid" id="treasureGrid"></div>
-                <div class="list" id="treasureList"></div>
-              </section>
+              <div class="equip-col">
+                <section class="subsection">
+                  <h3>Treasure</h3>
+                  <div id="treasureTable"></div>
+                </section>
+              </div>
             </div>
           </div>
         </details>
@@ -550,17 +585,16 @@
       hpTemp: document.getElementById('hpTemp'),
       attacksBlock: document.getElementById('attacksBlock'),
       featuresList: document.getElementById('featuresList'),
-      equipmentList: document.getElementById('equipmentList'),
       equipmentGear: document.getElementById('equipmentGear'),
       equipmentWeapons: document.getElementById('equipmentWeapons'),
       equipmentPotions: document.getElementById('equipmentPotions'),
+      equipmentScrolls: document.getElementById('equipmentScrolls'),
       equipmentSupplies: document.getElementById('equipmentSupplies'),
       portraitSlot: document.getElementById('portraitSlot'),
       portraitVisual: document.getElementById('portraitVisual'),
       appearanceList: document.getElementById('appearanceList'),
       spellsBlock: document.getElementById('spellsBlock'),
-      treasureGrid: document.getElementById('treasureGrid'),
-      treasureList: document.getElementById('treasureList'),
+      treasureTable: document.getElementById('treasureTable'),
       personalityList: document.getElementById('personalityList'),
       historyList: document.getElementById('historyList'),
       notesText: document.getElementById('notesText')
@@ -625,7 +659,14 @@
       }
       for (const item of list) {
         const line = document.createElement('div');
-        line.textContent = (item && item.name) ? String(item.name) : String(item);
+        if (item && typeof item === 'object' && item.name != null) {
+          const name = String(item.name);
+          const qtyRaw = item.qty != null ? item.qty : item.quantity;
+          const qty = Number.isFinite(Number(qtyRaw)) ? Number(qtyRaw) : null;
+          line.textContent = qty && qty !== 1 ? (name + ' x' + qty) : name;
+        } else {
+          line.textContent = String(item);
+        }
         el.appendChild(line);
       }
     }
@@ -772,6 +813,105 @@
       }
     }
 
+    function normalizeCategory(cat) {
+      const name = String(cat || '').toLowerCase();
+      if (!name) return null;
+      if (name.includes('weapon')) return 'weapons';
+      if (name.includes('potion') || name.includes('elixir')) return 'potions';
+      if (name.includes('scroll')) return 'scrolls';
+      if (name.includes('supply') || name.includes('kit')) return 'supplies';
+      if (name.includes('gear') || name.includes('equipped') || name.includes('armor') || name.includes('worn')) return 'gear';
+      return null;
+    }
+
+    function inferCategoryFromName(name) {
+      const lowered = String(name || '').toLowerCase();
+      if (!lowered) return 'gear';
+      if (['sword', 'dagger', 'axe', 'bow', 'crossbow', 'staff', 'mace', 'spear', 'hammer', 'wand'].some(w => lowered.includes(w))) {
+        return 'weapons';
+      }
+      if (['potion', 'elixir', 'vial'].some(w => lowered.includes(w))) return 'potions';
+      if (['scroll'].some(w => lowered.includes(w))) return 'scrolls';
+      if (['rations', 'rope', 'torch', 'tinder', 'kit', 'pack', 'bedroll', 'tools', 'supplies'].some(w => lowered.includes(w))) {
+        return 'supplies';
+      }
+      return 'gear';
+    }
+
+    function toNumber(value) {
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      if (typeof value === 'string') {
+        const trimmed = value.replace(/,/g, '').trim();
+        if (!trimmed) return null;
+        const parsed = Number(trimmed);
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+      return null;
+    }
+
+    function formatGp(value) {
+      if (!Number.isFinite(value)) return '--';
+      const rounded = Math.round(value * 100) / 100;
+      return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+    }
+
+    function renderTreasureTable(treasure, currency) {
+      const rows = [];
+      let total = 0;
+
+      const addRow = (name, qty, valueGp) => {
+        const qtyVal = Number.isFinite(Number(qty)) ? Number(qty) : '';
+        const valueText = Number.isFinite(valueGp) ? formatGp(valueGp) : '--';
+        rows.push({ name, qty: qtyVal, value: valueText });
+        if (Number.isFinite(valueGp)) total += valueGp;
+      };
+
+      const rates = { pp: 10, gp: 1, sp: 0.1, cp: 0.01, ep: 0.5 };
+      if (currency && typeof currency === 'object') {
+        Object.entries(currency).forEach(([key, raw]) => {
+          const qty = toNumber(raw);
+          if (!Number.isFinite(qty) || qty === 0) return;
+          const unit = rates[key.toLowerCase()];
+          const valueGp = Number.isFinite(unit) ? qty * unit : null;
+          addRow(key.toUpperCase(), qty, valueGp);
+        });
+      }
+
+      const list = Array.isArray(treasure) ? treasure : [];
+      for (const item of list) {
+        if (!item) continue;
+        if (typeof item === 'string') {
+          addRow(item, 1, null);
+          continue;
+        }
+        const name = item.name != null ? String(item.name) : 'Item';
+        const qty = toNumber(item.qty != null ? item.qty : item.quantity) || 1;
+        const each = toNumber(item.value_each_gp != null ? item.value_each_gp : item.value_each);
+        let valueGp = null;
+        if (Number.isFinite(each)) {
+          valueGp = each * qty;
+        } else {
+          valueGp = toNumber(item.value_gp != null ? item.value_gp : (item.gp_value != null ? item.gp_value : item.value));
+        }
+        addRow(name, qty, valueGp);
+      }
+
+      if (!rows.length) {
+        els.treasureTable.innerHTML = '<div class="empty">No treasure listed.</div>';
+        return;
+      }
+
+      const body = rows.map((row) =>
+        '<tr><td>' + row.name + '</td><td>' + row.qty + '</td><td>' + row.value + '</td></tr>'
+      ).join('');
+      const totalRow = '<tr><td style="font-weight:600;">Total</td><td></td><td style="font-weight:600;">' + formatGp(total) + '</td></tr>';
+      els.treasureTable.innerHTML =
+        '<table class="treasure-table">' +
+          '<thead><tr><th>Item</th><th>Qty</th><th>Gold Value</th></tr></thead>' +
+          '<tbody>' + body + totalRow + '</tbody>' +
+        '</table>';
+    }
+
     function renderSheet(character) {
       const sheet = parseSheet(character.sheet_json);
       const identity = sheet.identity || {};
@@ -843,40 +983,25 @@
       renderAttacks(sheet.attacks);
       renderList(els.featuresList, sheet.features, 'No features listed.');
       const equipment = Array.isArray(sheet.equipment) ? sheet.equipment : (Array.isArray(sheet.inventory) ? sheet.inventory : []);
-      const buckets = { gear: [], weapons: [], potions: [], supplies: [] };
-      const matchAny = (name, words) => words.some(w => name.includes(w));
+      const buckets = { gear: [], weapons: [], potions: [], scrolls: [], supplies: [] };
 
       for (const raw of equipment) {
-        const name = String((raw && raw.name) ? raw.name : raw).toLowerCase();
-        if (!name) continue;
-        if (matchAny(name, ['sword', 'dagger', 'axe', 'bow', 'crossbow', 'staff', 'mace', 'spear', 'hammer', 'wand'])) {
-          buckets.weapons.push(raw);
-        } else if (matchAny(name, ['potion', 'elixir', 'vial'])) {
-          buckets.potions.push(raw);
-        } else if (matchAny(name, ['rations', 'rope', 'torch', 'tinder', 'kit', 'pack', 'bedroll', 'tools', 'supplies'])) {
-          buckets.supplies.push(raw);
-        } else {
-          buckets.gear.push(raw);
-        }
+        const name = (raw && typeof raw === 'object' && raw.name != null) ? raw.name : raw;
+        const nameText = String(name || '');
+        if (!nameText) continue;
+        const cat = raw && typeof raw === 'object' ? normalizeCategory(raw.category) : null;
+        const bucket = cat || inferCategoryFromName(nameText);
+        (buckets[bucket] || buckets.gear).push(raw);
       }
 
       renderList(els.equipmentGear, buckets.gear, 'None');
       renderList(els.equipmentWeapons, buckets.weapons, 'None');
       renderList(els.equipmentPotions, buckets.potions, 'None');
+      renderList(els.equipmentScrolls, buckets.scrolls, 'None');
       renderList(els.equipmentSupplies, buckets.supplies, 'None');
 
       renderSpells(sheet.spells);
-
-      const currency = sheet.currency || {};
-      const currencyEntries = Object.entries(currency);
-      if (currencyEntries.length) {
-        els.treasureGrid.innerHTML = currencyEntries
-          .map(([key, val]) => '<div>' + key.toUpperCase() + '</div><div style="text-align:right;">' + val + '</div>')
-          .join('');
-      } else {
-        els.treasureGrid.innerHTML = '<div class="empty">No coin listed.</div>';
-      }
-      renderList(els.treasureList, sheet.treasure, '');
+      renderTreasureTable(sheet.treasure, sheet.currency);
 
       const personalityLines = [];
       if (personality.traits) personalityLines.push('Traits: ' + personality.traits);
