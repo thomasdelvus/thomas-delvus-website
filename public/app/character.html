@@ -468,7 +468,7 @@
       }
 
       try {
-        const res = await fetch('/characters/' + encodeURIComponent(characterId), {
+        const res = await fetch('/api/characters/' + encodeURIComponent(characterId), {
           method: 'GET',
           cache: 'no-store',
           headers: { 'Accept': 'application/json' },
