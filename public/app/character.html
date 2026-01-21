@@ -1027,6 +1027,33 @@
       }
     }
 
+    function formatReputationEntry(entry) {
+      if (entry == null) return '';
+      if (typeof entry === 'string') return entry.trim();
+      if (typeof entry !== 'object') return String(entry).trim();
+      const name = entry.name ?? entry.faction ?? entry.group ?? entry.title ?? '';
+      const scoreRaw = entry.score ?? entry.rep ?? entry.value ?? entry.points ?? null;
+      const score = Number.isFinite(Number(scoreRaw)) ? Number(scoreRaw) : null;
+      const scoreText = score != null ? (score >= 0 ? '+' : '') + score : '';
+      const perk = entry.perk ?? entry.benefit ?? entry.note ?? '';
+      const parts = [];
+      if (name) parts.push(name + (scoreText ? ' (' + scoreText + ')' : ''));
+      else if (scoreText) parts.push('Reputation ' + scoreText);
+      if (perk) parts.push(perk);
+      return parts.join(' - ').trim();
+    }
+
+    function formatReputation(value) {
+      if (Array.isArray(value)) {
+        const lines = value.map(formatReputationEntry).filter(Boolean);
+        return lines.join('\n');
+      }
+      if (value && typeof value === 'object') {
+        return formatReputationEntry(value);
+      }
+      return value != null ? String(value).trim() : '';
+    }
+
     function renderHp(combat) {
       const maxHp = combat.max_hp != null ? combat.max_hp : '--';
       const currentHp = combat.current_hp != null ? combat.current_hp : (combat.hp != null ? combat.hp : '--');
@@ -1346,7 +1373,7 @@
         character.notes_text ??
         '';
       setTextBlock(els.backstoryText, backstory, 'No backstory yet.');
-      setTextBlock(els.reputationText, reputation, 'No reputation notes.');
+      setTextBlock(els.reputationText, formatReputation(reputation), 'No reputation notes.');
 
       const history = Array.isArray(sheet.adventure_history) ? sheet.adventure_history : [];
       const historyLines = history.map(h => {

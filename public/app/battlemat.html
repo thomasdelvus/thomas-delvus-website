@@ -405,6 +405,25 @@ Version: set in JS (VERSION)
           </span>
         </div>
         <div class="mini" id="objectSelected">Selected: none</div>
+        <div class="mini" style="opacity:0.7;">Opening</div>
+        <div class="mini">Kind <input id="openingKind" type="text" list="openingKindList" placeholder="door.wood" /></div>
+        <div class="mini">Hex <input id="openingHex" type="text" placeholder="M17" /></div>
+        <div class="mini">Orient
+          <select id="openingOrientation">
+            <option value="h">h</option>
+            <option value="v">v</option>
+          </select>
+        </div>
+        <div class="mini">Open % <input id="openingOpenPct" type="number" step="0.1" min="0" max="1" value="0" /></div>
+        <div class="mini">Hinge
+          <select id="openingHinge">
+            <option value=""></option>
+            <option value="left">left</option>
+            <option value="right">right</option>
+          </select>
+        </div>
+        <div class="mini">Swing <input id="openingSwing" type="number" step="1" value="1" /></div>
+        <div class="mini" id="openingSelected">Selected: none</div>
         <div class="mini" style="opacity:0.7;">Room</div>
         <div class="mini">TL <input id="roomCornerTL" type="text" placeholder="AK21.5" /></div>
         <div class="mini">BR <input id="roomCornerBR" type="text" placeholder="AO18" /></div>
@@ -415,6 +434,14 @@ Version: set in JS (VERSION)
       </div>
         <datalist id="floorKindList"></datalist>
         <datalist id="wallKindList"></datalist>
+        <datalist id="openingKindList">
+          <option value="door.wood"></option>
+          <option value="door.stone"></option>
+          <option value="door.iron"></option>
+          <option value="window"></option>
+          <option value="threshold"></option>
+          <option value="portal"></option>
+        </datalist>
 
         <div id="errorBox" hidden></div>
       </div>
@@ -471,6 +498,13 @@ Version: set in JS (VERSION)
     objectSelected: getEl('objectSelected'),
     btnObjBack: getEl('btnObjBack'),
     btnObjFront: getEl('btnObjFront'),
+    openingKind: getEl('openingKind'),
+    openingHex: getEl('openingHex'),
+    openingOrientation: getEl('openingOrientation'),
+    openingOpenPct: getEl('openingOpenPct'),
+    openingHinge: getEl('openingHinge'),
+    openingSwing: getEl('openingSwing'),
+    openingSelected: getEl('openingSelected'),
     roomCornerTL: getEl('roomCornerTL'),
     roomCornerBR: getEl('roomCornerBR'),
     roomFloorKind: getEl('roomFloorKind'),
@@ -479,6 +513,7 @@ Version: set in JS (VERSION)
     roomSelected: getEl('roomSelected'),
     floorKindList: getEl('floorKindList'),
     wallKindList: getEl('wallKindList'),
+    openingKindList: getEl('openingKindList'),
     btnLeft: getEl('btnLeft'),
     btnRight: getEl('btnRight'),
     btnUp: getEl('btnUp'),
@@ -528,6 +563,13 @@ Version: set in JS (VERSION)
   const elObjectSelected = els.objectSelected;
   const elObjBack = els.btnObjBack;
   const elObjFront = els.btnObjFront;
+  const elOpeningKind = els.openingKind;
+  const elOpeningHex = els.openingHex;
+  const elOpeningOrientation = els.openingOrientation;
+  const elOpeningOpenPct = els.openingOpenPct;
+  const elOpeningHinge = els.openingHinge;
+  const elOpeningSwing = els.openingSwing;
+  const elOpeningSelected = els.openingSelected;
   const elRoomCornerTL = els.roomCornerTL;
   const elRoomCornerBR = els.roomCornerBR;
   const elRoomFloorKind = els.roomFloorKind;
@@ -536,6 +578,7 @@ Version: set in JS (VERSION)
   const elRoomSelected = els.roomSelected;
   const elFloorKindList = els.floorKindList;
   const elWallKindList = els.wallKindList;
+  const elOpeningKindList = els.openingKindList;
 
   if (elVersion) elVersion.textContent = VERSION;
   document.title = 'Battlemat Core ' + VERSION;
@@ -649,6 +692,7 @@ Version: set in JS (VERSION)
     objectOy: 0,
     objectScale: 1,
     objectUiLock: false,
+    openingUiLock: false,
     roomUiLock: false,
     saveTimer: null,
     saving: false,
@@ -1482,10 +1526,27 @@ Version: set in JS (VERSION)
     EDITOR.deletedTokens[tokenId] = true;
   }
 
+  function syncOpeningSelectedLabel(opening) {
+    if (!elOpeningSelected) return;
+    if (!opening) {
+      elOpeningSelected.textContent = 'Selected: none';
+      return;
+    }
+    const kind = opening.kind ? String(opening.kind) : 'opening';
+    const id = opening.id ? String(opening.id) : 'opening';
+    elOpeningSelected.textContent = 'Selected: ' + kind + ' (' + id + ')';
+  }
+
+  function clearSelectedOpening() {
+    EDITOR.selectedId = null;
+    EDITOR.selectedFloorId = null;
+    syncOpeningSelectedLabel(null);
+    syncOpeningControlsFromOpening(null);
+  }
+
   function setSelectedOpening(opening, floorId) {
     if (!opening) {
-      EDITOR.selectedId = null;
-      EDITOR.selectedFloorId = null;
+      clearSelectedOpening();
       return;
     }
     EDITOR.selectedObjectId = null;
@@ -1496,6 +1557,8 @@ Version: set in JS (VERSION)
     syncRoomSelectedLabel(null);
     EDITOR.selectedId = ensureOpeningId(opening);
     EDITOR.selectedFloorId = floorId || null;
+    syncOpeningSelectedLabel(opening);
+    syncOpeningControlsFromOpening(opening);
   }
 
   function getSelectedOpening(ctx) {
@@ -1627,6 +1690,8 @@ Version: set in JS (VERSION)
     EDITOR.selectedFloorId = null;
     EDITOR.selectedRoomId = null;
     EDITOR.selectedRoomFloorId = null;
+    syncOpeningSelectedLabel(null);
+    syncOpeningControlsFromOpening(null);
     EDITOR.selectedObjectId = ensureObjectId(object);
     EDITOR.selectedObjectFloorId = floorId || null;
     syncObjectSelectedLabel(object);
@@ -1659,6 +1724,8 @@ Version: set in JS (VERSION)
     EDITOR.selectedObjectId = null;
     EDITOR.selectedObjectFloorId = null;
     syncObjectSelectedLabel(null);
+    syncOpeningSelectedLabel(null);
+    syncOpeningControlsFromOpening(null);
     EDITOR.selectedRoomId = String(room.id || '');
     EDITOR.selectedRoomFloorId = floorId || null;
     syncRoomSelectedLabel(room);
@@ -1691,6 +1758,151 @@ Version: set in JS (VERSION)
       oy: roundStep(oyRaw, 0.05),
       scale: scaleRaw,
     };
+  }
+
+  function normalizeOpeningKindValue(kind) {
+    const k = normKind(kind, '');
+    if (!k) return '';
+    if (k === 'door' || k.startsWith('door') || k.startsWith('door_') || k.startsWith('door.')) return normDoorKind(k);
+    return k;
+  }
+
+  function setOpeningControls(values) {
+    const v = values || {};
+    EDITOR.openingUiLock = true;
+    if (elOpeningKind) elOpeningKind.value = v.kind != null ? String(v.kind) : '';
+    if (elOpeningHex) elOpeningHex.value = v.hex != null ? String(v.hex) : '';
+    if (elOpeningOrientation) elOpeningOrientation.value = v.orientation != null ? String(v.orientation) : 'h';
+    if (elOpeningOpenPct) elOpeningOpenPct.value = v.openPct != null ? String(v.openPct) : '';
+    if (elOpeningHinge) elOpeningHinge.value = v.hinge != null ? String(v.hinge) : '';
+    if (elOpeningSwing) elOpeningSwing.value = v.swing != null ? String(v.swing) : '';
+    EDITOR.openingUiLock = false;
+  }
+
+  function readOpeningControls() {
+    return {
+      kind: elOpeningKind ? String(elOpeningKind.value || '').trim() : '',
+      hex: elOpeningHex ? String(elOpeningHex.value || '').trim() : '',
+      orientation: elOpeningOrientation ? String(elOpeningOrientation.value || '').trim() : '',
+      openPct: elOpeningOpenPct ? String(elOpeningOpenPct.value || '').trim() : '',
+      hinge: elOpeningHinge ? String(elOpeningHinge.value || '').trim() : '',
+      swing: elOpeningSwing ? String(elOpeningSwing.value || '').trim() : '',
+    };
+  }
+
+  function syncOpeningControlsFromOpening(opening) {
+    if (!opening) {
+      setOpeningControls({ kind: '', hex: '', orientation: 'h', openPct: '', hinge: '', swing: '' });
+      return;
+    }
+    const kind = normalizeOpeningKindValue(opening.kind || 'door.wood') || 'door.wood';
+    const hex = opening.hex != null ? String(opening.hex) : '';
+    const orientation = openingOrientation(opening);
+    const openPct = Number.isFinite(Number(opening.openPct)) ? Number(opening.openPct) : 0;
+    const hinge = opening.hinge != null ? String(opening.hinge) : '';
+    const swing = opening.swing != null ? String(opening.swing) : '';
+    setOpeningControls({
+      kind,
+      hex,
+      orientation,
+      openPct,
+      hinge,
+      swing,
+    });
+  }
+
+  function applyOpeningControlsToSelection(ctx, values) {
+    const sel = ctx ? getSelectedOpening(ctx) : null;
+    if (!sel) return false;
+
+    const kindRaw = String(values.kind || '').trim();
+    const hexRaw = String(values.hex || '').trim();
+    const orientRaw = String(values.orientation || '').trim();
+    const openPctRaw = String(values.openPct != null ? values.openPct : '').trim();
+    const hingeRaw = String(values.hinge || '').trim();
+    const swingRaw = String(values.swing != null ? values.swing : '').trim();
+
+    let changed = false;
+
+    if (kindRaw) {
+      const nextKind = normalizeOpeningKindValue(kindRaw);
+      if (nextKind && nextKind !== sel.kind) {
+        sel.kind = nextKind;
+        changed = true;
+      }
+    }
+
+    if (hexRaw) {
+      try {
+        parseOpeningHex(hexRaw);
+        const nextHex = hexRaw.toUpperCase();
+        if (sel.hex !== nextHex) {
+          sel.hex = nextHex;
+          changed = true;
+        }
+      } catch {
+        syncOpeningControlsFromOpening(sel);
+        return false;
+      }
+    }
+
+    if (orientRaw) {
+      const nextOrient = normOrient(orientRaw);
+      if (nextOrient !== sel.orientation) {
+        sel.orientation = nextOrient;
+        changed = true;
+      }
+    }
+
+    if (openPctRaw !== '') {
+      const nextOpen = clamp(Number(openPctRaw), 0, 1);
+      if (Number.isFinite(nextOpen) && Number(nextOpen) !== Number(sel.openPct)) {
+        sel.openPct = nextOpen;
+        changed = true;
+      }
+    }
+
+    if (hingeRaw !== '') {
+      const nextHinge = hingeRaw.toLowerCase();
+      if (nextHinge !== sel.hinge) {
+        sel.hinge = nextHinge;
+        changed = true;
+      }
+    } else if (sel.hinge != null && sel.hinge !== '') {
+      delete sel.hinge;
+      changed = true;
+    }
+
+    if (swingRaw !== '') {
+      const nextSwing = Number(swingRaw);
+      if (Number.isFinite(nextSwing) && Number(nextSwing) !== Number(sel.swing)) {
+        sel.swing = nextSwing;
+        changed = true;
+      }
+    } else if (sel.swing != null && sel.swing !== '') {
+      delete sel.swing;
+      changed = true;
+    }
+
+    if (!changed) {
+      syncOpeningControlsFromOpening(sel);
+      return false;
+    }
+
+    captureUndoSnapshot('edit opening');
+    syncOpeningSelectedLabel(sel);
+    scheduleDatabaseSave();
+    safeRedraw();
+    return true;
+  }
+
+  function updateOpeningControlsFromInputs() {
+    if (EDITOR.openingUiLock) return;
+    const ctx = getEditorContext();
+    const sel = getSelectedOpening(ctx);
+    if (!sel) return;
+    const values = readOpeningControls();
+    applyOpeningControlsToSelection(ctx, values);
   }
 
   function syncRoomControlsFromRoom(room) {
@@ -6027,6 +6239,12 @@ function setActiveFloor(floorId, opts = {}) {
     const objectScale = req('objectScale');
     const btnObjBack = req('btnObjBack');
     const btnObjFront = req('btnObjFront');
+    const openingKind = req('openingKind');
+    const openingHex = req('openingHex');
+    const openingOrientation = req('openingOrientation');
+    const openingOpenPct = req('openingOpenPct');
+    const openingHinge = req('openingHinge');
+    const openingSwing = req('openingSwing');
     const roomCornerTL = req('roomCornerTL');
     const roomCornerBR = req('roomCornerBR');
     const roomFloorKind = req('roomFloorKind');
@@ -6080,6 +6298,20 @@ function setActiveFloor(floorId, opts = {}) {
       const ctx = getEditorContext();
       if (!moveSelectedRoomZ(ctx, 'front')) moveSelectedObjectZ(ctx, 'front');
     };
+
+    const onOpeningControlChange = () => updateOpeningControlsFromInputs();
+    if (openingKind) {
+      openingKind.onchange = () => onOpeningControlChange();
+      openingKind.onkeydown = (ev) => { if (ev.key === 'Enter') onOpeningControlChange(); };
+    }
+    if (openingHex) {
+      openingHex.onchange = () => onOpeningControlChange();
+      openingHex.onkeydown = (ev) => { if (ev.key === 'Enter') onOpeningControlChange(); };
+    }
+    if (openingOrientation) openingOrientation.onchange = () => onOpeningControlChange();
+    if (openingOpenPct) openingOpenPct.oninput = () => onOpeningControlChange();
+    if (openingHinge) openingHinge.onchange = () => onOpeningControlChange();
+    if (openingSwing) openingSwing.oninput = () => onOpeningControlChange();
 
     const onRoomControlChange = () => updateRoomControlsFromInputs();
     if (roomCornerTL) {
