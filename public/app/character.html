@@ -64,7 +64,7 @@
       border:1px solid var(--paper-edge);
       border-radius:22px;
       box-shadow:0 18px 40px var(--shadow);
-      padding:26px;
+      padding:22px 22px 28px;
       position:relative;
       overflow:hidden;
     }
@@ -80,27 +80,22 @@
       pointer-events:none;
     }
     .sheet > *{position:relative;}
-    .sheet-page{
-      display:flex;
-      flex-direction:column;
-      gap:16px;
-      animation:fadeIn 0.6s ease both;
-    }
+    .sheet-page{display:flex;flex-direction:column;gap:14px;animation:fadeIn 0.6s ease both;}
     .page-label{
-      font-size:12px;
-      letter-spacing:0.18em;
+      font-size:11px;
+      letter-spacing:0.2em;
       text-transform:uppercase;
       color:var(--muted);
     }
     .sheet-header{
-      display:flex;
-      justify-content:space-between;
-      gap:16px;
-      flex-wrap:wrap;
+      display:grid;
+      grid-template-columns:1.2fr 1.8fr;
+      gap:14px;
+      align-items:end;
     }
     .name-block h1{
       margin:0;
-      font-size:38px;
+      font-size:34px;
       letter-spacing:0.02em;
       font-family:"Copperplate Gothic","Garamond","Book Antiqua",serif;
     }
@@ -110,223 +105,139 @@
       font-size:14px;
       line-height:1.4;
     }
-    .header-stats{
-      display:flex;
-      gap:12px;
-      flex-wrap:wrap;
+    .header-grid{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0,1fr));
+      gap:8px 10px;
     }
-    .header-chip{
-      background:rgba(181,122,44,0.12);
-      border:1px solid rgba(181,122,44,0.4);
-      border-radius:12px;
-      padding:8px 12px;
-      min-width:90px;
+    .header-field{
+      border:1px solid rgba(47,35,20,0.25);
+      border-radius:10px;
+      padding:6px 8px;
+      background:rgba(249,241,220,0.8);
     }
-    .header-chip .label{
-      font-size:11px;
-      color:var(--muted);
+    .header-field .label{
+      font-size:10px;
       letter-spacing:0.16em;
       text-transform:uppercase;
+      color:var(--muted);
     }
-    .header-chip .value{
-      font-size:18px;
-      margin-top:4px;
-      font-weight:700;
-    }
-    .page-grid{
+    .header-field .value{font-size:14px;margin-top:4px;font-weight:600;}
+
+    .sheet-grid{
       display:grid;
-      grid-template-columns:180px 1.2fr 1fr;
-      grid-template-areas:
-        "abilities combat portrait"
-        "abilities saves portrait"
-        "abilities skills portrait"
-        "abilities profs profs"
-        "attacks attacks resources"
-        "features features equipment"
-        "spells spells equipment";
-      gap:14px;
+      grid-template-columns:180px 1.2fr 0.95fr;
+      gap:12px;
     }
-    .block{
-      background:var(--panel);
-      border:1px solid rgba(0,0,0,0.15);
+    .col{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;}
+
+    .panel{
+      position:relative;
+      border:1px solid rgba(47,35,20,0.28);
       border-radius:16px;
-      padding:14px;
+      background:rgba(249,241,220,0.95);
+      padding:12px;
       box-shadow:0 6px 12px rgba(0,0,0,0.12);
-      opacity:0;
-      transform:translateY(10px);
-      animation:riseIn 0.6s ease forwards;
-      animation-delay:var(--delay, 0s);
     }
-    .block h2{
+    .panel:before{
+      content:"";
+      position:absolute;
+      inset:6px;
+      border:1px solid rgba(47,35,20,0.18);
+      border-radius:12px;
+      pointer-events:none;
+    }
+    .panel h2{
       margin:0 0 8px 0;
-      font-size:12px;
+      font-size:11px;
       letter-spacing:0.18em;
       text-transform:uppercase;
       color:var(--muted);
     }
-    .abilities{grid-area:abilities;}
-    .combat{grid-area:combat;}
-    .portrait{grid-area:portrait;}
-    .saves{grid-area:saves;}
-    .skills{grid-area:skills;}
-    .profs{grid-area:profs;}
-    .attacks{grid-area:attacks;}
-    .resources{grid-area:resources;}
-    .features{grid-area:features;}
-    .equipment{grid-area:equipment;}
-    .spells{grid-area:spells;}
 
-    .ability-list{display:flex;flex-direction:column;gap:10px;}
+    .ability-list{display:flex;flex-direction:column;gap:8px;}
     .ability{
       display:grid;
       grid-template-columns:1fr auto;
       align-items:center;
-      padding:8px 10px;
+      padding:6px 8px;
       border:1px dashed rgba(0,0,0,0.25);
       border-radius:12px;
       background:#fff8e7;
     }
-    .ability .score{
-      font-size:22px;
-      font-weight:700;
-    }
-    .ability .label{
-      font-size:12px;
-      letter-spacing:0.18em;
-      text-transform:uppercase;
-      color:var(--muted);
-    }
-    .ability .mod{
-      font-size:12px;
-      color:var(--accent-2);
-      font-weight:700;
-    }
+    .ability .score{font-size:18px;font-weight:700;}
+    .ability .label{font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
+    .ability .mod{font-size:12px;color:var(--accent-2);font-weight:700;}
 
-    .stat-grid{
-      display:grid;
-      grid-template-columns:repeat(2, minmax(0, 1fr));
-      gap:8px 12px;
-      font-size:14px;
+    .mini-grid{display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:8px;}
+    .mini-box{
+      border:1px solid rgba(0,0,0,0.15);
+      border-radius:12px;
+      padding:8px;
+      text-align:center;
+      background:#fff8e7;
     }
-    .stat-grid div:nth-child(odd){color:var(--muted);}
+    .mini-box .label{font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
+    .mini-box .value{font-size:16px;font-weight:700;margin-top:6px;}
+
+    .hp-grid{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0,1fr));
+      gap:8px;
+      text-align:center;
+    }
+    .hp-grid .box{
+      border:1px solid rgba(0,0,0,0.15);
+      border-radius:10px;
+      background:#fff8e7;
+      padding:8px 6px;
+    }
+    .hp-grid .label{font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
+    .hp-grid .value{font-size:16px;font-weight:700;margin-top:6px;}
 
     .list{display:flex;flex-direction:column;gap:6px;font-size:14px;}
     .pill-list{display:flex;flex-wrap:wrap;gap:6px;}
-    .pill{
-      display:inline-flex;
-      padding:4px 10px;
-      border-radius:999px;
-      background:#efe2c6;
-      border:1px solid rgba(0,0,0,0.15);
-      font-size:12px;
-    }
+    .pill{display:inline-flex;padding:4px 10px;border-radius:999px;background:#efe2c6;border:1px solid rgba(0,0,0,0.15);font-size:12px;}
 
-    .portrait-frame{
-      border:1px solid rgba(0,0,0,0.2);
-      border-radius:14px;
-      background:#fdf7ea;
-      padding:10px;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      height:100%;
-      min-height:280px;
-      overflow:hidden;
-    }
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th,td{padding:6px 6px;border-bottom:1px solid rgba(0,0,0,0.1);text-align:left;}
+    th{font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
+
+    .portrait-frame{display:flex;flex-direction:column;gap:10px;}
     .portrait-visual{
-      flex:1;
-      min-height:240px;
-      display:flex;
-      overflow:hidden;
-      border-radius:10px;
+      width:100%;
+      aspect-ratio:3 / 4;
+      border-radius:12px;
       border:1px solid rgba(0,0,0,0.12);
+      overflow:hidden;
       background:#e6dcc3;
     }
-    .portrait-frame img{
-      width:100%;
-      height:100%;
-      object-fit:contain;
-    }
-    .portrait-placeholder{
-      width:100%;
-      height:100%;
-      border:1px dashed rgba(0,0,0,0.2);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      color:var(--muted);
-      font-size:12px;
-      text-transform:uppercase;
-      letter-spacing:0.12em;
-      background:#f6ecd4;
-    }
+    .portrait-visual img{width:100%;height:100%;object-fit:cover;display:block;}
+    .portrait-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:0.12em;background:#f6ecd4;}
 
-    table{
-      width:100%;
-      border-collapse:collapse;
-      font-size:14px;
-    }
-    th,td{padding:6px 8px;border-bottom:1px solid rgba(0,0,0,0.1);text-align:left;}
-    th{font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
+    .spells-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 
-    .page-two-grid{
-      display:grid;
-      grid-template-columns:repeat(2, minmax(0,1fr));
-      gap:14px;
-    }
-    .page-two-grid .block{animation-delay:var(--delay,0.1s);}
+    .treasure-grid{display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:6px 10px;font-size:13px;}
+    .treasure-grid div:nth-child(odd){color:var(--muted);}
 
-    pre{
-      margin:0;
-      white-space:pre-wrap;
-      font-family:"Courier New",Courier,monospace;
-      background:#f4e8cf;
-      border:1px solid rgba(0,0,0,0.12);
-      border-radius:12px;
-      padding:12px;
-    }
+    .page-two-grid{display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:14px;}
+
+    pre{margin:0;white-space:pre-wrap;font-family:"Courier New",Courier,monospace;background:#f4e8cf;border:1px solid rgba(0,0,0,0.12);border-radius:12px;padding:12px;}
     .empty{color:var(--muted);font-style:italic;}
 
-    .status{
-      text-align:center;
-      color:#e8edf7;
-      padding:30px 10px;
-      font-size:16px;
-    }
-    .status .msg{
-      display:inline-block;
-      padding:12px 18px;
-      border-radius:12px;
-      background:rgba(0,0,0,0.35);
-      border:1px solid rgba(255,255,255,0.18);
-    }
+    .status{text-align:center;color:#e8edf7;padding:30px 10px;font-size:16px;}
+    .status .msg{display:inline-block;padding:12px 18px;border-radius:12px;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.18);}
 
-    @keyframes fadeIn{
-      from{opacity:0;transform:translateY(8px);}
-      to{opacity:1;transform:translateY(0);}
-    }
-    @keyframes riseIn{
-      from{opacity:0;transform:translateY(12px);}
-      to{opacity:1;transform:translateY(0);}
-    }
+    @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
 
-    @media (max-width: 980px){
-      .sheet-header{flex-direction:column;align-items:flex-start;}
-      .page-grid{
-        grid-template-columns:1fr;
-        grid-template-areas:
-          "abilities"
-          "combat"
-          "portrait"
-          "saves"
-          "skills"
-          "profs"
-          "attacks"
-          "resources"
-          "features"
-          "spells"
-          "equipment";
-      }
+    @media (max-width: 1100px){
+      .sheet-header{grid-template-columns:1fr;}
+      .header-grid{grid-template-columns:repeat(2, minmax(0,1fr));}
+      .sheet-grid{grid-template-columns:1fr;}
+    }
+    @media (max-width: 640px){
+      .header-grid{grid-template-columns:1fr;}
+      .spells-columns{grid-template-columns:1fr;}
       .page-two-grid{grid-template-columns:1fr;}
     }
   </style>
@@ -343,107 +254,148 @@
     <main class="sheet" id="sheet" hidden>
       <section class="sheet-page">
         <div class="page-label">Page 1</div>
+
         <header class="sheet-header">
           <div class="name-block">
             <h1 id="charName">Unknown</h1>
             <div class="meta" id="charMeta"></div>
           </div>
-          <div class="header-stats">
-            <div class="header-chip">
-              <div class="label">Level</div>
-              <div class="value" id="charLevel">?</div>
+          <div class="header-grid">
+            <div class="header-field">
+              <div class="label">Class & Level</div>
+              <div class="value" id="fieldClassLevel">-</div>
             </div>
-            <div class="header-chip">
-              <div class="label">Class</div>
-              <div class="value" id="charClass">-</div>
+            <div class="header-field">
+              <div class="label">Background</div>
+              <div class="value" id="fieldBackground">-</div>
             </div>
-            <div class="header-chip">
+            <div class="header-field">
+              <div class="label">Player Name</div>
+              <div class="value" id="fieldPlayer">-</div>
+            </div>
+            <div class="header-field">
               <div class="label">Race</div>
-              <div class="value" id="charRace">-</div>
+              <div class="value" id="fieldRace">-</div>
             </div>
-            <div class="header-chip">
+            <div class="header-field">
               <div class="label">Alignment</div>
-              <div class="value" id="charAlignment">-</div>
+              <div class="value" id="fieldAlignment">-</div>
+            </div>
+            <div class="header-field">
+              <div class="label">Experience</div>
+              <div class="value" id="fieldXp">-</div>
             </div>
           </div>
         </header>
 
-        <div class="page-grid">
-          <section class="block abilities" style="--delay:0.05s">
-            <h2>Abilities</h2>
-            <div class="ability-list" id="abilityList"></div>
-          </section>
+        <div class="sheet-grid">
+          <div class="col">
+            <section class="panel">
+              <h2>Abilities</h2>
+              <div class="ability-list" id="abilityList"></div>
+            </section>
 
-          <section class="block combat" style="--delay:0.1s">
-            <h2>Combat</h2>
-            <div class="stat-grid" id="combatGrid"></div>
-          </section>
+            <section class="panel">
+              <h2>Saves</h2>
+              <div class="list" id="savesList"></div>
+            </section>
 
-          <section class="block portrait" style="--delay:0.15s">
-            <h2>Appearance</h2>
-            <div class="portrait-frame">
-              <div class="portrait-visual">
-                <div id="portraitSlot" class="portrait-placeholder">Portrait</div>
+            <section class="panel">
+              <h2>Skills</h2>
+              <div class="list" id="skillsList"></div>
+            </section>
+
+            <section class="panel">
+              <h2>Proficiencies & Languages</h2>
+              <div class="list" id="profsList"></div>
+            </section>
+
+            <section class="panel">
+              <h2>Passive Perception</h2>
+              <div class="mini-box" id="passiveBox">
+                <div class="label">Passive</div>
+                <div class="value" id="passiveValue">--</div>
               </div>
-              <div class="list" id="appearanceList"></div>
-            </div>
-          </section>
+            </section>
+          </div>
 
-          <section class="block saves" style="--delay:0.2s">
-            <h2>Saves</h2>
-            <div class="list" id="savesList"></div>
-          </section>
+          <div class="col">
+            <section class="panel">
+              <h2>Combat</h2>
+              <div class="mini-grid" id="combatGrid"></div>
+            </section>
 
-          <section class="block skills" style="--delay:0.25s">
-            <h2>Skills</h2>
-            <div class="list" id="skillsList"></div>
-          </section>
+            <section class="panel">
+              <h2>Hit Points</h2>
+              <div class="hp-grid">
+                <div class="box">
+                  <div class="label">Max</div>
+                  <div class="value" id="hpMax">--</div>
+                </div>
+                <div class="box">
+                  <div class="label">Current</div>
+                  <div class="value" id="hpCurrent">--</div>
+                </div>
+                <div class="box">
+                  <div class="label">Temp</div>
+                  <div class="value" id="hpTemp">--</div>
+                </div>
+              </div>
+            </section>
 
-          <section class="block profs" style="--delay:0.3s">
-            <h2>Proficiencies</h2>
-            <div class="list" id="profsList"></div>
-          </section>
+            <section class="panel">
+              <h2>Attacks</h2>
+              <div id="attacksBlock"></div>
+            </section>
 
-          <section class="block attacks" style="--delay:0.35s">
-            <h2>Attacks</h2>
-            <div id="attacksBlock"></div>
-          </section>
+            <section class="panel">
+              <h2>Features</h2>
+              <div class="list" id="featuresList"></div>
+            </section>
 
-          <section class="block resources" style="--delay:0.4s">
-            <h2>Resources</h2>
-            <div class="list" id="resourcesList"></div>
-          </section>
+            <section class="panel">
+              <h2>Equipment</h2>
+              <div class="list" id="equipmentList"></div>
+            </section>
+          </div>
 
-          <section class="block features" style="--delay:0.45s">
-            <h2>Features</h2>
-            <div class="list" id="featuresList"></div>
-          </section>
+          <div class="col">
+            <section class="panel">
+              <h2>Appearance</h2>
+              <div class="portrait-frame">
+                <div class="portrait-visual" id="portraitVisual">
+                  <div id="portraitSlot" class="portrait-placeholder">Portrait</div>
+                </div>
+                <div class="list" id="appearanceList"></div>
+              </div>
+            </section>
 
-          <section class="block spells" style="--delay:0.5s">
-            <h2>Spells</h2>
-            <div id="spellsBlock"></div>
-          </section>
+            <section class="panel">
+              <h2>Spells</h2>
+              <div class="spells-columns" id="spellsBlock"></div>
+            </section>
 
-          <section class="block equipment" style="--delay:0.55s">
-            <h2>Equipment</h2>
-            <div class="list" id="equipmentList"></div>
-            <div class="list" id="currencyList"></div>
-          </section>
+            <section class="panel">
+              <h2>Treasure</h2>
+              <div class="treasure-grid" id="treasureGrid"></div>
+              <div class="list" id="treasureList"></div>
+            </section>
+          </div>
         </div>
       </section>
 
-      <section class="sheet-page" style="margin-top:24px;">
+      <section class="sheet-page" style="margin-top:18px;">
         <div class="page-label">Page 2</div>
         <div class="page-two-grid">
-          <section class="block" style="--delay:0.1s">
+          <section class="panel">
             <h2>Personality</h2>
             <div class="list" id="personalityList"></div>
           </section>
-          <section class="block" style="--delay:0.15s">
+          <section class="panel">
             <h2>Adventure History</h2>
             <div class="list" id="historyList"></div>
           </section>
-          <section class="block" style="--delay:0.2s">
+          <section class="panel">
             <h2>Notes</h2>
             <pre id="notesText" class="empty">No notes</pre>
           </section>
@@ -461,23 +413,30 @@
     const els = {
       name: document.getElementById('charName'),
       meta: document.getElementById('charMeta'),
-      level: document.getElementById('charLevel'),
-      klass: document.getElementById('charClass'),
-      race: document.getElementById('charRace'),
-      alignment: document.getElementById('charAlignment'),
+      fieldClassLevel: document.getElementById('fieldClassLevel'),
+      fieldBackground: document.getElementById('fieldBackground'),
+      fieldPlayer: document.getElementById('fieldPlayer'),
+      fieldRace: document.getElementById('fieldRace'),
+      fieldAlignment: document.getElementById('fieldAlignment'),
+      fieldXp: document.getElementById('fieldXp'),
       abilityList: document.getElementById('abilityList'),
-      combatGrid: document.getElementById('combatGrid'),
-      portraitSlot: document.getElementById('portraitSlot'),
-      appearanceList: document.getElementById('appearanceList'),
       savesList: document.getElementById('savesList'),
       skillsList: document.getElementById('skillsList'),
       profsList: document.getElementById('profsList'),
+      passiveValue: document.getElementById('passiveValue'),
+      combatGrid: document.getElementById('combatGrid'),
+      hpMax: document.getElementById('hpMax'),
+      hpCurrent: document.getElementById('hpCurrent'),
+      hpTemp: document.getElementById('hpTemp'),
       attacksBlock: document.getElementById('attacksBlock'),
-      resourcesList: document.getElementById('resourcesList'),
       featuresList: document.getElementById('featuresList'),
-      spellsBlock: document.getElementById('spellsBlock'),
       equipmentList: document.getElementById('equipmentList'),
-      currencyList: document.getElementById('currencyList'),
+      portraitSlot: document.getElementById('portraitSlot'),
+      portraitVisual: document.getElementById('portraitVisual'),
+      appearanceList: document.getElementById('appearanceList'),
+      spellsBlock: document.getElementById('spellsBlock'),
+      treasureGrid: document.getElementById('treasureGrid'),
+      treasureList: document.getElementById('treasureList'),
       personalityList: document.getElementById('personalityList'),
       historyList: document.getElementById('historyList'),
       notesText: document.getElementById('notesText')
@@ -530,12 +489,6 @@
       }
     }
 
-    function renderStatGrid(el, pairs) {
-      el.innerHTML = pairs
-        .map(([k, v]) => '<div>' + k + '</div><div style="text-align:right;">' + v + '</div>')
-        .join('');
-    }
-
     function renderList(el, items, emptyLabel) {
       el.innerHTML = '';
       const list = Array.isArray(items) ? items : [];
@@ -578,6 +531,27 @@
       });
     }
 
+    function renderCombatMini(combat, passive) {
+      const boxes = [
+        { label: 'Armor Class', value: combat.ac != null ? combat.ac : '--' },
+        { label: 'Initiative', value: combat.initiative_mod != null ? formatMod(Number(combat.initiative_mod)) : '--' },
+        { label: 'Speed', value: combat.speed_ft != null ? combat.speed_ft + ' ft' : '--' }
+      ];
+      els.combatGrid.innerHTML = boxes.map(b =>
+        '<div class="mini-box"><div class="label">' + b.label + '</div><div class="value">' + b.value + '</div></div>'
+      ).join('');
+      els.passiveValue.textContent = passive;
+    }
+
+    function renderHp(combat) {
+      const maxHp = combat.max_hp != null ? combat.max_hp : '--';
+      const currentHp = combat.current_hp != null ? combat.current_hp : (combat.hp != null ? combat.hp : '--');
+      const tempHp = combat.temp_hp != null ? combat.temp_hp : (combat.temp != null ? combat.temp : '--');
+      els.hpMax.textContent = maxHp;
+      els.hpCurrent.textContent = currentHp;
+      els.hpTemp.textContent = tempHp;
+    }
+
     function renderAttacks(attacks) {
       if (!Array.isArray(attacks) || !attacks.length) {
         els.attacksBlock.innerHTML = '<div class="empty">No attacks listed.</div>';
@@ -587,11 +561,10 @@
         const name = a && a.name ? a.name : 'Attack';
         const toHit = a && (a.to_hit != null ? a.to_hit : a.toHit != null ? a.toHit : '');
         const damage = a && (a.damage != null ? a.damage : a.dmg != null ? a.dmg : '');
-        const range = a && a.range ? a.range : '';
-        return '<tr><td>' + name + '</td><td>' + toHit + '</td><td>' + damage + '</td><td>' + range + '</td></tr>';
+        return '<tr><td>' + name + '</td><td>' + toHit + '</td><td>' + damage + '</td></tr>';
       }).join('');
       els.attacksBlock.innerHTML =
-        '<table><thead><tr><th>Name</th><th>To Hit</th><th>Damage</th><th>Range</th></tr></thead><tbody>' +
+        '<table><thead><tr><th>Name</th><th>To Hit</th><th>Damage/Type</th></tr></thead><tbody>' +
         rows +
         '</tbody></table>';
     }
@@ -603,21 +576,11 @@
       }
       const known = Array.isArray(spells.known) ? spells.known : [];
       const prepared = Array.isArray(spells.prepared) ? spells.prepared : [];
-      const slots = spells.slots && typeof spells.slots === 'object' ? spells.slots : {};
-      const slotKeys = Object.keys(slots).sort((a, b) => Number(a) - Number(b));
-      const slotText = slotKeys.length
-        ? slotKeys.map(k => 'L' + k + ': ' + slots[k]).join(' | ')
-        : 'No slots';
-
-      const knownHtml = known.length ? known.map(s => '<div class="pill">' + s + '</div>').join('') : '<div class="empty">No known spells.</div>';
-      const prepHtml = prepared.length ? prepared.map(s => '<div class="pill">' + s + '</div>').join('') : '<div class="empty">No prepared spells.</div>';
-
+      const knownHtml = known.length ? known.map(s => '<div class="pill">' + s + '</div>').join('') : '<div class="empty">None</div>';
+      const prepHtml = prepared.length ? prepared.map(s => '<div class="pill">' + s + '</div>').join('') : '<div class="empty">None</div>';
       els.spellsBlock.innerHTML =
-        '<div class="stat-grid"><div>Slots</div><div style="text-align:right;">' + slotText + '</div></div>' +
-        '<div style="margin-top:10px;"><strong>Known</strong></div>' +
-        '<div class="pill-list" style="margin-top:6px;">' + knownHtml + '</div>' +
-        '<div style="margin-top:12px;"><strong>Prepared</strong></div>' +
-        '<div class="pill-list" style="margin-top:6px;">' + prepHtml + '</div>';
+        '<div><div class="label" style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);">Known</div><div class="pill-list" style="margin-top:6px;">' + knownHtml + '</div></div>' +
+        '<div><div class="label" style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);">Prepared</div><div class="pill-list" style="margin-top:6px;">' + prepHtml + '</div></div>';
     }
 
     function renderPortrait(appearance) {
@@ -626,8 +589,10 @@
       const img = document.createElement('img');
       img.src = url;
       img.alt = 'Portrait';
-      els.portraitSlot.replaceWith(img);
-      els.portraitSlot = img;
+      if (els.portraitSlot && els.portraitSlot.parentElement) {
+        els.portraitSlot.parentElement.replaceChild(img, els.portraitSlot);
+        els.portraitSlot = img;
+      }
     }
 
     function renderSheet(character) {
@@ -642,21 +607,20 @@
       const race = identity.race || '';
       const background = identity.background || '';
       const alignment = identity.alignment || '';
+      const player = identity.player_name || '';
+      const xp = identity.experience_points || identity.xp || '';
 
       document.title = name + ' - Character Sheet';
       els.name.textContent = name;
-      els.level.textContent = level ? String(level) : '?';
-      els.klass.textContent = klass || '-';
-      els.race.textContent = race || '-';
-      els.alignment.textContent = alignment || '-';
+      els.meta.textContent = [klass, level, race].filter(Boolean).join(' | ');
 
-      const metaParts = [];
-      if (klass && level) metaParts.push(klass + ' ' + level);
-      else if (klass) metaParts.push(klass);
-      if (race) metaParts.push(race);
-      if (background) metaParts.push(background);
-      if (alignment) metaParts.push(alignment);
-      els.meta.textContent = metaParts.join(' | ');
+      const classLevel = klass && level ? (klass + ' ' + level) : (klass || level || '--');
+      els.fieldClassLevel.textContent = classLevel || '--';
+      els.fieldBackground.textContent = background || '--';
+      els.fieldPlayer.textContent = player || '--';
+      els.fieldRace.textContent = race || '--';
+      els.fieldAlignment.textContent = alignment || '--';
+      els.fieldXp.textContent = xp || '--';
 
       renderAbilities(sheet.abilities || {});
 
@@ -664,13 +628,8 @@
       const passivePerception = (sheet.skills && Number.isFinite(Number(sheet.skills.perception)))
         ? 10 + Number(sheet.skills.perception)
         : '--';
-      renderStatGrid(els.combatGrid, [
-        ['AC', combat.ac != null ? combat.ac : '--'],
-        ['Max HP', combat.max_hp != null ? combat.max_hp : '--'],
-        ['Speed', combat.speed_ft != null ? combat.speed_ft + ' ft' : '--'],
-        ['Initiative', combat.initiative_mod != null ? formatMod(Number(combat.initiative_mod)) : '--'],
-        ['Passive Perception', passivePerception]
-      ]);
+      renderCombatMini(combat, passivePerception);
+      renderHp(combat);
 
       renderPortrait(appearance);
 
@@ -706,30 +665,21 @@
       renderList(els.profsList, profLines, 'No proficiencies listed.');
 
       renderAttacks(sheet.attacks);
-
-      const resources = sheet.resources || {};
-      const resourceLines = [];
-      if (resources.hit_dice) resourceLines.push('Hit Dice: ' + resources.hit_dice);
-      if (resources.class) resourceLines.push('Class: ' + resources.class);
-      if (resources.spell_slots) resourceLines.push('Spell Slots: ' + JSON.stringify(resources.spell_slots));
-      for (const [key, val] of Object.entries(resources)) {
-        if (['hit_dice', 'class', 'spell_slots'].includes(key)) continue;
-        resourceLines.push(key + ': ' + String(val));
-      }
-      renderList(els.resourcesList, resourceLines, 'No resources listed.');
-
       renderList(els.featuresList, sheet.features, 'No features listed.');
+      renderList(els.equipmentList, sheet.equipment || sheet.inventory, 'No equipment listed.');
+
       renderSpells(sheet.spells);
 
-      const equipment = sheet.equipment || sheet.inventory || [];
-      renderList(els.equipmentList, equipment, 'No equipment listed.');
-
       const currency = sheet.currency || {};
-      const currencyLines = [];
-      for (const [key, val] of Object.entries(currency)) {
-        currencyLines.push(key.toUpperCase() + ': ' + val);
+      const currencyEntries = Object.entries(currency);
+      if (currencyEntries.length) {
+        els.treasureGrid.innerHTML = currencyEntries
+          .map(([key, val]) => '<div>' + key.toUpperCase() + '</div><div style="text-align:right;">' + val + '</div>')
+          .join('');
+      } else {
+        els.treasureGrid.innerHTML = '<div class="empty">No coin listed.</div>';
       }
-      renderList(els.currencyList, currencyLines, '');
+      renderList(els.treasureList, sheet.treasure, '');
 
       const personalityLines = [];
       if (personality.traits) personalityLines.push('Traits: ' + personality.traits);

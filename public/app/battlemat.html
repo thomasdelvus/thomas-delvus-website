@@ -373,10 +373,7 @@ Version: set in JS (VERSION)
               <tr>
                 <th>Actor</th>
                 <th class="statusNum" title="Hit Points">HP</th>
-                <th class="statusNum" title="Armor Class">AC</th>
                 <th class="statusNum" title="Initiative">Init</th>
-                <th class="statusNum" title="Speed (hexes)">Spd</th>
-                <th class="statusNum" title="Range (hexes)">Rng</th>
                 <th title="Conditions">Cond</th>
               </tr>
             </thead>
@@ -5433,13 +5430,15 @@ const EMBEDDED_WORLD_JSON = `{
       const rowAttrs = characterId
         ? (' data-character-id="' + escapeHtml(characterId) + '" role="button" tabindex="0" title="Open character sheet"')
         : '';
+      const hoverDetails = [
+        'AC: ' + (ac != null ? String(ac) : '–'),
+        'Speed: ' + (speed != null ? String(speed) : '–'),
+        'Range: ' + (range != null ? String(range) : '–'),
+      ].join('\n');
       return '<tr class="' + rowClass + '"' + rowAttrs + '>'
-        + '<td>' + escapeHtml(name) + '</td>'
+        + '<td title="' + escapeHtml(hoverDetails) + '">' + escapeHtml(name) + '</td>'
         + '<td class="statusNum">' + escapeHtml(hpText || '–') + '</td>'
-        + '<td class="statusNum">' + escapeHtml(ac != null ? String(ac) : '–') + '</td>'
         + '<td class="statusNum">' + escapeHtml(init != null ? String(init) : '–') + '</td>'
-        + '<td class="statusNum">' + escapeHtml(speed != null ? String(speed) : '–') + '</td>'
-        + '<td class="statusNum">' + escapeHtml(range != null ? String(range) : '–') + '</td>'
         + '<td><div class="statusCond">' + conditionsHtml + '</div></td>'
         + '</tr>';
     }).join('');
