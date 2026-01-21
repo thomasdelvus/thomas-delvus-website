@@ -231,24 +231,25 @@
       gap:10px;
       height:100%;
       min-height:280px;
+      overflow:hidden;
     }
     .portrait-visual{
       flex:1;
       min-height:240px;
       display:flex;
-    }
-    .portrait-frame img{
-      width:100%;
-      height:100%;
-      object-fit:cover;
+      overflow:hidden;
       border-radius:10px;
       border:1px solid rgba(0,0,0,0.12);
       background:#e6dcc3;
     }
+    .portrait-frame img{
+      width:100%;
+      height:100%;
+      object-fit:contain;
+    }
     .portrait-placeholder{
       width:100%;
       height:100%;
-      border-radius:10px;
       border:1px dashed rgba(0,0,0,0.2);
       display:flex;
       align-items:center;
@@ -685,8 +686,10 @@
         els.appearanceList.innerHTML = appearanceFields
           .map(([k, v]) => '<div>' + k + ': ' + v + '</div>')
           .join('');
+        els.appearanceList.style.display = 'flex';
       } else {
-        els.appearanceList.innerHTML = '<div class="empty">No appearance details.</div>';
+        els.appearanceList.innerHTML = '';
+        els.appearanceList.style.display = 'none';
       }
 
       renderKeyValueList(els.savesList, sheet.saves, {
