@@ -137,6 +137,13 @@
       border-bottom:1px solid rgba(0,0,0,0.1);
       text-align:left;
     }
+    .treasure-table th:nth-child(2),
+    .treasure-table td:nth-child(2),
+    .treasure-table th:nth-child(3),
+    .treasure-table td:nth-child(3){
+      text-align:right;
+      font-variant-numeric:tabular-nums;
+    }
     .treasure-table th{
       font-size:10px;
       letter-spacing:0.16em;
@@ -400,6 +407,13 @@
                   <h2>Abilities</h2>
                   <div class="ability-list" id="abilityList"></div>
                 </section>
+                <section class="panel">
+                  <h2>Passive Perception</h2>
+                  <div class="mini-box" id="passiveBox">
+                    <div class="label">Passive</div>
+                    <div class="value" id="passiveValue">--</div>
+                  </div>
+                </section>
               </div>
 
               <div class="col">
@@ -411,14 +425,6 @@
                 <section class="panel">
                   <h2>Skills</h2>
                   <div class="list" id="skillsList"></div>
-                </section>
-
-                <section class="panel">
-                  <h2>Passive Perception</h2>
-                  <div class="mini-box" id="passiveBox">
-                    <div class="label">Passive</div>
-                    <div class="value" id="passiveValue">--</div>
-                  </div>
                 </section>
               </div>
 
@@ -852,7 +858,7 @@
     function formatGp(value) {
       if (!Number.isFinite(value)) return '--';
       const rounded = Math.round(value * 100) / 100;
-      return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+      return rounded.toFixed(2);
     }
 
     function renderTreasureTable(treasure, currency) {
