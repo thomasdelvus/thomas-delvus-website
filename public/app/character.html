@@ -356,15 +356,17 @@
               <div id="attacksBlock"></div>
             </section>
 
-            <section class="panel">
-              <h2>Features</h2>
-              <div class="list" id="featuresList"></div>
-            </section>
+            <div class="panel-row">
+              <section class="panel">
+                <h2>Proficiencies & Languages</h2>
+                <div class="list" id="profsList"></div>
+              </section>
 
-            <section class="panel">
-              <h2>Proficiencies & Languages</h2>
-              <div class="list" id="profsList"></div>
-            </section>
+              <section class="panel">
+                <h2>Features</h2>
+                <div class="list" id="featuresList"></div>
+              </section>
+            </div>
 
             <section class="panel">
               <h2>Equipment</h2>
@@ -625,7 +627,8 @@
 
       document.title = name + ' - Character Sheet';
       els.name.textContent = name;
-      els.meta.textContent = [klass, level, race].filter(Boolean).join(' | ');
+      els.meta.textContent = '';
+      els.meta.style.display = 'none';
 
       const classLevel = klass && level ? (klass + ' ' + level) : (klass || level || '--');
       els.fieldClassLevel.textContent = classLevel || '--';
