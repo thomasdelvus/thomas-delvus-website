@@ -63,9 +63,14 @@ attacks:
 
 spells:
 {
+  "slots": { "1": 4, "2": 2 },
+  "entries": [
+    { "name": "Fireball", "level": 3, "tags": ["offense"], "prepared": true },
+    { "name": "Shield", "level": 1, "tags": ["defense"], "prepared": true },
+    { "name": "Detect Magic", "level": 1, "tags": ["utility"], "prepared": false }
+  ],
   "known": [],
-  "prepared": [],
-  "slots": { "1": 4, "2": 2 }
+  "prepared": []
 }
 
 appearance:

@@ -257,7 +257,33 @@
     .portrait-visual img{width:100%;height:100%;object-fit:cover;display:block;}
     .portrait-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:0.12em;background:#f6ecd4;}
 
-    .spells-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .spells-columns{display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:10px;}
+    .spell-group{display:flex;flex-direction:column;gap:6px;}
+    .spell-group h3{
+      margin:0;
+      font-size:10px;
+      letter-spacing:0.18em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
+    .spell-list{display:flex;flex-direction:column;gap:6px;}
+    .spell-item{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:4px 8px;
+      border-radius:999px;
+      background:#efe2c6;
+      border:1px solid rgba(0,0,0,0.12);
+      font-size:12px;
+      line-height:1.2;
+    }
+    .spell-level{
+      font-size:10px;
+      letter-spacing:0.16em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
 
     .treasure-grid{display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:6px 10px;font-size:13px;}
     .treasure-grid div:nth-child(odd){color:var(--muted);}
@@ -647,18 +673,71 @@
         '</tbody></table>';
     }
 
+    function normalizeSpellEntries(spells) {
+      if (!spells || typeof spells !== 'object') return [];
+      const entries = Array.isArray(spells.entries) ? spells.entries : [];
+      if (entries.length) return entries;
+
+      const known = Array.isArray(spells.known) ? spells.known : [];
+      const prepared = new Set(Array.isArray(spells.prepared) ? spells.prepared : []);
+      return known.map((name) => ({
+        name,
+        level: null,
+        tags: [],
+        prepared: prepared.has(name)
+      }));
+    }
+
+    function spellGroupFor(tags) {
+      const list = Array.isArray(tags) ? tags : [tags];
+      const norm = list.map(t => String(t || '').toLowerCase());
+      if (norm.includes('offense') || norm.includes('offensive') || norm.includes('damage')) return 'offense';
+      if (norm.includes('defense') || norm.includes('defensive') || norm.includes('protection')) return 'defense';
+      if (norm.includes('utility') || norm.includes('support') || norm.includes('control')) return 'utility';
+      return 'utility';
+    }
+
     function renderSpells(spells) {
-      if (!spells || typeof spells !== 'object') {
+      const entries = normalizeSpellEntries(spells);
+      if (!entries.length) {
         els.spellsBlock.innerHTML = '<div class="empty">No spells listed.</div>';
         return;
       }
-      const known = Array.isArray(spells.known) ? spells.known : [];
-      const prepared = Array.isArray(spells.prepared) ? spells.prepared : [];
-      const knownHtml = known.length ? known.map(s => '<div class="pill">' + s + '</div>').join('') : '<div class="empty">None</div>';
-      const prepHtml = prepared.length ? prepared.map(s => '<div class="pill">' + s + '</div>').join('') : '<div class="empty">None</div>';
+
+      const groups = { offense: [], defense: [], utility: [] };
+      for (const raw of entries) {
+        if (!raw) continue;
+        const name = raw.name != null ? String(raw.name) : '';
+        if (!name) continue;
+        const level = Number.isFinite(Number(raw.level)) ? Number(raw.level) : null;
+        const prepared = !!raw.prepared;
+        const tags = raw.tags || raw.tag || raw.type || [];
+        const group = spellGroupFor(tags);
+        groups[group].push({ name, level, prepared });
+      }
+
+      const sortSpells = (a, b) => {
+        const la = (a.level == null) ? -1 : a.level;
+        const lb = (b.level == null) ? -1 : b.level;
+        if (lb !== la) return lb - la;
+        return a.name.localeCompare(b.name);
+      };
+
+      const renderGroup = (title, list) => {
+        const sorted = list.slice().sort(sortSpells);
+        const items = sorted.map((s) => {
+          const levelText = (s.level == null) ? '' : ('L' + s.level);
+          const prepared = s.prepared ? '✅' : '';
+          return '<div class="spell-item"><span class="spell-level">' + levelText + '</span><span>' + s.name + '</span><span style="margin-left:auto;">' + prepared + '</span></div>';
+        }).join('');
+        const body = items || '<div class="empty">None</div>';
+        return '<div class="spell-group"><h3>' + title + '</h3><div class="spell-list">' + body + '</div></div>';
+      };
+
       els.spellsBlock.innerHTML =
-        '<div><div class="label" style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);">Known</div><div class="pill-list" style="margin-top:6px;">' + knownHtml + '</div></div>' +
-        '<div><div class="label" style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);">Prepared</div><div class="pill-list" style="margin-top:6px;">' + prepHtml + '</div></div>';
+        renderGroup('Offense', groups.offense) +
+        renderGroup('Defense', groups.defense) +
+        renderGroup('Utility', groups.utility);
     }
 
     function renderPortrait(appearance) {
