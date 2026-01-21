@@ -1505,6 +1505,51 @@ Version: set in JS (VERSION)
     return object.id;
   }
 
+  function objectZValue(object) {
+    const z = object && object.z;
+    return Number.isFinite(Number(z)) ? Number(z) : null;
+  }
+
+  function assignSequentialObjectZ(objects) {
+    for (let i = 0; i < objects.length; i++) {
+      const o = objects[i];
+      if (!o || typeof o !== 'object') continue;
+      o.z = i;
+    }
+  }
+
+  function nextObjectZ(objects) {
+    let maxZ = -Infinity;
+    let hasZ = false;
+    for (const o of objects) {
+      const z = objectZValue(o);
+      if (z == null) continue;
+      hasZ = true;
+      if (z > maxZ) maxZ = z;
+    }
+    if (!hasZ) return objects.length;
+    return maxZ + 1;
+  }
+
+  function sortObjectsForRender(objects) {
+    const list = Array.isArray(objects) ? objects.slice() : [];
+    if (!list.length) return list;
+    let hasZ = false;
+    for (const o of list) {
+      if (objectZValue(o) != null) { hasZ = true; break; }
+    }
+    if (!hasZ) return list;
+    return list
+      .map((o, idx) => ({ o, idx, z: objectZValue(o) }))
+      .sort((a, b) => {
+        const az = (a.z != null) ? a.z : a.idx;
+        const bz = (b.z != null) ? b.z : b.idx;
+        if (az !== bz) return az - bz;
+        return a.idx - b.idx;
+      })
+      .map(entry => entry.o);
+  }
+
   function syncObjectSelectedLabel(object) {
     if (!elObjectSelected) return;
     if (!object) {
@@ -1792,6 +1837,7 @@ Version: set in JS (VERSION)
       return false;
     }
 
+    assignSequentialObjectZ(objects);
     scheduleDatabaseSave();
     safeRedraw();
     return true;
@@ -1871,6 +1917,7 @@ Version: set in JS (VERSION)
   function addObjectAtHex(ctx, hexLabel, opts) {
     if (!ctx || !ctx.floor || !hexLabel) return null;
     if (!Array.isArray(ctx.floor.objects)) ctx.floor.objects = [];
+    const objects = ctx.floor.objects;
     const values = normalizeObjectControlValues(opts || {});
     const object = {
       id: 'object_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e4).toString(36),
@@ -1881,8 +1928,9 @@ Version: set in JS (VERSION)
       rotDeg: values.rotDeg,
       spriteScale: values.scale,
       floorId: ctx.floorId || null,
+      z: nextObjectZ(objects),
     };
-    ctx.floor.objects.push(object);
+    objects.push(object);
     return object;
   }
 
@@ -5649,7 +5697,8 @@ function populateFloorSelect(floors) {
     for (const o of openingsToDraw) drawOpeningMarker(o, wallSegs, roomsAll, roomMetaAll);
     drawEditorOverlays(wallSegs, roomMetaAll);
 
-    for (const o of objects) drawObject(o, roomMetaAll);
+    const objectsToDraw = sortObjectsForRender(objects);
+    for (const o of objectsToDraw) drawObject(o, roomMetaAll);
 
     drawRememberedRoomOverlays(roomsAll);
 
