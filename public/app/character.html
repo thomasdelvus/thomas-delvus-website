@@ -113,7 +113,12 @@
     .section-body{padding:12px;}
     .section-grid{
       display:grid;
-      grid-template-columns:1.4fr 0.8fr;
+      grid-template-columns:repeat(2, minmax(0,1fr));
+      gap:12px;
+    }
+    .section-stack{
+      display:flex;
+      flex-direction:column;
       gap:12px;
     }
     .equipment-grid{
@@ -224,7 +229,7 @@
       gap:12px;
     }
     .panel-row.three{
-      grid-template-columns:repeat(3, minmax(0,1fr));
+      grid-template-columns:1.3fr 0.8fr 1fr;
     }
     .subsection{
       border:1px solid rgba(47,35,20,0.22);
@@ -411,6 +416,30 @@
       font-weight:700;
       margin-top:6px;
     }
+    .personality-header{
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0,1fr));
+      gap:10px;
+    }
+    .personality-field{
+      border:1px solid rgba(0,0,0,0.15);
+      border-radius:12px;
+      padding:8px;
+      text-align:center;
+      background:#fff8e7;
+    }
+    .personality-field .label{
+      font-size:10px;
+      letter-spacing:0.16em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
+    .personality-field .value{
+      font-size:12px;
+      font-weight:600;
+      margin-top:6px;
+      color:var(--ink);
+    }
     .spell-list{display:flex;flex-direction:column;gap:6px;}
     .spell-item{
       display:flex;
@@ -457,6 +486,7 @@
       .header-grid{grid-template-columns:repeat(2, minmax(0,1fr));}
       .sheet-grid{grid-template-columns:repeat(2, minmax(0,1fr));}
       .spell-header{grid-template-columns:repeat(2, minmax(0,1fr));}
+      .personality-header{grid-template-columns:repeat(2, minmax(0,1fr));}
     }
     @media (max-width: 820px){
       .sheet-grid{grid-template-columns:1fr;}
@@ -470,6 +500,7 @@
       .header-grid{grid-template-columns:1fr;}
       .spells-columns{grid-template-columns:1fr;}
       .page-two-grid{grid-template-columns:1fr;}
+      .personality-header{grid-template-columns:1fr;}
     }
   </style>
 </head>
@@ -678,16 +709,40 @@
         <details class="section">
           <summary>Personality</summary>
           <div class="section-body">
-            <div class="section-grid">
+            <div class="section-stack">
               <section class="panel">
                 <h2>Traits / Ideals / Bonds / Flaws</h2>
-                <div class="list" id="personalityList"></div>
+                <div class="personality-header">
+                  <div class="personality-field">
+                    <div class="label">Traits</div>
+                    <div class="value" id="traitTraits">--</div>
+                  </div>
+                  <div class="personality-field">
+                    <div class="label">Ideals</div>
+                    <div class="value" id="traitIdeals">--</div>
+                  </div>
+                  <div class="personality-field">
+                    <div class="label">Bonds</div>
+                    <div class="value" id="traitBonds">--</div>
+                  </div>
+                  <div class="personality-field">
+                    <div class="label">Flaws</div>
+                    <div class="value" id="traitFlaws">--</div>
+                  </div>
+                </div>
               </section>
 
-              <section class="panel">
-                <h2>Notes</h2>
-                <pre id="notesText" class="empty">No notes</pre>
-              </section>
+              <div class="section-grid">
+                <section class="panel">
+                  <h2>Character Backstory</h2>
+                  <pre id="backstoryText" class="empty">No backstory yet.</pre>
+                </section>
+
+                <section class="panel">
+                  <h2>Reputation</h2>
+                  <pre id="reputationText" class="empty">No reputation notes.</pre>
+                </section>
+              </div>
             </div>
           </div>
         </details>
@@ -746,9 +801,13 @@
       spellSaveDc: document.getElementById('spellSaveDc'),
       spellAttackBonus: document.getElementById('spellAttackBonus'),
       treasureTable: document.getElementById('treasureTable'),
-      personalityList: document.getElementById('personalityList'),
+      traitTraits: document.getElementById('traitTraits'),
+      traitIdeals: document.getElementById('traitIdeals'),
+      traitBonds: document.getElementById('traitBonds'),
+      traitFlaws: document.getElementById('traitFlaws'),
+      backstoryText: document.getElementById('backstoryText'),
+      reputationText: document.getElementById('reputationText'),
       historyList: document.getElementById('historyList'),
-      notesText: document.getElementById('notesText')
     };
 
     function setStatus(msg, isError) {
@@ -828,6 +887,7 @@
     }
 
     function renderList(el, items, emptyLabel) {
+      if (!el) return;
       el.innerHTML = '';
       const list = Array.isArray(items) ? items : [];
       if (!list.length) {
@@ -852,6 +912,7 @@
     }
 
     function renderKeyValueList(el, obj, labels, emptyLabel) {
+      if (!el) return;
       el.innerHTML = '';
       if (!obj || typeof obj !== 'object') {
         const empty = document.createElement('div');
@@ -947,6 +1008,18 @@
 
       els.spellSaveDc.textContent = dc != null ? dc : '--';
       els.spellAttackBonus.textContent = atk != null ? formatMod(atk) : '--';
+    }
+
+    function setTextBlock(el, text, emptyLabel) {
+      if (!el) return;
+      const value = text != null ? String(text).trim() : '';
+      if (value) {
+        el.textContent = value;
+        el.classList.remove('empty');
+      } else {
+        el.textContent = emptyLabel || 'None';
+        el.classList.add('empty');
+      }
     }
 
     function renderHp(combat) {
@@ -1251,12 +1324,24 @@
       renderSpells(sheet.spells);
       renderTreasureTable(sheet.treasure, sheet.currency);
 
-      const personalityLines = [];
-      if (personality.traits) personalityLines.push('Traits: ' + personality.traits);
-      if (personality.ideals) personalityLines.push('Ideals: ' + personality.ideals);
-      if (personality.bonds) personalityLines.push('Bonds: ' + personality.bonds);
-      if (personality.flaws) personalityLines.push('Flaws: ' + personality.flaws);
-      renderList(els.personalityList, personalityLines, 'No personality notes.');
+      if (els.traitTraits) els.traitTraits.textContent = personality.traits ? String(personality.traits) : '--';
+      if (els.traitIdeals) els.traitIdeals.textContent = personality.ideals ? String(personality.ideals) : '--';
+      if (els.traitBonds) els.traitBonds.textContent = personality.bonds ? String(personality.bonds) : '--';
+      if (els.traitFlaws) els.traitFlaws.textContent = personality.flaws ? String(personality.flaws) : '--';
+
+      const backstory =
+        personality.backstory ??
+        sheet.backstory ??
+        identity.backstory ??
+        '';
+      const reputation =
+        personality.reputation ??
+        personality.allies ??
+        personality.organizations ??
+        character.notes_text ??
+        '';
+      setTextBlock(els.backstoryText, backstory, 'No backstory yet.');
+      setTextBlock(els.reputationText, reputation, 'No reputation notes.');
 
       const history = Array.isArray(sheet.adventure_history) ? sheet.adventure_history : [];
       const historyLines = history.map(h => {
@@ -1268,14 +1353,7 @@
       });
       renderList(els.historyList, historyLines, 'No history yet.');
 
-      const notes = character.notes_text ? String(character.notes_text) : '';
-      if (notes) {
-        els.notesText.textContent = notes;
-        els.notesText.classList.remove('empty');
-      } else {
-        els.notesText.textContent = 'No notes';
-        els.notesText.classList.add('empty');
-      }
+      // Notes text is now surfaced in Reputation (fallback), so no separate notes block.
     }
 
     async function init() {

@@ -14,12 +14,13 @@ All fields are optional unless stated, but keep the structure consistent.
 - attacks (array): list of attack objects
 - features (array): class/race features and feats
 - resources (object): hit_dice, spell_slots, class resources
-- spells (object): known, prepared, slots
+- spells (object): known, prepared, slots, entries
+- spellcasting (object): class, ability, save_dc, attack_bonus (optional)
 - equipment (array): gear and mundane items
 - magic_items (array): magic items (optional)
 - currency (object): gp, sp, cp, pp
 - appearance (object): age, height, weight, eyes, skin, hair, portrait_url
-- personality (object): traits, ideals, bonds, flaws
+- personality (object): traits, ideals, bonds, flaws, backstory, reputation
 - adventure_history (array): session summaries (optional)
 
 ## Suggested shapes
@@ -73,6 +74,14 @@ spells:
   "prepared": []
 }
 
+spellcasting:
+{
+  "class": "Wizard",
+  "ability": "INT",
+  "save_dc": 16,
+  "attack_bonus": 8
+}
+
 appearance:
 {
   "age": "",
@@ -89,7 +98,9 @@ personality:
   "traits": "",
   "ideals": "",
   "bonds": "",
-  "flaws": ""
+  "flaws": "",
+  "backstory": "",
+  "reputation": ""
 }
 
 adventure_history:
