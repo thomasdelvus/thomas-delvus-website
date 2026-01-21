@@ -188,6 +188,20 @@
       grid-template-columns:repeat(2, minmax(0,1fr));
       gap:12px;
     }
+    .subsection{
+      border:1px solid rgba(47,35,20,0.22);
+      border-radius:12px;
+      background:rgba(255,250,238,0.7);
+      padding:8px 10px 10px;
+    }
+    .subsection h3{
+      margin:0 0 6px 0;
+      font-size:10px;
+      letter-spacing:0.18em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
+    .subsection + .subsection{margin-top:8px;}
 
     .ability-list{display:flex;flex-direction:column;gap:8px;}
     .ability{
@@ -443,7 +457,22 @@
             <div class="section-grid">
               <section class="panel">
                 <h2>Equipment</h2>
-                <div class="list" id="equipmentList"></div>
+                <div class="subsection">
+                  <h3>Gear</h3>
+                  <div class="list" id="equipmentGear"></div>
+                </div>
+                <div class="subsection">
+                  <h3>Weapons</h3>
+                  <div class="list" id="equipmentWeapons"></div>
+                </div>
+                <div class="subsection">
+                  <h3>Potions</h3>
+                  <div class="list" id="equipmentPotions"></div>
+                </div>
+                <div class="subsection">
+                  <h3>Supplies</h3>
+                  <div class="list" id="equipmentSupplies"></div>
+                </div>
               </section>
 
               <section class="panel">
@@ -522,6 +551,10 @@
       attacksBlock: document.getElementById('attacksBlock'),
       featuresList: document.getElementById('featuresList'),
       equipmentList: document.getElementById('equipmentList'),
+      equipmentGear: document.getElementById('equipmentGear'),
+      equipmentWeapons: document.getElementById('equipmentWeapons'),
+      equipmentPotions: document.getElementById('equipmentPotions'),
+      equipmentSupplies: document.getElementById('equipmentSupplies'),
       portraitSlot: document.getElementById('portraitSlot'),
       portraitVisual: document.getElementById('portraitVisual'),
       appearanceList: document.getElementById('appearanceList'),
@@ -809,7 +842,28 @@
 
       renderAttacks(sheet.attacks);
       renderList(els.featuresList, sheet.features, 'No features listed.');
-      renderList(els.equipmentList, sheet.equipment || sheet.inventory, 'No equipment listed.');
+      const equipment = Array.isArray(sheet.equipment) ? sheet.equipment : (Array.isArray(sheet.inventory) ? sheet.inventory : []);
+      const buckets = { gear: [], weapons: [], potions: [], supplies: [] };
+      const matchAny = (name, words) => words.some(w => name.includes(w));
+
+      for (const raw of equipment) {
+        const name = String((raw && raw.name) ? raw.name : raw).toLowerCase();
+        if (!name) continue;
+        if (matchAny(name, ['sword', 'dagger', 'axe', 'bow', 'crossbow', 'staff', 'mace', 'spear', 'hammer', 'wand'])) {
+          buckets.weapons.push(raw);
+        } else if (matchAny(name, ['potion', 'elixir', 'vial'])) {
+          buckets.potions.push(raw);
+        } else if (matchAny(name, ['rations', 'rope', 'torch', 'tinder', 'kit', 'pack', 'bedroll', 'tools', 'supplies'])) {
+          buckets.supplies.push(raw);
+        } else {
+          buckets.gear.push(raw);
+        }
+      }
+
+      renderList(els.equipmentGear, buckets.gear, 'None');
+      renderList(els.equipmentWeapons, buckets.weapons, 'None');
+      renderList(els.equipmentPotions, buckets.potions, 'None');
+      renderList(els.equipmentSupplies, buckets.supplies, 'None');
 
       renderSpells(sheet.spells);
 
