@@ -81,12 +81,6 @@
     }
     .sheet > *{position:relative;}
     .sheet-page{display:flex;flex-direction:column;gap:14px;animation:fadeIn 0.6s ease both;}
-    .page-label{
-      font-size:11px;
-      letter-spacing:0.2em;
-      text-transform:uppercase;
-      color:var(--muted);
-    }
     .section{
       border:1px solid rgba(47,35,20,0.3);
       border-radius:18px;
@@ -142,7 +136,7 @@
     }
     .header-grid{
       display:grid;
-      grid-template-columns:repeat(3, minmax(0,1fr));
+      grid-template-columns:repeat(5, minmax(0,1fr));
       gap:8px 10px;
     }
     .header-field{
@@ -326,8 +320,6 @@
 
     <main class="sheet" id="sheet" hidden>
       <section class="sheet-page">
-        <div class="page-label">Page 1</div>
-
         <header class="sheet-header">
           <div class="name-block">
             <h1 id="charName">Unknown</h1>
@@ -341,10 +333,6 @@
             <div class="header-field">
               <div class="label">Background</div>
               <div class="value" id="fieldBackground">-</div>
-            </div>
-            <div class="header-field">
-              <div class="label">Player Name</div>
-              <div class="value" id="fieldPlayer">-</div>
             </div>
             <div class="header-field">
               <div class="label">Race</div>
@@ -519,7 +507,6 @@
       meta: document.getElementById('charMeta'),
       fieldClassLevel: document.getElementById('fieldClassLevel'),
       fieldBackground: document.getElementById('fieldBackground'),
-      fieldPlayer: document.getElementById('fieldPlayer'),
       fieldRace: document.getElementById('fieldRace'),
       fieldAlignment: document.getElementById('fieldAlignment'),
       fieldXp: document.getElementById('fieldXp'),
@@ -764,7 +751,6 @@
       const race = identity.race || '';
       const background = identity.background || '';
       const alignment = identity.alignment || '';
-      const player = identity.player_name || '';
       const xp = identity.experience_points || identity.xp || '';
 
       document.title = name + ' - Character Sheet';
@@ -775,7 +761,6 @@
       const classLevel = klass && level ? (klass + ' ' + level) : (klass || level || '--');
       els.fieldClassLevel.textContent = classLevel || '--';
       els.fieldBackground.textContent = background || '--';
-      els.fieldPlayer.textContent = player || '--';
       els.fieldRace.textContent = race || '--';
       els.fieldAlignment.textContent = alignment || '--';
       els.fieldXp.textContent = xp || '--';
