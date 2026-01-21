@@ -238,18 +238,30 @@
     .subsection + .subsection{margin-top:8px;}
 
     .ability-list{display:flex;flex-direction:column;gap:8px;}
-    .ability{
-      display:grid;
-      grid-template-columns:1fr auto;
-      align-items:center;
-      padding:6px 8px;
-      border:1px dashed rgba(0,0,0,0.25);
-      border-radius:12px;
-      background:#fff8e7;
-    }
-    .ability .score{font-size:18px;font-weight:700;}
-    .ability .label{font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
-    .ability .mod{font-size:12px;color:var(--accent-2);font-weight:700;}
+      .ability{
+        display:grid;
+        grid-template-columns:1fr auto auto;
+        align-items:center;
+        gap:6px;
+        padding:6px 8px;
+        border:1px dashed rgba(0,0,0,0.25);
+        border-radius:12px;
+        background:#fff8e7;
+      }
+      .ability .score{font-size:18px;font-weight:700;}
+      .ability .label{font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
+      .ability .mod,
+      .ability .save{
+        min-width:36px;
+        text-align:center;
+        font-size:12px;
+        font-weight:700;
+        color:var(--accent-2);
+        border:1px dashed rgba(0,0,0,0.22);
+        border-radius:10px;
+        padding:4px 6px;
+        background:#fff8e7;
+      }
 
     .mini-grid{display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:8px;}
     .mini-box{
@@ -418,11 +430,6 @@
 
               <div class="col">
                 <section class="panel">
-                  <h2>Saves</h2>
-                  <div class="list" id="savesList"></div>
-                </section>
-
-                <section class="panel">
                   <h2>Skills</h2>
                   <div class="list" id="skillsList"></div>
                 </section>
@@ -581,8 +588,7 @@
       fieldAlignment: document.getElementById('fieldAlignment'),
       fieldXp: document.getElementById('fieldXp'),
       abilityList: document.getElementById('abilityList'),
-      savesList: document.getElementById('savesList'),
-      skillsList: document.getElementById('skillsList'),
+        skillsList: document.getElementById('skillsList'),
       profsList: document.getElementById('profsList'),
       passiveValue: document.getElementById('passiveValue'),
       combatGrid: document.getElementById('combatGrid'),
@@ -631,7 +637,7 @@
       return (val >= 0 ? '+' : '') + val;
     }
 
-    function renderAbilities(abilities) {
+    function renderAbilities(abilities, saves) {
       const order = [
         ['str', 'STR'], ['dex', 'DEX'], ['con', 'CON'],
         ['int', 'INT'], ['wis', 'WIS'], ['cha', 'CHA'],
@@ -641,6 +647,8 @@
         const raw = abilities && abilities[key];
         const score = Number.isFinite(Number(raw)) ? Number(raw) : null;
         const mod = score != null ? abilityMod(score) : null;
+        const saveRaw = saves ? saves[key] : null;
+        const saveVal = Number.isFinite(Number(saveRaw)) ? Number(saveRaw) : mod;
         const row = document.createElement('div');
         row.className = 'ability';
         row.innerHTML =
@@ -648,7 +656,8 @@
             '<div class="label">' + label + '</div>' +
             '<div class="score">' + (score != null ? score : '--') + '</div>' +
           '</div>' +
-          '<div class="mod">' + (mod != null ? formatMod(mod) : '--') + '</div>';
+          '<div class="mod" title="Bonus">' + (mod != null ? formatMod(mod) : '--') + '</div>' +
+          '<div class="save" title="Save">' + (saveVal != null ? formatMod(saveVal) : '--') + '</div>';
         els.abilityList.appendChild(row);
       }
     }
@@ -944,7 +953,7 @@
       els.fieldAlignment.textContent = alignment || '--';
       els.fieldXp.textContent = xp || '--';
 
-      renderAbilities(sheet.abilities || {});
+      renderAbilities(sheet.abilities || {}, sheet.saves || {});
 
       const combat = sheet.combat || {};
       const passivePerception = (sheet.skills && Number.isFinite(Number(sheet.skills.perception)))
@@ -973,9 +982,6 @@
         els.appearanceList.style.display = 'none';
       }
 
-      renderKeyValueList(els.savesList, sheet.saves, {
-        str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA'
-      }, 'No saves listed.');
       renderKeyValueList(els.skillsList, sheet.skills, null, 'No skills listed.');
 
       const profs = sheet.proficiencies || {};
