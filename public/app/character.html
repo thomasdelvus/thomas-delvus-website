@@ -472,7 +472,34 @@
 
     .page-two-grid{display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:14px;}
 
-    pre{margin:0;white-space:pre-wrap;font-family:"Courier New",Courier,monospace;background:#f4e8cf;border:1px solid rgba(0,0,0,0.12);border-radius:12px;padding:12px;}
+    .text-block{
+      margin:0;
+      white-space:pre-wrap;
+      font-family:inherit;
+      background:#f4e8cf;
+      border:1px solid rgba(0,0,0,0.12);
+      border-radius:12px;
+      padding:12px;
+      font-size:13px;
+    }
+    .reputation-table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:13px;
+    }
+    .reputation-table th,
+    .reputation-table td{
+      padding:6px 6px;
+      border-bottom:1px solid rgba(0,0,0,0.1);
+      text-align:left;
+      vertical-align:top;
+    }
+    .reputation-table th{
+      font-size:10px;
+      letter-spacing:0.16em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
     .empty{color:var(--muted);font-style:italic;}
 
     .status{text-align:center;color:#e8edf7;padding:30px 10px;font-size:16px;}
@@ -740,13 +767,13 @@
 
                 <section class="panel">
                   <h2>Reputation</h2>
-                  <pre id="reputationText" class="empty">No reputation notes.</pre>
+                  <div id="reputationTable"></div>
                 </section>
               </div>
 
               <section class="panel">
                 <h2>Character Backstory</h2>
-                <pre id="backstoryText" class="empty">No backstory yet.</pre>
+                <div id="backstoryText" class="text-block empty">No backstory yet.</div>
               </section>
             </div>
           </div>
@@ -811,7 +838,7 @@
       traitBonds: document.getElementById('traitBonds'),
       traitFlaws: document.getElementById('traitFlaws'),
       backstoryText: document.getElementById('backstoryText'),
-      reputationText: document.getElementById('reputationText'),
+      reputationTable: document.getElementById('reputationTable'),
       historyList: document.getElementById('historyList'),
     };
 
@@ -1052,6 +1079,46 @@
         return formatReputationEntry(value);
       }
       return value != null ? String(value).trim() : '';
+    }
+
+    function normalizeReputationRows(value) {
+      if (!value) return [];
+      const list = Array.isArray(value) ? value : [value];
+      return list.map((entry) => {
+        if (entry == null) return null;
+        if (typeof entry === 'string') {
+          return { faction: entry.trim(), bonus: '', effect: '' };
+        }
+        if (typeof entry !== 'object') {
+          return { faction: String(entry).trim(), bonus: '', effect: '' };
+        }
+        const faction = entry.faction ?? entry.name ?? entry.group ?? entry.title ?? '';
+        const bonusRaw = entry.bonus ?? entry.score ?? entry.rep ?? entry.value ?? entry.points ?? null;
+        const bonusNum = Number.isFinite(Number(bonusRaw)) ? Number(bonusRaw) : null;
+        const bonus = bonusNum != null ? (bonusNum >= 0 ? '+' : '') + bonusNum : (bonusRaw != null ? String(bonusRaw) : '');
+        const effect = entry.effect ?? entry.perk ?? entry.benefit ?? entry.note ?? '';
+        return { faction: String(faction).trim(), bonus: String(bonus).trim(), effect: String(effect).trim() };
+      }).filter(row => row && (row.faction || row.bonus || row.effect));
+    }
+
+    function renderReputationTable(value) {
+      if (!els.reputationTable) return;
+      const rows = normalizeReputationRows(value);
+      if (!rows.length) {
+        els.reputationTable.innerHTML = '<div class="empty">No reputation notes.</div>';
+        return;
+      }
+      const body = rows.map((row) => {
+        const faction = row.faction || '--';
+        const bonus = row.bonus || '--';
+        const effect = row.effect || '--';
+        return '<tr><td>' + faction + '</td><td>' + bonus + '</td><td>' + effect + '</td></tr>';
+      }).join('');
+      els.reputationTable.innerHTML =
+        '<table class="reputation-table">' +
+          '<thead><tr><th>Faction</th><th>Bonus</th><th>Effect</th></tr></thead>' +
+          '<tbody>' + body + '</tbody>' +
+        '</table>';
     }
 
     function renderHp(combat) {
