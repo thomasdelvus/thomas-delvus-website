@@ -229,17 +229,25 @@
       display:flex;
       flex-direction:column;
       gap:10px;
+      height:100%;
+      min-height:280px;
+    }
+    .portrait-visual{
+      flex:1;
+      min-height:240px;
+      display:flex;
     }
     .portrait-frame img{
       width:100%;
-      height:220px;
+      height:100%;
       object-fit:cover;
       border-radius:10px;
       border:1px solid rgba(0,0,0,0.12);
       background:#e6dcc3;
     }
     .portrait-placeholder{
-      height:220px;
+      width:100%;
+      height:100%;
       border-radius:10px;
       border:1px dashed rgba(0,0,0,0.2);
       display:flex;
@@ -373,7 +381,9 @@
           <section class="block portrait" style="--delay:0.15s">
             <h2>Appearance</h2>
             <div class="portrait-frame">
-              <div id="portraitSlot" class="portrait-placeholder">Portrait</div>
+              <div class="portrait-visual">
+                <div id="portraitSlot" class="portrait-placeholder">Portrait</div>
+              </div>
               <div class="list" id="appearanceList"></div>
             </div>
           </section>
