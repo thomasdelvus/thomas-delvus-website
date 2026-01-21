@@ -1004,7 +1004,7 @@
         els.appearanceList.innerHTML = appearanceFields
           .map(([k, v]) => '<div>' + k + ': ' + v + '</div>')
           .join('');
-        els.appearanceList.style.display = 'flex';
+        els.appearanceList.style.display = 'grid';
       } else {
         els.appearanceList.innerHTML = '';
         els.appearanceList.style.display = 'none';
