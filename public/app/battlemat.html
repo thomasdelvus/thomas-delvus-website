@@ -1412,6 +1412,7 @@ Version: set in JS (VERSION)
   function addRoomAtCorners(ctx, corners) {
     if (!ctx || !ctx.floor || !Array.isArray(corners) || corners.length !== 4) return null;
     if (!Array.isArray(ctx.floor.rooms)) ctx.floor.rooms = [];
+    const rooms = ctx.floor.rooms;
     const defaults = roomDefaultsFor(ctx);
     const room = {
       id: 'room_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e4).toString(36),
@@ -1419,8 +1420,9 @@ Version: set in JS (VERSION)
       thickness: defaults.thickness,
       floor: { kind: defaults.floorKind },
       wall: { kind: defaults.wallKind },
+      z: nextRoomZ(rooms),
     };
-    ctx.floor.rooms.push(room);
+    rooms.push(room);
     return room;
   }
 
@@ -1548,6 +1550,51 @@ Version: set in JS (VERSION)
         return a.idx - b.idx;
       })
       .map(entry => entry.o);
+  }
+
+  function roomZValue(room) {
+    const z = room && room.z;
+    return Number.isFinite(Number(z)) ? Number(z) : null;
+  }
+
+  function assignSequentialRoomZ(rooms) {
+    for (let i = 0; i < rooms.length; i++) {
+      const r = rooms[i];
+      if (!r || typeof r !== 'object') continue;
+      r.z = i;
+    }
+  }
+
+  function nextRoomZ(rooms) {
+    let maxZ = -Infinity;
+    let hasZ = false;
+    for (const r of rooms) {
+      const z = roomZValue(r);
+      if (z == null) continue;
+      hasZ = true;
+      if (z > maxZ) maxZ = z;
+    }
+    if (!hasZ) return rooms.length;
+    return maxZ + 1;
+  }
+
+  function sortRoomsForRender(rooms) {
+    const list = Array.isArray(rooms) ? rooms.slice() : [];
+    if (!list.length) return list;
+    let hasZ = false;
+    for (const r of list) {
+      if (roomZValue(r) != null) { hasZ = true; break; }
+    }
+    if (!hasZ) return list;
+    return list
+      .map((r, idx) => ({ r, idx, z: roomZValue(r) }))
+      .sort((a, b) => {
+        const az = (a.z != null) ? a.z : a.idx;
+        const bz = (b.z != null) ? b.z : b.idx;
+        if (az !== bz) return az - bz;
+        return a.idx - b.idx;
+      })
+      .map(entry => entry.r);
   }
 
   function syncObjectSelectedLabel(object) {
@@ -1838,6 +1885,34 @@ Version: set in JS (VERSION)
     }
 
     assignSequentialObjectZ(objects);
+    scheduleDatabaseSave();
+    safeRedraw();
+    return true;
+  }
+
+  function moveSelectedRoomZ(ctx, direction) {
+    const sel = ctx ? getSelectedRoom(ctx) : null;
+    if (!sel) return false;
+    const rooms = Array.isArray(ctx.rooms) ? ctx.rooms : [];
+    let idx = rooms.indexOf(sel);
+    if (idx < 0 && sel.id) idx = rooms.findIndex(r => r && r.id === sel.id);
+    if (idx < 0) return false;
+
+    if (direction === 'front') {
+      if (idx === rooms.length - 1) return false;
+      captureUndoSnapshot('room order');
+      rooms.splice(idx, 1);
+      rooms.push(sel);
+    } else if (direction === 'back') {
+      if (idx === 0) return false;
+      captureUndoSnapshot('room order');
+      rooms.splice(idx, 1);
+      rooms.unshift(sel);
+    } else {
+      return false;
+    }
+
+    assignSequentialRoomZ(rooms);
     scheduleDatabaseSave();
     safeRedraw();
     return true;
@@ -5654,11 +5729,12 @@ function populateFloorSelect(floors) {
   function renderScene(roomsAll, roomsToDraw, openingsToDraw, objects, tokens, roomMetaAll, fogEnabled) {
     clear();
 
-    drawFloorsLayered(roomsToDraw);
+    const roomsToDrawSorted = sortRoomsForRender(roomsToDraw);
+    drawFloorsLayered(roomsToDrawSorted);
 
     const roomsForWalls = (RENDER_FOG && RENDER_FOG.enabled)
-      ? roomsToDraw.filter(r => (isFogFloorRoom(r) ? roomHasWalls(r) : true))
-      : roomsToDraw;
+      ? roomsToDrawSorted.filter(r => (isFogFloorRoom(r) ? roomHasWalls(r) : true))
+      : roomsToDrawSorted;
 
     const wallSegsRaw = buildWallSegments(roomsForWalls);
     const wallSegs = dedupeWallSegments(wallSegsRaw);
@@ -5992,8 +6068,14 @@ function setActiveFloor(floorId, opts = {}) {
     if (objectOx) objectOx.oninput = () => onObjectControlChange();
     if (objectOy) objectOy.oninput = () => onObjectControlChange();
     if (objectScale) objectScale.oninput = () => onObjectControlChange();
-    if (btnObjBack) btnObjBack.onclick = () => moveSelectedObjectZ(getEditorContext(), 'back');
-    if (btnObjFront) btnObjFront.onclick = () => moveSelectedObjectZ(getEditorContext(), 'front');
+    if (btnObjBack) btnObjBack.onclick = () => {
+      const ctx = getEditorContext();
+      if (!moveSelectedRoomZ(ctx, 'back')) moveSelectedObjectZ(ctx, 'back');
+    };
+    if (btnObjFront) btnObjFront.onclick = () => {
+      const ctx = getEditorContext();
+      if (!moveSelectedRoomZ(ctx, 'front')) moveSelectedObjectZ(ctx, 'front');
+    };
 
     const onRoomControlChange = () => updateRoomControlsFromInputs();
     if (roomCornerTL) {
