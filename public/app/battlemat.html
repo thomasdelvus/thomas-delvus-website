@@ -205,6 +205,9 @@ Version: set in JS (VERSION)
       background:rgba(255,255,255,0.04);
     }
     .turnRow.active{border-color:rgba(67,209,122,0.35); background:rgba(67,209,122,0.08); color:var(--text);}
+    .turnRow.clickable{cursor:pointer;}
+    .turnRow.clickable:hover{border-color:rgba(90,170,255,0.45); background:rgba(90,170,255,0.12);}
+    .turnRow.clickable:focus-visible{outline:2px solid rgba(90,170,255,0.65); outline-offset:2px;}
 
     #errorBox{
       border:1px solid rgba(255,90,90,0.35);
@@ -5184,6 +5187,14 @@ const EMBEDDED_WORLD_JSON = `{
       .replaceAll("'", '&#39;');
   }
 
+  function openCharacterSheet(characterId) {
+    const id = String(characterId || '').trim();
+    if (!id) return;
+    const url = '/app/character?character_id=' + encodeURIComponent(id);
+    const win = window.open(url, '_blank', 'noopener');
+    if (!win) window.location.href = url;
+  }
+
   function updateSidebar(state, floor, rooms, openings, objects, tokens) {
     const kvs = els.kvs;
     const turns = els.turns;
@@ -5231,7 +5242,13 @@ const EMBEDDED_WORLD_JSON = `{
       const isActive = activeId && String(t.id) === activeId;
       const name = t.name ? String(t.name) : String(t.id);
       const right = (t.hp != null) ? ('HP ' + t.hp) : '';
-      return '<div class="turnRow' + (isActive ? ' active' : '') + '">' + '<div>' + escapeHtml(name) + ' <span style="opacity:0.65">(' + escapeHtml(String(t.init ?? '')) + ')</span></div>'
+      const characterId = (t.character_id != null) ? String(t.character_id)
+        : (t.characterId != null ? String(t.characterId) : '');
+      const rowClass = 'turnRow' + (isActive ? ' active' : '') + (characterId ? ' clickable' : '');
+      const rowAttrs = characterId
+        ? (' data-character-id="' + escapeHtml(characterId) + '" role="button" tabindex="0" title="Open character sheet"')
+        : '';
+      return '<div class="' + rowClass + '"' + rowAttrs + '>' + '<div>' + escapeHtml(name) + ' <span style="opacity:0.65">(' + escapeHtml(String(t.init ?? '')) + ')</span></div>'
         + '<div style="opacity:0.85">' + escapeHtml(right) + '</div>'
         + '</div>';
     }).join('');
@@ -5686,6 +5703,7 @@ function setActiveFloor(floorId, opts = {}) {
     const sourceSelect = req('sourceSelect');
     const battleIdInput = req('battleIdInput');
     const battleIdApply = req('battleIdApply');
+    const turns = req('turns');
 
     if (btnLeft) btnLeft.onclick = () => pan(-PAN_STEP, 0);
     if (btnRight) btnRight.onclick = () => pan(PAN_STEP, 0);
@@ -5743,6 +5761,24 @@ function setActiveFloor(floorId, opts = {}) {
       roomWallKind.onkeydown = (ev) => { if (ev.key === 'Enter') onRoomControlChange(); };
     }
     if (roomThickness) roomThickness.oninput = () => onRoomControlChange();
+
+    if (turns) {
+      const tryOpenSheet = (target) => {
+        const row = target && target.closest ? target.closest('.turnRow') : null;
+        if (!row || !row.dataset) return false;
+        const cid = row.dataset.characterId;
+        if (!cid) return false;
+        openCharacterSheet(cid);
+        return true;
+      };
+      turns.addEventListener('click', (ev) => {
+        if (tryOpenSheet(ev.target)) ev.preventDefault();
+      });
+      turns.addEventListener('keydown', (ev) => {
+        if (ev.key !== 'Enter' && ev.key !== ' ') return;
+        if (tryOpenSheet(ev.target)) ev.preventDefault();
+      });
+    }
 
     if (canvas) {
       canvas.addEventListener('mousemove', (ev) => {

@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Character Sheet</title>
+  <style>
+    :root{
+      --bg:#0f1116;
+      --bg2:#131824;
+      --paper:#f1e6cf;
+      --ink:#1b1a17;
+      --muted:#5e5444;
+      --accent:#b57a2c;
+      --accent2:#2c6fb5;
+      --card:#f7efdd;
+      --shadow:rgba(0,0,0,0.25);
+    }
+    html,body{height:100%;margin:0;}
+    body{
+      font-family:"Palatino Linotype","Book Antiqua",Palatino,serif;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #1f2430 0%, rgba(31,36,48,0) 60%),
+        radial-gradient(900px 500px at 110% 10%, #1a202b 0%, rgba(26,32,43,0) 65%),
+        linear-gradient(180deg, var(--bg), var(--bg2));
+      color:var(--ink);
+    }
+    .wrap{
+      max-width:1100px;
+      margin:32px auto;
+      padding:0 18px 40px;
+    }
+    .sheet{
+      background:linear-gradient(180deg, #f8f0dc, var(--paper));
+      border:1px solid rgba(0,0,0,0.15);
+      border-radius:20px;
+      box-shadow:0 18px 40px var(--shadow);
+      padding:28px;
+    }
+    .header{
+      display:flex;
+      justify-content:space-between;
+      gap:18px;
+      align-items:flex-start;
+      flex-wrap:wrap;
+      margin-bottom:18px;
+    }
+    .titleBlock h1{
+      margin:0;
+      font-size:36px;
+      letter-spacing:0.02em;
+      font-weight:700;
+    }
+    .titleBlock .meta{
+      margin-top:6px;
+      color:var(--muted);
+      font-size:14px;
+    }
+    .badge{
+      background:var(--accent);
+      color:#fff;
+      padding:8px 14px;
+      border-radius:999px;
+      font-weight:700;
+      font-size:14px;
+      letter-spacing:0.04em;
+      text-transform:uppercase;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(260px, 1fr));
+      gap:16px;
+    }
+    .card{
+      background:var(--card);
+      border:1px solid rgba(0,0,0,0.12);
+      border-radius:16px;
+      padding:16px;
+      box-shadow:0 6px 14px rgba(0,0,0,0.12);
+    }
+    .card.wide{grid-column:1 / -1;}
+    .card h2{
+      margin:0 0 10px 0;
+      font-size:16px;
+      letter-spacing:0.08em;
+      text-transform:uppercase;
+      color:#3a2f1d;
+    }
+    .statGrid{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(72px, 1fr));
+      gap:10px;
+    }
+    .stat{
+      border:1px dashed rgba(0,0,0,0.25);
+      border-radius:12px;
+      padding:10px;
+      text-align:center;
+      background:#fbf6ea;
+    }
+    .stat .label{
+      font-size:11px;
+      color:var(--muted);
+      letter-spacing:0.14em;
+      text-transform:uppercase;
+    }
+    .stat .value{
+      font-size:22px;
+      font-weight:700;
+      margin-top:4px;
+    }
+    .stat .mod{
+      font-size:12px;
+      color:var(--accent2);
+      margin-top:2px;
+    }
+    .kv{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:6px 12px;
+      font-size:14px;
+    }
+    .kv div:nth-child(odd){color:var(--muted);}
+    .list{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      font-size:14px;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      background:#efe2c6;
+      border:1px solid rgba(0,0,0,0.15);
+      padding:4px 10px;
+      border-radius:999px;
+      font-size:12px;
+      margin-right:6px;
+      margin-bottom:6px;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:14px;
+    }
+    th,td{
+      padding:6px 8px;
+      border-bottom:1px solid rgba(0,0,0,0.08);
+      text-align:left;
+    }
+    th{
+      font-size:12px;
+      letter-spacing:0.08em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
+    .empty{
+      color:var(--muted);
+      font-style:italic;
+    }
+    pre{
+      white-space:pre-wrap;
+      font-family:"Courier New",Courier,monospace;
+      background:#f4e8cf;
+      border:1px solid rgba(0,0,0,0.12);
+      border-radius:12px;
+      padding:12px;
+      margin:0;
+    }
+    .status{
+      margin:40px auto;
+      max-width:720px;
+      color:#e8eef9;
+      text-align:center;
+      font-family:"Palatino Linotype","Book Antiqua",Palatino,serif;
+    }
+    .status .msg{
+      display:inline-block;
+      padding:12px 18px;
+      border-radius:12px;
+      background:rgba(0,0,0,0.35);
+      border:1px solid rgba(255,255,255,0.18);
+    }
+    @media (max-width: 760px){
+      .grid{grid-template-columns:1fr;}
+      .sheet{padding:20px;}
+      .titleBlock h1{font-size:28px;}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <main class="sheet" id="sheet" hidden>
+      <header class="header">
+        <div class="titleBlock">
+          <div class="pill">Character Sheet</div>
+          <h1 id="charName">Unknown</h1>
+          <div class="meta" id="charMeta"></div>
+        </div>
+        <div class="badge" id="charLevel">Level ?</div>
+      </header>
+
+      <section class="grid">
+        <div class="card">
+          <h2>Abilities</h2>
+          <div class="statGrid" id="abilityGrid"></div>
+        </div>
+
+        <div class="card">
+          <h2>Combat</h2>
+          <div class="kv" id="combatGrid"></div>
+        </div>
+
+        <div class="card">
+          <h2>Saves</h2>
+          <div class="list" id="savesList"></div>
+        </div>
+
+        <div class="card">
+          <h2>Skills</h2>
+          <div class="list" id="skillsList"></div>
+        </div>
+
+        <div class="card wide">
+          <h2>Attacks</h2>
+          <div id="attacksBlock"></div>
+        </div>
+
+        <div class="card wide">
+          <h2>Features</h2>
+          <div class="list" id="featuresList"></div>
+        </div>
+
+        <div class="card wide">
+          <h2>Spells</h2>
+          <div id="spellsBlock"></div>
+        </div>
+
+        <div class="card wide">
+          <h2>Equipment</h2>
+          <div class="list" id="equipmentList"></div>
+        </div>
+
+        <div class="card wide">
+          <h2>Notes</h2>
+          <pre id="notesText" class="empty">No notes</pre>
+        </div>
+      </section>
+    </main>
+
+    <div class="status" id="status">
+      <div class="msg" id="statusMsg">Loading character...</div>
+    </div>
+  </div>
+
+  <script>
+    const elSheet = document.getElementById('sheet');
+    const elStatus = document.getElementById('status');
+    const elStatusMsg = document.getElementById('statusMsg');
+
+    const els = {
+      name: document.getElementById('charName'),
+      meta: document.getElementById('charMeta'),
+      level: document.getElementById('charLevel'),
+      abilityGrid: document.getElementById('abilityGrid'),
+      combatGrid: document.getElementById('combatGrid'),
+      savesList: document.getElementById('savesList'),
+      skillsList: document.getElementById('skillsList'),
+      attacksBlock: document.getElementById('attacksBlock'),
+      featuresList: document.getElementById('featuresList'),
+      spellsBlock: document.getElementById('spellsBlock'),
+      equipmentList: document.getElementById('equipmentList'),
+      notesText: document.getElementById('notesText'),
+    };
+
+    function setStatus(msg, isError) {
+      if (!elStatus || !elStatusMsg) return;
+      elStatusMsg.textContent = msg;
+      elStatusMsg.style.background = isError ? 'rgba(179, 60, 60, 0.5)' : 'rgba(0,0,0,0.35)';
+    }
+
+    function parseSheet(raw) {
+      if (!raw) return {};
+      if (typeof raw === 'object') return raw;
+      if (typeof raw === 'string') {
+        try { return JSON.parse(raw); } catch { return {}; }
+      }
+      return {};
+    }
+
+    function abilityMod(score) {
+      if (!Number.isFinite(score)) return 0;
+      return Math.floor((score - 10) / 2);
+    }
+
+    function renderAbilities(abilities) {
+      const order = [
+        ['str', 'STR'], ['dex', 'DEX'], ['con', 'CON'],
+        ['int', 'INT'], ['wis', 'WIS'], ['cha', 'CHA'],
+      ];
+      els.abilityGrid.innerHTML = '';
+      for (const [key, label] of order) {
+        const raw = abilities && abilities[key];
+        const score = Number.isFinite(Number(raw)) ? Number(raw) : null;
+        const mod = score != null ? abilityMod(score) : null;
+        const block = document.createElement('div');
+        block.className = 'stat';
+        block.innerHTML =
+          '<div class="label">' + label + '</div>' +
+          '<div class="value">' + (score != null ? String(score) : '--') + '</div>' +
+          '<div class="mod">' + (mod != null ? (mod >= 0 ? '+' : '') + mod : '--') + '</div>';
+        els.abilityGrid.appendChild(block);
+      }
+    }
+
+    function renderKeyValueList(el, obj, labels) {
+      el.innerHTML = '';
+      if (!obj || typeof obj !== 'object') {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'None';
+        el.appendChild(empty);
+        return;
+      }
+      const entries = Object.entries(obj);
+      if (!entries.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'None';
+        el.appendChild(empty);
+        return;
+      }
+      entries.forEach(([key, val]) => {
+        const line = document.createElement('div');
+        const name = labels && labels[key] ? labels[key] : key;
+        line.textContent = name + ': ' + String(val);
+        el.appendChild(line);
+      });
+    }
+
+    function renderList(el, items, emptyLabel) {
+      el.innerHTML = '';
+      const list = Array.isArray(items) ? items : [];
+      if (!list.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = emptyLabel || 'None';
+        el.appendChild(empty);
+        return;
+      }
+      for (const item of list) {
+        const line = document.createElement('div');
+        line.textContent = (item && item.name) ? String(item.name) : String(item);
+        el.appendChild(line);
+      }
+    }
+
+    function renderCombat(combat) {
+      const pairs = [
+        ['AC', combat && combat.ac != null ? combat.ac : '--'],
+        ['Max HP', combat && combat.max_hp != null ? combat.max_hp : '--'],
+        ['Speed', combat && combat.speed_ft != null ? combat.speed_ft + ' ft' : '--'],
+        ['Initiative', combat && combat.initiative_mod != null ? (combat.initiative_mod >= 0 ? '+' : '') + combat.initiative_mod : '--'],
+      ];
+      els.combatGrid.innerHTML = pairs
+        .map(([k, v]) => '<div>' + k + '</div><div style="text-align:right;">' + v + '</div>')
+        .join('');
+    }
+
+    function renderAttacks(attacks) {
+      if (!Array.isArray(attacks) || !attacks.length) {
+        els.attacksBlock.innerHTML = '<div class="empty">No attacks listed.</div>';
+        return;
+      }
+      const rows = attacks.map((a) => {
+        const name = a && a.name ? a.name : 'Attack';
+        const toHit = a && (a.to_hit != null ? a.to_hit : a.toHit != null ? a.toHit : '');
+        const damage = a && (a.damage != null ? a.damage : a.dmg != null ? a.dmg : '');
+        const range = a && a.range ? a.range : '';
+        return '<tr><td>' + name + '</td><td>' + toHit + '</td><td>' + damage + '</td><td>' + range + '</td></tr>';
+      }).join('');
+      els.attacksBlock.innerHTML =
+        '<table><thead><tr><th>Name</th><th>To Hit</th><th>Damage</th><th>Range</th></tr></thead><tbody>' +
+        rows +
+        '</tbody></table>';
+    }
+
+    function renderSpells(spells) {
+      if (!spells || typeof spells !== 'object') {
+        els.spellsBlock.innerHTML = '<div class="empty">No spells listed.</div>';
+        return;
+      }
+      const known = Array.isArray(spells.known) ? spells.known : [];
+      const prepared = Array.isArray(spells.prepared) ? spells.prepared : [];
+      const slots = spells.slots && typeof spells.slots === 'object' ? spells.slots : {};
+      const slotKeys = Object.keys(slots).sort((a, b) => Number(a) - Number(b));
+      const slotText = slotKeys.length
+        ? slotKeys.map(k => 'L' + k + ': ' + slots[k]).join(' | ')
+        : 'No slots';
+
+      const knownHtml = known.length ? known.map(s => '<div class="pill">' + s + '</div>').join('') : '<div class="empty">No known spells.</div>';
+      const prepHtml = prepared.length ? prepared.map(s => '<div class="pill">' + s + '</div>').join('') : '<div class="empty">No prepared spells.</div>';
+
+      els.spellsBlock.innerHTML =
+        '<div class="kv"><div>Slots</div><div style="text-align:right;">' + slotText + '</div></div>' +
+        '<div style="margin-top:10px;"><strong>Known</strong></div>' +
+        '<div style="margin-top:6px;">' + knownHtml + '</div>' +
+        '<div style="margin-top:12px;"><strong>Prepared</strong></div>' +
+        '<div style="margin-top:6px;">' + prepHtml + '</div>';
+    }
+
+    function renderSheet(character) {
+      const sheet = parseSheet(character.sheet_json);
+      const identity = sheet.identity || {};
+
+      const name = identity.name || character.name || 'Unknown';
+      const klass = identity.class || identity.class_name || '';
+      const level = identity.level != null ? identity.level : '';
+      const race = identity.race || '';
+      const background = identity.background || '';
+      const alignment = identity.alignment || '';
+
+      document.title = name + ' - Character Sheet';
+      els.name.textContent = name;
+      els.level.textContent = level ? ('Level ' + level) : 'Level ?';
+
+      const metaParts = [];
+      if (klass && level) metaParts.push(klass + ' ' + level);
+      else if (klass) metaParts.push(klass);
+      if (race) metaParts.push(race);
+      if (background) metaParts.push(background);
+      if (alignment) metaParts.push(alignment);
+      els.meta.textContent = metaParts.join(' • ');
+
+      renderAbilities(sheet.abilities || {});
+      renderCombat(sheet.combat || {});
+      renderKeyValueList(els.savesList, sheet.saves, {
+        str: 'STR',
+        dex: 'DEX',
+        con: 'CON',
+        int: 'INT',
+        wis: 'WIS',
+        cha: 'CHA',
+      });
+      renderKeyValueList(els.skillsList, sheet.skills);
+      renderAttacks(sheet.attacks);
+      renderList(els.featuresList, sheet.features, 'No features listed.');
+      renderSpells(sheet.spells);
+      renderList(els.equipmentList, sheet.equipment || sheet.inventory, 'No equipment listed.');
+
+      const notes = character.notes_text ? String(character.notes_text) : '';
+      if (notes) {
+        els.notesText.textContent = notes;
+        els.notesText.classList.remove('empty');
+      } else {
+        els.notesText.textContent = 'No notes';
+        els.notesText.classList.add('empty');
+      }
+    }
+
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const characterId = params.get('character_id') || params.get('characterId') || params.get('id');
+      if (!characterId) {
+        setStatus('Missing character_id in URL.', true);
+        return;
+      }
+
+      try {
+        const res = await fetch('/characters/' + encodeURIComponent(characterId), {
+          method: 'GET',
+          cache: 'no-store',
+          headers: { 'Accept': 'application/json' },
+        });
+        if (!res.ok) {
+          const msg = 'Failed to load character (' + res.status + ').';
+          setStatus(msg, true);
+          return;
+        }
+        const data = await res.json();
+        renderSheet(data || {});
+        if (elStatus) elStatus.hidden = true;
+        if (elSheet) elSheet.hidden = false;
+      } catch (e) {
+        setStatus('Failed to load character.', true);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

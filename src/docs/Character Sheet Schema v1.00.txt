@@ -1,0 +1,77 @@
+# Character Sheet Schema v1.00
+
+This defines a canonical shape for `characters.sheet_json`.
+All fields are optional unless stated, but keep the structure consistent.
+
+## Top-level keys
+
+- identity (object): name, race, class, level, background, alignment
+- abilities (object): str, dex, con, int, wis, cha (numbers)
+- saves (object): save modifiers per ability
+- skills (object): skill modifiers by name
+- proficiencies (object): armor, weapons, tools, languages (arrays of strings)
+- combat (object): ac, max_hp, speed_ft, initiative_mod, senses
+- attacks (array): list of attack objects
+- features (array): class/race features and feats
+- resources (object): hit_dice, spell_slots, class resources
+- spells (object): known, prepared, slots
+- equipment (array): gear and mundane items
+- magic_items (array): magic items (optional)
+- currency (object): gp, sp, cp, pp
+- adventure_history (array): session summaries (optional)
+
+## Suggested shapes
+
+identity:
+{
+  "name": "Aelar",
+  "player_name": "",
+  "race": "High Elf",
+  "class": "Ranger",
+  "subclass": "Hunter",
+  "level": 5,
+  "background": "",
+  "alignment": ""
+}
+
+abilities:
+{
+  "str": 10,
+  "dex": 18,
+  "con": 14,
+  "int": 12,
+  "wis": 14,
+  "cha": 10
+}
+
+combat:
+{
+  "ac": 15,
+  "max_hp": 42,
+  "speed_ft": 30,
+  "initiative_mod": 4,
+  "senses": []
+}
+
+attacks:
+[
+  { "name": "Longbow", "to_hit": 7, "damage": "1d8+4 piercing", "range": "150/600" },
+  { "name": "Shortsword", "to_hit": 7, "damage": "1d6+4 piercing" }
+]
+
+spells:
+{
+  "known": [],
+  "prepared": [],
+  "slots": { "1": 4, "2": 2 }
+}
+
+adventure_history:
+[
+  { "date": "2024-01-05", "summary": "Cleared the crypt, claimed the Sunshard." }
+]
+
+## Notes
+
+- Keep `sheet_json` as a full JSON object; the API accepts object or string.
+- `notes_text` in the characters table is for long-form notes and history.
