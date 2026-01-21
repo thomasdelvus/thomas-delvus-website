@@ -236,7 +236,7 @@ Version: set in JS (VERSION)
     .statusRow.clickable{cursor:pointer;}
     .statusRow.clickable:hover{background:rgba(90,170,255,0.12);}
     .statusRow.clickable:focus-visible{outline:2px solid rgba(90,170,255,0.65); outline-offset:2px;}
-    .statusNum{text-align:right;font-variant-numeric:tabular-nums;}
+    .statusNum{text-align:center;font-variant-numeric:tabular-nums;}
     .statusCond{display:flex;align-items:center;gap:2px;flex-wrap:wrap;}
     .condIcon{
       display:inline-flex;
@@ -372,8 +372,8 @@ Version: set in JS (VERSION)
             <thead>
               <tr>
                 <th>Actor</th>
-                <th class="statusNum" title="Hit Points">HP</th>
                 <th class="statusNum" title="Initiative">Init</th>
+                <th class="statusNum" title="Hit Points">HP</th>
                 <th title="Conditions">Cond</th>
               </tr>
             </thead>
@@ -5351,7 +5351,7 @@ const EMBEDDED_WORLD_JSON = `{
     const max = token.maxHp ?? token.max_hp ?? token.hpMax ?? token.hp_max;
     if (cur == null && max == null) return '';
     const curText = cur != null ? String(cur) : '?';
-    if (max == null) return curText;
+    if (max == null) return curText + '/' + curText;
     const maxText = max != null ? String(max) : '?';
     return curText + '/' + maxText;
   }
@@ -5437,8 +5437,8 @@ const EMBEDDED_WORLD_JSON = `{
       ].join('\n');
       return '<tr class="' + rowClass + '"' + rowAttrs + '>'
         + '<td title="' + escapeHtml(hoverDetails) + '">' + escapeHtml(name) + '</td>'
-        + '<td class="statusNum">' + escapeHtml(hpText || '–') + '</td>'
         + '<td class="statusNum">' + escapeHtml(init != null ? String(init) : '–') + '</td>'
+        + '<td class="statusNum">' + escapeHtml(hpText || '–') + '</td>'
         + '<td><div class="statusCond">' + conditionsHtml + '</div></td>'
         + '</tr>';
     }).join('');
