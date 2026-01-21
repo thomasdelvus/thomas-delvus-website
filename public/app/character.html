@@ -293,6 +293,37 @@
     #passiveBox .label{display:none;}
     #passiveBox .value{margin-top:0;}
 
+    .passive-list{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .passive-item{
+      display:grid;
+      grid-template-columns:52px 1fr;
+      align-items:center;
+      gap:10px;
+      padding:6px 8px;
+      border:1px dashed rgba(0,0,0,0.2);
+      border-radius:12px;
+      background:#fff8e7;
+    }
+    .passive-item .value{
+      font-size:16px;
+      font-weight:700;
+      color:var(--accent-2);
+      border:1px dashed rgba(0,0,0,0.22);
+      border-radius:10px;
+      padding:4px 6px;
+      text-align:center;
+      background:#fff8e7;
+    }
+    .passive-item .label{
+      font-size:12px;
+      color:var(--muted);
+      font-weight:600;
+    }
+
     .hp-grid{
       display:grid;
       grid-template-columns:repeat(3, minmax(0,1fr));
@@ -309,7 +340,12 @@
     .hp-grid .value{font-size:16px;font-weight:700;margin-top:6px;}
 
     .list{display:flex;flex-direction:column;gap:6px;font-size:14px;}
-    #appearanceList{display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:4px 12px;}
+    #appearanceList{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0,1fr));
+      gap:4px 12px;
+      padding-left:12px;
+    }
     .pill-list{display:flex;flex-wrap:wrap;gap:6px;}
     .pill{display:inline-flex;padding:4px 10px;border-radius:999px;background:#efe2c6;border:1px solid rgba(0,0,0,0.15);font-size:12px;}
 
@@ -450,10 +486,16 @@
                   <div class="ability-list" id="abilityList"></div>
                 </section>
                 <section class="panel">
-                  <h2>Passive Perception</h2>
-                  <div class="mini-box" id="passiveBox">
-                    <div class="label">Passive</div>
-                    <div class="value" id="passiveValue">--</div>
+                  <h2>Passives</h2>
+                  <div class="passive-list">
+                    <div class="passive-item">
+                      <div class="value" id="passiveValue">--</div>
+                      <div class="label">Passive Perception</div>
+                    </div>
+                    <div class="passive-item">
+                      <div class="value" id="proficiencyValue">--</div>
+                      <div class="label">Proficiency Bonus</div>
+                    </div>
                   </div>
                 </section>
               </div>
@@ -616,9 +658,10 @@
       fieldAlignment: document.getElementById('fieldAlignment'),
       fieldXp: document.getElementById('fieldXp'),
       abilityList: document.getElementById('abilityList'),
-        skillsList: document.getElementById('skillsList'),
+      skillsList: document.getElementById('skillsList'),
       profsList: document.getElementById('profsList'),
       passiveValue: document.getElementById('passiveValue'),
+      proficiencyValue: document.getElementById('proficiencyValue'),
       combatGrid: document.getElementById('combatGrid'),
       hpMax: document.getElementById('hpMax'),
       hpCurrent: document.getElementById('hpCurrent'),
@@ -739,7 +782,7 @@
       });
     }
 
-    function renderCombatMini(combat, passive) {
+    function renderCombatMini(combat) {
       const boxes = [
         { label: 'Armor Class', value: combat.ac != null ? combat.ac : '--' },
         { label: 'Initiative', value: combat.initiative_mod != null ? formatMod(Number(combat.initiative_mod)) : '--' },
@@ -748,7 +791,21 @@
       els.combatGrid.innerHTML = boxes.map(b =>
         '<div class="mini-box"><div class="label">' + b.label + '</div><div class="value">' + b.value + '</div></div>'
       ).join('');
+    }
+
+    function renderPassives(passive, proficiency) {
       els.passiveValue.textContent = passive;
+      if (proficiency == null) {
+        els.proficiencyValue.textContent = '--';
+      } else {
+        els.proficiencyValue.textContent = formatMod(Number(proficiency));
+      }
+    }
+
+    function proficiencyBonus(level) {
+      const lvl = Number(level);
+      if (!Number.isFinite(lvl) || lvl <= 0) return null;
+      return 2 + Math.floor((lvl - 1) / 4);
     }
 
     function renderHp(combat) {
@@ -987,7 +1044,16 @@
       const passivePerception = (sheet.skills && Number.isFinite(Number(sheet.skills.perception)))
         ? 10 + Number(sheet.skills.perception)
         : '--';
-      renderCombatMini(combat, passivePerception);
+      renderCombatMini(combat);
+      const profExplicit =
+        sheet.proficiency_bonus ??
+        sheet.proficiencyBonus ??
+        combat.proficiency_bonus ??
+        combat.proficiencyBonus ??
+        identity.proficiency_bonus ??
+        identity.proficiencyBonus;
+      const profValue = profExplicit != null ? Number(profExplicit) : proficiencyBonus(identity.level);
+      renderPassives(passivePerception, profValue);
       renderHp(combat);
 
       renderPortrait(appearance);
