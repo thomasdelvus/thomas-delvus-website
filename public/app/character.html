@@ -6,174 +6,281 @@
   <title>Character Sheet</title>
   <style>
     :root{
-      --bg:#0f1116;
-      --bg2:#131824;
-      --paper:#f1e6cf;
-      --ink:#1b1a17;
-      --muted:#5e5444;
+      --bg-deep:#0d1016;
+      --bg-mid:#1a1f2a;
+      --ink:#2b2416;
+      --muted:#6a5c45;
       --accent:#b57a2c;
-      --accent2:#2c6fb5;
-      --card:#f7efdd;
-      --shadow:rgba(0,0,0,0.25);
+      --accent-2:#2c6fb5;
+      --paper:#f1e4c7;
+      --paper-2:#f7eed6;
+      --paper-edge:#c8b08a;
+      --panel:#f9f1dc;
+      --shadow:rgba(0,0,0,0.22);
     }
     html,body{height:100%;margin:0;}
     body{
-      font-family:"Palatino Linotype","Book Antiqua",Palatino,serif;
+      font-family:"Garamond","Book Antiqua","Palatino Linotype",serif;
       background:
-        radial-gradient(1200px 600px at 10% -10%, #1f2430 0%, rgba(31,36,48,0) 60%),
-        radial-gradient(900px 500px at 110% 10%, #1a202b 0%, rgba(26,32,43,0) 65%),
-        linear-gradient(180deg, var(--bg), var(--bg2));
+        radial-gradient(1200px 600px at 12% -10%, #1f2532 0%, rgba(31,37,50,0) 60%),
+        radial-gradient(900px 500px at 110% 10%, #202632 0%, rgba(32,38,50,0) 65%),
+        linear-gradient(180deg, var(--bg-deep), var(--bg-mid));
       color:var(--ink);
     }
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:16px 20px 0;
+      color:#e8edf7;
+    }
+    .brand{
+      font-family:"Copperplate Gothic","Garamond","Book Antiqua",serif;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      font-size:12px;
+      opacity:0.8;
+    }
+    .nav a{
+      color:#e8edf7;
+      text-decoration:none;
+      border:1px solid rgba(255,255,255,0.22);
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:12px;
+      letter-spacing:0.08em;
+      text-transform:uppercase;
+    }
+    .nav a:hover{background:rgba(255,255,255,0.08);}
     .wrap{
-      max-width:1100px;
-      margin:32px auto;
-      padding:0 18px 40px;
+      max-width:1180px;
+      margin:18px auto 48px;
+      padding:0 18px;
     }
     .sheet{
-      background:linear-gradient(180deg, #f8f0dc, var(--paper));
-      border:1px solid rgba(0,0,0,0.15);
-      border-radius:20px;
+      background:linear-gradient(180deg, var(--paper-2), var(--paper));
+      border:1px solid var(--paper-edge);
+      border-radius:22px;
       box-shadow:0 18px 40px var(--shadow);
-      padding:28px;
+      padding:26px;
+      position:relative;
+      overflow:hidden;
     }
-    .header{
+    .sheet:before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.02) 0px, rgba(0,0,0,0.02) 1px, transparent 1px, transparent 3px),
+        radial-gradient(circle at 20% 0%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 45%),
+        radial-gradient(circle at 80% 10%, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0) 40%);
+      opacity:0.45;
+      pointer-events:none;
+    }
+    .sheet > *{position:relative;}
+    .sheet-page{
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+      animation:fadeIn 0.6s ease both;
+    }
+    .page-label{
+      font-size:12px;
+      letter-spacing:0.18em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
+    .sheet-header{
       display:flex;
       justify-content:space-between;
-      gap:18px;
-      align-items:flex-start;
+      gap:16px;
       flex-wrap:wrap;
-      margin-bottom:18px;
     }
-    .titleBlock h1{
+    .name-block h1{
       margin:0;
-      font-size:36px;
+      font-size:38px;
       letter-spacing:0.02em;
-      font-weight:700;
+      font-family:"Copperplate Gothic","Garamond","Book Antiqua",serif;
     }
-    .titleBlock .meta{
+    .name-block .meta{
       margin-top:6px;
       color:var(--muted);
       font-size:14px;
+      line-height:1.4;
     }
-    .badge{
-      background:var(--accent);
-      color:#fff;
-      padding:8px 14px;
-      border-radius:999px;
-      font-weight:700;
-      font-size:14px;
-      letter-spacing:0.04em;
-      text-transform:uppercase;
+    .header-stats{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
     }
-    .grid{
-      display:grid;
-      grid-template-columns:repeat(2, minmax(260px, 1fr));
-      gap:16px;
-    }
-    .card{
-      background:var(--card);
-      border:1px solid rgba(0,0,0,0.12);
-      border-radius:16px;
-      padding:16px;
-      box-shadow:0 6px 14px rgba(0,0,0,0.12);
-    }
-    .card.wide{grid-column:1 / -1;}
-    .card h2{
-      margin:0 0 10px 0;
-      font-size:16px;
-      letter-spacing:0.08em;
-      text-transform:uppercase;
-      color:#3a2f1d;
-    }
-    .statGrid{
-      display:grid;
-      grid-template-columns:repeat(3, minmax(72px, 1fr));
-      gap:10px;
-    }
-    .stat{
-      border:1px dashed rgba(0,0,0,0.25);
+    .header-chip{
+      background:rgba(181,122,44,0.12);
+      border:1px solid rgba(181,122,44,0.4);
       border-radius:12px;
-      padding:10px;
-      text-align:center;
-      background:#fbf6ea;
+      padding:8px 12px;
+      min-width:90px;
     }
-    .stat .label{
+    .header-chip .label{
       font-size:11px;
       color:var(--muted);
-      letter-spacing:0.14em;
+      letter-spacing:0.16em;
       text-transform:uppercase;
     }
-    .stat .value{
-      font-size:22px;
-      font-weight:700;
+    .header-chip .value{
+      font-size:18px;
       margin-top:4px;
+      font-weight:700;
     }
-    .stat .mod{
+    .page-grid{
+      display:grid;
+      grid-template-columns:180px 1.2fr 1fr;
+      grid-template-areas:
+        "abilities combat portrait"
+        "abilities saves portrait"
+        "abilities skills portrait"
+        "abilities profs profs"
+        "attacks attacks resources"
+        "features features equipment"
+        "spells spells equipment";
+      gap:14px;
+    }
+    .block{
+      background:var(--panel);
+      border:1px solid rgba(0,0,0,0.15);
+      border-radius:16px;
+      padding:14px;
+      box-shadow:0 6px 12px rgba(0,0,0,0.12);
+      opacity:0;
+      transform:translateY(10px);
+      animation:riseIn 0.6s ease forwards;
+      animation-delay:var(--delay, 0s);
+    }
+    .block h2{
+      margin:0 0 8px 0;
       font-size:12px;
-      color:var(--accent2);
-      margin-top:2px;
+      letter-spacing:0.18em;
+      text-transform:uppercase;
+      color:var(--muted);
     }
-    .kv{
+    .abilities{grid-area:abilities;}
+    .combat{grid-area:combat;}
+    .portrait{grid-area:portrait;}
+    .saves{grid-area:saves;}
+    .skills{grid-area:skills;}
+    .profs{grid-area:profs;}
+    .attacks{grid-area:attacks;}
+    .resources{grid-area:resources;}
+    .features{grid-area:features;}
+    .equipment{grid-area:equipment;}
+    .spells{grid-area:spells;}
+
+    .ability-list{display:flex;flex-direction:column;gap:10px;}
+    .ability{
       display:grid;
       grid-template-columns:1fr auto;
-      gap:6px 12px;
+      align-items:center;
+      padding:8px 10px;
+      border:1px dashed rgba(0,0,0,0.25);
+      border-radius:12px;
+      background:#fff8e7;
+    }
+    .ability .score{
+      font-size:22px;
+      font-weight:700;
+    }
+    .ability .label{
+      font-size:12px;
+      letter-spacing:0.18em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
+    .ability .mod{
+      font-size:12px;
+      color:var(--accent-2);
+      font-weight:700;
+    }
+
+    .stat-grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:8px 12px;
       font-size:14px;
     }
-    .kv div:nth-child(odd){color:var(--muted);}
-    .list{
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      font-size:14px;
-    }
+    .stat-grid div:nth-child(odd){color:var(--muted);}
+
+    .list{display:flex;flex-direction:column;gap:6px;font-size:14px;}
+    .pill-list{display:flex;flex-wrap:wrap;gap:6px;}
     .pill{
       display:inline-flex;
-      align-items:center;
-      gap:6px;
-      background:#efe2c6;
-      border:1px solid rgba(0,0,0,0.15);
       padding:4px 10px;
       border-radius:999px;
+      background:#efe2c6;
+      border:1px solid rgba(0,0,0,0.15);
       font-size:12px;
-      margin-right:6px;
-      margin-bottom:6px;
     }
+
+    .portrait-frame{
+      border:1px solid rgba(0,0,0,0.2);
+      border-radius:14px;
+      background:#fdf7ea;
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .portrait-frame img{
+      width:100%;
+      height:220px;
+      object-fit:cover;
+      border-radius:10px;
+      border:1px solid rgba(0,0,0,0.12);
+      background:#e6dcc3;
+    }
+    .portrait-placeholder{
+      height:220px;
+      border-radius:10px;
+      border:1px dashed rgba(0,0,0,0.2);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--muted);
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:0.12em;
+      background:#f6ecd4;
+    }
+
     table{
       width:100%;
       border-collapse:collapse;
       font-size:14px;
     }
-    th,td{
-      padding:6px 8px;
-      border-bottom:1px solid rgba(0,0,0,0.08);
-      text-align:left;
+    th,td{padding:6px 8px;border-bottom:1px solid rgba(0,0,0,0.1);text-align:left;}
+    th{font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
+
+    .page-two-grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0,1fr));
+      gap:14px;
     }
-    th{
-      font-size:12px;
-      letter-spacing:0.08em;
-      text-transform:uppercase;
-      color:var(--muted);
-    }
-    .empty{
-      color:var(--muted);
-      font-style:italic;
-    }
+    .page-two-grid .block{animation-delay:var(--delay,0.1s);}
+
     pre{
+      margin:0;
       white-space:pre-wrap;
       font-family:"Courier New",Courier,monospace;
       background:#f4e8cf;
       border:1px solid rgba(0,0,0,0.12);
       border-radius:12px;
       padding:12px;
-      margin:0;
     }
+    .empty{color:var(--muted);font-style:italic;}
+
     .status{
-      margin:40px auto;
-      max-width:720px;
-      color:#e8eef9;
       text-align:center;
-      font-family:"Palatino Linotype","Book Antiqua",Palatino,serif;
+      color:#e8edf7;
+      padding:30px 10px;
+      font-size:16px;
     }
     .status .msg{
       display:inline-block;
@@ -182,100 +289,189 @@
       background:rgba(0,0,0,0.35);
       border:1px solid rgba(255,255,255,0.18);
     }
-    @media (max-width: 760px){
-      .grid{grid-template-columns:1fr;}
-      .sheet{padding:20px;}
-      .titleBlock h1{font-size:28px;}
+
+    @keyframes fadeIn{
+      from{opacity:0;transform:translateY(8px);}
+      to{opacity:1;transform:translateY(0);}
+    }
+    @keyframes riseIn{
+      from{opacity:0;transform:translateY(12px);}
+      to{opacity:1;transform:translateY(0);}
+    }
+
+    @media (max-width: 980px){
+      .sheet-header{flex-direction:column;align-items:flex-start;}
+      .page-grid{
+        grid-template-columns:1fr;
+        grid-template-areas:
+          "abilities"
+          "combat"
+          "portrait"
+          "saves"
+          "skills"
+          "profs"
+          "attacks"
+          "resources"
+          "features"
+          "spells"
+          "equipment";
+      }
+      .page-two-grid{grid-template-columns:1fr;}
     }
   </style>
 </head>
 <body>
+  <div class="topbar">
+    <div class="brand">Delvus Character Sheet</div>
+    <div class="nav"><a id="backLink" href="/app/battlemat.html">Back to battlemat</a></div>
+  </div>
+
   <div class="wrap">
+    <div class="status" id="status"><div class="msg" id="statusMsg">Loading character...</div></div>
+
     <main class="sheet" id="sheet" hidden>
-      <header class="header">
-        <div class="titleBlock">
-          <div class="pill">Character Sheet</div>
-          <h1 id="charName">Unknown</h1>
-          <div class="meta" id="charMeta"></div>
-        </div>
-        <div class="badge" id="charLevel">Level ?</div>
-      </header>
+      <section class="sheet-page">
+        <div class="page-label">Page 1</div>
+        <header class="sheet-header">
+          <div class="name-block">
+            <h1 id="charName">Unknown</h1>
+            <div class="meta" id="charMeta"></div>
+          </div>
+          <div class="header-stats">
+            <div class="header-chip">
+              <div class="label">Level</div>
+              <div class="value" id="charLevel">?</div>
+            </div>
+            <div class="header-chip">
+              <div class="label">Class</div>
+              <div class="value" id="charClass">-</div>
+            </div>
+            <div class="header-chip">
+              <div class="label">Race</div>
+              <div class="value" id="charRace">-</div>
+            </div>
+            <div class="header-chip">
+              <div class="label">Alignment</div>
+              <div class="value" id="charAlignment">-</div>
+            </div>
+          </div>
+        </header>
 
-      <section class="grid">
-        <div class="card">
-          <h2>Abilities</h2>
-          <div class="statGrid" id="abilityGrid"></div>
-        </div>
+        <div class="page-grid">
+          <section class="block abilities" style="--delay:0.05s">
+            <h2>Abilities</h2>
+            <div class="ability-list" id="abilityList"></div>
+          </section>
 
-        <div class="card">
-          <h2>Combat</h2>
-          <div class="kv" id="combatGrid"></div>
-        </div>
+          <section class="block combat" style="--delay:0.1s">
+            <h2>Combat</h2>
+            <div class="stat-grid" id="combatGrid"></div>
+          </section>
 
-        <div class="card">
-          <h2>Saves</h2>
-          <div class="list" id="savesList"></div>
-        </div>
+          <section class="block portrait" style="--delay:0.15s">
+            <h2>Appearance</h2>
+            <div class="portrait-frame">
+              <div id="portraitSlot" class="portrait-placeholder">Portrait</div>
+              <div class="list" id="appearanceList"></div>
+            </div>
+          </section>
 
-        <div class="card">
-          <h2>Skills</h2>
-          <div class="list" id="skillsList"></div>
-        </div>
+          <section class="block saves" style="--delay:0.2s">
+            <h2>Saves</h2>
+            <div class="list" id="savesList"></div>
+          </section>
 
-        <div class="card wide">
-          <h2>Attacks</h2>
-          <div id="attacksBlock"></div>
-        </div>
+          <section class="block skills" style="--delay:0.25s">
+            <h2>Skills</h2>
+            <div class="list" id="skillsList"></div>
+          </section>
 
-        <div class="card wide">
-          <h2>Features</h2>
-          <div class="list" id="featuresList"></div>
-        </div>
+          <section class="block profs" style="--delay:0.3s">
+            <h2>Proficiencies</h2>
+            <div class="list" id="profsList"></div>
+          </section>
 
-        <div class="card wide">
-          <h2>Spells</h2>
-          <div id="spellsBlock"></div>
-        </div>
+          <section class="block attacks" style="--delay:0.35s">
+            <h2>Attacks</h2>
+            <div id="attacksBlock"></div>
+          </section>
 
-        <div class="card wide">
-          <h2>Equipment</h2>
-          <div class="list" id="equipmentList"></div>
-        </div>
+          <section class="block resources" style="--delay:0.4s">
+            <h2>Resources</h2>
+            <div class="list" id="resourcesList"></div>
+          </section>
 
-        <div class="card wide">
-          <h2>Notes</h2>
-          <pre id="notesText" class="empty">No notes</pre>
+          <section class="block features" style="--delay:0.45s">
+            <h2>Features</h2>
+            <div class="list" id="featuresList"></div>
+          </section>
+
+          <section class="block spells" style="--delay:0.5s">
+            <h2>Spells</h2>
+            <div id="spellsBlock"></div>
+          </section>
+
+          <section class="block equipment" style="--delay:0.55s">
+            <h2>Equipment</h2>
+            <div class="list" id="equipmentList"></div>
+            <div class="list" id="currencyList"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="sheet-page" style="margin-top:24px;">
+        <div class="page-label">Page 2</div>
+        <div class="page-two-grid">
+          <section class="block" style="--delay:0.1s">
+            <h2>Personality</h2>
+            <div class="list" id="personalityList"></div>
+          </section>
+          <section class="block" style="--delay:0.15s">
+            <h2>Adventure History</h2>
+            <div class="list" id="historyList"></div>
+          </section>
+          <section class="block" style="--delay:0.2s">
+            <h2>Notes</h2>
+            <pre id="notesText" class="empty">No notes</pre>
+          </section>
         </div>
       </section>
     </main>
-
-    <div class="status" id="status">
-      <div class="msg" id="statusMsg">Loading character...</div>
-    </div>
   </div>
 
   <script>
     const elSheet = document.getElementById('sheet');
     const elStatus = document.getElementById('status');
     const elStatusMsg = document.getElementById('statusMsg');
+    const elBackLink = document.getElementById('backLink');
 
     const els = {
       name: document.getElementById('charName'),
       meta: document.getElementById('charMeta'),
       level: document.getElementById('charLevel'),
-      abilityGrid: document.getElementById('abilityGrid'),
+      klass: document.getElementById('charClass'),
+      race: document.getElementById('charRace'),
+      alignment: document.getElementById('charAlignment'),
+      abilityList: document.getElementById('abilityList'),
       combatGrid: document.getElementById('combatGrid'),
+      portraitSlot: document.getElementById('portraitSlot'),
+      appearanceList: document.getElementById('appearanceList'),
       savesList: document.getElementById('savesList'),
       skillsList: document.getElementById('skillsList'),
+      profsList: document.getElementById('profsList'),
       attacksBlock: document.getElementById('attacksBlock'),
+      resourcesList: document.getElementById('resourcesList'),
       featuresList: document.getElementById('featuresList'),
       spellsBlock: document.getElementById('spellsBlock'),
       equipmentList: document.getElementById('equipmentList'),
-      notesText: document.getElementById('notesText'),
+      currencyList: document.getElementById('currencyList'),
+      personalityList: document.getElementById('personalityList'),
+      historyList: document.getElementById('historyList'),
+      notesText: document.getElementById('notesText')
     };
 
     function setStatus(msg, isError) {
-      if (!elStatus || !elStatusMsg) return;
+      if (!elStatusMsg) return;
       elStatusMsg.textContent = msg;
       elStatusMsg.style.background = isError ? 'rgba(179, 60, 60, 0.5)' : 'rgba(0,0,0,0.35)';
     }
@@ -294,49 +490,37 @@
       return Math.floor((score - 10) / 2);
     }
 
+    function formatMod(val) {
+      if (!Number.isFinite(val)) return '--';
+      return (val >= 0 ? '+' : '') + val;
+    }
+
     function renderAbilities(abilities) {
       const order = [
         ['str', 'STR'], ['dex', 'DEX'], ['con', 'CON'],
         ['int', 'INT'], ['wis', 'WIS'], ['cha', 'CHA'],
       ];
-      els.abilityGrid.innerHTML = '';
+      els.abilityList.innerHTML = '';
       for (const [key, label] of order) {
         const raw = abilities && abilities[key];
         const score = Number.isFinite(Number(raw)) ? Number(raw) : null;
         const mod = score != null ? abilityMod(score) : null;
-        const block = document.createElement('div');
-        block.className = 'stat';
-        block.innerHTML =
-          '<div class="label">' + label + '</div>' +
-          '<div class="value">' + (score != null ? String(score) : '--') + '</div>' +
-          '<div class="mod">' + (mod != null ? (mod >= 0 ? '+' : '') + mod : '--') + '</div>';
-        els.abilityGrid.appendChild(block);
+        const row = document.createElement('div');
+        row.className = 'ability';
+        row.innerHTML =
+          '<div>' +
+            '<div class="label">' + label + '</div>' +
+            '<div class="score">' + (score != null ? score : '--') + '</div>' +
+          '</div>' +
+          '<div class="mod">' + (mod != null ? formatMod(mod) : '--') + '</div>';
+        els.abilityList.appendChild(row);
       }
     }
 
-    function renderKeyValueList(el, obj, labels) {
-      el.innerHTML = '';
-      if (!obj || typeof obj !== 'object') {
-        const empty = document.createElement('div');
-        empty.className = 'empty';
-        empty.textContent = 'None';
-        el.appendChild(empty);
-        return;
-      }
-      const entries = Object.entries(obj);
-      if (!entries.length) {
-        const empty = document.createElement('div');
-        empty.className = 'empty';
-        empty.textContent = 'None';
-        el.appendChild(empty);
-        return;
-      }
-      entries.forEach(([key, val]) => {
-        const line = document.createElement('div');
-        const name = labels && labels[key] ? labels[key] : key;
-        line.textContent = name + ': ' + String(val);
-        el.appendChild(line);
-      });
+    function renderStatGrid(el, pairs) {
+      el.innerHTML = pairs
+        .map(([k, v]) => '<div>' + k + '</div><div style="text-align:right;">' + v + '</div>')
+        .join('');
     }
 
     function renderList(el, items, emptyLabel) {
@@ -356,16 +540,29 @@
       }
     }
 
-    function renderCombat(combat) {
-      const pairs = [
-        ['AC', combat && combat.ac != null ? combat.ac : '--'],
-        ['Max HP', combat && combat.max_hp != null ? combat.max_hp : '--'],
-        ['Speed', combat && combat.speed_ft != null ? combat.speed_ft + ' ft' : '--'],
-        ['Initiative', combat && combat.initiative_mod != null ? (combat.initiative_mod >= 0 ? '+' : '') + combat.initiative_mod : '--'],
-      ];
-      els.combatGrid.innerHTML = pairs
-        .map(([k, v]) => '<div>' + k + '</div><div style="text-align:right;">' + v + '</div>')
-        .join('');
+    function renderKeyValueList(el, obj, labels, emptyLabel) {
+      el.innerHTML = '';
+      if (!obj || typeof obj !== 'object') {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = emptyLabel || 'None';
+        el.appendChild(empty);
+        return;
+      }
+      const entries = Object.entries(obj);
+      if (!entries.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = emptyLabel || 'None';
+        el.appendChild(empty);
+        return;
+      }
+      entries.forEach(([key, val]) => {
+        const line = document.createElement('div');
+        const name = labels && labels[key] ? labels[key] : key;
+        line.textContent = name + ': ' + String(val);
+        el.appendChild(line);
+      });
     }
 
     function renderAttacks(attacks) {
@@ -403,16 +600,28 @@
       const prepHtml = prepared.length ? prepared.map(s => '<div class="pill">' + s + '</div>').join('') : '<div class="empty">No prepared spells.</div>';
 
       els.spellsBlock.innerHTML =
-        '<div class="kv"><div>Slots</div><div style="text-align:right;">' + slotText + '</div></div>' +
+        '<div class="stat-grid"><div>Slots</div><div style="text-align:right;">' + slotText + '</div></div>' +
         '<div style="margin-top:10px;"><strong>Known</strong></div>' +
-        '<div style="margin-top:6px;">' + knownHtml + '</div>' +
+        '<div class="pill-list" style="margin-top:6px;">' + knownHtml + '</div>' +
         '<div style="margin-top:12px;"><strong>Prepared</strong></div>' +
-        '<div style="margin-top:6px;">' + prepHtml + '</div>';
+        '<div class="pill-list" style="margin-top:6px;">' + prepHtml + '</div>';
+    }
+
+    function renderPortrait(appearance) {
+      const url = appearance && appearance.portrait_url ? String(appearance.portrait_url) : '';
+      if (!url) return;
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = 'Portrait';
+      els.portraitSlot.replaceWith(img);
+      els.portraitSlot = img;
     }
 
     function renderSheet(character) {
       const sheet = parseSheet(character.sheet_json);
       const identity = sheet.identity || {};
+      const appearance = sheet.appearance || {};
+      const personality = sheet.personality || {};
 
       const name = identity.name || character.name || 'Unknown';
       const klass = identity.class || identity.class_name || '';
@@ -423,7 +632,10 @@
 
       document.title = name + ' - Character Sheet';
       els.name.textContent = name;
-      els.level.textContent = level ? ('Level ' + level) : 'Level ?';
+      els.level.textContent = level ? String(level) : '?';
+      els.klass.textContent = klass || '-';
+      els.race.textContent = race || '-';
+      els.alignment.textContent = alignment || '-';
 
       const metaParts = [];
       if (klass && level) metaParts.push(klass + ' ' + level);
@@ -431,23 +643,95 @@
       if (race) metaParts.push(race);
       if (background) metaParts.push(background);
       if (alignment) metaParts.push(alignment);
-      els.meta.textContent = metaParts.join(' • ');
+      els.meta.textContent = metaParts.join(' | ');
 
       renderAbilities(sheet.abilities || {});
-      renderCombat(sheet.combat || {});
+
+      const combat = sheet.combat || {};
+      const passivePerception = (sheet.skills && Number.isFinite(Number(sheet.skills.perception)))
+        ? 10 + Number(sheet.skills.perception)
+        : '--';
+      renderStatGrid(els.combatGrid, [
+        ['AC', combat.ac != null ? combat.ac : '--'],
+        ['Max HP', combat.max_hp != null ? combat.max_hp : '--'],
+        ['Speed', combat.speed_ft != null ? combat.speed_ft + ' ft' : '--'],
+        ['Initiative', combat.initiative_mod != null ? formatMod(Number(combat.initiative_mod)) : '--'],
+        ['Passive Perception', passivePerception]
+      ]);
+
+      renderPortrait(appearance);
+
+      const appearanceFields = [
+        ['Age', appearance.age],
+        ['Height', appearance.height],
+        ['Weight', appearance.weight],
+        ['Eyes', appearance.eyes],
+        ['Skin', appearance.skin],
+        ['Hair', appearance.hair]
+      ].filter(([, v]) => v != null && v !== '');
+      if (appearanceFields.length) {
+        els.appearanceList.innerHTML = appearanceFields
+          .map(([k, v]) => '<div>' + k + ': ' + v + '</div>')
+          .join('');
+      } else {
+        els.appearanceList.innerHTML = '<div class="empty">No appearance details.</div>';
+      }
+
       renderKeyValueList(els.savesList, sheet.saves, {
-        str: 'STR',
-        dex: 'DEX',
-        con: 'CON',
-        int: 'INT',
-        wis: 'WIS',
-        cha: 'CHA',
-      });
-      renderKeyValueList(els.skillsList, sheet.skills);
+        str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA'
+      }, 'No saves listed.');
+      renderKeyValueList(els.skillsList, sheet.skills, null, 'No skills listed.');
+
+      const profs = sheet.proficiencies || {};
+      const profLines = [];
+      if (Array.isArray(profs.armor) && profs.armor.length) profLines.push('Armor: ' + profs.armor.join(', '));
+      if (Array.isArray(profs.weapons) && profs.weapons.length) profLines.push('Weapons: ' + profs.weapons.join(', '));
+      if (Array.isArray(profs.tools) && profs.tools.length) profLines.push('Tools: ' + profs.tools.join(', '));
+      if (Array.isArray(profs.languages) && profs.languages.length) profLines.push('Languages: ' + profs.languages.join(', '));
+      renderList(els.profsList, profLines, 'No proficiencies listed.');
+
       renderAttacks(sheet.attacks);
+
+      const resources = sheet.resources || {};
+      const resourceLines = [];
+      if (resources.hit_dice) resourceLines.push('Hit Dice: ' + resources.hit_dice);
+      if (resources.class) resourceLines.push('Class: ' + resources.class);
+      if (resources.spell_slots) resourceLines.push('Spell Slots: ' + JSON.stringify(resources.spell_slots));
+      for (const [key, val] of Object.entries(resources)) {
+        if (['hit_dice', 'class', 'spell_slots'].includes(key)) continue;
+        resourceLines.push(key + ': ' + String(val));
+      }
+      renderList(els.resourcesList, resourceLines, 'No resources listed.');
+
       renderList(els.featuresList, sheet.features, 'No features listed.');
       renderSpells(sheet.spells);
-      renderList(els.equipmentList, sheet.equipment || sheet.inventory, 'No equipment listed.');
+
+      const equipment = sheet.equipment || sheet.inventory || [];
+      renderList(els.equipmentList, equipment, 'No equipment listed.');
+
+      const currency = sheet.currency || {};
+      const currencyLines = [];
+      for (const [key, val] of Object.entries(currency)) {
+        currencyLines.push(key.toUpperCase() + ': ' + val);
+      }
+      renderList(els.currencyList, currencyLines, '');
+
+      const personalityLines = [];
+      if (personality.traits) personalityLines.push('Traits: ' + personality.traits);
+      if (personality.ideals) personalityLines.push('Ideals: ' + personality.ideals);
+      if (personality.bonds) personalityLines.push('Bonds: ' + personality.bonds);
+      if (personality.flaws) personalityLines.push('Flaws: ' + personality.flaws);
+      renderList(els.personalityList, personalityLines, 'No personality notes.');
+
+      const history = Array.isArray(sheet.adventure_history) ? sheet.adventure_history : [];
+      const historyLines = history.map(h => {
+        if (h && typeof h === 'object') {
+          const date = h.date ? String(h.date) + ': ' : '';
+          return date + (h.summary ? String(h.summary) : JSON.stringify(h));
+        }
+        return String(h);
+      });
+      renderList(els.historyList, historyLines, 'No history yet.');
 
       const notes = character.notes_text ? String(character.notes_text) : '';
       if (notes) {
@@ -462,6 +746,10 @@
     async function init() {
       const params = new URLSearchParams(window.location.search);
       const characterId = params.get('character_id') || params.get('characterId') || params.get('id');
+      const battleId = params.get('battle_id') || params.get('battleId') || params.get('battle');
+      if (battleId && elBackLink) {
+        elBackLink.href = '/app/battlemat.html?battle_id=' + encodeURIComponent(battleId);
+      }
       if (!characterId) {
         setStatus('Missing character_id in URL.', true);
         return;
@@ -474,8 +762,7 @@
           headers: { 'Accept': 'application/json' },
         });
         if (!res.ok) {
-          const msg = 'Failed to load character (' + res.status + ').';
-          setStatus(msg, true);
+          setStatus('Failed to load character (' + res.status + ').', true);
           return;
         }
         const data = await res.json();

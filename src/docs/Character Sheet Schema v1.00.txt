@@ -18,6 +18,8 @@ All fields are optional unless stated, but keep the structure consistent.
 - equipment (array): gear and mundane items
 - magic_items (array): magic items (optional)
 - currency (object): gp, sp, cp, pp
+- appearance (object): age, height, weight, eyes, skin, hair, portrait_url
+- personality (object): traits, ideals, bonds, flaws
 - adventure_history (array): session summaries (optional)
 
 ## Suggested shapes
@@ -64,6 +66,25 @@ spells:
   "known": [],
   "prepared": [],
   "slots": { "1": 4, "2": 2 }
+}
+
+appearance:
+{
+  "age": "",
+  "height": "",
+  "weight": "",
+  "eyes": "",
+  "skin": "",
+  "hair": "",
+  "portrait_url": ""
+}
+
+personality:
+{
+  "traits": "",
+  "ideals": "",
+  "bonds": "",
+  "flaws": ""
 }
 
 adventure_history:
