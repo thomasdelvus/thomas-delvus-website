@@ -550,8 +550,17 @@
       .page-two-grid{grid-template-columns:1fr;}
       .personality-grid{grid-template-columns:1fr;}
     }
+    @page{
+      size: letter;
+      margin: 0.35in;
+    }
     @media print{
-      body{background:white;}
+      body{
+        background:white;
+        -webkit-print-color-adjust:exact;
+        print-color-adjust:exact;
+        zoom:0.85;
+      }
       .topbar,.status{display:none !important;}
       .wrap{max-width:none;margin:0;padding:0;}
       .sheet{
@@ -559,9 +568,14 @@
         border:none;
         border-radius:0;
         background:white;
+        padding:12px;
       }
       .sheet:before{display:none;}
-      details.section{break-inside:avoid;}
+      details.section,
+      .section{
+        break-inside:auto;
+        page-break-inside:auto;
+      }
       .section > summary::after{display:none;}
     }
   </style>
