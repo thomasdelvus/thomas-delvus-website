@@ -51,7 +51,20 @@
       letter-spacing:0.08em;
       text-transform:uppercase;
     }
+    .nav button{
+      color:#e8edf7;
+      background:transparent;
+      border:1px solid rgba(255,255,255,0.22);
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:12px;
+      letter-spacing:0.08em;
+      text-transform:uppercase;
+      cursor:pointer;
+      font-family:inherit;
+    }
     .nav a:hover{background:rgba(255,255,255,0.08);}
+    .nav button:hover{background:rgba(255,255,255,0.08);}
     .wrap{
       max-width:1180px;
       margin:18px auto 48px;
@@ -537,12 +550,29 @@
       .page-two-grid{grid-template-columns:1fr;}
       .personality-grid{grid-template-columns:1fr;}
     }
+    @media print{
+      body{background:white;}
+      .topbar,.status{display:none !important;}
+      .wrap{max-width:none;margin:0;padding:0;}
+      .sheet{
+        box-shadow:none;
+        border:none;
+        border-radius:0;
+        background:white;
+      }
+      .sheet:before{display:none;}
+      details.section{break-inside:avoid;}
+      .section > summary::after{display:none;}
+    }
   </style>
 </head>
 <body>
   <div class="topbar">
     <div class="brand">Saffrondale Character Sheet</div>
-    <div class="nav"><a id="backLink" href="/app/battlemat.html">Back to battlemat</a></div>
+    <div class="nav">
+      <a id="backLink" href="/app/battlemat.html">Back to battlemat</a>
+      <button id="printBtn" type="button">Download PDF</button>
+    </div>
   </div>
 
   <div class="wrap">
@@ -799,6 +829,7 @@
     const elStatus = document.getElementById('status');
     const elStatusMsg = document.getElementById('statusMsg');
     const elBackLink = document.getElementById('backLink');
+    const elPrintBtn = document.getElementById('printBtn');
 
     const els = {
       name: document.getElementById('charName'),
@@ -1435,6 +1466,23 @@
       if (battleId && elBackLink) {
         elBackLink.href = '/app/battlemat.html?battle_id=' + encodeURIComponent(battleId);
       }
+      let detailsState = null;
+      if (elPrintBtn) {
+        elPrintBtn.addEventListener('click', () => {
+          const sections = Array.from(document.querySelectorAll('details.section'));
+          detailsState = sections.map(section => section.open);
+          sections.forEach(section => { section.open = true; });
+          window.print();
+        });
+      }
+      window.addEventListener('afterprint', () => {
+        if (!detailsState) return;
+        const sections = Array.from(document.querySelectorAll('details.section'));
+        sections.forEach((section, idx) => {
+          section.open = !!detailsState[idx];
+        });
+        detailsState = null;
+      });
       if (!characterId) {
         setStatus('Missing character_id in URL.', true);
         return;
