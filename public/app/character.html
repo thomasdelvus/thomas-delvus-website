@@ -573,7 +573,7 @@
       .sheet:before{display:none;}
       .sheet-header{grid-template-columns:1.2fr 1.8fr;}
       .header-grid{grid-template-columns:repeat(5, minmax(0,1fr));}
-      .sheet-grid{grid-template-columns:80px 0.3fr 1.35fr 0.9fr;}
+      .sheet-grid{grid-template-columns:90px 0.4fr 1.2fr 0.75fr;}
       .panel-row.three{grid-template-columns:1.3fr 0.8fr 1fr;}
       .equipment-grid{grid-template-columns:repeat(3, minmax(0,1fr));}
       .spells-columns{grid-template-columns:repeat(3, minmax(0,1fr));}
@@ -852,6 +852,121 @@
     const elStatusMsg = document.getElementById('statusMsg');
     const elBackLink = document.getElementById('backLink');
     const elPrintBtn = document.getElementById('printBtn');
+
+    const SAMPLE_CHARACTER = {
+      character_id: 'character_aelar',
+      name: 'Aelar (Sample)',
+      notes_text: '',
+      sheet_json: {
+        identity: {
+          name: 'Aelar (Sample)',
+          race: 'High Elf',
+          class: 'Wizard',
+          subclass: 'Evocation',
+          level: 10,
+          background: 'Sage',
+          alignment: 'Neutral Good',
+          experience_points: 64000
+        },
+        appearance: {
+          portrait_url: 'https://pub-32923a77247d4f2f9ad60bd440ec6e10.r2.dev/portraits/1234567/aelar.jpg',
+          age: '168',
+          height: '5\'7"',
+          weight: '135 lb',
+          eyes: 'Emerald',
+          skin: 'Fair',
+          hair: 'Copper red'
+        },
+        abilities: { str: 8, dex: 14, con: 14, int: 18, wis: 12, cha: 10 },
+        saves: { str: -1, dex: 2, con: 2, int: 6, wis: 1, cha: 0 },
+        skills: { arcana: 8, history: 6, investigation: 6, perception: 4, insight: 3, stealth: 2 },
+        proficiencies: {
+          armor: [],
+          weapons: ['dagger', 'quarterstaff', 'light crossbow'],
+          tools: ['alchemist\'s supplies'],
+          languages: ['Common', 'Elvish', 'Draconic', 'Sylvan']
+        },
+        combat: {
+          ac: 15,
+          max_hp: 62,
+          current_hp: 54,
+          temp_hp: 0,
+          speed_ft: 30,
+          initiative_mod: 2,
+          senses: []
+        },
+        attacks: [
+          { name: 'Quarterstaff', to_hit: 6, damage: '1d6+2 bludgeoning' },
+          { name: 'Fire Bolt', to_hit: 8, damage: '2d10 fire' }
+        ],
+        features: ['Arcane Recovery', 'Sculpt Spells', 'Empowered Evocation', 'Ritual Casting'],
+        resources: { hit_dice: '10d6', spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 } },
+        spells: {
+          entries: [
+            { name: 'Fire Bolt', level: 0, tags: ['offense'], prepared: true },
+            { name: 'Ray of Frost', level: 0, tags: ['offense'], prepared: true },
+            { name: 'Mage Hand', level: 0, tags: ['utility'], prepared: true },
+            { name: 'Prestidigitation', level: 0, tags: ['utility'], prepared: true },
+            { name: 'Message', level: 0, tags: ['utility'], prepared: true },
+            { name: 'Magic Missile', level: 1, tags: ['offense'], prepared: true },
+            { name: 'Mage Armor', level: 1, tags: ['defense'], prepared: true },
+            { name: 'Shield', level: 1, tags: ['defense'], prepared: true },
+            { name: 'Detect Magic', level: 1, tags: ['utility'], prepared: true },
+            { name: 'Misty Step', level: 2, tags: ['utility'], prepared: true },
+            { name: 'Mirror Image', level: 2, tags: ['defense'], prepared: true },
+            { name: 'Counterspell', level: 3, tags: ['defense'], prepared: true },
+            { name: 'Fireball', level: 3, tags: ['offense'], prepared: true },
+            { name: 'Dispel Magic', level: 3, tags: ['utility'], prepared: true },
+            { name: 'Ice Storm', level: 4, tags: ['offense'], prepared: true },
+            { name: 'Greater Invisibility', level: 4, tags: ['defense'], prepared: true },
+            { name: 'Cone of Cold', level: 5, tags: ['offense'], prepared: true },
+            { name: 'Wall of Force', level: 5, tags: ['defense'], prepared: true },
+            { name: 'Teleportation Circle', level: 5, tags: ['utility'], prepared: true }
+          ],
+          slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 }
+        },
+        equipment: [
+          { name: 'Robes of the Magi', category: 'Gear' },
+          { name: 'Cloak of Protection', category: 'Gear' },
+          { name: 'Boots of Elvenkind', category: 'Gear' },
+          { name: 'Amulet of Health', category: 'Gear' },
+          { name: 'Quarterstaff', category: 'Weapons' },
+          { name: 'Dagger', category: 'Weapons', qty: 2 },
+          { name: 'Wand of the War Mage +1', category: 'Weapons' },
+          { name: 'Potion of Healing (Greater)', category: 'Potions', qty: 2 },
+          { name: 'Potion of Invisibility', category: 'Potions' },
+          { name: 'Scroll of Fireball', category: 'Scrolls' },
+          { name: 'Scroll of Counterspell', category: 'Scrolls' },
+          { name: 'Scholar\'s Pack', category: 'Supplies' },
+          { name: 'Spellbook', category: 'Supplies' },
+          { name: 'Ink and Quill', category: 'Supplies' },
+          { name: 'Tinderbox', category: 'Supplies' },
+          { name: 'Rope, 50 ft', category: 'Supplies' }
+        ],
+        currency: { pp: 3, gp: 1250, sp: 64, cp: 12 },
+        treasure: [
+          { name: 'Sapphire Key', qty: 1, value_gp: 500 },
+          { name: 'Ancient signet ring', qty: 1, value_gp: 250 },
+          { name: 'Spell shard', qty: 3, value_each_gp: 25 }
+        ],
+        personality: {
+          traits: 'Always has a theory. Prefers libraries over taverns.',
+          ideals: 'Knowledge should be preserved and shared.',
+          bonds: 'Owes a debt to the Archivists of Evereska.',
+          flaws: 'Overconfident in arcane solutions.',
+          backstory: 'Raised among the Archivists of Evereska, Aelar showed a rare talent for evocation and warding. A failed experiment in the Ember Vault scattered ancient shards and nearly destroyed a wing of the library; he swore to recover the relics and repair the record. He now travels the borderlands as a discreet envoy of the Conclave, trading favors for access to lost spellcraft. Saffrondale’s saffron wealth quietly funds his research and keeps his allies supplied, though his relentless pursuit of knowledge often overrides caution.',
+          reputation: [
+            { faction: 'The Conclave', bonus: 2, effect: '10% discount on arcane services, scroll copying, and spell research.' },
+            { faction: 'The Golden Dawn', bonus: 1, effect: 'Preferred pricing on saffron and market goods during festivals.' },
+            { faction: 'The Temple Magistrates', bonus: -1, effect: 'Scrutiny at temples; donations required for expedited aid.' }
+          ]
+        },
+        adventure_history: [
+          { date: '1347-04-12', summary: 'Recovered the Sapphire Key from the Ember Vault.' },
+          { date: '1347-06-01', summary: 'Closed the Rift of Thorns at Blackridge.' }
+        ]
+      }
+    };
 
     const els = {
       name: document.getElementById('charName'),
@@ -1483,7 +1598,8 @@
 
     async function init() {
       const params = new URLSearchParams(window.location.search);
-      const characterId = params.get('character_id') || params.get('characterId') || params.get('id');
+      let characterId = params.get('character_id') || params.get('characterId') || params.get('id');
+      let useSample = false;
       const battleId = params.get('battle_id') || params.get('battleId') || params.get('battle');
       if (battleId && elBackLink) {
         elBackLink.href = '/app/battlemat.html?battle_id=' + encodeURIComponent(battleId);
@@ -1506,8 +1622,9 @@
         detailsState = null;
       });
       if (!characterId) {
-        setStatus('Missing character_id in URL.', true);
-        return;
+        characterId = 'character_aelar';
+        setStatus('No character_id in URL. Loading sample character.', false);
+        useSample = true;
       }
 
       try {
@@ -1517,6 +1634,12 @@
           headers: { 'Accept': 'application/json' },
         });
         if (!res.ok) {
+          if (useSample) {
+            renderSheet(SAMPLE_CHARACTER);
+            if (elStatus) elStatus.hidden = true;
+            if (elSheet) elSheet.hidden = false;
+            return;
+          }
           setStatus('Failed to load character (' + res.status + ').', true);
           return;
         }
