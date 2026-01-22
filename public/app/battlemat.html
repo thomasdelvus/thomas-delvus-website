@@ -389,48 +389,56 @@ Version: set in JS (VERSION)
 
         <h3>Editor</h3>
         <div id="editorPanel">
-        <div class="mini">Object <select id="objectKindSelect"></select></div>
-        <div class="mini">Rotate <input id="objectRot" type="number" step="15" value="0" /></div>
-        <div class="mini">Offset
-          <span class="inlineFields">
-            <input id="objectOx" type="number" step="0.05" value="0" />
-            <input id="objectOy" type="number" step="0.05" value="0" />
-          </span>
+        <div id="editorSectionOrder" class="editorSection">
+          <div class="mini">Order
+            <span class="inlineFields">
+              <button id="btnObjBack" title="Send selected object behind others">Send Back</button>
+              <button id="btnObjFront" title="Bring selected object above others">Bring Front</button>
+            </span>
+          </div>
         </div>
-        <div class="mini">Scale <input id="objectScale" type="number" step="0.1" value="1" /></div>
-        <div class="mini">Order
-          <span class="inlineFields">
-            <button id="btnObjBack" title="Send selected object behind others">Send Back</button>
-            <button id="btnObjFront" title="Bring selected object above others">Bring Front</button>
-          </span>
+        <div id="editorSectionObject" class="editorSection">
+          <div class="mini">Object <select id="objectKindSelect"></select></div>
+          <div class="mini">Rotate <input id="objectRot" type="number" step="15" value="0" /></div>
+          <div class="mini">Offset
+            <span class="inlineFields">
+              <input id="objectOx" type="number" step="0.05" value="0" />
+              <input id="objectOy" type="number" step="0.05" value="0" />
+            </span>
+          </div>
+          <div class="mini">Scale <input id="objectScale" type="number" step="0.1" value="1" /></div>
+          <div class="mini" id="objectSelected">Selected: none</div>
         </div>
-        <div class="mini" id="objectSelected">Selected: none</div>
-        <div class="mini" style="opacity:0.7;">Opening</div>
-        <div class="mini">Kind <input id="openingKind" type="text" list="openingKindList" placeholder="door.wood" /></div>
-        <div class="mini">Hex <input id="openingHex" type="text" placeholder="M17" /></div>
-        <div class="mini">Orient
-          <select id="openingOrientation">
-            <option value="h">h</option>
-            <option value="v">v</option>
-          </select>
+        <div id="editorSectionOpening" class="editorSection">
+          <div class="mini" style="opacity:0.7;">Opening</div>
+          <div class="mini">Kind <input id="openingKind" type="text" list="openingKindList" placeholder="door.wood" /></div>
+          <div class="mini">Hex <input id="openingHex" type="text" placeholder="M17" /></div>
+          <div class="mini">Orient
+            <select id="openingOrientation">
+              <option value="h">h</option>
+              <option value="v">v</option>
+            </select>
+          </div>
+          <div class="mini">Open % <input id="openingOpenPct" type="number" step="0.1" min="0" max="1" value="0" /></div>
+          <div class="mini">Hinge
+            <select id="openingHinge">
+              <option value=""></option>
+              <option value="left">left</option>
+              <option value="right">right</option>
+            </select>
+          </div>
+          <div class="mini">Swing <input id="openingSwing" type="number" step="1" value="1" /></div>
+          <div class="mini" id="openingSelected">Selected: none</div>
         </div>
-        <div class="mini">Open % <input id="openingOpenPct" type="number" step="0.1" min="0" max="1" value="0" /></div>
-        <div class="mini">Hinge
-          <select id="openingHinge">
-            <option value=""></option>
-            <option value="left">left</option>
-            <option value="right">right</option>
-          </select>
+        <div id="editorSectionRoom" class="editorSection">
+          <div class="mini" style="opacity:0.7;">Room</div>
+          <div class="mini">TL <input id="roomCornerTL" type="text" placeholder="AK21.5" /></div>
+          <div class="mini">BR <input id="roomCornerBR" type="text" placeholder="AO18" /></div>
+          <div class="mini">Floor <input id="roomFloorKind" type="text" list="floorKindList" placeholder="wood_oak" /></div>
+          <div class="mini">Wall <input id="roomWallKind" type="text" list="wallKindList" placeholder="brick" /></div>
+          <div class="mini">Thickness <input id="roomThickness" type="number" step="1" value="15" /></div>
+          <div class="mini" id="roomSelected">Selected: none</div>
         </div>
-        <div class="mini">Swing <input id="openingSwing" type="number" step="1" value="1" /></div>
-        <div class="mini" id="openingSelected">Selected: none</div>
-        <div class="mini" style="opacity:0.7;">Room</div>
-        <div class="mini">TL <input id="roomCornerTL" type="text" placeholder="AK21.5" /></div>
-        <div class="mini">BR <input id="roomCornerBR" type="text" placeholder="AO18" /></div>
-        <div class="mini">Floor <input id="roomFloorKind" type="text" list="floorKindList" placeholder="wood_oak" /></div>
-        <div class="mini">Wall <input id="roomWallKind" type="text" list="wallKindList" placeholder="brick" /></div>
-        <div class="mini">Thickness <input id="roomThickness" type="number" step="1" value="15" /></div>
-        <div class="mini" id="roomSelected">Selected: none</div>
       </div>
         <datalist id="floorKindList"></datalist>
         <datalist id="wallKindList"></datalist>
@@ -490,6 +498,10 @@ Version: set in JS (VERSION)
     btnScanIssues: getEl('btnScanIssues'),
     btnCleanOrphans: getEl('btnCleanOrphans'),
     toolStatus: getEl('toolStatus'),
+    editorSectionOrder: getEl('editorSectionOrder'),
+    editorSectionObject: getEl('editorSectionObject'),
+    editorSectionOpening: getEl('editorSectionOpening'),
+    editorSectionRoom: getEl('editorSectionRoom'),
     objectKindSelect: getEl('objectKindSelect'),
     objectRot: getEl('objectRot'),
     objectOx: getEl('objectOx'),
@@ -555,6 +567,10 @@ Version: set in JS (VERSION)
   const elSaveDb = els.btnSaveDb;
   const elUndo = els.btnUndo;
   const elToolStatus = els.toolStatus;
+  const elEditorSectionOrder = els.editorSectionOrder;
+  const elEditorSectionObject = els.editorSectionObject;
+  const elEditorSectionOpening = els.editorSectionOpening;
+  const elEditorSectionRoom = els.editorSectionRoom;
   const elObjectKindSelect = els.objectKindSelect;
   const elObjectRot = els.objectRot;
   const elObjectOx = els.objectOx;
@@ -1129,6 +1145,24 @@ Version: set in JS (VERSION)
     if (elToolDelete) elToolDelete.classList.toggle('active', EDITOR.tool === 'delete');
   }
 
+  function resolveEditorFocus() {
+    if (EDITOR.selectedObjectId) return 'object';
+    if (EDITOR.selectedRoomId) return 'room';
+    if (EDITOR.selectedId) return 'opening';
+    if (EDITOR.tool === 'object') return 'object';
+    if (EDITOR.tool === 'room') return 'room';
+    if (EDITOR.tool === 'door' || EDITOR.tool === 'window') return 'opening';
+    return null;
+  }
+
+  function updateEditorPanelVisibility() {
+    const focus = resolveEditorFocus();
+    if (elEditorSectionObject) elEditorSectionObject.hidden = focus !== 'object';
+    if (elEditorSectionOpening) elEditorSectionOpening.hidden = focus !== 'opening';
+    if (elEditorSectionRoom) elEditorSectionRoom.hidden = focus !== 'room';
+    if (elEditorSectionOrder) elEditorSectionOrder.hidden = false;
+  }
+
   function setEditorTool(tool) {
     const t = (tool === 'door' || tool === 'window' || tool === 'room' || tool === 'object' || tool === 'delete' || tool === 'select') ? tool : 'select';
     EDITOR.tool = t;
@@ -1137,6 +1171,7 @@ Version: set in JS (VERSION)
     EDITOR.roomStart = null;
     EDITOR.roomPreview = null;
     syncEditorButtons();
+    updateEditorPanelVisibility();
     safeRedraw();
   }
 
@@ -1542,6 +1577,7 @@ Version: set in JS (VERSION)
     EDITOR.selectedFloorId = null;
     syncOpeningSelectedLabel(null);
     syncOpeningControlsFromOpening(null);
+    updateEditorPanelVisibility();
   }
 
   function setSelectedOpening(opening, floorId) {
@@ -1559,6 +1595,7 @@ Version: set in JS (VERSION)
     EDITOR.selectedFloorId = floorId || null;
     syncOpeningSelectedLabel(opening);
     syncOpeningControlsFromOpening(opening);
+    updateEditorPanelVisibility();
   }
 
   function getSelectedOpening(ctx) {
@@ -1679,6 +1716,7 @@ Version: set in JS (VERSION)
     EDITOR.selectedObjectId = null;
     EDITOR.selectedObjectFloorId = null;
     syncObjectSelectedLabel(null);
+    updateEditorPanelVisibility();
   }
 
   function setSelectedObject(object, floorId) {
@@ -1696,6 +1734,7 @@ Version: set in JS (VERSION)
     EDITOR.selectedObjectFloorId = floorId || null;
     syncObjectSelectedLabel(object);
     syncObjectControlsFromObject(object);
+    updateEditorPanelVisibility();
   }
 
   function syncRoomSelectedLabel(room) {
@@ -1712,6 +1751,7 @@ Version: set in JS (VERSION)
     EDITOR.selectedRoomId = null;
     EDITOR.selectedRoomFloorId = null;
     syncRoomSelectedLabel(null);
+    updateEditorPanelVisibility();
   }
 
   function setSelectedRoom(room, floorId) {
@@ -1730,6 +1770,7 @@ Version: set in JS (VERSION)
     EDITOR.selectedRoomFloorId = floorId || null;
     syncRoomSelectedLabel(room);
     syncRoomControlsFromRoom(room);
+    updateEditorPanelVisibility();
   }
 
   function getSelectedRoom(ctx) {
