@@ -209,12 +209,16 @@
       display:grid;
       grid-template-columns:80px 0.3fr 1.35fr 0.9fr;
       gap:12px;
+      width:100%;
+      justify-items:stretch;
+      align-items:start;
     }
     .col{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;}
     .col-abilities{grid-column:1 / span 2;}
 
     .panel{
       position:relative;
+      min-width:0;
       border:1px solid rgba(47,35,20,0.28);
       border-radius:16px;
       background:rgba(249,241,220,0.95);
@@ -383,6 +387,8 @@
     .portrait-visual{
       width:100%;
       aspect-ratio:3 / 4;
+      min-width:0;
+      max-width:100%;
       border-radius:12px;
       border:1px solid rgba(0,0,0,0.12);
       overflow:hidden;
