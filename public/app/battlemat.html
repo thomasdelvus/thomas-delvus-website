@@ -6974,6 +6974,7 @@ function setActiveFloor(floorId, opts = {}) {
 
     wireUI();
     syncEditorButtons();
+    updateEditorPanelVisibility();
 
     // Remote state (DB/API) hookup with DB default.
     const qp = getQueryParamsCached();
