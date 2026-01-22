@@ -569,44 +569,53 @@
       html, body{
         width:100%;
         margin:0;
+        font-size:9px;
       }
-      body{
-        background:white;
-        -webkit-print-color-adjust:exact;
-        print-color-adjust:exact;
-      }
+        body{
+          background:white;
+          -webkit-print-color-adjust:exact;
+          print-color-adjust:exact;
+        }
+        *,
+        *::before,
+        *::after{
+          box-sizing:border-box;
+        }
       .topbar,.status{display:none !important;}
       .wrap{max-width:none;margin:0;padding:0;}
-      .sheet{
-        width:7.8in;
-        margin:0 auto;
-        box-shadow:none;
-        border:none;
-        border-radius:0;
-        background:white;
-        padding:12px;
-        font-size:12px;
-      }
-      .panel h2{font-size:10px;}
+        .sheet{
+          width:8in;
+          margin:0 auto;
+          box-shadow:none;
+          border:none;
+          border-radius:0;
+          background:white;
+          box-sizing:border-box;
+          padding:12px;
+          font-size:9px;
+        }
+        .panel h2{font-size:8px;}
+        .name-block h1{font-size:22px;}
+        .header-field .value{font-size:11px;}
       .header-field .label,
       .spell-field .label,
       .personality-bubble .label,
       .mini-box .label,
       .hp-grid .label{
-        font-size:9px;
+        font-size:7px;
       }
       .list,
       table,
       .text-block,
       .reputation-table{
-        font-size:11px;
+        font-size:9px;
       }
       .ability .score,
       .mini-box .value,
       .hp-grid .value,
       .passive-item .value,
       .spell-field .value{
-        font-size:13px;
+        font-size:10px;
       }
       .sheet-page,
       .section-body,
@@ -919,7 +928,7 @@
         },
         abilities: { str: 8, dex: 14, con: 14, int: 18, wis: 12, cha: 10 },
         saves: { str: -1, dex: 2, con: 2, int: 6, wis: 1, cha: 0 },
-        skills: { arcana: 8, history: 6, investigation: 6, perception: 4, insight: 3, stealth: 2 },
+        skills: { Arcana: 8, History: 6, Investigation: 6, Perception: 4, Insight: 3, Stealth: 2 },
         proficiencies: {
           armor: [],
           weapons: ['dagger', 'quarterstaff', 'light crossbow'],
