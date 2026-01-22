@@ -594,11 +594,27 @@
           padding:12px;
           font-size:9px;
         }
-        .panel h2{font-size:8px;}
+        .panel h2{font-size:7px;}
         .name-block h1{font-size:22px;}
-        .header-field .value{font-size:11px;}
+        .header-field .value{font-size:8px;}
         .header-field{padding:4px 6px;}
         .header-field .value{margin-top:2px;}
+        .section > summary{padding:6px 10px;}
+        .section-body{padding:8px;}
+        .equipment-grid{gap:8px;}
+        .panel-row{gap:8px;}
+        .panel{
+          padding:8px;
+          border-radius:14px;
+        }
+        .panel:before{
+          inset:4px;
+          border-radius:12px;
+        }
+        .panel h2{margin-bottom:6px;}
+        .equip-col .panel{margin-top:8px !important;}
+        .mini-box{padding:4px 6px;}
+        .hp-grid .box{padding:4px;}
       .header-field .label,
       .spell-field .label,
       .personality-bubble .label,
@@ -606,18 +622,52 @@
       .hp-grid .label{
         font-size:7px;
       }
-      .list,
-      table,
-      .text-block,
-      .reputation-table{
-        font-size:9px;
-      }
+        .list,
+        table,
+        .text-block,
+        .reputation-table{
+          font-size:6px;
+        }
+        #skillsList,
+        #featuresList,
+        #profsList,
+        #appearanceList{
+          font-size:8px;
+        }
+        #attacksBlock table{font-size:8px;}
+        th{
+          font-size:7px;
+          letter-spacing:0.12em;
+        }
         .ability .score,
         .mini-box .value,
         .hp-grid .value,
         .passive-item .value,
         .spell-field .value{
           font-size:10px;
+        }
+        .ability-head{
+          grid-template-columns:1fr 34px 34px;
+          gap:4px;
+        }
+        .ability-head span{
+          font-size:7px;
+          letter-spacing:0.12em;
+        }
+        .ability{
+          grid-template-columns:1fr 34px 34px;
+          gap:4px;
+        }
+        .ability .label{
+          font-size:8px;
+          letter-spacing:0.12em;
+        }
+        .ability .mod,
+        .ability .save{
+          min-width:24px;
+          padding:2px 4px;
+          border-radius:8px;
+          font-size:8px;
         }
         .passive-item{grid-template-columns:40px 1fr;}
         .passive-item .label{font-size:8px;line-height:1.15;white-space:normal;}
