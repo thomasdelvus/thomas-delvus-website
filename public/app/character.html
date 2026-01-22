@@ -585,6 +585,28 @@
         border-radius:0;
         background:white;
         padding:12px;
+        font-size:12px;
+      }
+      .panel h2{font-size:10px;}
+      .header-field .label,
+      .spell-field .label,
+      .personality-bubble .label,
+      .mini-box .label,
+      .hp-grid .label{
+        font-size:9px;
+      }
+      .list,
+      table,
+      .text-block,
+      .reputation-table{
+        font-size:11px;
+      }
+      .ability .score,
+      .mini-box .value,
+      .hp-grid .value,
+      .passive-item .value,
+      .spell-field .value{
+        font-size:13px;
       }
       .sheet-page,
       .section-body,
@@ -659,9 +681,9 @@
         <details class="section" open>
           <summary>Base Stats</summary>
           <div class="section-body">
-            <div class="sheet-grid">
-              <div class="col col-abilities">
-                <section class="panel">
+            <div class="equipment-grid" style="grid-template-columns:minmax(0,0.75fr) minmax(0,0.60fr) minmax(0,1.40fr) minmax(0,1.25fr);">
+              <div class="equip-col">
+                <section class="panel" style="margin-top:12px;">
                   <h2>Abilities</h2>
                   <div class="ability-head">
                     <span></span>
@@ -670,7 +692,7 @@
                   </div>
                   <div class="ability-list" id="abilityList"></div>
                 </section>
-                <section class="panel">
+                <section class="panel" style="margin-top:12px;">
                   <h2>Passives</h2>
                   <div class="passive-list">
                     <div class="passive-item">
@@ -684,14 +706,22 @@
                   </div>
                 </section>
               </div>
-
-              <div class="col">
-                <section class="panel">
+              <div class="equip-col">
+                <section class="panel" style="margin-top:12px;">
+                  <h2>Skills</h2>
+                  <div class="list" id="skillsList"></div>
+                </section>
+                <section class="panel" style="margin-top:12px;">
+                  <h2>Features</h2>
+                  <div class="list" id="featuresList"></div>
+                </section>
+              </div>
+              <div class="equip-col">
+                <section class="panel" style="margin-top:12px;">
                   <h2>Combat</h2>
                   <div class="mini-grid" id="combatGrid"></div>
                 </section>
-
-                <section class="panel">
+                <section class="panel" style="margin-top:12px;">
                   <h2>Hit Points</h2>
                   <div class="hp-grid">
                     <div class="box">
@@ -708,32 +738,17 @@
                     </div>
                   </div>
                 </section>
-
-                <section class="panel">
+                <section class="panel" style="margin-top:12px;">
                   <h2>Attacks</h2>
                   <div id="attacksBlock"></div>
                 </section>
-
-                <div class="panel-row three">
-                  <section class="panel">
-                    <h2>Proficiencies & Languages</h2>
-                    <div class="list" id="profsList"></div>
-                  </section>
-
-                  <section class="panel">
-                    <h2>Skills</h2>
-                    <div class="list" id="skillsList"></div>
-                  </section>
-
-                  <section class="panel">
-                    <h2>Features</h2>
-                    <div class="list" id="featuresList"></div>
-                  </section>
-                </div>
+                <section class="panel" style="margin-top:12px;">
+                  <h2>Proficiencies & Languages</h2>
+                  <div class="list" id="profsList"></div>
+                </section>
               </div>
-
-              <div class="col">
-                <section class="panel">
+              <div class="equip-col">
+                <section class="panel" style="margin-top:12px;">
                   <h2>Appearance</h2>
                   <div class="portrait-frame">
                     <div class="portrait-visual" id="portraitVisual">
@@ -744,13 +759,6 @@
                 </section>
               </div>
             </div>
-          </div>
-        </details>
-
-        <details class="section" open>
-          <summary>Base Stats 2 (Test)</summary>
-          <div class="section-body">
-            <div class="sheet-grid sheet-grid-alt" id="baseStatsAlt"></div>
           </div>
         </details>
 
@@ -1625,14 +1633,7 @@
       });
       renderList(els.historyList, historyLines, 'No history yet.');
 
-      const baseStatsAlt = document.getElementById('baseStatsAlt');
-      if (baseStatsAlt) {
-        const sourceGrid = document.querySelector('.section-body .sheet-grid');
-        if (sourceGrid) {
-          baseStatsAlt.innerHTML = sourceGrid.innerHTML;
-          baseStatsAlt.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
-        }
-      }
+      // Base Stats uses the main layout; no cloning needed.
 
       // Notes text is now surfaced in Reputation (fallback), so no separate notes block.
     }
