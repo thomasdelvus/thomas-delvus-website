@@ -392,6 +392,9 @@
     table{width:100%;border-collapse:collapse;font-size:var(--text-size);}
     th,td{padding:6px 6px;border-bottom:1px solid rgba(0,0,0,0.1);text-align:left;}
     th{font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
+    .kv-table{width:100%;border-collapse:collapse;font-size:var(--text-size);}
+    .kv-table td{padding:2px 4px;border-bottom:none;vertical-align:top;}
+    .kv-table td:first-child{width:20%;white-space:nowrap;color:var(--muted);font-weight:600;}
 
     .portrait-frame{display:flex;flex-direction:column;gap:10px;}
     .portrait-visual{
@@ -846,11 +849,11 @@
                   <div id="attacksBlock"></div>
                 </section>
                 <section class="panel" style="margin-top:12px;">
-                  <h2>Proficiencies & Languages</h2>
+                  <h2>Proficiencies</h2>
                   <div class="list" id="profsList"></div>
                 </section>
                 <section class="panel" style="margin-top:12px;">
-                  <h2>Skills & Features</h2>
+                  <h2>Capabilities</h2>
                   <div class="list" id="skillsFeaturesList"></div>
                 </section>
               </div>
@@ -1048,7 +1051,7 @@
         },
         abilities: { str: 8, dex: 14, con: 14, int: 18, wis: 12, cha: 10 },
         saves: { str: -1, dex: 2, con: 2, int: 6, wis: 1, cha: 0 },
-        skills: { Arcana: 8, History: 6, Investigation: 6, Perception: 4, Insight: 3, Stealth: 2 },
+        skills: { arcana: 8, history: 6, investigation: 6, perception: 4, insight: 3, stealth: 2 },
         proficiencies: {
           armor: [],
           weapons: ['dagger', 'quarterstaff', 'light crossbow'],
@@ -1069,6 +1072,7 @@
           { name: 'Fire Bolt', to_hit: 8, damage: '2d10 fire', range: '120 ft' }
         ],
         features: ['Arcane Recovery', 'Sculpt Spells', 'Empowered Evocation', 'Ritual Casting'],
+        traits: ['Darkvision', 'Fey Ancestry', 'Keen Senses', 'Trance'],
         resources: { hit_dice: '10d6', spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 } },
         spells: {
           entries: [
@@ -1279,6 +1283,23 @@
         }
         el.appendChild(line);
       }
+    }
+
+    function renderKeyValueTable(el, lines, emptyLabel) {
+      if (!el) return;
+      const list = Array.isArray(lines) ? lines : [];
+      if (!list.length) {
+        el.innerHTML = '<div class="empty">' + (emptyLabel || 'None') + '</div>';
+        return;
+      }
+      const rows = list.map((line) => {
+        const text = String(line || '');
+        const idx = text.indexOf(':');
+        const key = idx !== -1 ? text.slice(0, idx + 1).trim() : text;
+        const value = idx !== -1 ? text.slice(idx + 1).trim() : '';
+        return '<tr><td>' + key + '</td><td>' + value + '</td></tr>';
+      }).join('');
+      el.innerHTML = '<table class="kv-table"><tbody>' + rows + '</tbody></table>';
     }
 
     function formatSkillLabel(name) {
@@ -1720,7 +1741,7 @@
       if (Array.isArray(profs.weapons) && profs.weapons.length) profLines.push('Weapons: ' + profs.weapons.join(', '));
       if (Array.isArray(profs.tools) && profs.tools.length) profLines.push('Tools: ' + profs.tools.join(', '));
       if (Array.isArray(profs.languages) && profs.languages.length) profLines.push('Languages: ' + profs.languages.join(', '));
-      renderList(els.profsList, profLines, 'No proficiencies listed.');
+      renderKeyValueTable(els.profsList, profLines, 'No proficiencies listed.');
 
       renderAttacks(sheet.attacks);
       const skillsEntries = [];
@@ -1733,8 +1754,13 @@
       const featuresLine = Array.isArray(sheet.features) && sheet.features.length
         ? ('Features: ' + sheet.features.join(', '))
         : '';
-      const combinedLines = [skillsLine, featuresLine].filter(Boolean);
-      renderList(els.skillsFeaturesList, combinedLines, 'No skills or features listed.');
+      const traitsRaw = sheet.traits ?? sheet.racial_traits ?? sheet.racialTraits;
+      const traitsList = Array.isArray(traitsRaw)
+        ? traitsRaw
+        : (typeof traitsRaw === 'string' && traitsRaw.trim() ? [traitsRaw.trim()] : []);
+      const traitsLine = traitsList.length ? ('Traits: ' + traitsList.join(', ')) : '';
+      const combinedLines = [skillsLine, featuresLine, traitsLine].filter(Boolean);
+      renderKeyValueTable(els.skillsFeaturesList, combinedLines, 'No skills or features listed.');
       const equipment = Array.isArray(sheet.equipment) ? sheet.equipment : (Array.isArray(sheet.inventory) ? sheet.inventory : []);
       const buckets = { gear: [], weapons: [], potions: [], scrolls: [], supplies: [] };
 
