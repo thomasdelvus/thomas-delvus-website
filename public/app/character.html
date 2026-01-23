@@ -991,6 +991,28 @@
             </section>
           </div>
         </details>
+
+        <details class="section">
+          <summary>Share</summary>
+          <div class="section-body">
+            <div class="section-grid">
+              <section class="panel">
+                <h2>Character Link</h2>
+                <div class="list">
+                  <div>
+                    <a id="shareLink" href="#" target="_blank" rel="noopener">Open character page</a>
+                  </div>
+                </div>
+              </section>
+              <section class="panel">
+                <h2>QR Code</h2>
+                <div style="display:flex;justify-content:center;align-items:center;">
+                  <img id="qrCode" alt="QR code" src="" style="width:220px;height:220px;border-radius:12px;border:1px solid rgba(0,0,0,0.12);" />
+                </div>
+              </section>
+            </div>
+          </div>
+        </details>
       </section>
 
       <div class="sheet-footer">© 2026 Thomas Delvus. Permission is granted to copy this document for personal use.</div>
@@ -1159,6 +1181,8 @@
       backstoryText: document.getElementById('backstoryText'),
       reputationTable: document.getElementById('reputationTable'),
       historyList: document.getElementById('historyList'),
+      shareLink: document.getElementById('shareLink'),
+      qrCode: document.getElementById('qrCode'),
     };
 
     function setStatus(msg, isError) {
@@ -1743,6 +1767,22 @@
         return String(h);
       });
       renderList(els.historyList, historyLines, 'No history yet.');
+
+      const shareId = character.character_id || 'character_aelar';
+      const shareUrl =
+        location.origin +
+        location.pathname +
+        '?character_id=' +
+        encodeURIComponent(shareId);
+      if (els.shareLink) {
+        els.shareLink.textContent = shareUrl;
+        els.shareLink.href = shareUrl;
+      }
+      if (els.qrCode) {
+        els.qrCode.src =
+          'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' +
+          encodeURIComponent(shareUrl);
+      }
 
       // Base Stats uses the main layout; no cloning needed.
 
