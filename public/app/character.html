@@ -605,16 +605,23 @@
         .panel-row{gap:8px;}
         .panel{
           padding:8px;
-          border-radius:14px;
+          border-radius:12px;
         }
         .panel:before{
           inset:4px;
-          border-radius:12px;
+          border-radius:10px;
         }
         .panel h2{margin-bottom:6px;}
         .equip-col .panel{margin-top:8px !important;}
-        .mini-box{padding:4px 6px;}
-        .hp-grid .box{padding:4px;}
+        .mini-box{padding:3px 4px;}
+        .mini-box .value{margin-top:4px;}
+        .hp-grid .box{padding:3px;}
+        .mini-box{border-radius:10px;}
+        .hp-grid .box{border-radius:8px;}
+        .ability .mod,
+        .ability .save{
+          border-radius:6px;
+        }
       .header-field .label,
       .spell-field .label,
       .personality-bubble .label,
@@ -631,10 +638,22 @@
         #skillsList,
         #featuresList,
         #profsList,
-        #appearanceList{
+        #appearanceList,
+        #equipmentGear,
+        #equipmentWeapons,
+        #equipmentPotions,
+        #equipmentScrolls,
+        #equipmentSupplies,
+        #historyList{
           font-size:8px;
         }
-        #attacksBlock table{font-size:8px;}
+        #attacksBlock table,
+        .personality-bubble .value,
+        .text-block,
+        .reputation-table td{
+          font-size:8px;
+        }
+        .treasure-table td{font-size:8px;}
         th{
           font-size:7px;
           letter-spacing:0.12em;
@@ -666,8 +685,12 @@
         .ability .save{
           min-width:24px;
           padding:2px 4px;
-          border-radius:8px;
+          border-radius:4px;
           font-size:8px;
+        }
+        .passive-item{
+          grid-template-columns:36px 1fr;
+          gap:6px;
         }
         .passive-item{grid-template-columns:40px 1fr;}
         .passive-item .label{font-size:8px;line-height:1.15;white-space:normal;}
@@ -689,11 +712,13 @@
       .spell-header{grid-template-columns:repeat(4, minmax(0,1fr));}
       .personality-grid{grid-template-columns:0.9fr 1.1fr;}
       .panel{overflow:hidden;}
-      details.section,
-      .section{
-        break-inside:auto;
-        page-break-inside:auto;
-      }
+        details.section,
+        .section,
+        .section-body,
+        .panel{
+          break-inside:avoid;
+          page-break-inside:avoid;
+        }
       .section > summary::after{display:none;}
     }
   </style>
