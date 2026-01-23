@@ -320,6 +320,10 @@ export default {
       return json({ ok: true });
     }
 
+    if (path === "/_genid" && method === "GET") {
+      return json({ id: genId22() });
+    }
+
     if (path === "/characters") {
       if (method === "GET") {
         const campaignId = normStr(url.searchParams.get("campaign_id") || url.searchParams.get("campaignId"));
