@@ -371,12 +371,13 @@
     .hp-grid .label{font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
     .hp-grid .value{font-size:16px;font-weight:700;margin-top:6px;}
 
-    .list{display:flex;flex-direction:column;gap:6px;font-size:15px;}
+    .list{display:flex;flex-direction:column;gap:6px;font-size:var(--text-size);}
     #appearanceList{
       display:grid;
       grid-template-columns:repeat(2, minmax(0,1fr));
       gap:4px 12px;
       padding-left:12px;
+      font-size:var(--text-size);
     }
     #profsList > div{
       padding-left:14px;
@@ -385,7 +386,7 @@
     .pill-list{display:flex;flex-wrap:wrap;gap:6px;}
     .pill{display:inline-flex;padding:4px 10px;border-radius:999px;background:#efe2c6;border:1px solid rgba(0,0,0,0.15);font-size:12px;}
 
-    table{width:100%;border-collapse:collapse;font-size:13px;}
+    table{width:100%;border-collapse:collapse;font-size:var(--text-size);}
     th,td{padding:6px 6px;border-bottom:1px solid rgba(0,0,0,0.1);text-align:left;}
     th{font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
 
@@ -469,7 +470,7 @@
       text-align:center;
     }
     .personality-bubble .value{
-      font-size:15px;
+      font-size:var(--text-size);
       font-weight:600;
       color:var(--ink);
     }
@@ -482,7 +483,7 @@
       border-radius:999px;
       background:#efe2c6;
       border:1px solid rgba(0,0,0,0.12);
-      font-size:15px;
+      font-size:var(--text-size);
       line-height:1.2;
     }
     .spell-level{
@@ -505,7 +506,7 @@
       border:1px solid rgba(0,0,0,0.12);
       border-radius:12px;
       padding:12px;
-      font-size:15px;
+      font-size:var(--text-size);
     }
     .reputation-table{
       width:100%;
@@ -519,8 +520,8 @@
       text-align:left;
       vertical-align:top;
     }
-    .reputation-table td{font-size:15px;}
-    .treasure-table td{font-size:15px;}
+    .reputation-table td{font-size:var(--text-size);}
+    .treasure-table td{font-size:var(--text-size);}
     .reputation-table th{
       font-size:10px;
       letter-spacing:0.16em;
@@ -566,9 +567,15 @@
     }
     @page{
       size: letter;
+      margin: 0.6in 0.35in 0.35in 0.35in;
+    }
+    @page :first{
       margin: 0.35in;
     }
     @media print{
+      :root{
+        --text-size:8px;
+      }
       html, body{
         width:100%;
         margin:0;
