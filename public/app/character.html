@@ -17,6 +17,7 @@
       --paper-edge:#c8b08a;
       --panel:#f9f1dc;
       --shadow:rgba(0,0,0,0.22);
+      --text-size:15px;
     }
     html,body{height:100%;margin:0;}
     body{
@@ -296,8 +297,8 @@
         text-align:center;
         padding-left:2px;
       }
-      .ability .score{font-size:18px;font-weight:700;}
-      .ability .label{font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
+      .ability .score{font-size:20px;font-weight:700;}
+      .ability .label{font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
       .ability .mod,
       .ability .save{
         min-width:36px;
@@ -315,7 +316,7 @@
     .mini-box{
       border:1px solid rgba(0,0,0,0.15);
       border-radius:12px;
-      padding:8px;
+      padding:6px;
       text-align:center;
       background:#fff8e7;
     }
@@ -365,12 +366,12 @@
       border:1px solid rgba(0,0,0,0.15);
       border-radius:10px;
       background:#fff8e7;
-      padding:8px 6px;
+      padding:6px;
     }
     .hp-grid .label{font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
     .hp-grid .value{font-size:16px;font-weight:700;margin-top:6px;}
 
-    .list{display:flex;flex-direction:column;gap:6px;font-size:14px;}
+    .list{display:flex;flex-direction:column;gap:6px;font-size:15px;}
     #appearanceList{
       display:grid;
       grid-template-columns:repeat(2, minmax(0,1fr));
@@ -468,7 +469,7 @@
       text-align:center;
     }
     .personality-bubble .value{
-      font-size:12px;
+      font-size:15px;
       font-weight:600;
       color:var(--ink);
     }
@@ -481,7 +482,7 @@
       border-radius:999px;
       background:#efe2c6;
       border:1px solid rgba(0,0,0,0.12);
-      font-size:12px;
+      font-size:15px;
       line-height:1.2;
     }
     .spell-level{
@@ -504,7 +505,7 @@
       border:1px solid rgba(0,0,0,0.12);
       border-radius:12px;
       padding:12px;
-      font-size:13px;
+      font-size:15px;
     }
     .reputation-table{
       width:100%;
@@ -518,6 +519,8 @@
       text-align:left;
       vertical-align:top;
     }
+    .reputation-table td{font-size:15px;}
+    .treasure-table td{font-size:15px;}
     .reputation-table th{
       font-size:10px;
       letter-spacing:0.16em;
@@ -600,24 +603,36 @@
         .header-field{padding:4px 6px;}
         .header-field .value{margin-top:2px;}
         .section > summary{padding:6px 10px;}
+        .section > summary{
+          font-size:8px;
+          letter-spacing:0.14em;
+        }
         .section-body{padding:8px;}
         .equipment-grid{gap:8px;}
         .panel-row{gap:8px;}
+        .section{border-radius:14px;}
         .panel{
           padding:8px;
-          border-radius:12px;
+          border-radius:10px;
         }
         .panel:before{
           inset:4px;
-          border-radius:10px;
+          border-radius:8px;
         }
         .panel h2{margin-bottom:6px;}
         .equip-col .panel{margin-top:8px !important;}
-        .mini-box{padding:3px 4px;}
+        .spell-known{
+          border:none;
+          box-shadow:none;
+          background:transparent;
+        }
+        .spell-known:before{display:none;}
+        .mini-box{padding:2px 3px;}
         .mini-box .value{margin-top:4px;}
-        .hp-grid .box{padding:3px;}
-        .mini-box{border-radius:10px;}
-        .hp-grid .box{border-radius:8px;}
+        .hp-grid .box{padding:2px 3px;}
+        .mini-box{border-radius:8px;}
+        .hp-grid .box{border-radius:6px;}
+        .subsection{border-radius:8px;}
         .ability .mod,
         .ability .save{
           border-radius:6px;
@@ -676,6 +691,7 @@
         .ability{
           grid-template-columns:1fr 34px 34px;
           gap:4px;
+          border-radius:8px;
         }
         .ability .label{
           font-size:8px;
@@ -689,8 +705,8 @@
           font-size:8px;
         }
         .passive-item{
-          grid-template-columns:36px 1fr;
-          gap:6px;
+          grid-template-columns:32px 1fr;
+          gap:4px;
         }
         .passive-item{grid-template-columns:40px 1fr;}
         .passive-item .label{font-size:8px;line-height:1.15;white-space:normal;}
@@ -914,7 +930,7 @@
                 </div>
               </div>
             </section>
-            <section class="panel">
+            <section class="panel spell-known">
               <h2>Known & Prepared</h2>
               <div class="spells-columns" id="spellsBlock"></div>
             </section>
