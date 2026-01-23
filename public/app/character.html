@@ -18,6 +18,8 @@
       --panel:#f9f1dc;
       --shadow:rgba(0,0,0,0.22);
       --text-size:15px;
+      --save:#5a4b6b;
+      --good:#2f6b3a;
     }
     html,body{height:100%;margin:0;}
     body{
@@ -299,18 +301,19 @@
       }
       .ability .score{font-size:20px;font-weight:700;}
       .ability .label{font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
-      .ability .mod,
-      .ability .save{
-        min-width:36px;
-        text-align:center;
-        font-size:12px;
-        font-weight:700;
-        color:var(--accent-2);
-        border:1px dashed rgba(0,0,0,0.22);
-        border-radius:10px;
-        padding:4px 6px;
-        background:#fff8e7;
-      }
+    .ability .mod,
+    .ability .save{
+      min-width:36px;
+      text-align:center;
+      font-size:12px;
+      font-weight:700;
+      color:var(--save);
+      border:1px dashed rgba(0,0,0,0.22);
+      border-radius:10px;
+      padding:4px 6px;
+      background:#fff8e7;
+    }
+    .ability .mod{color:var(--good);}
 
     .mini-grid{display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:8px;}
     .mini-box{
@@ -657,8 +660,7 @@
         .reputation-table{
           font-size:6px;
         }
-        #skillsList,
-        #featuresList,
+        #skillsFeaturesList,
         #profsList,
         #appearanceList,
         #equipmentGear,
@@ -792,7 +794,7 @@
         <details class="section" open>
           <summary>Base Stats</summary>
           <div class="section-body">
-            <div class="equipment-grid" style="grid-template-columns:minmax(0,0.75fr) minmax(0,0.60fr) minmax(0,1.40fr) minmax(0,1.25fr);">
+            <div class="equipment-grid" style="grid-template-columns:minmax(0,0.85fr) minmax(0,1.55fr) minmax(0,1.2fr);">
               <div class="equip-col">
                 <section class="panel" style="margin-top:12px;">
                   <h2>Abilities</h2>
@@ -815,16 +817,6 @@
                       <div class="label">Proficiency Bonus</div>
                     </div>
                   </div>
-                </section>
-              </div>
-              <div class="equip-col">
-                <section class="panel" style="margin-top:12px;">
-                  <h2>Skills</h2>
-                  <div class="list" id="skillsList"></div>
-                </section>
-                <section class="panel" style="margin-top:12px;">
-                  <h2>Features</h2>
-                  <div class="list" id="featuresList"></div>
                 </section>
               </div>
               <div class="equip-col">
@@ -856,6 +848,10 @@
                 <section class="panel" style="margin-top:12px;">
                   <h2>Proficiencies & Languages</h2>
                   <div class="list" id="profsList"></div>
+                </section>
+                <section class="panel" style="margin-top:12px;">
+                  <h2>Skills & Features</h2>
+                  <div class="list" id="skillsFeaturesList"></div>
                 </section>
               </div>
               <div class="equip-col">
@@ -1069,8 +1065,8 @@
           senses: []
         },
         attacks: [
-          { name: 'Quarterstaff', to_hit: 6, damage: '1d6+2 bludgeoning' },
-          { name: 'Fire Bolt', to_hit: 8, damage: '2d10 fire' }
+          { name: 'Quarterstaff', to_hit: 6, damage: '1d6+2 bludgeoning', range: '5 ft' },
+          { name: 'Fire Bolt', to_hit: 8, damage: '2d10 fire', range: '120 ft' }
         ],
         features: ['Arcane Recovery', 'Sculpt Spells', 'Empowered Evocation', 'Ritual Casting'],
         resources: { hit_dice: '10d6', spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 } },
@@ -1150,8 +1146,8 @@
       fieldAlignment: document.getElementById('fieldAlignment'),
       fieldXp: document.getElementById('fieldXp'),
       abilityList: document.getElementById('abilityList'),
-      skillsList: document.getElementById('skillsList'),
       profsList: document.getElementById('profsList'),
+      skillsFeaturesList: document.getElementById('skillsFeaturesList'),
       passiveValue: document.getElementById('passiveValue'),
       proficiencyValue: document.getElementById('proficiencyValue'),
       combatGrid: document.getElementById('combatGrid'),
@@ -1159,7 +1155,6 @@
       hpCurrent: document.getElementById('hpCurrent'),
       hpTemp: document.getElementById('hpTemp'),
       attacksBlock: document.getElementById('attacksBlock'),
-      featuresList: document.getElementById('featuresList'),
       equipmentGear: document.getElementById('equipmentGear'),
       equipmentWeapons: document.getElementById('equipmentWeapons'),
       equipmentPotions: document.getElementById('equipmentPotions'),
@@ -1284,6 +1279,18 @@
         }
         el.appendChild(line);
       }
+    }
+
+    function formatSkillLabel(name) {
+      return String(name || '')
+        .replace(/[_-]+/g, ' ')
+        .replace(/\b\w/g, (m) => m.toUpperCase());
+    }
+
+    function formatSkillValue(val) {
+      if (!Number.isFinite(Number(val))) return String(val ?? '');
+      const num = Number(val);
+      return (num >= 0 ? '+' : '') + num;
     }
 
     function renderKeyValueList(el, obj, labels, emptyLabel) {
@@ -1455,12 +1462,13 @@
         const name = a && a.name ? a.name : 'Attack';
         const toHit = a && (a.to_hit != null ? a.to_hit : a.toHit != null ? a.toHit : '');
         const damage = a && (a.damage != null ? a.damage : a.dmg != null ? a.dmg : '');
-        return '<tr><td>' + name + '</td><td>' + toHit + '</td><td>' + damage + '</td></tr>';
+        const range = a && (a.range != null ? a.range : a.rng != null ? a.rng : '');
+        return '<tr><td>' + name + '</td><td>' + toHit + '</td><td>' + damage + '</td><td>' + range + '</td></tr>';
       }).join('');
       els.attacksBlock.innerHTML =
-        '<table><thead><tr><th>Name</th><th>To Hit</th><th>Damage/Type</th></tr></thead><tbody>' +
-        rows +
-        '</tbody></table>';
+        '<table><thead><tr><th>Name</th><th>To Hit</th><th>Damage/Type</th><th>Range</th></tr></thead><tbody>' +
+          rows +
+          '</tbody></table>';
     }
 
     function normalizeSpellEntries(spells) {
@@ -1706,8 +1714,6 @@
         els.appearanceList.style.display = 'none';
       }
 
-      renderKeyValueList(els.skillsList, sheet.skills, null, 'No skills listed.');
-
       const profs = sheet.proficiencies || {};
       const profLines = [];
       if (Array.isArray(profs.armor) && profs.armor.length) profLines.push('Armor: ' + profs.armor.join(', '));
@@ -1717,7 +1723,18 @@
       renderList(els.profsList, profLines, 'No proficiencies listed.');
 
       renderAttacks(sheet.attacks);
-      renderList(els.featuresList, sheet.features, 'No features listed.');
+      const skillsEntries = [];
+      if (sheet.skills && typeof sheet.skills === 'object') {
+        for (const [key, value] of Object.entries(sheet.skills)) {
+          skillsEntries.push(formatSkillLabel(key) + ' ' + formatSkillValue(value));
+        }
+      }
+      const skillsLine = skillsEntries.length ? ('Skills: ' + skillsEntries.join(', ')) : '';
+      const featuresLine = Array.isArray(sheet.features) && sheet.features.length
+        ? ('Features: ' + sheet.features.join(', '))
+        : '';
+      const combinedLines = [skillsLine, featuresLine].filter(Boolean);
+      renderList(els.skillsFeaturesList, combinedLines, 'No skills or features listed.');
       const equipment = Array.isArray(sheet.equipment) ? sheet.equipment : (Array.isArray(sheet.inventory) ? sheet.inventory : []);
       const buckets = { gear: [], weapons: [], potions: [], scrolls: [], supplies: [] };
 
