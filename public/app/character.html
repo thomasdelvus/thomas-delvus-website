@@ -1770,9 +1770,7 @@
 
       const shareId = character.character_id || 'character_aelar';
       const shareUrl =
-        'https://delvus.net' +
-        location.pathname +
-        '?character_id=' +
+        'https://delvus.net/app/character?character_id=' +
         encodeURIComponent(shareId);
       if (els.shareLink) {
         els.shareLink.textContent = shareUrl;
