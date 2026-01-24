@@ -1850,8 +1850,13 @@
       const params = new URLSearchParams(window.location.search);
       let characterId = params.get('character_id') || params.get('characterId') || params.get('id');
       if (!characterId) {
-        const pathMatch = location.pathname.match(/\/app\/character\/([^\/?#]+)/i);
+        const pathMatch = location.href.match(/\/app\/character\/([^\/?#]+)/i);
         if (pathMatch && pathMatch[1]) characterId = decodeURIComponent(pathMatch[1]);
+      }
+      if (!characterId) {
+        const parts = location.pathname.split('/').filter(Boolean);
+        const idx = parts.findIndex((p) => p.toLowerCase() === 'character');
+        if (idx !== -1 && parts[idx + 1]) characterId = decodeURIComponent(parts[idx + 1]);
       }
       let useSample = false;
       const battleId = params.get('battle_id') || params.get('battleId') || params.get('battle');
