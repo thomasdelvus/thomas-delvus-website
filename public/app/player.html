@@ -355,7 +355,7 @@
         ];
         return card(c.name || 'Unnamed Character', meta, [
           button('View Sheet', () => {
-            window.location.href = '/app/character.html?character_id=' + encodeURIComponent(c.character_id);
+            window.location.href = '/app/character/' + encodeURIComponent(c.character_id);
           }),
           button(c.campaign_id ? 'Unbind' : 'Bind', () => {
             alert('Binding will be wired once auth is added.');

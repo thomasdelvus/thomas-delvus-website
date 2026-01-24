@@ -769,7 +769,6 @@
         <header class="sheet-header">
           <div class="name-block">
             <h1 id="charName">Unknown</h1>
-            <div class="meta" id="debugId"></div>
             <div class="meta" id="charMeta"></div>
           </div>
           <div class="header-grid">
@@ -1027,7 +1026,6 @@
     const elBackLink = document.getElementById('backLink');
     const elPlayerDashLink = document.getElementById('playerDashLink');
     const elPrintBtn = document.getElementById('printBtn');
-    const elDebugId = document.getElementById('debugId');
 
     const SAMPLE_CHARACTER = {
       character_id: 'character_aelar',
@@ -1831,7 +1829,7 @@
 
       const shareId = character.character_id || 'character_aelar';
       const shareUrl =
-        'https://delvus.net/app/character.html?character_id=' +
+        'https://delvus.net/app/character/' +
         encodeURIComponent(shareId);
       if (els.shareLink) {
         els.shareLink.textContent = shareUrl;
@@ -1869,11 +1867,7 @@
         const matches = location.href.match(/[A-Za-z0-9_-]{22}/g);
         if (matches && matches.length) characterId = matches[matches.length - 1];
       }
-      if (elDebugId) {
-        elDebugId.textContent =
-          'Resolved character_id: ' + (characterId || '(none)') +
-          ' | path: ' + location.pathname;
-      }
+      if (elDebugId) elDebugId.textContent = '';
       let useSample = false;
       const battleId = params.get('battle_id') || params.get('battleId') || params.get('battle');
       if (battleId && elBackLink) {
