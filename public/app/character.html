@@ -1823,7 +1823,7 @@
 
       const shareId = character.character_id || 'character_aelar';
       const shareUrl =
-        'https://delvus.net/app/character.html?character_id=' +
+        'https://delvus.net/app/character/' +
         encodeURIComponent(shareId);
       if (els.shareLink) {
         els.shareLink.textContent = shareUrl;
@@ -1843,6 +1843,10 @@
     async function init() {
       const params = new URLSearchParams(window.location.search);
       let characterId = params.get('character_id') || params.get('characterId') || params.get('id');
+      if (!characterId) {
+        const pathMatch = location.pathname.match(/\/app\/character\/([^\/?#]+)/i);
+        if (pathMatch && pathMatch[1]) characterId = decodeURIComponent(pathMatch[1]);
+      }
       let useSample = false;
       const battleId = params.get('battle_id') || params.get('battleId') || params.get('battle');
       if (battleId && elBackLink) {
