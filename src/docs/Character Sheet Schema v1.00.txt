@@ -1,24 +1,25 @@
-# Character Sheet Schema v1.00
+# Character Sheet Schema v1.10
 
-This defines a canonical shape for `characters.sheet_json`.
+This defines a canonical shape for characters.sheet_json.
 All fields are optional unless stated, but keep the structure consistent.
 
 ## Top-level keys
 
-- identity (object): name, race, class, level, background, alignment
+- identity (object): name, race, class, level, background, alignment, experience_points
 - abilities (object): str, dex, con, int, wis, cha (numbers)
 - saves (object): save modifiers per ability
-- skills (object): skill modifiers by name
+- skills (object): skill modifiers by name (lowercase keys preferred)
 - proficiencies (object): armor, weapons, tools, languages (arrays of strings)
-- combat (object): ac, max_hp, speed_ft, initiative_mod, senses
-- attacks (array): list of attack objects
-- features (array): class/race features and feats
+- combat (object): ac, max_hp, current_hp, temp_hp, speed_ft, initiative_mod, senses
+- attacks (array): list of attack objects (name, to_hit, damage, range)
+- features (array): class features and feats
+- traits (array): racial traits (separate from personality traits)
 - resources (object): hit_dice, spell_slots, class resources
-- spells (object): known, prepared, slots, entries
+- spells (object): entries, slots (known/prepared optional)
 - spellcasting (object): class, ability, save_dc, attack_bonus (optional)
-- equipment (array): gear and mundane items
-- magic_items (array): magic items (optional)
-- currency (object): gp, sp, cp, pp
+- equipment (array): items with category (Gear/Weapons/Potions/Scrolls/Supplies)
+- treasure (array): valuables with qty/value (optional)
+- currency (object): gp, sp, cp, pp, ep
 - appearance (object): age, height, weight, eyes, skin, hair, portrait_url
 - personality (object): traits, ideals, bonds, flaws, backstory, reputation
 - adventure_history (array): session summaries (optional)
@@ -34,7 +35,8 @@ identity:
   "subclass": "Hunter",
   "level": 5,
   "background": "",
-  "alignment": ""
+  "alignment": "",
+  "experience_points": 64000
 }
 
 abilities:
@@ -51,6 +53,8 @@ combat:
 {
   "ac": 15,
   "max_hp": 42,
+  "current_hp": 30,
+  "temp_hp": 0,
   "speed_ft": 30,
   "initiative_mod": 4,
   "senses": []
@@ -59,7 +63,7 @@ combat:
 attacks:
 [
   { "name": "Longbow", "to_hit": 7, "damage": "1d8+4 piercing", "range": "150/600" },
-  { "name": "Shortsword", "to_hit": 7, "damage": "1d6+4 piercing" }
+  { "name": "Shortsword", "to_hit": 7, "damage": "1d6+4 piercing", "range": "5 ft" }
 ]
 
 spells:
@@ -69,9 +73,7 @@ spells:
     { "name": "Fireball", "level": 3, "tags": ["offense"], "prepared": true },
     { "name": "Shield", "level": 1, "tags": ["defense"], "prepared": true },
     { "name": "Detect Magic", "level": 1, "tags": ["utility"], "prepared": false }
-  ],
-  "known": [],
-  "prepared": []
+  ]
 }
 
 spellcasting:
@@ -81,6 +83,21 @@ spellcasting:
   "save_dc": 16,
   "attack_bonus": 8
 }
+
+equipment:
+[
+  { "name": "Robes of the Magi", "category": "Gear" },
+  { "name": "Quarterstaff", "category": "Weapons" },
+  { "name": "Potion of Healing", "category": "Potions" },
+  { "name": "Scroll of Fireball", "category": "Scrolls" },
+  { "name": "Rope, 50 ft", "category": "Supplies" }
+]
+
+treasure:
+[
+  { "name": "Sapphire Key", "qty": 1, "value_gp": 500 },
+  { "name": "Spell shard", "qty": 3, "value_each_gp": 25 }
+]
 
 appearance:
 {
@@ -100,7 +117,9 @@ personality:
   "bonds": "",
   "flaws": "",
   "backstory": "",
-  "reputation": ""
+  "reputation": [
+    { "faction": "The Conclave", "bonus": 2, "effect": "10% discount on arcane services." }
+  ]
 }
 
 adventure_history:
@@ -110,5 +129,6 @@ adventure_history:
 
 ## Notes
 
-- Keep `sheet_json` as a full JSON object; the API accepts object or string.
-- `notes_text` in the characters table is for long-form notes and history.
+- sheet_json accepts a full JSON object or a JSON string.
+- appearance.portrait_url defaults to /portraits/<character_id>.jpg in the UI if not provided.
+- notes_text in the characters table is for long-form notes and history.

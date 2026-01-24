@@ -1,0 +1,93 @@
+{
+  "identity": {
+    "name": "Durin Stoneheart",
+    "player_name": "",
+    "race": "Mountain Dwarf",
+    "class": "Fighter",
+    "subclass": "",
+    "level": 1,
+    "background": "Soldier",
+    "alignment": "",
+    "experience_points": 242
+  },
+  "abilities": {
+    "str": 17,
+    "dex": 13,
+    "con": 16,
+    "int": 10,
+    "wis": 12,
+    "cha": 8
+  },
+  "saves": {
+    "str": 5,
+    "dex": 1,
+    "con": 5,
+    "int": 0,
+    "wis": 1,
+    "cha": -1
+  },
+  "skills": {
+    "athletics": 5,
+    "perception": 3
+  },
+  "proficiencies": {
+    "armor": ["All armor", "Shields"],
+    "weapons": ["All simple weapons", "All martial weapons"],
+    "tools": ["Smith's tools"],
+    "languages": ["Common", "Dwarvish"]
+  },
+  "combat": {
+    "ac": 16,
+    "max_hp": 13,
+    "current_hp": 13,
+    "temp_hp": 0,
+    "speed_ft": 25,
+    "initiative_mod": 1,
+    "senses": []
+  },
+  "attacks": [
+    { "name": "Warhammer", "to_hit": 5, "damage": "1d8+3 bludgeoning", "range": "5 ft" },
+    { "name": "Battleaxe", "to_hit": 5, "damage": "1d8+3 slashing", "range": "5 ft" },
+    { "name": "Light Crossbow", "to_hit": 3, "damage": "1d8+1 piercing", "range": "80/320" },
+    { "name": "Shortbow", "to_hit": 3, "damage": "1d6+1 piercing", "range": "80/320" }
+  ],
+  "features": [
+    "Great Weapon Fighting"
+  ],
+  "traits": [
+    "Dwarven Resilience",
+    "Dwarven Combat Training",
+    "Dwarven Armor Training"
+  ],
+  "resources": {
+    "hit_dice": "1d10"
+  },
+  "equipment": [
+    { "name": "Chain mail", "category": "Gear" },
+    { "name": "Warhammer", "category": "Weapons" },
+    { "name": "Battleaxe", "category": "Weapons" },
+    { "name": "Light crossbow", "category": "Weapons" },
+    { "name": "Crossbow bolts", "category": "Supplies", "qty": 20 },
+    { "name": "Explorer's pack", "category": "Supplies" },
+    { "name": "Smith's tools", "category": "Supplies" }
+  ],
+  "currency": { "pp": 0, "gp": 0, "sp": 0, "cp": 0 },
+  "appearance": {
+    "age": "",
+    "height": "",
+    "weight": "",
+    "eyes": "",
+    "skin": "",
+    "hair": "",
+    "portrait_url": ""
+  },
+  "personality": {
+    "traits": "",
+    "ideals": "",
+    "bonds": "",
+    "flaws": "",
+    "backstory": "",
+    "reputation": []
+  },
+  "adventure_history": []
+}

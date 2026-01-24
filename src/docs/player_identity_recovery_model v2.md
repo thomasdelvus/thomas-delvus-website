@@ -1,189 +1,134 @@
-# Player, Character, Campaign Model (v2)
+# Player, Character, Campaign Model (v3)
 
 ## Overview
 
-This document defines the **current canonical model** for players, characters, and campaigns, incorporating the refined philosophy around **campaign authority**, **character ownership**, and **fun-first play**.
-
-The system intentionally avoids traditional accounts, passwords, or logins. Instead, it uses **automatic player dashboards**, **campaign-scoped write authority**, and **optional security hardening** via a Player Passport.
-
-This document supersedes earlier identity-only models and should be treated as the reference for Codex and implementation work.
-
----
+This document defines the current canonical model for players, characters, and campaigns.
+It reflects the live D1 schema and the 22-character ID format now in use.
 
 ## Core Philosophy
 
-* **Fun-first:** The goal is meaningful challenge, not permanent punishment.
-* **Campaign authority:** All read/write mutation happens through a campaign.
-* **Character persistence:** Characters outlive campaigns and social conflicts.
-* **Low friction:** New players can start playing immediately.
-* **Explicit trust:** Joining a campaign is consent to that campaign’s DM authority.
+- Fun-first: meaningful challenge without permanent punishment.
+- Campaign authority: campaigns are the only write authority for character state.
+- Character persistence: characters outlive campaigns.
+- Low friction: players can start without accounts.
+- Optional security: recovery and token rotation are opt-in later.
 
----
+## ID Format
+
+All primary IDs are **22-character URL-safe strings** (base64url).
+This applies to:
+- player_id
+- campaign_id
+- character_id
+- battle_id
 
 ## Core Entities
 
 ### Player
 
-A **Player** represents an ownership scope and dashboard.
+A Player is an ownership scope and dashboard.
 
-* Created automatically on first character creation
-* May own multiple characters
-* May administer multiple campaigns
-* May optionally secure their dashboard later
+- Created automatically on first character creation
+- Owns multiple characters
+- May administer multiple campaigns
+- Optional security later via dashboard_token and recovery
 
-Players are not traditional accounts. They are anonymous by default and identified by a capability token.
-
----
+Key fields (players table):
+- player_id (PK)
+- dashboard_token (capability token)
+- display_name, email, status
+- meta_json
+- version, created_at, updated_at
 
 ### Character
 
-A **Character** represents a player-owned persona.
+A Character is a player-owned persona.
 
-Key properties:
+- Owned by exactly one player
+- Bound to zero-or-one active campaign at a time
+- Read-only outside campaigns
 
-* Owned by exactly one Player
-* May be **unbound** or **bound to one active Campaign** at a time
-* Character sheets are **read-only artifacts**
-* Characters cannot be directly edited by players
+Key fields (characters table):
+- character_id (PK)
+- player_id (FK)
+- campaign_id (FK, nullable for unbound)
+- name, sheet_json, notes_text
+- version, created_at, updated_at
 
-Important rule:
-
-> **Characters are only modified by the DM GPT acting within a campaign.**
-
-Characters persist even if campaigns end, players leave groups, or social conflicts occur.
-
----
+Rule:
+Characters are only modified by the DM GPT acting within a campaign.
 
 ### Campaign
 
-A **Campaign** represents a single playable timeline or instance.
+A Campaign is a playable timeline and the sole write authority.
 
-Key properties:
+- One admin player (host / subscription holder)
+- Includes multiple characters
+- Owns encounters, state, and consequences
 
-* Has one admin Player (the host / subscription holder)
-* May include multiple Characters
-* Is the sole write authority for character mutation
-* Owns campaign-specific state, encounters, and consequences
+Key fields (campaigns table):
+- campaign_id (PK)
+- admin_player_id (FK)
+- name, summary_text, status
+- auth_tokens_json (reserved for later)
+- invites_json (reserved for later)
+- meta_json
+- version, created_at, updated_at
 
-Important rule:
+### Battle
 
-> **Read/write is a function of the campaign.**
+Battles are campaign-scoped combat scenes.
 
----
+Key fields (battles table):
+- battle_id (PK)
+- campaign_id (FK)
+- name, state_json
+- version, updated_at
 
 ## Relationships
 
-* Player → Characters: **one-to-many**
-* Campaign → Characters: **one-to-many**
-* Character → Campaign: **zero-or-one (current binding)**
-
-A character may only participate in one campaign at a time.
-
----
+- Player -> Characters: one-to-many
+- Player -> Campaigns: one-to-many (as admin)
+- Campaign -> Characters: one-to-many
+- Character -> Campaign: zero-or-one active binding
 
 ## Campaign Binding
 
-### Binding
-
 When a character joins a campaign:
+- The character becomes campaign-bound.
+- The campaign gains write authority.
 
-* The character becomes **campaign-bound**
-* The campaign gains write authority over that character
-* The player is explicitly trusting the campaign admin / DM
+When a character leaves a campaign:
+- Campaign-bound items are removed.
+- Campaign-specific effects are cleared.
+- If the character was dead, they are resurrected.
 
-### Leaving a Campaign
+## Consequences
 
-When a player clears a character’s campaign binding:
-
-* Campaign-bound items are removed
-* Campaign-specific effects are cleared
-* If the character was dead, they are resurrected
-* Core character identity is retained
-
-This mirrors tabletop reality: the campaign retains its story, the player keeps their character.
-
----
-
-## Campaign-Bound Consequences
-
-Some consequences are scoped to the campaign that authored them.
+Campaign-bound consequences do not follow a character outside the campaign unless explicitly promoted.
 
 Examples:
-
-* Legendary or unique artifacts
-* Plot-critical items
-* Faction titles or curses
-* Campaign death
-
-Design rule:
-
-> **Campaign-bound consequences do not follow a character outside the campaign unless explicitly promoted.**
-
-This preserves narrative integrity while avoiding global punishment.
-
----
+- Plot-critical artifacts
+- Faction titles or curses
+- Campaign death
 
 ## Death Model
 
-* Death is **authoritative within the campaign**
-* Resurrection may occur within the campaign
-* Leaving a campaign clears campaign-bound death
-
-This aligns with real tabletop play and CRPG expectations (e.g., BG3): risk matters during play, but characters are not erased from existence.
-
----
+- Death is authoritative within the campaign.
+- Leaving a campaign clears campaign-bound death.
 
 ## Player Dashboard
 
-Each player is automatically given a **Player Dashboard**.
+Each player has a dashboard that lists:
+- Owned characters and their current campaign binding
+- Administered campaigns
+- Invitations (reserved for later)
 
-The dashboard:
+## Security (Optional)
 
-* Lists all owned characters
-* Shows current campaign binding per character
-* Lists campaigns the player administers
-* Clearly indicates security status (e.g. recovery email: none)
-
-The dashboard exists even for unsecured, anonymous players.
-
----
-
-## Player Passport (Optional Security Layer)
-
-The **Player Passport** is an optional hardening mechanism.
-
-Purpose:
-
-* Secure ownership of characters and campaigns
-* Enable recovery if access tokens are lost
-* Allow rotation/revocation of access tokens
-
-Key points:
-
-* Not required to play
-* Only place where rotating security tokens are needed
-* Does not change the core player/character/campaign model
+Dashboard tokens and recovery can be added later.
+No passwords or traditional accounts are required for MVP.
 
 ---
 
-## Campaign Creation Workflow
-
-1. Player creates one or more Characters
-2. Characters are initially unbound
-3. Player chooses to begin adventuring
-4. A Campaign is created
-5. Selected Characters are bound to the Campaign
-
-All mutation from that point forward occurs via the campaign.
-
----
-
-## Design Summary
-
-* Players own characters
-* Campaigns write reality
-* Characters persist beyond campaigns
-* Consequences are scoped to the story that created them
-* Security is optional and explicit
-
-This model intentionally mirrors real tabletop behavior: campaigns are tables, characters are sheets, and fun outranks permanence.
+This model mirrors tabletop play: campaigns are tables, characters are sheets, and fun outranks permanence.

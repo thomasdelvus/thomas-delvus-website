@@ -1,0 +1,107 @@
+{
+  "identity": {
+    "name": "Seraphina Ashveil",
+    "player_name": "",
+    "race": "Half-Elf",
+    "class": "Wizard",
+    "subclass": "",
+    "level": 1,
+    "background": "",
+    "alignment": "",
+    "experience_points": 242
+  },
+  "abilities": {
+    "str": 8,
+    "dex": 14,
+    "con": 12,
+    "int": 16,
+    "wis": 10,
+    "cha": 16
+  },
+  "saves": {
+    "str": -1,
+    "dex": 2,
+    "con": 1,
+    "int": 5,
+    "wis": 2,
+    "cha": 3
+  },
+  "skills": {
+    "arcana": 5,
+    "history": 5,
+    "investigation": 5,
+    "persuasion": 5
+  },
+  "proficiencies": {
+    "armor": [],
+    "weapons": ["Daggers", "Darts", "Slings", "Quarterstaffs", "Light crossbows"],
+    "tools": [],
+    "languages": ["Common", "Elvish"]
+  },
+  "combat": {
+    "ac": 10,
+    "max_hp": 7,
+    "current_hp": 7,
+    "temp_hp": 0,
+    "speed_ft": 30,
+    "initiative_mod": 2,
+    "senses": []
+  },
+  "attacks": [
+    { "name": "Quarterstaff", "to_hit": 1, "damage": "1d6-1 bludgeoning", "range": "5 ft" },
+    { "name": "Dart", "to_hit": 4, "damage": "1d4+1 piercing", "range": "20/60" }
+  ],
+  "features": [],
+  "traits": [
+    "Darkvision",
+    "Fey Ancestry",
+    "Skill Versatility"
+  ],
+  "resources": {
+    "hit_dice": "1d6",
+    "spell_slots": { "1": 2 }
+  },
+  "spells": {
+    "entries": [
+      { "name": "Fire Bolt", "level": 0, "tags": ["offense"], "prepared": true },
+      { "name": "Chill Touch", "level": 0, "tags": ["offense"], "prepared": true },
+      { "name": "Mage Hand", "level": 0, "tags": ["utility"], "prepared": true },
+
+      { "name": "Charm Person", "level": 1, "tags": ["utility"], "prepared": true },
+      { "name": "Magic Missile", "level": 1, "tags": ["offense"], "prepared": true },
+      { "name": "Burning Hands", "level": 1, "tags": ["offense"], "prepared": true },
+      { "name": "Sleep", "level": 1, "tags": ["utility"], "prepared": true }
+    ],
+    "slots": { "1": 2 }
+  },
+  "spellcasting": {
+    "class": "Wizard",
+    "ability": "INT"
+  },
+  "equipment": [
+    { "name": "Quarterstaff", "category": "Weapons" },
+    { "name": "Darts", "category": "Weapons" },
+    { "name": "Component pouch or arcane focus", "category": "Gear" },
+    { "name": "Scholar's pack", "category": "Supplies" },
+    { "name": "Spellbook", "category": "Supplies" }
+  ],
+  "currency": { "pp": 0, "gp": 0, "sp": 0, "cp": 0 },
+  "appearance": {
+    "age": "",
+    "height": "",
+    "weight": "",
+    "eyes": "",
+    "skin": "",
+    "hair": "",
+    "portrait_url": ""
+  },
+  "personality": {
+    "traits": "",
+    "ideals": "",
+    "bonds": "",
+    "flaws": "",
+    "backstory": "",
+    "reputation": []
+  },
+  "adventure_history": []
+}

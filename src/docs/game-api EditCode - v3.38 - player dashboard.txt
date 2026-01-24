@@ -1,5 +1,10 @@
 // game-api worker v3.38 (player dashboard endpoints, genId22)
 // Purpose: GET/PUT battles with safe id-based merges + CRUD for characters + player dashboard reads.
+//
+// Changelog:
+// - v3.38: add player dashboard read endpoints (players, campaigns, characters, invites)
+// - v3.37: add genId22() and /_genid endpoint for 22-char IDs
+// - v3.16: add characters CRUD to the worker
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",

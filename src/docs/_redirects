@@ -1,1 +1,3 @@
-/play/*  /app/battlemat?battle_id=:splat  200
+# DEPRECATED
+# This doc is no longer maintained.
+# See public/_redirects for the live Netlify rules.

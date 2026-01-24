@@ -1,0 +1,125 @@
+{
+  "identity": {
+    "name": "Myrrhana",
+    "player_name": "",
+    "race": "Dragonborn (Gold)",
+    "class": "Cleric",
+    "subclass": "War Domain",
+    "level": 1,
+    "background": "",
+    "alignment": "",
+    "experience_points": 242
+  },
+  "abilities": {
+    "str": 17,
+    "dex": 10,
+    "con": 13,
+    "int": 8,
+    "wis": 14,
+    "cha": 13
+  },
+  "saves": {
+    "str": 3,
+    "dex": 0,
+    "con": 1,
+    "int": -1,
+    "wis": 4,
+    "cha": 3
+  },
+  "skills": {
+    "insight": 4,
+    "medicine": 4
+  },
+  "proficiencies": {
+    "armor": ["All armor", "Shields"],
+    "weapons": ["All simple weapons", "All martial weapons"],
+    "tools": [],
+    "languages": ["Common", "Draconic"]
+  },
+  "combat": {
+    "ac": 16,
+    "max_hp": 9,
+    "current_hp": 9,
+    "temp_hp": 0,
+    "speed_ft": 30,
+    "initiative_mod": 0,
+    "senses": []
+  },
+  "attacks": [
+    { "name": "Warhammer", "to_hit": 5, "damage": "1d8+3 bludgeoning", "range": "5 ft" }
+  ],
+  "features": [
+    "Bonus Proficiencies (War Domain)",
+    "War Priest",
+    "Divine Protection"
+  ],
+  "traits": [
+    "Draconic Ancestry (Gold): Fire Breath",
+    "Draconic Ancestry (Gold): Fire Resistance"
+  ],
+  "resources": {
+    "hit_dice": "1d8",
+    "spell_slots": { "1": 2 }
+  },
+  "spells": {
+    "entries": [
+      { "name": "Guidance", "level": 0, "tags": ["utility"], "prepared": true },
+      { "name": "Light", "level": 0, "tags": ["utility"], "prepared": true },
+      { "name": "Mending", "level": 0, "tags": ["utility"], "prepared": true },
+      { "name": "Resistance", "level": 0, "tags": ["defense"], "prepared": true },
+      { "name": "Sacred Flame", "level": 0, "tags": ["offense"], "prepared": true },
+      { "name": "Spare the Dying", "level": 0, "tags": ["utility"], "prepared": true },
+      { "name": "Thaumaturgy", "level": 0, "tags": ["utility"], "prepared": true },
+      { "name": "Toll the Dead", "level": 0, "tags": ["offense"], "prepared": true },
+      { "name": "Word of Radiance", "level": 0, "tags": ["offense"], "prepared": true },
+
+      { "name": "Bless", "level": 1, "tags": ["defense"], "prepared": true },
+      { "name": "Cure Wounds", "level": 1, "tags": ["defense"], "prepared": true },
+      { "name": "Guiding Bolt", "level": 1, "tags": ["offense"], "prepared": true },
+      { "name": "Shield of Faith", "level": 1, "tags": ["defense"], "prepared": true },
+
+      { "name": "Bane", "level": 1, "tags": ["offense"], "prepared": false },
+      { "name": "Command", "level": 1, "tags": ["utility"], "prepared": false },
+      { "name": "Create or Destroy Water", "level": 1, "tags": ["utility"], "prepared": false },
+      { "name": "Detect Evil and Good", "level": 1, "tags": ["utility"], "prepared": false },
+      { "name": "Detect Magic", "level": 1, "tags": ["utility"], "prepared": false },
+      { "name": "Detect Poison and Disease", "level": 1, "tags": ["utility"], "prepared": false },
+      { "name": "Healing Word", "level": 1, "tags": ["defense"], "prepared": false },
+      { "name": "Inflict Wounds", "level": 1, "tags": ["offense"], "prepared": false },
+      { "name": "Protection from Evil and Good", "level": 1, "tags": ["defense"], "prepared": false },
+      { "name": "Purify Food and Drink", "level": 1, "tags": ["utility"], "prepared": false },
+      { "name": "Sanctuary", "level": 1, "tags": ["defense"], "prepared": false }
+    ],
+    "slots": { "1": 2 }
+  },
+  "spellcasting": {
+    "class": "Cleric",
+    "ability": "WIS"
+  },
+  "equipment": [
+    { "name": "Chain Mail", "category": "Gear" },
+    { "name": "Shield", "category": "Gear" },
+    { "name": "Warhammer", "category": "Weapons" },
+    { "name": "Explorer's Pack", "category": "Supplies" },
+    { "name": "Holy Symbol", "category": "Supplies" }
+  ],
+  "currency": { "pp": 0, "gp": 0, "sp": 0, "cp": 0 },
+  "appearance": {
+    "age": "",
+    "height": "",
+    "weight": "",
+    "eyes": "",
+    "skin": "",
+    "hair": "",
+    "portrait_url": ""
+  },
+  "personality": {
+    "traits": "",
+    "ideals": "",
+    "bonds": "",
+    "flaws": "",
+    "backstory": "",
+    "reputation": []
+  },
+  "adventure_history": []
+}
