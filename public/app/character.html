@@ -1718,6 +1718,12 @@
       renderSpellHeader(identity, sheet.abilities || {}, sheet.spells || {}, sheet.spellcasting || {}, profValue);
       renderHp(combat);
 
+      if (appearance && !appearance.portrait_url) {
+        appearance.portrait_url =
+          'https://pub-32923a77247d4f2f9ad60bd440ec6e10.r2.dev/portraits/' +
+          encodeURIComponent(character.character_id || 'character_aelar') +
+          '.jpg';
+      }
       renderPortrait(appearance);
 
       const appearanceFields = [
