@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Player Dashboard</title>
+  <style>
+    :root{
+      --bg-deep:#0d1016;
+      --bg-mid:#1a1f2a;
+      --ink:#2b2416;
+      --muted:#6a5c45;
+      --accent:#b57a2c;
+      --accent-2:#2c6fb5;
+      --paper:#f1e4c7;
+      --paper-2:#f7eed6;
+      --paper-edge:#c8b08a;
+      --panel:#f9f1dc;
+      --shadow:rgba(0,0,0,0.22);
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family:"Garamond","Book Antiqua",serif;
+      color:var(--ink);
+      background:
+        radial-gradient(1200px 900px at 15% 0%, rgba(255,255,255,0.18), transparent 60%),
+        radial-gradient(900px 700px at 90% -10%, rgba(255,255,255,0.12), transparent 65%),
+        linear-gradient(180deg, #2b2d33 0%, #191b20 100%);
+      min-height:100vh;
+      padding:24px 12px 40px;
+    }
+    .topbar{
+      max-width:1200px;
+      margin:0 auto 18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      color:#e8edf7;
+    }
+    .brand{
+      font-family:"Copperplate Gothic","Garamond","Book Antiqua",serif;
+      font-size:20px;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+    }
+    .nav{
+      display:flex;
+      gap:12px;
+      align-items:center;
+    }
+    .nav a{
+      color:#f2e6cf;
+      text-decoration:none;
+      border:1px solid rgba(255,255,255,0.2);
+      padding:6px 10px;
+      border-radius:12px;
+      font-size:12px;
+      letter-spacing:0.1em;
+      text-transform:uppercase;
+    }
+    .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      background:var(--paper);
+      border-radius:20px;
+      padding:18px 18px 26px;
+      border:1px solid rgba(0,0,0,0.18);
+      box-shadow:0 12px 28px rgba(0,0,0,0.35);
+      position:relative;
+      overflow:hidden;
+    }
+    .wrap:before{
+      content:"";
+      position:absolute;
+      inset:10px;
+      border-radius:16px;
+      border:1px solid rgba(0,0,0,0.18);
+      pointer-events:none;
+    }
+    .status{
+      margin:10px auto 16px;
+      max-width:1200px;
+      text-align:center;
+    }
+    .status .msg{
+      display:inline-block;
+      padding:8px 14px;
+      border-radius:12px;
+      background:rgba(0,0,0,0.22);
+      color:#f2e6cf;
+      font-size:12px;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+    }
+    header{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:18px;
+      margin-bottom:14px;
+    }
+    h1{
+      margin:0;
+      font-size:30px;
+      letter-spacing:0.02em;
+      font-family:"Copperplate Gothic","Garamond","Book Antiqua",serif;
+    }
+    .sub{
+      color:var(--muted);
+      font-size:14px;
+    }
+    .meta-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 12px;
+      border-radius:999px;
+      background:rgba(255,255,255,0.6);
+      border:1px solid rgba(0,0,0,0.18);
+      font-size:12px;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0,1fr));
+      gap:14px;
+    }
+    .panel{
+      background:rgba(249,241,220,0.9);
+      border:1px solid rgba(47,35,20,0.28);
+      border-radius:14px;
+      padding:12px;
+      position:relative;
+      box-shadow:0 6px 12px rgba(0,0,0,0.12);
+      min-height:160px;
+    }
+    .panel:before{
+      content:"";
+      position:absolute;
+      inset:6px;
+      border-radius:12px;
+      border:1px solid rgba(0,0,0,0.16);
+      pointer-events:none;
+    }
+    .panel h2{
+      margin:0 0 8px 0;
+      font-size:12px;
+      letter-spacing:0.16em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
+    .list{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      font-size:15px;
+    }
+    .card{
+      border:1px dashed rgba(0,0,0,0.2);
+      border-radius:12px;
+      padding:10px 12px;
+      background:#fff8e7;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .card h3{
+      margin:0;
+      font-size:16px;
+    }
+    .card .meta{
+      color:var(--muted);
+      font-size:13px;
+    }
+    .row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+    }
+    .btn{
+      border:1px solid rgba(0,0,0,0.2);
+      background:#efe2c6;
+      padding:4px 8px;
+      border-radius:10px;
+      font-size:12px;
+      cursor:pointer;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:var(--ink);
+    }
+    .tag{
+      padding:2px 8px;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,0.2);
+      font-size:12px;
+      color:var(--muted);
+      background:#f7eed6;
+    }
+    .empty{
+      color:var(--muted);
+      font-style:italic;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr;}
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">Player Dashboard</div>
+    <div class="nav">
+      <a href="/app/battlemat.html">Back to battlemat</a>
+    </div>
+  </div>
+
+  <div class="status" id="status"><div class="msg" id="statusMsg">Loading player...</div></div>
+
+  <div class="wrap" id="wrap" hidden>
+    <header>
+      <div>
+        <h1 id="playerName">Unknown Player</h1>
+        <div class="sub" id="playerId">Player ID: --</div>
+      </div>
+      <div class="meta-pill" id="playerState">Dashboard active</div>
+    </header>
+
+    <div class="grid">
+      <section class="panel">
+        <h2>Characters</h2>
+        <div class="list" id="charactersList"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Campaigns</h2>
+        <div class="list" id="campaignsList"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Invites</h2>
+        <div class="list" id="invitesList"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const elStatus = document.getElementById('status');
+    const elStatusMsg = document.getElementById('statusMsg');
+    const elWrap = document.getElementById('wrap');
+    const elPlayerName = document.getElementById('playerName');
+    const elPlayerId = document.getElementById('playerId');
+    const elPlayerState = document.getElementById('playerState');
+    const elCharacters = document.getElementById('charactersList');
+    const elCampaigns = document.getElementById('campaignsList');
+    const elInvites = document.getElementById('invitesList');
+
+    const SAMPLE_PLAYER = {
+      player_id: 'YHGxImkt3NhbT5ExZOXpIQ',
+      display_name: 'Robert Costa',
+      campaigns: [
+        {
+          campaign_id: 'Dlt86fz_zk7zNY9DfrLQGg',
+          name: 'The Way of Galt',
+          summary: 'New Saffrondon Adventures',
+          status: 'Active',
+          auth_token: 'G1rt346pde52QzZ2a9Vu7w'
+        }
+      ],
+      characters: [
+        {
+          character_id: 'YHGxImkt3NhbT5ExZOXpIQ',
+          name: 'Aelar',
+          campaign_id: 'Dlt86fz_zk7zNY9DfrLQGg',
+          campaign_name: 'The Way of Galt'
+        },
+        {
+          character_id: 'D8Jm2CAVDePXbY0Sn1v1wQ',
+          name: 'Aelar Sr.',
+          campaign_id: 'Dlt86fz_zk7zNY9DfrLQGg',
+          campaign_name: 'The Way of Galt'
+        }
+      ],
+      invites: [
+        {
+          code: 'Invite-ABC123',
+          campaign_name: 'The Way of Galt',
+          from: 'Robert Costa'
+        }
+      ]
+    };
+
+    function setStatus(msg) {
+      elStatusMsg.textContent = msg;
+    }
+
+    function renderList(el, items, emptyText) {
+      el.innerHTML = '';
+      if (!items || !items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = emptyText || 'None';
+        el.appendChild(empty);
+        return;
+      }
+      items.forEach((item) => el.appendChild(item));
+    }
+
+    function card(title, metaLines, actions) {
+      const el = document.createElement('div');
+      el.className = 'card';
+      const h3 = document.createElement('h3');
+      h3.textContent = title;
+      el.appendChild(h3);
+      if (metaLines && metaLines.length) {
+        metaLines.forEach((line) => {
+          const meta = document.createElement('div');
+          meta.className = 'meta';
+          meta.textContent = line;
+          el.appendChild(meta);
+        });
+      }
+      if (actions && actions.length) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        actions.forEach((btn) => row.appendChild(btn));
+        el.appendChild(row);
+      }
+      return el;
+    }
+
+    function button(label, onClick) {
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.type = 'button';
+      btn.textContent = label;
+      btn.addEventListener('click', onClick);
+      return btn;
+    }
+
+    function renderPlayer(player) {
+      elWrap.hidden = false;
+      elStatus.style.display = 'none';
+      elPlayerName.textContent = player.display_name || 'Unnamed Player';
+      elPlayerId.textContent = 'Player ID: ' + (player.player_id || '--');
+      elPlayerState.textContent = 'Dashboard active';
+
+      const characterCards = (player.characters || []).map((c) => {
+        const meta = [
+          'ID: ' + c.character_id,
+          c.campaign_id ? ('Campaign: ' + (c.campaign_name || c.campaign_id)) : 'Unbound'
+        ];
+        return card(c.name || 'Unnamed Character', meta, [
+          button('View Sheet', () => {
+            window.location.href = '/app/character?character_id=' + encodeURIComponent(c.character_id);
+          }),
+          button(c.campaign_id ? 'Unbind' : 'Bind', () => {
+            alert('Binding will be wired once auth is added.');
+          })
+        ]);
+      });
+      renderList(elCharacters, characterCards, 'No characters yet.');
+
+      const campaignCards = (player.campaigns || []).map((c) => {
+        const meta = [
+          'ID: ' + c.campaign_id,
+          c.status || 'Active'
+        ];
+        const actions = [
+          button('Copy Token', () => {
+            if (!navigator.clipboard) return alert('Clipboard not available.');
+            navigator.clipboard.writeText(c.auth_token || '');
+          }),
+          button('Invite Link', () => {
+            const link = 'https://delvus.net/app/player?invite=' + encodeURIComponent(c.campaign_id);
+            if (!navigator.clipboard) return alert(link);
+            navigator.clipboard.writeText(link);
+          })
+        ];
+        return card(c.name || 'Unnamed Campaign', meta.concat(c.summary ? [c.summary] : []), actions);
+      });
+      renderList(elCampaigns, campaignCards, 'No campaigns yet.');
+
+      const inviteCards = (player.invites || []).map((inv) => {
+        const meta = [
+          'Campaign: ' + (inv.campaign_name || inv.campaign_id || 'Unknown'),
+          'From: ' + (inv.from || 'Unknown')
+        ];
+        return card('Invite ' + (inv.code || ''), meta, [
+          button('Accept', () => alert('Accept flow coming soon.')),
+          button('Decline', () => alert('Decline flow coming soon.'))
+        ]);
+      });
+      renderList(elInvites, inviteCards, 'No invites right now.');
+    }
+
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const playerId = params.get('player_id') || params.get('playerId');
+      if (!playerId) {
+        setStatus('No player_id in URL. Showing sample dashboard.');
+        renderPlayer(SAMPLE_PLAYER);
+        return;
+      }
+
+      try {
+        const [playerRes, charsRes, campsRes, invitesRes] = await Promise.all([
+          fetch('/api/players/' + encodeURIComponent(playerId), { cache: 'no-store' }),
+          fetch('/api/players/' + encodeURIComponent(playerId) + '/characters', { cache: 'no-store' }),
+          fetch('/api/players/' + encodeURIComponent(playerId) + '/campaigns', { cache: 'no-store' }),
+          fetch('/api/players/' + encodeURIComponent(playerId) + '/invites', { cache: 'no-store' })
+        ]);
+
+        if (!playerRes.ok) throw new Error('Player not found');
+
+        const player = await playerRes.json();
+        player.characters = charsRes.ok ? (await charsRes.json()).rows || [] : [];
+        player.campaigns = campsRes.ok ? (await campsRes.json()).rows || [] : [];
+        player.invites = invitesRes.ok ? (await invitesRes.json()).rows || [] : [];
+        renderPlayer(player);
+      } catch (err) {
+        setStatus('Failed to load player. Showing sample dashboard.');
+        renderPlayer(SAMPLE_PLAYER);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
