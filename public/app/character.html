@@ -1860,6 +1860,11 @@
         const idx = parts.findIndex((p) => p.toLowerCase() === 'character');
         if (idx !== -1 && parts[idx + 1]) characterId = decodeURIComponent(parts[idx + 1]);
       }
+      if (!characterId) {
+        const parts = location.pathname.split('/').filter(Boolean);
+        const last = parts[parts.length - 1];
+        if (last && !last.endsWith('.html')) characterId = decodeURIComponent(last);
+      }
       if (elDebugId) {
         elDebugId.textContent = 'Resolved character_id: ' + (characterId || '(none)');
       }
