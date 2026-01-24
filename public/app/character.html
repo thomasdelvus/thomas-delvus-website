@@ -769,6 +769,7 @@
         <header class="sheet-header">
           <div class="name-block">
             <h1 id="charName">Unknown</h1>
+            <div class="meta" id="debugId"></div>
             <div class="meta" id="charMeta"></div>
           </div>
           <div class="header-grid">
@@ -1026,6 +1027,7 @@
     const elBackLink = document.getElementById('backLink');
     const elPlayerDashLink = document.getElementById('playerDashLink');
     const elPrintBtn = document.getElementById('printBtn');
+    const elDebugId = document.getElementById('debugId');
 
     const SAMPLE_CHARACTER = {
       character_id: 'character_aelar',
@@ -1858,8 +1860,8 @@
         const idx = parts.findIndex((p) => p.toLowerCase() === 'character');
         if (idx !== -1 && parts[idx + 1]) characterId = decodeURIComponent(parts[idx + 1]);
       }
-      if (elStatusMsg) {
-        elStatusMsg.textContent = 'Resolved character_id: ' + (characterId || '(none)');
+      if (elDebugId) {
+        elDebugId.textContent = 'Resolved character_id: ' + (characterId || '(none)');
       }
       let useSample = false;
       const battleId = params.get('battle_id') || params.get('battleId') || params.get('battle');
