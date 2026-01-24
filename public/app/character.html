@@ -1867,7 +1867,6 @@
         const matches = location.href.match(/[A-Za-z0-9_-]{22}/g);
         if (matches && matches.length) characterId = matches[matches.length - 1];
       }
-      if (elDebugId) elDebugId.textContent = '';
       let useSample = false;
       const battleId = params.get('battle_id') || params.get('battleId') || params.get('battle');
       if (battleId && elBackLink) {
