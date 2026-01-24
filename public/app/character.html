@@ -756,6 +756,7 @@
     <div class="brand">Saffrondale Character Sheet</div>
     <div class="nav">
       <a id="backLink" href="/app/battlemat.html">Back to battlemat</a>
+      <a id="playerDashLink" href="/app/player.html">Player Dashboard</a>
       <button id="printBtn" type="button">Download PDF</button>
     </div>
   </div>
@@ -1023,10 +1024,12 @@
     const elStatus = document.getElementById('status');
     const elStatusMsg = document.getElementById('statusMsg');
     const elBackLink = document.getElementById('backLink');
+    const elPlayerDashLink = document.getElementById('playerDashLink');
     const elPrintBtn = document.getElementById('printBtn');
 
     const SAMPLE_CHARACTER = {
       character_id: 'character_aelar',
+      player_id: 'YHGxImkt3NhbT5ExZOXpIQ',
       name: 'Aelar (Sample)',
       notes_text: '',
       sheet_json: {
@@ -1810,6 +1813,13 @@
         return String(h);
       });
       renderList(els.historyList, historyLines, 'No history yet.');
+
+      if (elPlayerDashLink) {
+        const pid = character.player_id || sheet.player_id || sheet.playerId;
+        elPlayerDashLink.href = pid
+          ? ('/app/player.html?player_id=' + encodeURIComponent(pid))
+          : '/app/player.html';
+      }
 
       const shareId = character.character_id || 'character_aelar';
       const shareUrl =
