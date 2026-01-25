@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Player Passport</title>
+  <style>
+    :root{
+      --ink:#2b2416;
+      --muted:#6a5c45;
+      --accent:#3b2a12;
+      --bg:#16181f;
+      --paper:#f1e4c7;
+      --panel:#fff8e7;
+
+      /* Tweak these to position text on the background image */
+      --name-x: 54%;
+      --name-y: 67%;
+      --version-x: 74%;
+      --version-y: 67%;
+      --id-x: 54%;
+      --id-y: 77%;
+      --date-x: 74%;
+      --date-y: 77%;
+      --qr-x: 28.5%;
+      --qr-y: 72.5%;
+      --qr-size: 90px;
+      --token-x: 22%;
+      --token-y: 80.5%;
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family:"Garamond","Book Antiqua",serif;
+      background:var(--bg);
+      color:var(--ink);
+    }
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      padding:16px 20px;
+      color:#e8edf7;
+    }
+    .brand{
+      font-family:"Copperplate Gothic","Garamond","Book Antiqua",serif;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      font-size:14px;
+    }
+    .nav{
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .nav a,
+    .nav button{
+      color:#e8edf7;
+      background:transparent;
+      border:1px solid rgba(255,255,255,0.22);
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:12px;
+      letter-spacing:0.08em;
+      text-transform:uppercase;
+      cursor:pointer;
+      text-decoration:none;
+      font-family:inherit;
+    }
+    .wrap{
+      max-width:1100px;
+      margin:0 auto 40px;
+      padding:0 18px 24px;
+    }
+    .sheet{
+      position:relative;
+      border-radius:16px;
+      background:var(--paper);
+      overflow:hidden;
+      box-shadow:0 18px 40px rgba(0,0,0,0.35);
+    }
+    .passport-img{
+      width:100%;
+      display:block;
+    }
+    .overlay{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+    }
+    .field{
+      position:absolute;
+      transform:translateY(-50%);
+      color:var(--accent);
+      font-weight:700;
+      text-shadow:0 1px 0 rgba(255,255,255,0.6);
+      text-align:left;
+    }
+    .field .label{
+      font-size:11px;
+      letter-spacing:0.18em;
+      text-transform:uppercase;
+      color:var(--muted);
+      margin-bottom:4px;
+    }
+    .field .value{
+      font-size:18px;
+      font-weight:700;
+    }
+    .field.small .value{
+      font-size:12px;
+      font-weight:600;
+      letter-spacing:0.02em;
+    }
+    .qr{
+      position:absolute;
+      transform:translate(-50%, -50%);
+      width:var(--qr-size);
+      height:var(--qr-size);
+      padding:0;
+      background:transparent;
+      border-radius:0;
+      box-shadow:none;
+    }
+    .qr img{
+      display:block;
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      image-rendering:pixelated;
+    }
+    .status{
+      text-align:center;
+      color:#e8edf7;
+      padding:18px 10px;
+      font-size:14px;
+    }
+    .status .msg{
+      display:inline-block;
+      padding:10px 14px;
+      border-radius:12px;
+      background:rgba(0,0,0,0.35);
+      border:1px solid rgba(255,255,255,0.18);
+    }
+    @media print{
+      @page{
+        size: letter;
+        margin: 0.4in;
+      }
+      body{background:white;}
+      .topbar,.status{display:none !important;}
+      .wrap{max-width:none;margin:0;padding:0;}
+      .sheet{box-shadow:none;border:none;border-radius:0;}
+    }
+  </style>
+<body>
+  <div class="topbar">
+    <div class="brand">Player Passport</div>
+    <div class="nav">
+      <button type="button" id="printBtn">Print to PDF</button>
+      <a href="/app/player.html" id="backLink">Back to Dashboard</a>
+    </div>
+  </div>
+
+  <div class="status" id="status"><div class="msg" id="statusMsg">Loading passport...</div></div>
+
+  <div class="wrap" id="wrap" hidden>
+    <div class="sheet">
+      <img
+        class="passport-img"
+        id="passportBg"
+        src="https://pub-e0f018cf20e24c12a47609c28946b7a1.r2.dev/passports/player_passport.jpg"
+        alt="Player Passport Background"
+      />
+      <div class="overlay">
+        <div class="qr" id="passportQr" style="left:var(--qr-x); top:var(--qr-y);">
+          <img id="passportQrImg" alt="Passport QR code" />
+        </div>
+        <div class="field small" id="tokenField" style="left:var(--token-x); top:var(--token-y);">
+          <div class="value" id="passportToken">--</div>
+        </div>
+        <div class="field" id="nameField" style="left:var(--name-x); top:var(--name-y);">
+          <div class="label">Player Name</div>
+          <div class="value" id="playerName">Unknown</div>
+        </div>
+        <div class="field" id="versionField" style="left:var(--version-x); top:var(--version-y);">
+          <div class="label">Version</div>
+          <div class="value" id="passportVersion">v1.0</div>
+        </div>
+        <div class="field" id="idField" style="left:var(--id-x); top:var(--id-y);">
+          <div class="label">Passport Number</div>
+          <div class="value" id="playerId">--</div>
+        </div>
+        <div class="field" id="dateField" style="left:var(--date-x); top:var(--date-y);">
+          <div class="label">Date</div>
+          <div class="value" id="passportDate">--</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const elStatus = document.getElementById('status');
+    const elStatusMsg = document.getElementById('statusMsg');
+    const elWrap = document.getElementById('wrap');
+    const elPlayerName = document.getElementById('playerName');
+    const elPlayerId = document.getElementById('playerId');
+    const elBackLink = document.getElementById('backLink');
+    const elPrint = document.getElementById('printBtn');
+    const elPassportVersion = document.getElementById('passportVersion');
+    const elPassportDate = document.getElementById('passportDate');
+    const elPassportToken = document.getElementById('passportToken');
+    const elPassportQrImg = document.getElementById('passportQrImg');
+
+    const SAMPLE_PLAYER = {
+      player_id: 'sample_player_id',
+      display_name: 'Robert Costa',
+      dashboard_token: 'sample_dashboard_token'
+    };
+
+    function setStatus(msg) {
+      elStatusMsg.textContent = msg;
+    }
+
+    function render(player) {
+      elWrap.hidden = false;
+      elStatus.style.display = 'none';
+      elPlayerName.textContent = player.display_name || 'Unnamed Player';
+      elPlayerId.textContent = player.player_id || '--';
+      if (elPassportToken) elPassportToken.textContent = player.dashboard_token || '--';
+      if (elPassportQrImg) {
+        const token = player.dashboard_token || '';
+        const data = token || player.player_id || '';
+        if (data) {
+          elPassportQrImg.src =
+            'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&bgcolor=ffffff00&color=2b2416&data=' +
+            encodeURIComponent(data);
+        }
+      }
+      if (elPassportVersion) elPassportVersion.textContent = 'v1.0';
+      if (elPassportDate) {
+        const d = new Date();
+        const stamp = d.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
+        elPassportDate.textContent = stamp;
+      }
+      if (elBackLink) {
+        elBackLink.href = player.player_id
+          ? ('/app/player.html?player_id=' + encodeURIComponent(player.player_id))
+          : '/app/player.html';
+      }
+    }
+
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const playerId = params.get('player_id') || params.get('playerId');
+      if (!playerId) {
+        setStatus('No player_id in URL. Showing sample passport.');
+        render(SAMPLE_PLAYER);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/players/' + encodeURIComponent(playerId), { cache: 'no-store' });
+        if (!res.ok) throw new Error('Player not found');
+        const player = await res.json();
+        render(player);
+      } catch (err) {
+        setStatus('Failed to load player. Showing sample passport.');
+        render(SAMPLE_PLAYER);
+      }
+    }
+
+    if (elPrint) {
+      elPrint.addEventListener('click', () => window.print());
+    }
+
+    init();
+  </script>
+</body>
+</html>

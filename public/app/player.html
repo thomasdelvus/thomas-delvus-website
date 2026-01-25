@@ -214,6 +214,7 @@
   <div class="topbar">
     <div class="brand">Player Dashboard</div>
     <div class="nav">
+      <a href="/app/passport.html" id="passportLink">Create Player Passport</a>
       <a href="/app/battlemat.html">Back to battlemat</a>
     </div>
   </div>
@@ -257,6 +258,7 @@
     const elCharacters = document.getElementById('charactersList');
     const elCampaigns = document.getElementById('campaignsList');
     const elInvites = document.getElementById('invitesList');
+    const elPassportLink = document.getElementById('passportLink');
 
     const SAMPLE_PLAYER = {
       player_id: 'YHGxImkt3NhbT5ExZOXpIQ',
@@ -347,6 +349,11 @@
       elPlayerName.textContent = player.display_name || 'Unnamed Player';
       elPlayerId.textContent = 'Player ID: ' + (player.player_id || '--');
       elPlayerState.textContent = 'Dashboard active';
+      if (elPassportLink) {
+        elPassportLink.href = player.player_id
+          ? ('/app/passport.html?player_id=' + encodeURIComponent(player.player_id))
+          : '/app/passport.html';
+      }
 
       const characterCards = (player.characters || []).map((c) => {
         const meta = [
