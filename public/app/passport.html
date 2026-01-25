@@ -20,7 +20,7 @@
       --version-y: 67%;
       --id-x: 54%;
       --id-y: 77%;
-      --date-x: 74%;
+      --date-x: 78%;
       --date-y: 77%;
       --qr-x: 28.5%;
       --qr-y: 72.5%;
@@ -113,6 +113,10 @@
       font-weight:600;
       letter-spacing:0.02em;
     }
+    .field.compact .value{
+      font-size:15px;
+      letter-spacing:0.01em;
+    }
     .qr{
       position:absolute;
       transform:translate(-50%, -50%);
@@ -188,7 +192,7 @@
           <div class="label">Version</div>
           <div class="value" id="passportVersion">v1.0</div>
         </div>
-        <div class="field" id="idField" style="left:var(--id-x); top:var(--id-y);">
+        <div class="field compact" id="idField" style="left:var(--id-x); top:var(--id-y);">
           <div class="label">Passport Number</div>
           <div class="value" id="playerId">--</div>
         </div>

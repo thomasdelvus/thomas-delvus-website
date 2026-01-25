@@ -403,7 +403,7 @@ export default {
       const playerId = decodeURIComponent(playerMatch[1]);
       if (method !== "GET") return json({ error: "Method not allowed" }, 405);
       const row = await env.DB.prepare(
-        `SELECT player_id, display_name, email, status, meta_json, version, created_at, updated_at
+        `SELECT player_id, dashboard_token, display_name, email, status, meta_json, version, created_at, updated_at
          FROM players
          WHERE player_id = ?`
       ).bind(playerId).first();
