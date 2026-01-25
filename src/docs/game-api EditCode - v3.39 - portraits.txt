@@ -1,0 +1,695 @@
+// game-api worker v3.39 (player dashboard endpoints, genId22, portrait uploads)
+// Purpose: GET/PUT battles with safe id-based merges + CRUD for characters + player dashboard reads + portrait uploads.
+//
+// Changelog:
+// - v3.39: add character portrait upload endpoint to R2 and update sheet_json
+// - v3.38: add player dashboard read endpoints (players, campaigns, characters, invites)
+// - v3.37: add genId22() and /_genid endpoint for 22-char IDs
+// - v3.16: add characters CRUD to the worker
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,PUT,POST,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+// Portrait upload settings
+// Requires an R2 binding named CHARACTERS_BUCKET (or R2) in the Worker.
+const R2_PUBLIC_BASE = "https://pub-32923a77247d4f2f9ad60bd440ec6e10.r2.dev";
+const PORTRAIT_PREFIX = "portraits";
+const MAX_PORTRAIT_BYTES = 512 * 1024;
+
+function withCors(res) {
+  const headers = new Headers(res.headers);
+  for (const [k, v] of Object.entries(CORS_HEADERS)) headers.set(k, v);
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
+function json(data, status = 200, extraHeaders = {}) {
+  return withCors(new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      ...extraHeaders,
+    },
+  }));
+}
+
+function text(data, status = 200) {
+  return withCors(new Response(data, { status, headers: { "content-type": "text/plain" } }));
+}
+
+function isObject(v) {
+  return !!v && typeof v === "object" && !Array.isArray(v);
+}
+
+function clone(value) {
+  if (typeof structuredClone === "function") return structuredClone(value);
+  return JSON.parse(JSON.stringify(value));
+}
+
+function slug(s) {
+  return String(s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+function genId22() {
+  if (globalThis.crypto && typeof globalThis.crypto.getRandomValues === "function") {
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    let binary = "";
+    for (const b of bytes) binary += String.fromCharCode(b);
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  let out = "";
+  for (let i = 0; i < 22; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+function genId(prefix) {
+  const p = slug(prefix || "id") || "id";
+  if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
+    return `${p}_${globalThis.crypto.randomUUID()}`;
+  }
+  return `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function nowSeconds() {
+  return Math.floor(Date.now() / 1000);
+}
+
+function normStr(v) {
+  return String(v ?? "").trim();
+}
+
+function normalizeJsonField(value, fieldName) {
+  if (value == null) return null;
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (!text) throw new Error(`${fieldName} cannot be empty`);
+    try {
+      return JSON.stringify(JSON.parse(text), null, 2);
+    } catch {
+      throw new Error(`${fieldName} must be valid JSON string`);
+    }
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value, null, 2);
+  }
+  throw new Error(`${fieldName} must be an object or JSON string`);
+}
+
+function normalizeNotes(value) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return JSON.stringify(value, null, 2);
+  return String(value);
+}
+
+async function readJsonBody(request) {
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object") return null;
+  return body;
+}
+
+function mergeArrayById(currentArr, incomingArr, prefix) {
+  const out = Array.isArray(currentArr) ? currentArr : [];
+  const byId = new Map(out.filter(v => isObject(v) && v.id).map(v => [v.id, v]));
+
+  if (!Array.isArray(incomingArr)) return out;
+
+  for (const patch0 of incomingArr) {
+    if (!isObject(patch0)) continue;
+    const patch = { ...patch0 };
+    if (!patch.id) patch.id = genId(prefix);
+
+    const existing = byId.get(patch.id);
+    if (patch.deleted === true) {
+      if (existing) {
+        const idx = out.findIndex(x => x && x.id === patch.id);
+        if (idx !== -1) out.splice(idx, 1);
+        byId.delete(patch.id);
+      }
+      continue;
+    }
+
+    if (existing) {
+      const { id, deleted, ...rest } = patch;
+      Object.assign(existing, rest);
+    } else {
+      out.push(patch);
+      byId.set(patch.id, patch);
+    }
+  }
+
+  return out;
+}
+
+function mergeFloor(existing, patch) {
+  if (!isObject(existing)) existing = {};
+  if (!isObject(patch)) return existing;
+
+  const { id, deleted, rooms, openings, objects, ...rest } = patch;
+  Object.assign(existing, rest);
+  existing.rooms = mergeArrayById(existing.rooms, rooms, "room");
+  existing.openings = mergeArrayById(existing.openings, openings, "opening");
+  existing.objects = mergeArrayById(existing.objects, objects, "object");
+  return existing;
+}
+
+function mergeFloors(currentFloors, incomingFloors) {
+  const out = Array.isArray(currentFloors) ? currentFloors : [];
+  const byId = new Map(out.filter(v => isObject(v) && v.id).map(v => [v.id, v]));
+
+  if (!Array.isArray(incomingFloors)) return out;
+
+  for (const patch0 of incomingFloors) {
+    if (!isObject(patch0)) continue;
+    const patch = { ...patch0 };
+    if (!patch.id) patch.id = genId("floor");
+
+    const existing = byId.get(patch.id);
+    if (patch.deleted === true) {
+      if (existing) {
+        const idx = out.findIndex(x => x && x.id === patch.id);
+        if (idx !== -1) out.splice(idx, 1);
+        byId.delete(patch.id);
+      }
+      continue;
+    }
+
+    if (existing) {
+      mergeFloor(existing, patch);
+    } else {
+      const created = mergeFloor({ id: patch.id }, patch);
+      out.push(created);
+      byId.set(patch.id, created);
+    }
+  }
+
+  return out;
+}
+
+function mergeRecord(current, incoming) {
+  const out = clone(current ?? {});
+
+  if (isObject(incoming.meta)) out.meta = { ...(out.meta || {}), ...incoming.meta };
+  if (isObject(incoming.view)) out.view = { ...(out.view || {}), ...incoming.view };
+  if (isObject(incoming.fog)) out.fog = { ...(out.fog || {}), ...incoming.fog };
+  if (isObject(incoming.turn)) out.turn = { ...(out.turn || {}), ...incoming.turn };
+
+  if (incoming.narration != null) out.narration = String(incoming.narration);
+  if (incoming.narrationText != null) out.narrationText = String(incoming.narrationText);
+
+  if (incoming.last_action != null) {
+    out.last_action = String(incoming.last_action);
+    out.lastAction = out.last_action;
+  } else if (incoming.lastAction != null) {
+    out.lastAction = String(incoming.lastAction);
+    out.last_action = out.lastAction;
+  }
+
+  if (Array.isArray(incoming.log)) {
+    const cur = Array.isArray(out.log) ? out.log : [];
+    out.log = cur.concat(incoming.log).slice(-200);
+  }
+
+  const tokensPatch = Array.isArray(incoming.tokens)
+    ? incoming.tokens
+    : (Array.isArray(incoming.actors) ? incoming.actors : null);
+  out.tokens = mergeArrayById(out.tokens, tokensPatch, "token");
+
+  out.floors = mergeFloors(out.floors, incoming.floors);
+
+  // Legacy top-level collections: apply to active floor if present.
+  const legacyRooms = Array.isArray(incoming.rooms) ? incoming.rooms : null;
+  const legacyOpenings = Array.isArray(incoming.openings) ? incoming.openings : null;
+  const legacyObjects = Array.isArray(incoming.objects) ? incoming.objects : null;
+  if (legacyRooms || legacyOpenings || legacyObjects) {
+    const floorId =
+      (incoming.view && incoming.view.floorId) ||
+      (out.view && out.view.floorId) ||
+      (Array.isArray(out.floors) && out.floors[0] ? out.floors[0].id : null);
+    if (floorId) {
+      if (!Array.isArray(out.floors)) out.floors = [];
+      let floor = out.floors.find(f => f && f.id === floorId);
+      if (!floor) {
+        floor = { id: floorId, name: floorId };
+        out.floors.push(floor);
+      }
+      floor.rooms = mergeArrayById(floor.rooms, legacyRooms, "room");
+      floor.openings = mergeArrayById(floor.openings, legacyOpenings, "opening");
+      floor.objects = mergeArrayById(floor.objects, legacyObjects, "object");
+    }
+  }
+
+  return out;
+}
+
+function isWorldState(state) {
+  return isObject(state) && isObject(state.records);
+}
+
+function isWorldPatch(patch) {
+  return isObject(patch) && (
+    isObject(patch.records) ||
+    isObject(patch.active) ||
+    isObject(patch.otherWorlds) ||
+    patch.world != null ||
+    Array.isArray(patch.links)
+  );
+}
+
+function mergeWorld(current, incoming) {
+  const out = clone(current ?? {});
+
+  if (incoming.world != null) out.world = incoming.world;
+  if (incoming.version != null) out.version = incoming.version;
+  if (isObject(incoming.meta)) out.meta = { ...(out.meta || {}), ...incoming.meta };
+  if (isObject(incoming.active)) out.active = { ...(out.active || {}), ...incoming.active };
+  if (Array.isArray(incoming.links)) out.links = incoming.links.slice();
+
+  if (isObject(incoming.otherWorlds)) {
+    out.otherWorlds = isObject(out.otherWorlds) ? out.otherWorlds : {};
+    for (const [key, patch] of Object.entries(incoming.otherWorlds)) {
+      if (!isObject(patch)) continue;
+      out.otherWorlds[key] = mergeState(out.otherWorlds[key] ?? {}, patch);
+    }
+  }
+
+  out.records = isObject(out.records) ? out.records : {};
+  if (isObject(incoming.records)) {
+    for (const [rid, patch] of Object.entries(incoming.records)) {
+      if (!isObject(patch)) continue;
+      if (patch.deleted === true) {
+        delete out.records[rid];
+        continue;
+      }
+      out.records[rid] = mergeRecord(out.records[rid], patch);
+    }
+  }
+
+  return out;
+}
+
+function getActiveRecordId(state) {
+  if (isObject(state) && isObject(state.active) && state.active.recordId) {
+    return String(state.active.recordId);
+  }
+  const keys = isObject(state?.records) ? Object.keys(state.records) : [];
+  return keys.length ? keys[0] : "Scene";
+}
+
+function mergeState(current, incoming) {
+  if (isWorldState(current) || isWorldPatch(incoming)) {
+    return mergeWorld(current, incoming);
+  }
+  return mergeRecord(current, incoming);
+}
+
+function stripInternalKeys(obj) {
+  if (!isObject(obj)) return obj;
+  const out = { ...obj };
+  for (const key of Object.keys(out)) {
+    if (key.startsWith("__")) delete out[key];
+  }
+  return out;
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const method = request.method.toUpperCase();
+
+    if (method === "OPTIONS") {
+      return withCors(new Response(null, { status: 204 }));
+    }
+
+    if (path === "/" || path === "/health") {
+      return json({ ok: true });
+    }
+
+    if (path === "/_genid" && method === "GET") {
+      return json({ id: genId22() });
+    }
+
+    const portraitMatch = path.match(/^\/characters\/([^\/?#]+)\/portrait$/);
+    if (portraitMatch) {
+      if (method !== "PUT") return json({ error: "Method not allowed" }, 405);
+      const characterId = decodeURIComponent(portraitMatch[1]);
+      const contentType = (request.headers.get("content-type") || "").toLowerCase();
+      if (!contentType.startsWith("image/jpeg")) {
+        return json({ error: "Portrait must be image/jpeg" }, 400);
+      }
+
+      const contentLength = request.headers.get("content-length");
+      if (contentLength && Number(contentLength) > MAX_PORTRAIT_BYTES) {
+        return json({ error: "Portrait too large (max 512kb)" }, 413);
+      }
+
+      const buf = await request.arrayBuffer();
+      if (buf.byteLength > MAX_PORTRAIT_BYTES) {
+        return json({ error: "Portrait too large (max 512kb)" }, 413);
+      }
+
+      const bucket = env.CHARACTERS_BUCKET || env.R2;
+      if (!bucket) return json({ error: "R2 bucket not configured" }, 500);
+
+      const key = `${PORTRAIT_PREFIX}/${characterId}.jpg`;
+      await bucket.put(key, buf, {
+        httpMetadata: {
+          contentType: "image/jpeg",
+          cacheControl: "public, max-age=31536000"
+        }
+      });
+
+      const row = await env.DB.prepare(
+        `SELECT sheet_json, version FROM characters WHERE character_id = ?`
+      ).bind(characterId).first();
+      if (!row) return json({ error: "Character not found", character_id: characterId }, 404);
+
+      let sheet = {};
+      if (row.sheet_json) {
+        try { sheet = JSON.parse(row.sheet_json); } catch { sheet = {}; }
+      }
+      if (!isObject(sheet)) sheet = {};
+      if (!isObject(sheet.appearance)) sheet.appearance = {};
+
+      const portraitUrl = `${R2_PUBLIC_BASE}/${key}`;
+      sheet.appearance.portrait_url = portraitUrl;
+      const sheetJson = JSON.stringify(sheet, null, 2);
+
+      const nextVersion = (row.version ?? 0) + 1;
+      const updatedAt = nowSeconds();
+
+      await env.DB.prepare(
+        `UPDATE characters SET sheet_json = ?, version = ?, updated_at = ? WHERE character_id = ?`
+      ).bind(sheetJson, nextVersion, updatedAt, characterId).run();
+
+      return json({
+        ok: true,
+        character_id: characterId,
+        portrait_url: portraitUrl,
+        version: nextVersion,
+        updated_at: updatedAt
+      });
+    }
+
+    const playerMatch = path.match(/^\/players\/([^\/?#]+)$/);
+    if (playerMatch) {
+      const playerId = decodeURIComponent(playerMatch[1]);
+      if (method !== "GET") return json({ error: "Method not allowed" }, 405);
+      const row = await env.DB.prepare(
+        `SELECT player_id, display_name, email, status, meta_json, version, created_at, updated_at
+         FROM players
+         WHERE player_id = ?`
+      ).bind(playerId).first();
+      if (!row) return json({ error: "Player not found", player_id: playerId }, 404);
+      return json(row);
+    }
+
+    const playerCharactersMatch = path.match(/^\/players\/([^\/?#]+)\/characters$/);
+    if (playerCharactersMatch) {
+      const playerId = decodeURIComponent(playerCharactersMatch[1]);
+      if (method !== "GET") return json({ error: "Method not allowed" }, 405);
+      const rows = await env.DB.prepare(
+        `SELECT ch.character_id, ch.player_id, ch.campaign_id, ch.name, c.name AS campaign_name
+         FROM characters ch
+         LEFT JOIN campaigns c ON c.campaign_id = ch.campaign_id
+         WHERE ch.player_id = ?
+         ORDER BY ch.name ASC`
+      ).bind(playerId).all();
+      const list = rows && rows.results ? rows.results : [];
+      return json({ count: list.length, rows: list });
+    }
+
+    const playerCampaignsMatch = path.match(/^\/players\/([^\/?#]+)\/campaigns$/);
+    if (playerCampaignsMatch) {
+      const playerId = decodeURIComponent(playerCampaignsMatch[1]);
+      if (method !== "GET") return json({ error: "Method not allowed" }, 405);
+      const rows = await env.DB.prepare(
+        `SELECT campaign_id, admin_player_id, name, summary_text, status, auth_tokens_json, version, created_at, updated_at
+         FROM campaigns
+         WHERE admin_player_id = ?
+         ORDER BY created_at DESC`
+      ).bind(playerId).all();
+      const list = rows && rows.results ? rows.results : [];
+      const normalized = list.map((row) => {
+        let authToken = null;
+        if (row.auth_tokens_json) {
+          try {
+            const parsed = JSON.parse(row.auth_tokens_json);
+            if (Array.isArray(parsed) && parsed.length) authToken = parsed[0];
+            else if (typeof parsed === "string") authToken = parsed;
+          } catch {
+            authToken = row.auth_tokens_json;
+          }
+        }
+        return { ...row, auth_token: authToken };
+      });
+      return json({ count: normalized.length, rows: normalized });
+    }
+
+    const playerInvitesMatch = path.match(/^\/players\/([^\/?#]+)\/invites$/);
+    if (playerInvitesMatch) {
+      if (method !== "GET") return json({ error: "Method not allowed" }, 405);
+      return json({ count: 0, rows: [] });
+    }
+
+    if (path === "/characters") {
+      if (method === "GET") {
+        const campaignId = normStr(url.searchParams.get("campaign_id") || url.searchParams.get("campaignId"));
+        if (!campaignId) return json({ error: "Missing campaign_id" }, 400);
+
+        const rows = await env.DB.prepare(
+          `SELECT character_id, campaign_id, player_id, name, sheet_json, notes_text, version, created_at, updated_at
+           FROM characters
+           WHERE campaign_id = ?
+           ORDER BY name ASC`
+        ).bind(campaignId).all();
+
+        const list = rows && rows.results ? rows.results : [];
+        return json({ count: list.length, rows: list });
+      }
+
+      if (method === "POST") {
+        const incoming = await readJsonBody(request);
+        if (!incoming) return json({ error: "Invalid JSON body" }, 400);
+
+        const campaignId = normStr(incoming.campaign_id ?? incoming.campaignId);
+        const playerId = normStr(incoming.player_id ?? incoming.playerId);
+        const name = normStr(incoming.name);
+        if (!campaignId) return json({ error: "Missing campaign_id" }, 400);
+        if (!name) return json({ error: "Missing name" }, 400);
+
+        let sheetJson;
+        try {
+          sheetJson = normalizeJsonField(incoming.sheet_json, "sheet_json");
+        } catch (e) {
+          return json({ error: e && e.message ? e.message : "Invalid sheet_json" }, 400);
+        }
+        if (!sheetJson) return json({ error: "Missing sheet_json" }, 400);
+
+        const characterId = normStr(incoming.character_id ?? incoming.characterId) || genId22();
+
+        const exists = await env.DB.prepare(
+          `SELECT character_id FROM characters WHERE character_id = ?`
+        ).bind(characterId).first();
+        if (exists) return json({ error: "Character already exists", character_id: characterId }, 409);
+
+        const notesRaw = ("notes_text" in incoming) ? incoming.notes_text : incoming.notes_json;
+        const notesText = normalizeNotes(notesRaw) ?? null;
+
+        const now = nowSeconds();
+        const version = 1;
+
+        await env.DB.prepare(
+          `INSERT INTO characters (character_id, campaign_id, player_id, name, sheet_json, notes_text, version, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(characterId, campaignId, playerId, name, sheetJson, notesText, version, now, now).run();
+
+        return json({
+          character_id: characterId,
+          campaign_id: campaignId,
+          player_id: playerId,
+          name,
+          sheet_json: sheetJson,
+          notes_text: notesText,
+          version,
+          created_at: now,
+          updated_at: now,
+        });
+      }
+
+      return json({ error: "Method not allowed" }, 405);
+    }
+
+    const characterMatch = path.match(/^\/characters\/([^\/?#]+)$/);
+    if (characterMatch) {
+      const characterId = decodeURIComponent(characterMatch[1]);
+
+      if (method === "GET") {
+        const row = await env.DB.prepare(
+          `SELECT character_id, campaign_id, player_id, name, sheet_json, notes_text, version, created_at, updated_at
+           FROM characters
+           WHERE character_id = ?`
+        ).bind(characterId).first();
+        if (!row) return json({ error: "Character not found", character_id: characterId }, 404);
+        return json(row);
+      }
+
+      if (method === "PUT") {
+        const incoming = await readJsonBody(request);
+        if (!incoming) return json({ error: "Invalid JSON body" }, 400);
+
+        const row = await env.DB.prepare(
+          `SELECT character_id, campaign_id, player_id, name, sheet_json, notes_text, version
+           FROM characters
+           WHERE character_id = ?`
+        ).bind(characterId).first();
+        if (!row) return json({ error: "Character not found", character_id: characterId }, 404);
+
+        let name = row.name;
+        let sheetJson = row.sheet_json;
+        let notesText = row.notes_text;
+
+        if ("name" in incoming) {
+          const nextName = normStr(incoming.name);
+          if (!nextName) return json({ error: "Name cannot be empty" }, 400);
+          name = nextName;
+        }
+
+        if ("sheet_json" in incoming) {
+          try {
+            sheetJson = normalizeJsonField(incoming.sheet_json, "sheet_json");
+          } catch (e) {
+            return json({ error: e && e.message ? e.message : "Invalid sheet_json" }, 400);
+          }
+        }
+
+        if ("notes_text" in incoming || "notes_json" in incoming) {
+          const raw = ("notes_text" in incoming) ? incoming.notes_text : incoming.notes_json;
+          const norm = normalizeNotes(raw);
+          if (norm !== undefined) notesText = norm;
+        }
+
+        const changed =
+          ("name" in incoming) ||
+          ("sheet_json" in incoming) ||
+          ("notes_text" in incoming) ||
+          ("notes_json" in incoming);
+        if (!changed) return json({ error: "No fields to update" }, 400);
+
+        const nextVersion = (row.version ?? 0) + 1;
+        const updatedAt = nowSeconds();
+
+        await env.DB.prepare(
+          `UPDATE characters
+           SET name = ?, sheet_json = ?, notes_text = ?, version = ?, updated_at = ?
+           WHERE character_id = ?`
+        ).bind(name, sheetJson, notesText, nextVersion, updatedAt, characterId).run();
+
+        return json({
+          character_id: characterId,
+          campaign_id: row.campaign_id,
+          player_id: row.player_id,
+          name,
+          sheet_json: sheetJson,
+          notes_text: notesText,
+          version: nextVersion,
+          updated_at: updatedAt,
+        });
+      }
+
+      return json({ error: "Method not allowed" }, 405);
+    }
+
+    const battleMatch = path.match(/^\/battles\/([^\/?#]+)$/);
+    if (!battleMatch) {
+      return json({ error: "Not found" }, 404);
+    }
+
+    const battleId = decodeURIComponent(battleMatch[1]);
+
+    if (method === "GET") {
+      const row = await env.DB.prepare(
+        `SELECT battle_id, campaign_id, name, state_json, version, updated_at
+         FROM battles
+         WHERE battle_id = ?`
+      ).bind(battleId).first();
+
+      if (!row) return json({ error: "Battle not found", battle_id: battleId }, 404);
+      return json(row);
+    }
+
+    if (method !== "PUT") {
+      return json({ error: "Method not allowed" }, 405);
+    }
+
+    let incoming = await request.json().catch(() => null);
+    if (!incoming || typeof incoming !== "object") {
+      return json({ error: "Invalid JSON body" }, 400);
+    }
+
+    if ("state_json" in incoming) {
+      const sj = incoming.state_json;
+      if (typeof sj === "string") {
+        try {
+          incoming = JSON.parse(sj);
+        } catch (e) {
+          return json({ error: "state_json must be valid JSON string" }, 400);
+        }
+      } else if (sj && typeof sj === "object") {
+        incoming = sj;
+      } else {
+        return json({ error: "state_json must be an object or JSON string" }, 400);
+      }
+    }
+
+    if (!incoming || typeof incoming !== "object") {
+      return json({ error: "state_json must be an object or JSON string" }, 400);
+    }
+
+    incoming = stripInternalKeys(incoming);
+
+    const row = await env.DB.prepare(
+      `SELECT battle_id, state_json, version FROM battles WHERE battle_id = ?`
+    ).bind(battleId).first();
+
+    if (!row) return json({ error: "Battle not found", battle_id: battleId }, 404);
+
+    let currentState = {};
+    if (row.state_json) {
+      try { currentState = JSON.parse(row.state_json); } catch { currentState = {}; }
+    }
+
+    let merged = mergeState(currentState, incoming);
+
+    // Record-level patch against a world wrapper: apply to active record.
+    if (isWorldState(currentState) && !isWorldPatch(incoming)) {
+      const rid = getActiveRecordId(merged);
+      merged.records = isObject(merged.records) ? merged.records : {};
+      merged.records[rid] = mergeRecord(merged.records[rid], incoming);
+      merged.active = isObject(merged.active) ? merged.active : {};
+      merged.active.recordId = rid;
+    }
+
+    const nextVersion = (row.version ?? 0) + 1;
+    const updatedAt = nowSeconds();
+    const stateJson = JSON.stringify(merged, null, 2);
+
+    await env.DB.prepare(
+      `UPDATE battles SET state_json = ?, version = ?, updated_at = ? WHERE battle_id = ?`
+    ).bind(stateJson, nextVersion, updatedAt, battleId).run();
+
+    return json({
+      battle_id: battleId,
+      state_json: stateJson,
+      version: nextVersion,
+      updated_at: updatedAt
+    });
+  }
+};

@@ -6,8 +6,8 @@
     "class": "Wizard",
     "subclass": "",
     "level": 1,
-    "background": "",
-    "alignment": "",
+    "background": "Sage",
+    "alignment": "Neutral Good",
     "experience_points": 242
   },
   "abilities": {
@@ -96,11 +96,11 @@
     "portrait_url": ""
   },
   "personality": {
-    "traits": "",
-    "ideals": "",
-    "bonds": "",
-    "flaws": "",
-    "backstory": "",
+    "traits": "Curious, articulate, and quietly confident when discussing lore.",
+    "ideals": "Knowledge. Truth should be preserved and shared responsibly.",
+    "bonds": "Protective of her spellbook and the mentor who taught her.",
+    "flaws": "Overconfident in her intellect and slow to ask for help.",
+    "backstory": "Seraphina Ashveil grew up in the shadow of a small tower‑library, apprenticed to an aging arcanist who insisted she read as much as she practiced. A tragic fire destroyed much of the collection, and she now travels to recover lost texts and rebuild what was taken. She sees Saffrondale as a crossroads of rumor and research, a place where rare notes and forgotten spells might surface. She is earnest, idealistic, and determined to use her talents to protect those who cannot protect themselves.",
     "reputation": []
   },
   "adventure_history": []

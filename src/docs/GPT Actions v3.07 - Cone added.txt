@@ -1,10 +1,10 @@
-# GPT Actions OpenAPI Spec v3.07
+# GPT Actions OpenAPI Spec v3.09
 openapi: 3.1.0
 
 info:
   title: Game API
-  description: Read/write access to game battles stored in Cloudflare D1 (Bearer-auth protected).
-  version: "3.05"
+  description: Read/write access to battles and characters stored in Cloudflare D1 (Bearer-auth protected).
+  version: "3.09"
 
 servers:
   - url: "https://dungeon.delvus.net"
@@ -205,6 +205,131 @@ paths:
         "403":
           description: Invalid token
 
+  /characters:
+    servers:
+      - url: "https://delvus.net/api"
+    post:
+      operationId: create_character
+      summary: Create a character (auth required)
+      x-openai-isConsequential: false
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                character_id:
+                  type: string
+                campaign_id:
+                  type: string
+                player_id:
+                  type: string
+                name:
+                  type: string
+                sheet_json:
+                  oneOf:
+                    - type: object
+                    - type: string
+                notes_text:
+                  type: string
+              required: [campaign_id, player_id, name, sheet_json]
+      responses:
+        "200":
+          description: Character created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Character"
+        "400":
+          description: Invalid request
+        "401":
+          description: Missing Authorization header
+        "403":
+          description: Invalid token
+
+  /characters/{character_id}:
+    servers:
+      - url: "https://delvus.net/api"
+    get:
+      operationId: get_character
+      summary: Get a single character by ID (auth required)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: character_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Character found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Character"
+        "404":
+          description: Character not found
+        "401":
+          description: Missing Authorization header
+        "403":
+          description: Invalid token
+
+  /characters/{character_id}/portrait:
+    servers:
+      - url: "https://delvus.net/api"
+    put:
+      operationId: upload_character_portrait
+      summary: Upload a character portrait (jpg only, max 512kb)
+      x-openai-isConsequential: false
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: character_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Portrait stored and character updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  character_id:
+                    type: string
+                  portrait_url:
+                    type: string
+                  version:
+                    type: integer
+                  updated_at:
+                    type: integer
+                required: [ok, character_id, portrait_url]
+        "400":
+          description: Invalid request (wrong content type or malformed)
+        "413":
+          description: Portrait too large
+        "401":
+          description: Missing Authorization header
+        "403":
+          description: Invalid token
+        "404":
+          description: Character not found
+
   /hex/cone:
     post:
       operationId: hex_cone
@@ -247,6 +372,29 @@ components:
         updated_at:
           type: integer
       required: [battle_id, campaign_id, name, version, updated_at]
+
+    Character:
+      type: object
+      properties:
+        character_id:
+          type: string
+        campaign_id:
+          type: string
+        player_id:
+          type: string
+        name:
+          type: string
+        sheet_json:
+          type: [string, "null"]
+        notes_text:
+          type: [string, "null"]
+        version:
+          type: integer
+        created_at:
+          type: integer
+        updated_at:
+          type: integer
+      required: [character_id, campaign_id, player_id, name, version]
 
     HexBoard:
       type: object

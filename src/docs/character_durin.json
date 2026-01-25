@@ -7,7 +7,7 @@
     "subclass": "",
     "level": 1,
     "background": "Soldier",
-    "alignment": "",
+    "alignment": "Neutral Good",
     "experience_points": 242
   },
   "abilities": {
@@ -82,11 +82,11 @@
     "portrait_url": ""
   },
   "personality": {
-    "traits": "",
-    "ideals": "",
-    "bonds": "",
-    "flaws": "",
-    "backstory": "",
+    "traits": "Steady under pressure, speaks plainly, and never leaves a comrade behind.",
+    "ideals": "Duty. A shield is meant to take the blow so others can stand.",
+    "bonds": "Owes his life to a fallen captain and keeps their warhammer close.",
+    "flaws": "Slow to trust outsiders and quick to judge cowardice.",
+    "backstory": "Durin Stoneheart was raised in a mountain hold where every dwarf learns the weight of an oath. He joined the militia to repay a blood‑debt and earned his scars holding a collapsing tunnel while his unit escaped. After the war, he took to the road, determined to temper his strength with purpose and to honor the captain who died buying him time. In Saffrondale he seeks steady work, fair coin, and a cause worth the risk.",
     "reputation": []
   },
   "adventure_history": []

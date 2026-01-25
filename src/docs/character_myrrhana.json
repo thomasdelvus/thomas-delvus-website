@@ -6,8 +6,8 @@
     "class": "Cleric",
     "subclass": "War Domain",
     "level": 1,
-    "background": "",
-    "alignment": "",
+    "background": "Acolyte",
+    "alignment": "Neutral Good",
     "experience_points": 242
   },
   "abilities": {
@@ -114,11 +114,11 @@
     "portrait_url": ""
   },
   "personality": {
-    "traits": "",
-    "ideals": "",
-    "bonds": "",
-    "flaws": "",
-    "backstory": "",
+    "traits": "Speaks with calm authority and treats every oath as sacred.",
+    "ideals": "Faith. Power is a trust meant to protect the vulnerable.",
+    "bonds": "Dedicated to her temple and the vows that shaped her childhood.",
+    "flaws": "Carries a heavy sense of responsibility and can be overly stern.",
+    "backstory": "Myrrhana was brought to the temple after a village fire revealed her draconic ancestry and a fierce will to shield others. She trained as a war cleric, learning to hold the line while calling upon sacred fire. Her superiors sent her to Saffrondale to confront rising unrest and to remind the faithful that mercy and strength are not opposites. Though young, she bears herself like a veteran and refuses to leave a threat unanswered.",
     "reputation": []
   },
   "adventure_history": []
