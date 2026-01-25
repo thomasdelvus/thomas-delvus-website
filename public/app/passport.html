@@ -240,6 +240,7 @@
     const elPassportQrImg = document.getElementById('passportQrImg');
     const elPassportPortrait = document.getElementById('passportPortrait');
     const elPassportPortraitImg = document.getElementById('passportPortraitImg');
+    const PORTRAIT_BASE = 'https://pub-32923a77247d4f2f9ad60bd440ec6e10.r2.dev/portraits/';
 
     const SAMPLE_PLAYER = {
       player_id: 'sample_player_id',
@@ -294,7 +295,10 @@
               sheet = ch.sheet_json;
             }
           }
-          const portraitUrl = sheet?.appearance?.portrait_url;
+          let portraitUrl = sheet?.appearance?.portrait_url;
+          if (!portraitUrl && preferredCharacterId) {
+            portraitUrl = PORTRAIT_BASE + encodeURIComponent(preferredCharacterId) + '.jpg';
+          }
           if (portraitUrl && elPassportPortrait && elPassportPortraitImg) {
             elPassportPortraitImg.src = portraitUrl;
             elPassportPortrait.hidden = false;
@@ -324,7 +328,10 @@
             sheet = ch.sheet_json;
           }
         }
-        const portraitUrl = sheet?.appearance?.portrait_url;
+        let portraitUrl = sheet?.appearance?.portrait_url;
+        if (!portraitUrl && first.character_id) {
+          portraitUrl = PORTRAIT_BASE + encodeURIComponent(first.character_id) + '.jpg';
+        }
         if (portraitUrl && elPassportPortrait && elPassportPortraitImg) {
           elPassportPortraitImg.src = portraitUrl;
           elPassportPortrait.hidden = false;
