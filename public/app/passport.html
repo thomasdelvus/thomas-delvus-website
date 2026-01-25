@@ -244,7 +244,8 @@
     const SAMPLE_PLAYER = {
       player_id: 'sample_player_id',
       display_name: 'Robert Costa',
-      dashboard_token: 'sample_dashboard_token'
+      dashboard_token: 'sample_dashboard_token',
+      passport_character_id: ''
     };
 
     function setStatus(msg) {
@@ -279,7 +280,30 @@
       }
     }
 
-    async function loadPortraitForPlayer(playerId) {
+    async function loadPortraitForPlayer(playerId, preferredCharacterId) {
+      if (preferredCharacterId) {
+        try {
+          const chRes = await fetch('/api/characters/' + encodeURIComponent(preferredCharacterId), { cache: 'no-store' });
+          if (!chRes.ok) return;
+          const ch = await chRes.json();
+          let sheet = {};
+          if (ch && ch.sheet_json) {
+            if (typeof ch.sheet_json === 'string') {
+              try { sheet = JSON.parse(ch.sheet_json); } catch { sheet = {}; }
+            } else if (typeof ch.sheet_json === 'object') {
+              sheet = ch.sheet_json;
+            }
+          }
+          const portraitUrl = sheet?.appearance?.portrait_url;
+          if (portraitUrl && elPassportPortrait && elPassportPortraitImg) {
+            elPassportPortraitImg.src = portraitUrl;
+            elPassportPortrait.hidden = false;
+          }
+          return;
+        } catch {
+          // fall back to first character
+        }
+      }
       if (!playerId) return;
       try {
         const res = await fetch('/api/players/' + encodeURIComponent(playerId) + '/characters', { cache: 'no-store' });
@@ -316,7 +340,9 @@
       if (!playerId) {
         setStatus('No player_id in URL. Showing sample passport.');
         render(SAMPLE_PLAYER);
-        if (SAMPLE_PLAYER.player_id) loadPortraitForPlayer(SAMPLE_PLAYER.player_id);
+        if (SAMPLE_PLAYER.player_id) {
+          loadPortraitForPlayer(SAMPLE_PLAYER.player_id, SAMPLE_PLAYER.passport_character_id);
+        }
         return;
       }
 
@@ -325,11 +351,13 @@
         if (!res.ok) throw new Error('Player not found');
         const player = await res.json();
         render(player);
-        loadPortraitForPlayer(player.player_id);
+        loadPortraitForPlayer(player.player_id, player.passport_character_id);
       } catch (err) {
         setStatus('Failed to load player. Showing sample passport.');
         render(SAMPLE_PLAYER);
-        if (SAMPLE_PLAYER.player_id) loadPortraitForPlayer(SAMPLE_PLAYER.player_id);
+        if (SAMPLE_PLAYER.player_id) {
+          loadPortraitForPlayer(SAMPLE_PLAYER.player_id, SAMPLE_PLAYER.passport_character_id);
+        }
       }
     }
 
