@@ -27,6 +27,9 @@
       --qr-size: 90px;
       --token-x: 22%;
       --token-y: 80.5%;
+      --portrait-x: 67.5%;
+      --portrait-y: 36.5%;
+      --portrait-size: 180px;
     }
     *{box-sizing:border-box;}
     body{
@@ -134,6 +137,22 @@
       object-fit:contain;
       image-rendering:pixelated;
     }
+    .portrait{
+      position:absolute;
+      transform:translate(-50%, -50%);
+      width:var(--portrait-size);
+      height:var(--portrait-size);
+      border-radius:50%;
+      overflow:hidden;
+      box-shadow:0 6px 14px rgba(0,0,0,0.2);
+    }
+    .portrait img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      object-position:center;
+      display:block;
+    }
     .status{
       text-align:center;
       color:#e8edf7;
@@ -178,6 +197,9 @@
         alt="Player Passport Background"
       />
       <div class="overlay">
+        <div class="portrait" id="passportPortrait" style="left:var(--portrait-x); top:var(--portrait-y);" hidden>
+          <img id="passportPortraitImg" alt="Passport portrait" />
+        </div>
         <div class="qr" id="passportQr" style="left:var(--qr-x); top:var(--qr-y);">
           <img id="passportQrImg" alt="Passport QR code" />
         </div>
@@ -216,6 +238,8 @@
     const elPassportDate = document.getElementById('passportDate');
     const elPassportToken = document.getElementById('passportToken');
     const elPassportQrImg = document.getElementById('passportQrImg');
+    const elPassportPortrait = document.getElementById('passportPortrait');
+    const elPassportPortraitImg = document.getElementById('passportPortraitImg');
 
     const SAMPLE_PLAYER = {
       player_id: 'sample_player_id',
@@ -255,12 +279,44 @@
       }
     }
 
+    async function loadPortraitForPlayer(playerId) {
+      if (!playerId) return;
+      try {
+        const res = await fetch('/api/players/' + encodeURIComponent(playerId) + '/characters', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const rows = Array.isArray(data.rows) ? data.rows : [];
+        const first = rows.find(r => r && r.character_id) || rows[0];
+        if (!first || !first.character_id) return;
+
+        const chRes = await fetch('/api/characters/' + encodeURIComponent(first.character_id), { cache: 'no-store' });
+        if (!chRes.ok) return;
+        const ch = await chRes.json();
+        let sheet = {};
+        if (ch && ch.sheet_json) {
+          if (typeof ch.sheet_json === 'string') {
+            try { sheet = JSON.parse(ch.sheet_json); } catch { sheet = {}; }
+          } else if (typeof ch.sheet_json === 'object') {
+            sheet = ch.sheet_json;
+          }
+        }
+        const portraitUrl = sheet?.appearance?.portrait_url;
+        if (portraitUrl && elPassportPortrait && elPassportPortraitImg) {
+          elPassportPortraitImg.src = portraitUrl;
+          elPassportPortrait.hidden = false;
+        }
+      } catch {
+        // ignore portrait failures
+      }
+    }
+
     async function init() {
       const params = new URLSearchParams(window.location.search);
       const playerId = params.get('player_id') || params.get('playerId');
       if (!playerId) {
         setStatus('No player_id in URL. Showing sample passport.');
         render(SAMPLE_PLAYER);
+        if (SAMPLE_PLAYER.player_id) loadPortraitForPlayer(SAMPLE_PLAYER.player_id);
         return;
       }
 
@@ -269,9 +325,11 @@
         if (!res.ok) throw new Error('Player not found');
         const player = await res.json();
         render(player);
+        loadPortraitForPlayer(player.player_id);
       } catch (err) {
         setStatus('Failed to load player. Showing sample passport.');
         render(SAMPLE_PLAYER);
+        if (SAMPLE_PLAYER.player_id) loadPortraitForPlayer(SAMPLE_PLAYER.player_id);
       }
     }
 
