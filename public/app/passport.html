@@ -106,6 +106,30 @@
       gap:16px;
       font-size:12px;
     }
+    .summary-table{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      font-size:12px;
+    }
+    .summary-row{
+      display:grid;
+      grid-template-columns:1.6fr 0.4fr 0.8fr 0.9fr 1.4fr;
+      gap:8px;
+      align-items:baseline;
+    }
+    .summary-row.header{
+      font-size:11px;
+      letter-spacing:0.1em;
+      text-transform:uppercase;
+      color:#4a3b27;
+      font-weight:700;
+    }
+    .summary-cell{
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
     .summary-block h3{
       margin:0 0 6px 0;
       font-size:12px;
@@ -262,9 +286,10 @@
         background:#f1e4c7 url("/assets/sprites/parchment.png") center/cover no-repeat;
       }
       .sheet{box-shadow:none;border:none;border-radius:0;}
-      .print-summary{display:block;}
-      .summary-block:first-child{
-        padding-left:0.75in;
+      .print-summary{
+        display:block;
+        padding-left:0.6in;
+        padding-right:0.4in;
       }
       :root{
         --qr-size: 70px;
@@ -338,7 +363,7 @@
       <div class="summary-grid">
         <div class="summary-block">
           <h3>Characters</h3>
-          <div class="summary-list" id="summaryCharacters"></div>
+          <div class="summary-table" id="summaryCharacters"></div>
         </div>
         <div class="summary-block">
           <h3>Campaigns</h3>
@@ -448,6 +473,40 @@
         el.appendChild(row);
       });
     }
+
+    function renderCharacterTable(el, items) {
+      if (!el) return;
+      el.innerHTML = '';
+      const header = document.createElement('div');
+      header.className = 'summary-row header';
+      header.innerHTML = `
+        <div class="summary-cell">Character</div>
+        <div class="summary-cell">Level</div>
+        <div class="summary-cell">Race</div>
+        <div class="summary-cell">Class</div>
+        <div class="summary-cell">Campaign</div>
+      `;
+      el.appendChild(header);
+      if (!items || !items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'summary-row';
+        empty.innerHTML = `<div class="summary-cell">None</div>`;
+        el.appendChild(empty);
+        return;
+      }
+      items.forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'summary-row';
+        row.innerHTML = `
+          <div class="summary-cell">${item.name || 'Unnamed'}</div>
+          <div class="summary-cell">${item.level || '--'}</div>
+          <div class="summary-cell">${item.race || '--'}</div>
+          <div class="summary-cell">${item.class_name || '--'}</div>
+          <div class="summary-cell">${item.campaign_name || item.campaign_id || 'Unbound'}</div>
+        `;
+        el.appendChild(row);
+      });
+    }
     async function enrichCharacters(chars) {
       const enriched = await Promise.all((chars || []).map(async (c) => {
         if (!c || !c.character_id) return c;
@@ -466,8 +525,8 @@
           const ident = sheet?.identity || {};
           const cls = ident.class || ident.class_name || ident.className || '';
           const lvl = ident.level != null ? String(ident.level) : '';
-          const detail = cls ? (cls + (lvl ? (' ' + lvl) : '')) : (lvl ? ('Level ' + lvl) : '');
-          return detail ? { ...c, detail } : c;
+          const race = ident.race || '';
+          return { ...c, class_name: cls, level: lvl, race };
         } catch {
           return c;
         }
@@ -544,7 +603,7 @@
         if (SAMPLE_PLAYER.player_id) {
           loadPortraitForPlayer(SAMPLE_PLAYER.player_id, SAMPLE_PLAYER.passport_character_id);
         }
-        renderSummaryList(elSummaryCharacters, SAMPLE_PLAYER.characters || [], 'character');
+        renderCharacterTable(elSummaryCharacters, SAMPLE_PLAYER.characters || []);
         renderSummaryList(elSummaryCampaigns, SAMPLE_PLAYER.campaigns || [], 'campaign');
         return;
       }
@@ -562,7 +621,7 @@
         const charsRaw = charsRes.ok ? (await charsRes.json()).rows || [] : [];
         const chars = await enrichCharacters(charsRaw);
         const camps = campsRes.ok ? (await campsRes.json()).rows || [] : [];
-        renderSummaryList(elSummaryCharacters, chars, 'character');
+        renderCharacterTable(elSummaryCharacters, chars);
         renderSummaryList(elSummaryCampaigns, camps, 'campaign');
       } catch (err) {
         setStatus('Failed to load player. Showing sample passport.');
@@ -570,7 +629,7 @@
         if (SAMPLE_PLAYER.player_id) {
           loadPortraitForPlayer(SAMPLE_PLAYER.player_id, SAMPLE_PLAYER.passport_character_id);
         }
-        renderSummaryList(elSummaryCharacters, SAMPLE_PLAYER.characters || [], 'character');
+        renderCharacterTable(elSummaryCharacters, SAMPLE_PLAYER.characters || []);
         renderSummaryList(elSummaryCampaigns, SAMPLE_PLAYER.campaigns || [], 'campaign');
       }
     }
