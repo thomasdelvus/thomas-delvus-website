@@ -86,11 +86,11 @@
     }
     .print-summary{
       display:none;
-      margin-top:18px;
-      padding:18px 20px;
-      background:#f1e4c7 url("/assets/sprites/parchment.png") center/cover no-repeat;
-      border-radius:12px;
-      border:1px solid rgba(0,0,0,0.18);
+      margin:0;
+      padding:18px 20px 24px;
+      background:transparent;
+      border-radius:0;
+      border:none;
       color:var(--ink);
     }
     .print-summary h2{
@@ -248,7 +248,12 @@
       }
       body{background:white;}
       .topbar,.status{display:none !important;}
-      .wrap{max-width:none;margin:0;padding:0;}
+      .wrap{
+        max-width:none;
+        margin:0;
+        padding:0;
+        background:#f1e4c7 url("/assets/sprites/parchment.png") center/cover no-repeat;
+      }
       .sheet{box-shadow:none;border:none;border-radius:0;}
       .print-summary{display:block;}
       :root{
@@ -405,6 +410,12 @@
         label.className = 'label';
         label.textContent = item.name || 'Unnamed';
         row.appendChild(label);
+        if (type === 'character' && item.detail) {
+          const detail = document.createElement('div');
+          detail.className = 'meta';
+          detail.textContent = item.detail;
+          row.appendChild(detail);
+        }
         const meta = document.createElement('div');
         meta.className = 'meta';
         if (type === 'character') {
@@ -416,6 +427,33 @@
         row.appendChild(meta);
         el.appendChild(row);
       });
+    }
+
+    async function enrichCharacters(chars) {
+      const enriched = await Promise.all((chars || []).map(async (c) => {
+        if (!c || !c.character_id) return c;
+        try {
+          const res = await fetch('/api/characters/' + encodeURIComponent(c.character_id), { cache: 'no-store' });
+          if (!res.ok) return c;
+          const ch = await res.json();
+          let sheet = {};
+          if (ch && ch.sheet_json) {
+            if (typeof ch.sheet_json === 'string') {
+              try { sheet = JSON.parse(ch.sheet_json); } catch { sheet = {}; }
+            } else if (typeof ch.sheet_json === 'object') {
+              sheet = ch.sheet_json;
+            }
+          }
+          const ident = sheet?.identity || {};
+          const cls = ident.class || ident.class_name || ident.className || '';
+          const lvl = ident.level != null ? String(ident.level) : '';
+          const detail = cls ? (cls + (lvl ? (' ' + lvl) : '')) : (lvl ? ('Level ' + lvl) : '');
+          return detail ? { ...c, detail } : c;
+        } catch {
+          return c;
+        }
+      }));
+      return enriched;
     }
 
     async function loadPortraitForPlayer(playerId, preferredCharacterId) {
@@ -502,7 +540,8 @@
           fetch('/api/players/' + encodeURIComponent(playerId) + '/characters', { cache: 'no-store' }),
           fetch('/api/players/' + encodeURIComponent(playerId) + '/campaigns', { cache: 'no-store' })
         ]);
-        const chars = charsRes.ok ? (await charsRes.json()).rows || [] : [];
+        const charsRaw = charsRes.ok ? (await charsRes.json()).rows || [] : [];
+        const chars = await enrichCharacters(charsRaw);
         const camps = campsRes.ok ? (await campsRes.json()).rows || [] : [];
         renderSummaryList(elSummaryCharacters, chars, 'character');
         renderSummaryList(elSummaryCampaigns, camps, 'campaign');
