@@ -84,6 +84,51 @@
       overflow:hidden;
       box-shadow:0 18px 40px rgba(0,0,0,0.35);
     }
+    .print-summary{
+      display:none;
+      margin-top:18px;
+      padding:18px 20px;
+      background:#f1e4c7 url("/assets/sprites/parchment.png") center/cover no-repeat;
+      border-radius:12px;
+      border:1px solid rgba(0,0,0,0.18);
+      color:var(--ink);
+    }
+    .print-summary h2{
+      margin:0 0 10px 0;
+      font-size:14px;
+      letter-spacing:0.16em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
+    .summary-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:16px;
+      font-size:12px;
+    }
+    .summary-block h3{
+      margin:0 0 6px 0;
+      font-size:12px;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
+    .summary-list{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .summary-item{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .summary-item .label{
+      font-weight:700;
+    }
+    .summary-item .meta{
+      color:var(--muted);
+    }
     .passport-img{
       width:100%;
       display:block;
@@ -205,6 +250,7 @@
       .topbar,.status{display:none !important;}
       .wrap{max-width:none;margin:0;padding:0;}
       .sheet{box-shadow:none;border:none;border-radius:0;}
+      .print-summary{display:block;}
       :root{
         --qr-size: 70px;
         --token-max-width: 240px;
@@ -262,6 +308,19 @@
         </div>
       </div>
     </div>
+    <div class="print-summary" id="printSummary">
+      <h2>Player Summary</h2>
+      <div class="summary-grid">
+        <div class="summary-block">
+          <h3>Characters</h3>
+          <div class="summary-list" id="summaryCharacters"></div>
+        </div>
+        <div class="summary-block">
+          <h3>Campaigns</h3>
+          <div class="summary-list" id="summaryCampaigns"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -282,6 +341,8 @@
     const elPassportPortraitImg = document.getElementById('passportPortraitImg');
     const PORTRAIT_BASE = 'https://pub-32923a77247d4f2f9ad60bd440ec6e10.r2.dev/portraits/';
     const DASHBOARD_BASE = 'https://delvus.net/app/player.html';
+    const elSummaryCharacters = document.getElementById('summaryCharacters');
+    const elSummaryCampaigns = document.getElementById('summaryCampaigns');
 
     const SAMPLE_PLAYER = {
       player_id: 'sample_player_id',
@@ -325,6 +386,36 @@
           ? ('/app/player.html?player_id=' + encodeURIComponent(player.player_id))
           : '/app/player.html';
       }
+    }
+
+    function renderSummaryList(el, items, type) {
+      if (!el) return;
+      el.innerHTML = '';
+      if (!items || !items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'summary-item';
+        empty.textContent = 'None';
+        el.appendChild(empty);
+        return;
+      }
+      items.forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'summary-item';
+        const label = document.createElement('div');
+        label.className = 'label';
+        label.textContent = item.name || 'Unnamed';
+        row.appendChild(label);
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        if (type === 'character') {
+          meta.textContent = item.campaign_name ? ('Campaign: ' + item.campaign_name) : (item.campaign_id ? 'Campaign: ' + item.campaign_id : 'Unbound');
+        } else {
+          const status = item.status || 'Active';
+          meta.textContent = status + (item.summary_text ? (' · ' + item.summary_text) : '');
+        }
+        row.appendChild(meta);
+        el.appendChild(row);
+      });
     }
 
     async function loadPortraitForPlayer(playerId, preferredCharacterId) {
@@ -396,6 +487,8 @@
         if (SAMPLE_PLAYER.player_id) {
           loadPortraitForPlayer(SAMPLE_PLAYER.player_id, SAMPLE_PLAYER.passport_character_id);
         }
+        renderSummaryList(elSummaryCharacters, SAMPLE_PLAYER.characters || [], 'character');
+        renderSummaryList(elSummaryCampaigns, SAMPLE_PLAYER.campaigns || [], 'campaign');
         return;
       }
 
@@ -405,12 +498,22 @@
         const player = await res.json();
         render(player);
         loadPortraitForPlayer(player.player_id, player.passport_character_id);
+        const [charsRes, campsRes] = await Promise.all([
+          fetch('/api/players/' + encodeURIComponent(playerId) + '/characters', { cache: 'no-store' }),
+          fetch('/api/players/' + encodeURIComponent(playerId) + '/campaigns', { cache: 'no-store' })
+        ]);
+        const chars = charsRes.ok ? (await charsRes.json()).rows || [] : [];
+        const camps = campsRes.ok ? (await campsRes.json()).rows || [] : [];
+        renderSummaryList(elSummaryCharacters, chars, 'character');
+        renderSummaryList(elSummaryCampaigns, camps, 'campaign');
       } catch (err) {
         setStatus('Failed to load player. Showing sample passport.');
         render(SAMPLE_PLAYER);
         if (SAMPLE_PLAYER.player_id) {
           loadPortraitForPlayer(SAMPLE_PLAYER.player_id, SAMPLE_PLAYER.passport_character_id);
         }
+        renderSummaryList(elSummaryCharacters, SAMPLE_PLAYER.characters || [], 'character');
+        renderSummaryList(elSummaryCampaigns, SAMPLE_PLAYER.campaigns || [], 'campaign');
       }
     }
 
