@@ -249,12 +249,16 @@
         size: letter;
         margin: 0.4in;
       }
-      body{background:white;}
+      html,body{
+        height:100%;
+        background:#f1e4c7 url("/assets/sprites/parchment.png") center/cover no-repeat;
+      }
       .topbar,.status{display:none !important;}
       .wrap{
         max-width:none;
         margin:0;
         padding:0;
+        min-height:100%;
         background:#f1e4c7 url("/assets/sprites/parchment.png") center/cover no-repeat;
       }
       .sheet{box-shadow:none;border:none;border-radius:0;}
