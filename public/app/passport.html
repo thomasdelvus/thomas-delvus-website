@@ -25,9 +25,9 @@
       --qr-x: 28.5%;
       --qr-y: 72.5%;
       --qr-size: 90px;
-      --token-x: 28.5%;
+      --token-x: 30.5%;
       --token-y: 81.5%;
-      --token-max-width: 200px;
+      --token-max-width: 260px;
       --portrait-x: 68.75%;
       --portrait-y: 46.1%;
       --portrait-size: 170px;
@@ -122,8 +122,8 @@
       transform:translate(-50%, -50%);
       display:flex;
       align-items:center;
-      gap:8px;
-      max-width:var(--token-max-width);
+      gap:10px;
+      width:var(--token-max-width);
       color:var(--accent);
       font-size:12px;
       font-weight:600;
@@ -131,9 +131,7 @@
     .token-value{
       font-family:"Courier New",monospace;
       white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width:120px;
+      flex:1;
     }
     .copy-btn{
       pointer-events:auto;
