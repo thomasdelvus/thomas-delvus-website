@@ -404,6 +404,8 @@
         const d = new Date();
         const stamp = d.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
         elPassportDate.textContent = stamp;
+        const elSummaryTitle = document.getElementById('summaryTitle');
+        if (elSummaryTitle) elSummaryTitle.textContent = `Player Summary (as of ${stamp})`;
       }
       if (elBackLink) {
         elBackLink.href = player.player_id
@@ -427,27 +429,24 @@
         row.className = 'summary-item';
         const label = document.createElement('div');
         label.className = 'label';
-        label.textContent = item.name || 'Unnamed';
-        row.appendChild(label);
         if (type === 'character' && item.detail) {
-          const detail = document.createElement('div');
-          detail.className = 'meta';
-          detail.textContent = item.detail;
-          row.appendChild(detail);
+          label.textContent = (item.name || 'Unnamed') + ' (' + item.detail + ')';
+        } else {
+          label.textContent = item.name || 'Unnamed';
         }
+        row.appendChild(label);
         const meta = document.createElement('div');
         meta.className = 'meta';
         if (type === 'character') {
           meta.textContent = item.campaign_name ? ('Campaign: ' + item.campaign_name) : (item.campaign_id ? 'Campaign: ' + item.campaign_id : 'Unbound');
         } else {
           const status = item.status || 'Active';
-          meta.textContent = status + (item.summary_text ? (' · ' + item.summary_text) : '');
+          meta.textContent = status + (item.summary_text ? (' - ' + item.summary_text) : '');
         }
         row.appendChild(meta);
         el.appendChild(row);
       });
     }
-
     async function enrichCharacters(chars) {
       const enriched = await Promise.all((chars || []).map(async (c) => {
         if (!c || !c.character_id) return c;
@@ -592,3 +591,4 @@
   </script>
 </body>
 </html>
+
