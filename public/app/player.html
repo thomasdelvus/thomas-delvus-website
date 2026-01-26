@@ -168,6 +168,26 @@
       flex-direction:column;
       gap:6px;
     }
+    .card.character-card{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:10px;
+      align-items:center;
+    }
+    .card-main{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .char-portrait{
+      width:64px;
+      height:64px;
+      border-radius:12px;
+      object-fit:cover;
+      border:1px solid rgba(0,0,0,0.2);
+      background:#efe2c6;
+      box-shadow:0 4px 10px rgba(0,0,0,0.16);
+    }
     .card h3{
       margin:0;
       font-size:16px;
@@ -343,6 +363,55 @@
       return btn;
     }
 
+    function characterCard(character) {
+      const el = document.createElement('div');
+      el.className = 'card character-card';
+
+      const main = document.createElement('div');
+      main.className = 'card-main';
+
+      const h3 = document.createElement('h3');
+      h3.textContent = character.name || 'Unnamed Character';
+      main.appendChild(h3);
+
+      const metaLines = [
+        'ID: ' + character.character_id,
+        character.campaign_id ? ('Campaign: ' + (character.campaign_name || character.campaign_id)) : 'Unbound'
+      ];
+      metaLines.forEach((line) => {
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = line;
+        main.appendChild(meta);
+      });
+
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.appendChild(button('View Sheet', () => {
+        window.location.href = '/app/character?character_id=' + encodeURIComponent(character.character_id);
+      }));
+      row.appendChild(button(character.campaign_id ? 'Unbind' : 'Bind', () => {
+        alert('Binding will be wired once auth is added.');
+      }));
+      main.appendChild(row);
+      el.appendChild(main);
+
+      if (character.character_id) {
+        const img = document.createElement('img');
+        img.className = 'char-portrait';
+        img.alt = (character.name || 'Character') + ' portrait';
+        img.loading = 'lazy';
+        img.src =
+          'https://pub-32923a77247d4f2f9ad60bd440ec6e10.r2.dev/portraits/' +
+          encodeURIComponent(character.character_id) +
+          '.jpg';
+        img.addEventListener('error', () => img.remove());
+        el.appendChild(img);
+      }
+
+      return el;
+    }
+
     function renderPlayer(player) {
       elWrap.hidden = false;
       elStatus.style.display = 'none';
@@ -355,20 +424,7 @@
           : '/app/passport.html';
       }
 
-      const characterCards = (player.characters || []).map((c) => {
-        const meta = [
-          'ID: ' + c.character_id,
-          c.campaign_id ? ('Campaign: ' + (c.campaign_name || c.campaign_id)) : 'Unbound'
-        ];
-        return card(c.name || 'Unnamed Character', meta, [
-          button('View Sheet', () => {
-            window.location.href = '/app/character?character_id=' + encodeURIComponent(c.character_id);
-          }),
-          button(c.campaign_id ? 'Unbind' : 'Bind', () => {
-            alert('Binding will be wired once auth is added.');
-          })
-        ]);
-      });
+      const characterCards = (player.characters || []).map((c) => characterCard(c));
       renderList(elCharacters, characterCards, 'No characters yet.');
 
       const campaignCards = (player.campaigns || []).map((c) => {
