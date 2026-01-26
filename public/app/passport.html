@@ -190,6 +190,9 @@
       color:var(--ink);
       cursor:pointer;
     }
+    .copy-btn.hidden{
+      display:none;
+    }
     .field.compact .value{
       font-size:15px;
       letter-spacing:0.01em;
@@ -259,9 +262,18 @@
       :root{
         --qr-size: 70px;
         --token-max-width: 240px;
+        --portrait-size: 136px;
       }
       .field.compact .value{
         font-size:13px;
+      }
+      #nameField .value,
+      #versionField .value,
+      #dateField .value{
+        font-size:13px;
+      }
+      .copy-btn{
+        display:none;
       }
     }
   </style>
