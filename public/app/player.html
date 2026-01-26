@@ -279,6 +279,7 @@
     const elCampaigns = document.getElementById('campaignsList');
     const elInvites = document.getElementById('invitesList');
     const elPassportLink = document.getElementById('passportLink');
+    const STORAGE_KEY = 'passport_token';
 
     const SAMPLE_PLAYER = {
       player_id: 'YHGxImkt3NhbT5ExZOXpIQ',
@@ -460,9 +461,26 @@
       renderList(elInvites, inviteCards, 'No invites right now.');
     }
 
+    function readPassportToken() {
+      const hash = window.location.hash || '';
+      const match = hash.match(/passport=([^&]+)/);
+      if (match && match[1]) {
+        const token = decodeURIComponent(match[1]);
+        localStorage.setItem(STORAGE_KEY, token);
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+        return token;
+      }
+      return localStorage.getItem(STORAGE_KEY) || '';
+    }
+
+    function authHeaders(token) {
+      return token ? { Authorization: 'Bearer ' + token } : {};
+    }
+
     async function init() {
       const params = new URLSearchParams(window.location.search);
       const playerId = params.get('player_id') || params.get('playerId');
+      const passportToken = readPassportToken();
       if (!playerId) {
         setStatus('No player_id in URL. Showing sample dashboard.');
         renderPlayer(SAMPLE_PLAYER);
@@ -471,10 +489,10 @@
 
       try {
         const [playerRes, charsRes, campsRes, invitesRes] = await Promise.all([
-          fetch('/api/players/' + encodeURIComponent(playerId), { cache: 'no-store' }),
-          fetch('/api/players/' + encodeURIComponent(playerId) + '/characters', { cache: 'no-store' }),
-          fetch('/api/players/' + encodeURIComponent(playerId) + '/campaigns', { cache: 'no-store' }),
-          fetch('/api/players/' + encodeURIComponent(playerId) + '/invites', { cache: 'no-store' })
+          fetch('/api/players/' + encodeURIComponent(playerId), { cache: 'no-store', headers: authHeaders(passportToken) }),
+          fetch('/api/players/' + encodeURIComponent(playerId) + '/characters', { cache: 'no-store', headers: authHeaders(passportToken) }),
+          fetch('/api/players/' + encodeURIComponent(playerId) + '/campaigns', { cache: 'no-store', headers: authHeaders(passportToken) }),
+          fetch('/api/players/' + encodeURIComponent(playerId) + '/invites', { cache: 'no-store', headers: authHeaders(passportToken) })
         ]);
 
         if (!playerRes.ok) throw new Error('Player not found');

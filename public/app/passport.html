@@ -25,8 +25,9 @@
       --qr-x: 28.5%;
       --qr-y: 72.5%;
       --qr-size: 90px;
-      --token-x: 22%;
-      --token-y: 80.5%;
+      --token-x: 28.5%;
+      --token-y: 81.5%;
+      --token-max-width: 200px;
       --portrait-x: 68.75%;
       --portrait-y: 46.1%;
       --portrait-size: 170px;
@@ -116,6 +117,36 @@
       font-weight:600;
       letter-spacing:0.02em;
     }
+    .token-row{
+      position:absolute;
+      transform:translate(-50%, -50%);
+      display:flex;
+      align-items:center;
+      gap:8px;
+      max-width:var(--token-max-width);
+      color:var(--accent);
+      font-size:12px;
+      font-weight:600;
+    }
+    .token-value{
+      font-family:"Courier New",monospace;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width:120px;
+    }
+    .copy-btn{
+      pointer-events:auto;
+      background:transparent;
+      border:1px solid rgba(47,35,20,0.35);
+      border-radius:999px;
+      padding:2px 6px;
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:var(--ink);
+      cursor:pointer;
+    }
     .field.compact .value{
       font-size:15px;
       letter-spacing:0.01em;
@@ -129,6 +160,7 @@
       background:transparent;
       border-radius:0;
       box-shadow:none;
+      pointer-events:auto;
     }
     .qr img{
       display:block;
@@ -200,11 +232,12 @@
         <div class="portrait" id="passportPortrait" style="left:var(--portrait-x); top:var(--portrait-y);" hidden>
           <img id="passportPortraitImg" alt="Passport portrait" />
         </div>
-        <div class="qr" id="passportQr" style="left:var(--qr-x); top:var(--qr-y);">
+        <a class="qr" id="passportQr" style="left:var(--qr-x); top:var(--qr-y);" target="_blank" rel="noopener">
           <img id="passportQrImg" alt="Passport QR code" />
-        </div>
-        <div class="field small" id="tokenField" style="left:var(--token-x); top:var(--token-y);">
-          <div class="value" id="passportToken">--</div>
+        </a>
+        <div class="token-row" id="tokenRow" style="left:var(--token-x); top:var(--token-y);">
+          <span class="token-value" id="passportToken">--</span>
+          <button class="copy-btn" type="button" id="copyTokenBtn">Copy Key</button>
         </div>
         <div class="field" id="nameField" style="left:var(--name-x); top:var(--name-y);">
           <div class="label">Player Name</div>
@@ -238,9 +271,12 @@
     const elPassportDate = document.getElementById('passportDate');
     const elPassportToken = document.getElementById('passportToken');
     const elPassportQrImg = document.getElementById('passportQrImg');
+    const elPassportQr = document.getElementById('passportQr');
+    const elCopyTokenBtn = document.getElementById('copyTokenBtn');
     const elPassportPortrait = document.getElementById('passportPortrait');
     const elPassportPortraitImg = document.getElementById('passportPortraitImg');
     const PORTRAIT_BASE = 'https://pub-32923a77247d4f2f9ad60bd440ec6e10.r2.dev/portraits/';
+    const DASHBOARD_BASE = 'https://delvus.net/app/player.html';
 
     const SAMPLE_PLAYER = {
       player_id: 'sample_player_id',
@@ -258,14 +294,19 @@
       elStatus.style.display = 'none';
       elPlayerName.textContent = player.display_name || 'Unnamed Player';
       elPlayerId.textContent = player.player_id || '--';
-      if (elPassportToken) elPassportToken.textContent = player.dashboard_token || '--';
+      const token = player.dashboard_token || '';
+      if (elPassportToken) elPassportToken.textContent = token || '--';
       if (elPassportQrImg) {
-        const token = player.dashboard_token || '';
-        const data = token || player.player_id || '';
-        if (data) {
+        const playerId = player.player_id || '';
+        const dashboardUrl =
+          DASHBOARD_BASE +
+          (playerId ? ('?player_id=' + encodeURIComponent(playerId)) : '') +
+          (token ? ('#passport=' + encodeURIComponent(token)) : '');
+        if (elPassportQr) elPassportQr.href = dashboardUrl;
+        if (token || playerId) {
           elPassportQrImg.src =
             'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&bgcolor=dfac75&color=2b2416&data=' +
-            encodeURIComponent(data);
+            encodeURIComponent(dashboardUrl);
         }
       }
       if (elPassportVersion) elPassportVersion.textContent = 'v1.0';
@@ -370,6 +411,15 @@
 
     if (elPrint) {
       elPrint.addEventListener('click', () => window.print());
+    }
+
+    if (elCopyTokenBtn) {
+      elCopyTokenBtn.addEventListener('click', () => {
+        const token = elPassportToken?.textContent || '';
+        if (!token || token === '--') return;
+        if (!navigator.clipboard) return alert('Clipboard not available.');
+        navigator.clipboard.writeText(token);
+      });
     }
 
     init();
