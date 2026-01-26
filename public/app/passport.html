@@ -98,7 +98,7 @@
       font-size:14px;
       letter-spacing:0.16em;
       text-transform:uppercase;
-      color:var(--muted);
+      color:#4a3b27;
     }
     .summary-grid{
       display:grid;
@@ -111,7 +111,7 @@
       font-size:12px;
       letter-spacing:0.12em;
       text-transform:uppercase;
-      color:var(--muted);
+      color:#4a3b27;
     }
     .summary-list{
       display:flex;
@@ -127,7 +127,7 @@
       font-weight:700;
     }
     .summary-item .meta{
-      color:var(--muted);
+      color:#4a3b27;
     }
     .passport-img{
       width:100%;
@@ -263,6 +263,9 @@
       }
       .sheet{box-shadow:none;border:none;border-radius:0;}
       .print-summary{display:block;}
+      .summary-block:first-child{
+        padding-left:0.5in;
+      }
       :root{
         --qr-size: 70px;
         --token-max-width: 240px;
@@ -330,7 +333,7 @@
       </div>
     </div>
     <div class="print-summary" id="printSummary">
-      <h2>Player Summary</h2>
+      <h2 id="summaryTitle">Player Summary</h2>
       <div class="summary-grid">
         <div class="summary-block">
           <h3>Characters</h3>
