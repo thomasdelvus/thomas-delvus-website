@@ -370,6 +370,7 @@ Version: set in JS (VERSION)
       </div>
       <div id="canvasWrap"><canvas id="canvas" aria-label="Battlemat canvas"></canvas></div>
       <div id="sidebar">
+        <div id="stateDebug" class="mini" style="opacity:0.75;"></div>
         <h3>Status</h3>
         <div id="statusMeta"></div>
         <div class="statusWrap">
@@ -484,10 +485,11 @@ Version: set in JS (VERSION)
     ssText: getEl('ssText'),
       ssSelect: getEl('ssSelect'),
       zoomText: getEl('zoomText'),
-      statusMeta: getEl('statusMeta'),
-      statusBody: getEl('statusBody'),
-      statusAction: getEl('statusAction'),
-      toolSelect: getEl('toolSelect'),
+    statusMeta: getEl('statusMeta'),
+    statusBody: getEl('statusBody'),
+    statusAction: getEl('statusAction'),
+    stateDebug: getEl('stateDebug'),
+    toolSelect: getEl('toolSelect'),
     toolRoom: getEl('toolRoom'),
     toolDoor: getEl('toolDoor'),
     toolWindow: getEl('toolWindow'),
@@ -567,6 +569,7 @@ Version: set in JS (VERSION)
   const elSaveDb = els.btnSaveDb;
   const elUndo = els.btnUndo;
   const elToolStatus = els.toolStatus;
+  const elStateDebug = els.stateDebug;
   const elEditorSectionOrder = els.editorSectionOrder;
   const elEditorSectionObject = els.editorSectionObject;
   const elEditorSectionOpening = els.editorSectionOpening;
@@ -680,6 +683,10 @@ Version: set in JS (VERSION)
   let SPRITE_LOAD_TICK = 0;
   let SPRITES_ENABLED = true;
   let STATE_SOURCE = 'embedded';
+  let LAST_FETCH_URL = '';
+  let LAST_FETCH_STATUS = null;
+  let LAST_FETCH_ERROR = '';
+  let LAST_FETCH_AT = 0;
 
   const EDITOR = {
     tool: 'select',
@@ -880,6 +887,8 @@ Version: set in JS (VERSION)
     // Cache-bust so you can serve plain JSON from static hosting or through proxies.
     const sep = u.includes('?') ? '&' : '?';
     const fetchUrl = u + sep + '_ts=' + Date.now();
+    LAST_FETCH_URL = fetchUrl;
+    LAST_FETCH_ERROR = '';
 
     const res = await fetch(fetchUrl, {
       method: 'GET',
@@ -887,7 +896,12 @@ Version: set in JS (VERSION)
       headers: { 'Accept': 'application/json' },
     });
 
-    if (!res.ok) throw new Error('State fetch failed: ' + res.status + ' ' + res.statusText);
+    LAST_FETCH_STATUS = res.status;
+    LAST_FETCH_AT = Date.now();
+    if (!res.ok) {
+      LAST_FETCH_ERROR = 'HTTP ' + res.status + ' ' + res.statusText;
+      throw new Error('State fetch failed: ' + res.status + ' ' + res.statusText);
+    }
 
     const txt = await res.text();
     const jsonText = txt.trim();
@@ -896,6 +910,7 @@ Version: set in JS (VERSION)
     let parsedOuter;
     try { parsedOuter = JSON.parse(jsonText); }
     catch (e) {
+      LAST_FETCH_ERROR = 'non-JSON response';
       throw new Error('State fetch returned non-JSON: ' + (e && e.message ? e.message : String(e)));
     }
 
@@ -910,6 +925,7 @@ Version: set in JS (VERSION)
         let parsedState;
         try { parsedState = JSON.parse(sjText); }
         catch (e) {
+          LAST_FETCH_ERROR = 'invalid state_json';
           throw new Error('Battle record has invalid state_json JSON: ' + (e && e.message ? e.message : String(e)));
         }
 
@@ -1103,8 +1119,11 @@ Version: set in JS (VERSION)
         applyFetchedState(got.parsed, got.jsonText);
         safeRedraw();
       }
+      updateStateDebug();
     } catch (e) {
       console.warn('[Battlemat] state poll error:', e);
+      LAST_FETCH_ERROR = LAST_FETCH_ERROR || (e && e.message ? String(e.message) : 'fetch error');
+      updateStateDebug();
       // Show last error in UI, but don't spam.
       if (elError) {
         elError.hidden = false;
@@ -1134,6 +1153,15 @@ Version: set in JS (VERSION)
     elToolStatus.classList.remove('ok', 'error');
     if (kind === 'ok') elToolStatus.classList.add('ok');
     if (kind === 'error') elToolStatus.classList.add('error');
+  }
+
+  function updateStateDebug() {
+    if (!elStateDebug) return;
+    const source = STATE_SOURCE || 'n/a';
+    const url = STATE_URL || LAST_FETCH_URL || 'n/a';
+    const status = (LAST_FETCH_STATUS != null) ? String(LAST_FETCH_STATUS) : 'n/a';
+    const err = LAST_FETCH_ERROR ? (' - ' + LAST_FETCH_ERROR) : '';
+    elStateDebug.textContent = 'State: ' + source + ' | URL: ' + url + ' | Last: ' + status + err;
   }
 
   function syncEditorButtons() {
@@ -6044,6 +6072,7 @@ function populateFloorSelect(floors) {
     populateFloorSelect(render.floors);
     populateCenterOn(state, tokens);
     updateSidebar(state, render.floor, rooms, openings, objects, tokens);
+    updateStateDebug();
     populateObjectKindSelect(state);
     populateRoomKindDatalists();
     syncSourceSelect();
@@ -6975,6 +7004,7 @@ function setActiveFloor(floorId, opts = {}) {
     wireUI();
     syncEditorButtons();
     updateEditorPanelVisibility();
+    updateStateDebug();
 
     // Remote state (DB/API) hookup with DB default.
     const qp = getQueryParamsCached();
