@@ -434,7 +434,7 @@ export default {
       const playerId = decodeURIComponent(playerCharactersMatch[1]);
       if (method !== "GET") return json({ error: "Method not allowed" }, 405);
       const rows = await env.DB.prepare(
-        `SELECT ch.character_id, ch.player_id, ch.campaign_id, ch.name, c.name AS campaign_name
+        `SELECT ch.character_id, ch.player_id, ch.campaign_id, ch.name, ch.nickname, c.name AS campaign_name
          FROM characters ch
          LEFT JOIN campaigns c ON c.campaign_id = ch.campaign_id
          WHERE ch.player_id = ?
