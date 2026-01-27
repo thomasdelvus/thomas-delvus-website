@@ -350,6 +350,15 @@ Version: set in JS (VERSION)
     }
     .dpad button{padding:6px 8px; border-radius:10px; min-width:34px;}
 
+    body.playtest #toolbox{display:none;}
+    body.playtest #stateDebug{display:none;}
+    body.playtest #editorPanel{display:none;}
+    body.playtest #editorTitle{display:none;}
+    body.playtest #errorBox{display:none;}
+    body.playtest #status .mini[data-hide-playtest="true"]{display:none;}
+    body.playtest #status .pill[data-hide-playtest="true"]{display:none;}
+    body.playtest #controls [data-hide-playtest="true"]{display:none;}
+
     @media (max-width: 980px){
       #layout{grid-template-columns:1fr; grid-template-rows:auto 1fr auto;}
       #toolbox{flex-direction:row; flex-wrap:wrap; justify-content:space-between;}
@@ -361,33 +370,34 @@ Version: set in JS (VERSION)
   <div id="topbar">
     <div id="status">
       <div class="pill" title="Battlemat version" id="versionPill"><span class="dot"></span><span id="versionText"></span></div>
-      <div class="mini">Scene <select id="sceneSelect"></select></div>
+      <div class="mini" data-hide-playtest="true">Scene <select id="sceneSelect"></select></div>
       <div class="sep"></div>
-      <div class="mini">Floor <select id="floorSelect"></select></div>
+      <div class="mini" data-hide-playtest="true">Floor <select id="floorSelect"></select></div>
       <div class="sep"></div>
-      <div class="mini">Source
+      <div class="mini" data-hide-playtest="true">Source
         <select id="sourceSelect">
           <option value="database" selected>Database</option>
           <option value="file">File</option>
           <option value="embedded">Embedded</option>
         </select>
       </div>
-      <div class="mini">Battle ID
+      <div class="mini" data-hide-playtest="true">Battle ID
         <input id="battleIdInput" type="text" inputmode="numeric" placeholder="id" />
         <button id="battleIdApply" title="Use battle id">Use</button>
       </div>
-      <div class="pill" title="DevicePixelRatio × Supersample">
+      <div class="pill" data-hide-playtest="true" title="DevicePixelRatio × Supersample">
         DPR <span id="dprText">?</span>
         &nbsp;·&nbsp; SS <span id="ssText">?</span>
       </div>
     </div>
 
     <div id="controls">
-      <label class="mini"><input type="checkbox" id="fogToggle" checked /> Fog</label>
-      <label class="mini"><input type="checkbox" id="spriteToggle" checked /> Sprites</label>
+      <label class="mini" data-hide-playtest="true"><input type="checkbox" id="fogToggle" checked /> Fog</label>
+      <label class="mini" data-hide-playtest="true"><input type="checkbox" id="spriteToggle" checked /> Sprites</label>
       <label class="mini"><input type="checkbox" id="labelBoldToggle" /> Bright Labels</label>
+      <label class="mini" title="Hide editor/debug UI"><input type="checkbox" id="playtestToggle" /> Playtest</label>
 
-      <div class="mini">SS
+      <div class="mini" data-hide-playtest="true">SS
         <select id="ssSelect" title="Supersample quality">
           <option value="1">1×</option>
           <option value="2">2×</option>
@@ -395,16 +405,16 @@ Version: set in JS (VERSION)
         </select>
       </div>
 
-      <div class="mini">Center
+      <div class="mini" data-hide-playtest="true">Center
         <select id="centerOn" title="Follow a PC token"></select>
       </div>
 
-      <div class="mini">Jump
+      <div class="mini" data-hide-playtest="true">Jump
         <input id="jumpHex" type="text" value="U16" />
         <button id="btnJump">Go</button>
       </div>
 
-      <button id="btnRedraw">Redraw</button>
+      <button id="btnRedraw" data-hide-playtest="true">Redraw</button>
 
       <div class="dpad" title="Pan camera">
         <button id="btnLeft">←</button>
@@ -459,7 +469,7 @@ Version: set in JS (VERSION)
         <h3>Log</h3>
         <div id="chatLog"></div>
 
-        <h3>Editor</h3>
+        <h3 id="editorTitle">Editor</h3>
         <div id="editorPanel">
         <div id="editorSectionOrder" class="editorSection">
           <div class="mini">Order
@@ -570,6 +580,7 @@ Version: set in JS (VERSION)
     chatInput: getEl('chatInput'),
     chatSend: getEl('chatSend'),
     stateDebug: getEl('stateDebug'),
+    playtestToggle: getEl('playtestToggle'),
     toolSelect: getEl('toolSelect'),
     toolRoom: getEl('toolRoom'),
     toolDoor: getEl('toolDoor'),
@@ -650,6 +661,7 @@ Version: set in JS (VERSION)
   const elSaveDb = els.btnSaveDb;
   const elUndo = els.btnUndo;
   const elToolStatus = els.toolStatus;
+  const elPlaytestToggle = els.playtestToggle;
   const elChatLog = els.chatLog;
   const elChatSpeaker = els.chatSpeaker;
   const elChatInput = els.chatInput;
@@ -756,6 +768,7 @@ Version: set in JS (VERSION)
   })();
   const STORAGE_SS = STORAGE_PREFIX + 'supersample';
   const STORAGE_ZOOM = STORAGE_PREFIX + 'zoom';
+  const STORAGE_PLAYTEST = STORAGE_PREFIX + 'playtest';
 
   // ===== Remote state (DB/API) =====
   const DEFAULT_POLL_MS = 0;
@@ -1253,6 +1266,17 @@ Version: set in JS (VERSION)
     const status = (LAST_FETCH_STATUS != null) ? String(LAST_FETCH_STATUS) : 'n/a';
     const err = LAST_FETCH_ERROR ? (' - ' + LAST_FETCH_ERROR) : '';
     elStateDebug.textContent = 'State: ' + source + ' | URL: ' + url + ' | Last: ' + status + err;
+  }
+
+  function setPlaytestMode(enabled) {
+    const on = !!enabled;
+    document.body.classList.toggle('playtest', on);
+    if (elPlaytestToggle) elPlaytestToggle.checked = on;
+    try { localStorage.setItem(STORAGE_PLAYTEST, on ? '1' : '0'); } catch {}
+  }
+
+  function readPlaytestMode() {
+    try { return localStorage.getItem(STORAGE_PLAYTEST) === '1'; } catch { return false; }
   }
 
   function normalizeChatEntry(entry) {
@@ -6544,6 +6568,7 @@ function setActiveFloor(floorId, opts = {}) {
     const chatSpeaker = req('chatSpeaker');
     const chatInput = req('chatInput');
     const chatSend = req('chatSend');
+    const playtestToggle = req('playtestToggle');
 
     if (btnLeft) btnLeft.onclick = () => pan(-PAN_STEP, 0);
     if (btnRight) btnRight.onclick = () => pan(PAN_STEP, 0);
@@ -6573,6 +6598,7 @@ function setActiveFloor(floorId, opts = {}) {
     if (btnUndo) btnUndo.onclick = () => applyUndoSnapshot();
     if (btnScanIssues) btnScanIssues.onclick = () => window.BattlematScanIssues();
     if (btnCleanOrphans) btnCleanOrphans.onclick = () => window.BattlematCleanOrphanOpenings();
+    if (playtestToggle) playtestToggle.onchange = () => setPlaytestMode(playtestToggle.checked);
 
     const onObjectControlChange = () => updateObjectControlsFromInputs({ applyToSelection: true });
     if (objectKindSelect) objectKindSelect.onchange = () => onObjectControlChange();
@@ -7242,6 +7268,7 @@ function setActiveFloor(floorId, opts = {}) {
     updateEditorPanelVisibility();
     updateStateDebug();
     renderChatLog();
+    setPlaytestMode(readPlaytestMode());
 
     // Remote state (DB/API) hookup with DB default.
     const qp = getQueryParamsCached();
