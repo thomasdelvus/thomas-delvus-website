@@ -428,7 +428,10 @@
             encodeURIComponent(dashboardUrl);
         }
       }
-      if (elPassportVersion) elPassportVersion.textContent = 'v1.0';
+      if (elPassportVersion) {
+        const version = (player.version != null) ? String(player.version) : '1.0';
+        elPassportVersion.textContent = 'v' + version;
+      }
       if (elPassportDate) {
         const d = new Date();
         const stamp = d.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
