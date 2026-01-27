@@ -139,12 +139,12 @@ paths:
 
     put:
       operationId: update_battle
-      summary: Update a battle's stored state (auth required)
+      summary: Update a battle's stored state or chat log (auth required)
       x-openai-isConsequential: false
       description: >
-        Updates the battle record (typically state_json). state_json may be provided
-        either as a JSON string (already stringified) or as an object (the server
-        may stringify it before storing).
+        Updates the battle record. Provide state_json and/or chat_json. Either field
+        may be provided as a JSON string (already stringified) or as an object/array
+        (the server may stringify it before storing).
       security:
         - bearerAuth: []
       parameters:
@@ -164,13 +164,17 @@ paths:
                   oneOf:
                     - type: string
                     - type: object
+                chat_json:
+                  oneOf:
+                    - type: string
+                    - type: array
                 name:
                   type: string
                 campaign_id:
                   type: string
                 version:
                   type: integer
-              required: [state_json]
+              required: []
       responses:
         "200":
           description: Battle updated
@@ -366,6 +370,8 @@ components:
         name:
           type: string
         state_json:
+          type: [string, "null"]
+        chat_json:
           type: [string, "null"]
         version:
           type: integer
