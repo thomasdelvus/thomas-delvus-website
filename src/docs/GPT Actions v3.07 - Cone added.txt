@@ -1,14 +1,14 @@
-# GPT Actions OpenAPI Spec v3.10
+# GPT Actions OpenAPI Spec
 openapi: 3.1.0
 
 info:
   title: Game API
   description: Read/write access to battles and characters stored in Cloudflare D1 (Bearer-auth protected).
-  version: "3.10"
+  version: "current"
 
 # Changelog (commented out for easy copy/paste)
-# - v3.10: allow chat_json on battle PUT; make state_json optional; include chat_json in Battle schema; add messages endpoints; fix array schema items.
-# - v3.09: prior spec
+# - add PATCH /messages/{chat_id} for status updates (ack/canceled/processed)
+# - prior: messages endpoints + chat_json optional on battle PUT
 
 servers:
   - url: "https://dungeon.delvus.net"
@@ -309,6 +309,49 @@ paths:
                 required: [ok, row]
         "400":
           description: Invalid request
+        "401":
+          description: Missing Authorization header
+        "403":
+          description: Invalid token
+
+  /messages/{chat_id}:
+    patch:
+      operationId: update_message
+      summary: Update a message status (auth required)
+      x-openai-isConsequential: false
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: chat_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+              required: [status]
+      responses:
+        "200":
+          description: Message updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  row:
+                    $ref: "#/components/schemas/Message"
+                required: [ok, row]
+        "404":
+          description: Message not found
         "401":
           description: Missing Authorization header
         "403":
