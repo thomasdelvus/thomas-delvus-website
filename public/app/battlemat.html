@@ -299,6 +299,29 @@ Version: set in JS (VERSION)
       white-space:nowrap;
     }
     .chatText{white-space:pre-wrap;}
+    .chatDetails{
+      display:inline;
+    }
+    .chatDetails summary{
+      cursor:pointer;
+      list-style:none;
+      color:var(--text);
+      display:inline;
+    }
+    .chatDetails summary::-webkit-details-marker{display:none;}
+    .chatPreview{
+      color:var(--text);
+    }
+    .chatMore{
+      color:var(--muted);
+      margin-left:6px;
+      font-size:11px;
+    }
+    .chatFull{
+      display:block;
+      margin-top:4px;
+      white-space:pre-wrap;
+    }
 
     #chatBar{
       position:fixed;
@@ -1333,6 +1356,16 @@ Version: set in JS (VERSION)
     return `${hh}:${mm}`;
   }
 
+  function summarizeChatText(text, limit = 140) {
+    const raw = String(text || '');
+    const firstLine = raw.split('\n')[0];
+    if (raw.length <= limit && firstLine.length <= limit) return { preview: raw, collapsed: false };
+    const preview = (firstLine.length > limit)
+      ? firstLine.slice(0, limit - 1) + '…'
+      : firstLine + (raw.length > firstLine.length ? '…' : '');
+    return { preview, collapsed: true };
+  }
+
   function renderChatLog() {
     if (!elChatLog) return;
     if (!CHAT_LOG.length) {
@@ -1341,10 +1374,20 @@ Version: set in JS (VERSION)
     }
     elChatLog.innerHTML = CHAT_LOG.map(e => {
       const speaker = escapeHtml(e.speaker || 'Unknown');
-      const text = escapeHtml(e.text || '');
+      const rawText = String(e.text || '');
+      const safeText = escapeHtml(rawText);
+      const summary = summarizeChatText(rawText, 180);
+      const safePreview = escapeHtml(summary.preview || '');
       return '<div class="chatEntry">'
         + '<span class="chatSpeaker">' + speaker + ':</span>'
-        + '<span class="chatText">' + text + '</span>'
+        + (summary.collapsed
+          ? '<details class="chatDetails"><summary>'
+              + '<span class="chatPreview">' + safePreview + '</span>'
+              + '<span class="chatMore">(more)</span>'
+            + '</summary>'
+            + '<div class="chatFull">' + safeText + '</div>'
+            + '</details>'
+          : '<span class="chatText">' + safeText + '</span>')
         + '</div>';
     }).join('');
     elChatLog.scrollTop = elChatLog.scrollHeight;

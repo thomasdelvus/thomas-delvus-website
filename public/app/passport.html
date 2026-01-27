@@ -681,6 +681,10 @@
           }
         }
 
+        clone.querySelectorAll('script').forEach((node) => node.remove());
+        const status = clone.querySelector('#status');
+        if (status) status.remove();
+
         const html = '<!doctype html>\n' + clone.outerHTML;
         const blob = new Blob([html], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
