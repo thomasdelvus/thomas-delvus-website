@@ -284,11 +284,6 @@ Version: set in JS (VERSION)
       align-items:flex-start;
       line-height:1.3;
     }
-    .chatTime{
-      color:var(--muted);
-      font-variant-numeric:tabular-nums;
-      min-width:42px;
-    }
     .chatSpeaker{
       font-weight:600;
       color:var(--text);
@@ -1318,11 +1313,9 @@ Version: set in JS (VERSION)
       return;
     }
     elChatLog.innerHTML = CHAT_LOG.map(e => {
-      const time = formatChatTime(e.ts);
       const speaker = escapeHtml(e.speaker || 'Unknown');
       const text = escapeHtml(e.text || '');
       return '<div class="chatEntry">'
-        + '<span class="chatTime">' + time + '</span>'
         + '<span class="chatSpeaker">' + speaker + ':</span>'
         + '<span class="chatText">' + text + '</span>'
         + '</div>';
