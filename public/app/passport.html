@@ -315,6 +315,7 @@
     <div class="brand">Player Passport</div>
     <div class="nav">
       <button type="button" id="printBtn">Print to PDF</button>
+      <button type="button" id="downloadBtn">Download Passport</button>
       <a href="/app/player.html" id="backLink">Back to Dashboard</a>
     </div>
   </div>
@@ -381,6 +382,7 @@
     const elPlayerId = document.getElementById('playerId');
     const elBackLink = document.getElementById('backLink');
     const elPrint = document.getElementById('printBtn');
+    const elDownload = document.getElementById('downloadBtn');
     const elPassportVersion = document.getElementById('passportVersion');
     const elPassportDate = document.getElementById('passportDate');
     const elPassportToken = document.getElementById('passportToken');
@@ -393,6 +395,7 @@
     const DASHBOARD_BASE = 'https://delvus.net/app/player.html';
     const elSummaryCharacters = document.getElementById('summaryCharacters');
     const elSummaryCampaigns = document.getElementById('summaryCampaigns');
+    const IS_SNAPSHOT = document.documentElement.hasAttribute('data-passport-snapshot');
 
     const SAMPLE_PLAYER = {
       player_id: 'sample_player_id',
@@ -595,6 +598,7 @@
     }
 
     async function init() {
+      if (IS_SNAPSHOT) return;
       const params = new URLSearchParams(window.location.search);
       const playerId = params.get('player_id') || params.get('playerId');
       if (!playerId) {
@@ -645,6 +649,55 @@
         if (!navigator.clipboard) return alert('Clipboard not available.');
         navigator.clipboard.writeText(token);
       });
+    }
+
+    async function toDataUrl(src) {
+      const res = await fetch(src, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to fetch image');
+      const blob = await res.blob();
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function downloadPassport() {
+      try {
+        const clone = document.documentElement.cloneNode(true);
+        clone.setAttribute('data-passport-snapshot', '1');
+
+        const imgIds = ['passportBg', 'passportQrImg', 'passportPortraitImg'];
+        for (const id of imgIds) {
+          const img = document.getElementById(id);
+          const cloneImg = clone.querySelector('#' + id);
+          if (img && cloneImg && img.src && !img.src.startsWith('data:')) {
+            try {
+              const dataUrl = await toDataUrl(img.src);
+              cloneImg.setAttribute('src', dataUrl);
+            } catch {
+              // ignore per-image failures
+            }
+          }
+        }
+
+        const html = '<!doctype html>\n' + clone.outerHTML;
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'player-passport.html';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (err) {
+        alert('Failed to download passport.');
+      }
+    }
+
+    if (elDownload) {
+      elDownload.addEventListener('click', () => downloadPassport());
     }
 
     init();

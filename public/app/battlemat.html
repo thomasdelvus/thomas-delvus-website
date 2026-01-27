@@ -264,6 +264,79 @@ Version: set in JS (VERSION)
       white-space:pre-wrap;
     }
 
+    #chatLog{
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:8px;
+      background:rgba(255,255,255,0.03);
+      max-height:220px;
+      overflow:auto;
+      font-size:12px;
+      color:var(--text);
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      margin-bottom:10px;
+    }
+    .chatEntry{
+      display:flex;
+      gap:8px;
+      align-items:flex-start;
+      line-height:1.3;
+    }
+    .chatTime{
+      color:var(--muted);
+      font-variant-numeric:tabular-nums;
+      min-width:42px;
+    }
+    .chatSpeaker{
+      font-weight:600;
+      color:var(--text);
+      margin-right:4px;
+      white-space:nowrap;
+    }
+    .chatText{white-space:pre-wrap;}
+
+    #chatBar{
+      position:fixed;
+      left:0;
+      right:0;
+      bottom:0;
+      display:flex;
+      gap:8px;
+      align-items:center;
+      padding:10px 12px;
+      background:rgba(10,12,18,0.92);
+      border-top:1px solid var(--border);
+      z-index:20;
+    }
+    #chatBar select,
+    #chatBar input{
+      background:rgba(255,255,255,0.08);
+      border:1px solid var(--border);
+      color:var(--text);
+      border-radius:10px;
+      padding:8px 10px;
+      font-size:12px;
+    }
+    #chatSpeaker{
+      min-width:160px;
+    }
+    #chatInput{
+      flex:1;
+    }
+    #chatSend{
+      padding:8px 14px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,0.08);
+      color:var(--text);
+      font-size:12px;
+      cursor:pointer;
+    }
+
+    body{padding-bottom:62px;}
+
     #errorBox{
       border:1px solid rgba(255,90,90,0.35);
       background:rgba(255,90,90,0.08);
@@ -388,6 +461,9 @@ Version: set in JS (VERSION)
         </div>
         <div id="statusAction" hidden></div>
 
+        <h3>Log</h3>
+        <div id="chatLog"></div>
+
         <h3>Editor</h3>
         <div id="editorPanel">
         <div id="editorSectionOrder" class="editorSection">
@@ -456,6 +532,12 @@ Version: set in JS (VERSION)
       </div>
   </div>
 
+  <div id="chatBar">
+    <select id="chatSpeaker"></select>
+    <input id="chatInput" type="text" placeholder="Type message... (prefix with DM, for DM)" />
+    <button id="chatSend">Send</button>
+  </div>
+
   <script>
   // =====================================================================================
   // Battlemat Core Rewrite
@@ -488,6 +570,10 @@ Version: set in JS (VERSION)
     statusMeta: getEl('statusMeta'),
     statusBody: getEl('statusBody'),
     statusAction: getEl('statusAction'),
+    chatLog: getEl('chatLog'),
+    chatSpeaker: getEl('chatSpeaker'),
+    chatInput: getEl('chatInput'),
+    chatSend: getEl('chatSend'),
     stateDebug: getEl('stateDebug'),
     toolSelect: getEl('toolSelect'),
     toolRoom: getEl('toolRoom'),
@@ -569,6 +655,10 @@ Version: set in JS (VERSION)
   const elSaveDb = els.btnSaveDb;
   const elUndo = els.btnUndo;
   const elToolStatus = els.toolStatus;
+  const elChatLog = els.chatLog;
+  const elChatSpeaker = els.chatSpeaker;
+  const elChatInput = els.chatInput;
+  const elChatSend = els.chatSend;
   const elStateDebug = els.stateDebug;
   const elEditorSectionOrder = els.editorSectionOrder;
   const elEditorSectionObject = els.editorSectionObject;
@@ -687,6 +777,9 @@ Version: set in JS (VERSION)
   let LAST_FETCH_STATUS = null;
   let LAST_FETCH_ERROR = '';
   let LAST_FETCH_AT = 0;
+  let CHAT_LOG = [];
+  let LAST_CHAT_JSON_TEXT = '';
+  let CHAT_SAVE_TIMER = null;
 
   const EDITOR = {
     tool: 'select',
@@ -914,9 +1007,10 @@ Version: set in JS (VERSION)
       throw new Error('State fetch returned non-JSON: ' + (e && e.message ? e.message : String(e)));
     }
 
-    // Common DB shape: { ..., state_json: "{...}" }
+    // Common DB shape: { ..., state_json: "{...}", chat_json: "..." }
     if (parsedOuter && typeof parsedOuter === 'object' && parsedOuter.state_json != null) {
       const sj = parsedOuter.state_json;
+      const chatJson = parsedOuter.chat_json;
 
       if (typeof sj === 'string') {
         const sjText = sj.trim();
@@ -930,16 +1024,16 @@ Version: set in JS (VERSION)
         }
 
         // Use state_json text for change detection (avoids redrawing if other DB fields change).
-        return { parsed: parsedState, jsonText: sjText };
+        return { parsed: parsedState, jsonText: sjText, chatJson };
       }
 
       // state_json provided as object already
       try {
         const stable = JSON.stringify(sj);
-        return { parsed: sj, jsonText: stable };
+        return { parsed: sj, jsonText: stable, chatJson };
       } catch {
         // Fallback: if it can't stringify, still apply it
-        return { parsed: sj, jsonText: '[[state_json_object]]' };
+        return { parsed: sj, jsonText: '[[state_json_object]]', chatJson };
       }
     }
 
@@ -983,8 +1077,9 @@ Version: set in JS (VERSION)
     applyViewFromState(scene);
   }
 
-  function applyFetchedState(parsed, jsonText) {
+  function applyFetchedState(parsed, jsonText, chatJson) {
     setCanonicalStateFromRaw(parsed, jsonText);
+    if (chatJson !== undefined) setChatLogFromRaw(chatJson);
     STATE_SOURCE = stateSourceFromUrl(STATE_URL);
   }
 
@@ -1030,6 +1125,7 @@ Version: set in JS (VERSION)
     if (!got) throw new Error('State fetch returned empty body');
 
     setCanonicalStateFromRaw(got.parsed, got.jsonText);
+    if (got.chatJson !== undefined) setChatLogFromRaw(got.chatJson);
     STATE_SOURCE = sourceLabel || stateSourceFromUrl(u);
   }
 
@@ -1116,7 +1212,7 @@ Version: set in JS (VERSION)
 
       // Only apply when the server payload changes.
       if (got.jsonText !== LAST_STATE_JSON) {
-        applyFetchedState(got.parsed, got.jsonText);
+        applyFetchedState(got.parsed, got.jsonText, got.chatJson);
         safeRedraw();
       }
       updateStateDebug();
@@ -1162,6 +1258,133 @@ Version: set in JS (VERSION)
     const status = (LAST_FETCH_STATUS != null) ? String(LAST_FETCH_STATUS) : 'n/a';
     const err = LAST_FETCH_ERROR ? (' - ' + LAST_FETCH_ERROR) : '';
     elStateDebug.textContent = 'State: ' + source + ' | URL: ' + url + ' | Last: ' + status + err;
+  }
+
+  function normalizeChatEntry(entry) {
+    if (!entry || typeof entry !== 'object') return null;
+    const speaker = entry.speaker != null ? String(entry.speaker) : '';
+    const text = entry.text != null ? String(entry.text) : '';
+    const ts = Number(entry.ts || entry.time || Date.now());
+    if (!speaker && !text) return null;
+    return { speaker, text, ts };
+  }
+
+  function setChatLogFromRaw(raw) {
+    let list = [];
+    if (raw == null) {
+      CHAT_LOG = [];
+      LAST_CHAT_JSON_TEXT = '';
+      renderChatLog();
+      return;
+    }
+
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim();
+      if (!trimmed) {
+        CHAT_LOG = [];
+        LAST_CHAT_JSON_TEXT = '';
+        renderChatLog();
+        return;
+      }
+      try { list = JSON.parse(trimmed); }
+      catch { list = []; }
+    } else if (Array.isArray(raw)) {
+      list = raw;
+    } else if (typeof raw === 'object' && Array.isArray(raw.entries)) {
+      list = raw.entries;
+    }
+
+    const normalized = [];
+    for (const entry of list) {
+      const clean = normalizeChatEntry(entry);
+      if (clean) normalized.push(clean);
+    }
+    CHAT_LOG = normalized;
+    try { LAST_CHAT_JSON_TEXT = JSON.stringify(normalized); } catch { LAST_CHAT_JSON_TEXT = ''; }
+    renderChatLog();
+  }
+
+  function formatChatTime(ts) {
+    const d = new Date(ts || Date.now());
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+
+  function renderChatLog() {
+    if (!elChatLog) return;
+    if (!CHAT_LOG.length) {
+      elChatLog.innerHTML = '<div class="mini" style="opacity:0.7;">No chat yet.</div>';
+      return;
+    }
+    elChatLog.innerHTML = CHAT_LOG.map(e => {
+      const time = formatChatTime(e.ts);
+      const speaker = escapeHtml(e.speaker || 'Unknown');
+      const text = escapeHtml(e.text || '');
+      return '<div class="chatEntry">'
+        + '<span class="chatTime">' + time + '</span>'
+        + '<span class="chatSpeaker">' + speaker + ':</span>'
+        + '<span class="chatText">' + text + '</span>'
+        + '</div>';
+    }).join('');
+    elChatLog.scrollTop = elChatLog.scrollHeight;
+  }
+
+  function appendChatEntry(entry) {
+    const clean = normalizeChatEntry(entry);
+    if (!clean) return false;
+    CHAT_LOG.push(clean);
+    if (CHAT_LOG.length > 500) CHAT_LOG = CHAT_LOG.slice(-500);
+    renderChatLog();
+    scheduleChatSave();
+    return true;
+  }
+
+  function scheduleChatSave() {
+    if (STATE_SOURCE !== 'database') return;
+    if (CHAT_SAVE_TIMER) clearTimeout(CHAT_SAVE_TIMER);
+    CHAT_SAVE_TIMER = setTimeout(() => {
+      CHAT_SAVE_TIMER = null;
+      saveChatToDatabase();
+    }, 400);
+  }
+
+  async function saveChatToDatabase() {
+    if (STATE_SOURCE !== 'database') return false;
+    const url = resolveDatabaseUrl() || STATE_URL;
+    if (!url) return false;
+    let payload = '[]';
+    try { payload = JSON.stringify(CHAT_LOG); } catch {}
+    try {
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+        body: JSON.stringify({ chat_json: payload }),
+      });
+      if (!res.ok) throw new Error('Chat save failed: ' + res.status + ' ' + res.statusText);
+      LAST_CHAT_JSON_TEXT = payload;
+      return true;
+    } catch (e) {
+      console.warn('[Battlemat] chat save failed:', e);
+      return false;
+    }
+  }
+
+  function populateChatSpeakerSelect(state) {
+    if (!elChatSpeaker) return;
+    const tokens = getTokensArray(state).filter(t => t && t.id);
+    const names = [];
+    for (const t of tokens) {
+      const name = String(t.name || t.id || '').trim();
+      if (name && !names.includes(name)) names.push(name);
+    }
+    if (!names.includes('DM')) names.unshift('DM');
+    if (!names.includes('Player')) names.push('Player');
+
+    const active = document.activeElement === elChatSpeaker;
+    if (!active) {
+      elChatSpeaker.innerHTML = names.map(n => '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>').join('');
+    }
   }
 
   function syncEditorButtons() {
@@ -6073,6 +6296,7 @@ function populateFloorSelect(floors) {
     populateCenterOn(state, tokens);
     updateSidebar(state, render.floor, rooms, openings, objects, tokens);
     updateStateDebug();
+    populateChatSpeakerSelect(state);
     populateObjectKindSelect(state);
     populateRoomKindDatalists();
     syncSourceSelect();
@@ -6324,6 +6548,9 @@ function setActiveFloor(floorId, opts = {}) {
     const battleIdInput = req('battleIdInput');
     const battleIdApply = req('battleIdApply');
     const statusBody = req('statusBody');
+    const chatSpeaker = req('chatSpeaker');
+    const chatInput = req('chatInput');
+    const chatSend = req('chatSend');
 
     if (btnLeft) btnLeft.onclick = () => pan(-PAN_STEP, 0);
     if (btnRight) btnRight.onclick = () => pan(PAN_STEP, 0);
@@ -6419,6 +6646,22 @@ function setActiveFloor(floorId, opts = {}) {
         if (tryOpenSheet(ev.target)) ev.preventDefault();
       });
     }
+
+    const submitChat = () => {
+      if (!chatInput) return;
+      const text = String(chatInput.value || '').trim();
+      if (!text) return;
+      const speaker = chatSpeaker ? String(chatSpeaker.value || '').trim() : 'Player';
+      appendChatEntry({ speaker, text, ts: Date.now() });
+      chatInput.value = '';
+    };
+    if (chatSend) chatSend.onclick = () => submitChat();
+    if (chatInput) chatInput.onkeydown = (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        submitChat();
+      }
+    };
 
     if (canvas) {
       canvas.addEventListener('mousemove', (ev) => {
@@ -7005,6 +7248,7 @@ function setActiveFloor(floorId, opts = {}) {
     syncEditorButtons();
     updateEditorPanelVisibility();
     updateStateDebug();
+    renderChatLog();
 
     // Remote state (DB/API) hookup with DB default.
     const qp = getQueryParamsCached();
