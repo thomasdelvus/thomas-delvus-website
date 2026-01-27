@@ -483,7 +483,7 @@ export default {
         if (!campaignId) return json({ error: "Missing campaign_id" }, 400);
 
         const rows = await env.DB.prepare(
-          `SELECT character_id, campaign_id, player_id, name, sheet_json, notes_text, version, created_at, updated_at
+          `SELECT character_id, campaign_id, player_id, name, nickname, sheet_json, notes_text, version, created_at, updated_at
            FROM characters
            WHERE campaign_id = ?
            ORDER BY name ASC`
@@ -500,6 +500,7 @@ export default {
         const campaignId = normStr(incoming.campaign_id ?? incoming.campaignId);
         const playerId = normStr(incoming.player_id ?? incoming.playerId);
         const name = normStr(incoming.name);
+        const nickname = ("nickname" in incoming) ? normStr(incoming.nickname) : null;
         if (!campaignId) return json({ error: "Missing campaign_id" }, 400);
         if (!name) return json({ error: "Missing name" }, 400);
 
@@ -525,15 +526,16 @@ export default {
         const version = 1;
 
         await env.DB.prepare(
-          `INSERT INTO characters (character_id, campaign_id, player_id, name, sheet_json, notes_text, version, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(characterId, campaignId, playerId, name, sheetJson, notesText, version, now, now).run();
+          `INSERT INTO characters (character_id, campaign_id, player_id, name, nickname, sheet_json, notes_text, version, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(characterId, campaignId, playerId, name, nickname || null, sheetJson, notesText, version, now, now).run();
 
         return json({
           character_id: characterId,
           campaign_id: campaignId,
           player_id: playerId,
           name,
+          nickname: nickname || null,
           sheet_json: sheetJson,
           notes_text: notesText,
           version,
@@ -551,7 +553,7 @@ export default {
 
       if (method === "GET") {
         const row = await env.DB.prepare(
-          `SELECT character_id, campaign_id, player_id, name, sheet_json, notes_text, version, created_at, updated_at
+          `SELECT character_id, campaign_id, player_id, name, nickname, sheet_json, notes_text, version, created_at, updated_at
            FROM characters
            WHERE character_id = ?`
         ).bind(characterId).first();
@@ -564,7 +566,7 @@ export default {
         if (!incoming) return json({ error: "Invalid JSON body" }, 400);
 
         const row = await env.DB.prepare(
-          `SELECT character_id, campaign_id, player_id, name, sheet_json, notes_text, version
+          `SELECT character_id, campaign_id, player_id, name, nickname, sheet_json, notes_text, version
            FROM characters
            WHERE character_id = ?`
         ).bind(characterId).first();
@@ -573,11 +575,17 @@ export default {
         let name = row.name;
         let sheetJson = row.sheet_json;
         let notesText = row.notes_text;
+        let nickname = row.nickname;
 
         if ("name" in incoming) {
           const nextName = normStr(incoming.name);
           if (!nextName) return json({ error: "Name cannot be empty" }, 400);
           name = nextName;
+        }
+
+        if ("nickname" in incoming) {
+          const nextNickname = normStr(incoming.nickname);
+          nickname = nextNickname || null;
         }
 
         if ("sheet_json" in incoming) {
@@ -596,6 +604,7 @@ export default {
 
         const changed =
           ("name" in incoming) ||
+          ("nickname" in incoming) ||
           ("sheet_json" in incoming) ||
           ("notes_text" in incoming) ||
           ("notes_json" in incoming);
@@ -606,15 +615,16 @@ export default {
 
         await env.DB.prepare(
           `UPDATE characters
-           SET name = ?, sheet_json = ?, notes_text = ?, version = ?, updated_at = ?
+           SET name = ?, nickname = ?, sheet_json = ?, notes_text = ?, version = ?, updated_at = ?
            WHERE character_id = ?`
-        ).bind(name, sheetJson, notesText, nextVersion, updatedAt, characterId).run();
+        ).bind(name, nickname, sheetJson, notesText, nextVersion, updatedAt, characterId).run();
 
         return json({
           character_id: characterId,
           campaign_id: row.campaign_id,
           player_id: row.player_id,
           name,
+          nickname,
           sheet_json: sheetJson,
           notes_text: notesText,
           version: nextVersion,

@@ -337,388 +337,385 @@ function stripInternalKeys(obj) {
 
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
-    const path = url.pathname;
-    const method = request.method.toUpperCase();
-
-    if (method === "OPTIONS") {
-      return withCors(new Response(null, { status: 204 }));
-    }
-
-    if (path === "/" || path === "/health") {
-      return json({ ok: true });
-    }
-
-    if (path === "/_genid" && method === "GET") {
-      return json({ id: genId22() });
-    }
-
-    const portraitMatch = path.match(/^\/characters\/([^\/?#]+)\/portrait$/);
-    if (portraitMatch) {
-      if (method !== "PUT") return json({ error: "Method not allowed" }, 405);
-      const characterId = decodeURIComponent(portraitMatch[1]);
-      const contentType = (request.headers.get("content-type") || "").toLowerCase();
-      if (!contentType.startsWith("image/jpeg")) {
-        return json({ error: "Portrait must be image/jpeg" }, 400);
+    try {
+      if (method === "OPTIONS") {
+        return withCors(new Response(null, { status: 204 }));
       }
 
-      const contentLength = request.headers.get("content-length");
-      if (contentLength && Number(contentLength) > MAX_PORTRAIT_BYTES) {
-        return json({ error: "Portrait too large (max 512kb)" }, 413);
+      if (path === "/" || path === "/health") {
+        return json({ ok: true });
       }
 
-      const buf = await request.arrayBuffer();
-      if (buf.byteLength > MAX_PORTRAIT_BYTES) {
-        return json({ error: "Portrait too large (max 512kb)" }, 413);
+      if (path === "/_genid" && method === "GET") {
+        return json({ id: genId22() });
       }
 
-      const bucket = env.CHARACTERS_BUCKET || env.R2;
-      if (!bucket) return json({ error: "R2 bucket not configured" }, 500);
-
-      const key = `${PORTRAIT_PREFIX}/${characterId}.jpg`;
-      await bucket.put(key, buf, {
-        httpMetadata: {
-          contentType: "image/jpeg",
-          cacheControl: "public, max-age=31536000"
+      const portraitMatch = path.match(/^\/characters\/([^\/?#]+)\/portrait$/);
+      if (portraitMatch) {
+        if (method !== "PUT") return json({ error: "Method not allowed" }, 405);
+        const characterId = decodeURIComponent(portraitMatch[1]);
+        const contentType = (request.headers.get("content-type") || "").toLowerCase();
+        if (!contentType.startsWith("image/jpeg")) {
+          return json({ error: "Portrait must be image/jpeg" }, 400);
         }
-      });
 
-      const row = await env.DB.prepare(
-        `SELECT sheet_json, version FROM characters WHERE character_id = ?`
-      ).bind(characterId).first();
-      if (!row) return json({ error: "Character not found", character_id: characterId }, 404);
+        const contentLength = request.headers.get("content-length");
+        if (contentLength && Number(contentLength) > MAX_PORTRAIT_BYTES) {
+          return json({ error: "Portrait too large (max 512kb)" }, 413);
+        }
 
-      let sheet = {};
-      if (row.sheet_json) {
-        try { sheet = JSON.parse(row.sheet_json); } catch { sheet = {}; }
-      }
-      if (!isObject(sheet)) sheet = {};
-      if (!isObject(sheet.appearance)) sheet.appearance = {};
+        const buf = await request.arrayBuffer();
+        if (buf.byteLength > MAX_PORTRAIT_BYTES) {
+          return json({ error: "Portrait too large (max 512kb)" }, 413);
+        }
 
-      const portraitUrl = `${R2_PUBLIC_BASE}/${key}`;
-      sheet.appearance.portrait_url = portraitUrl;
-      const sheetJson = JSON.stringify(sheet, null, 2);
+        const bucket = env.CHARACTERS_BUCKET || env.R2;
+        if (!bucket) return json({ error: "R2 bucket not configured" }, 500);
 
-      const nextVersion = (row.version ?? 0) + 1;
-      const updatedAt = nowSeconds();
-
-      await env.DB.prepare(
-        `UPDATE characters SET sheet_json = ?, version = ?, updated_at = ? WHERE character_id = ?`
-      ).bind(sheetJson, nextVersion, updatedAt, characterId).run();
-
-      return json({
-        ok: true,
-        character_id: characterId,
-        portrait_url: portraitUrl,
-        version: nextVersion,
-        updated_at: updatedAt
-      });
-    }
-
-    const playerMatch = path.match(/^\/players\/([^\/?#]+)$/);
-    if (playerMatch) {
-      const playerId = decodeURIComponent(playerMatch[1]);
-      if (method !== "GET") return json({ error: "Method not allowed" }, 405);
-      const row = await env.DB.prepare(
-        `SELECT player_id, dashboard_token, passport_character_id, display_name, email, status, meta_json, version, created_at, updated_at
-         FROM players
-         WHERE player_id = ?`
-      ).bind(playerId).first();
-      if (!row) return json({ error: "Player not found", player_id: playerId }, 404);
-      return json(row);
-    }
-
-    const playerCharactersMatch = path.match(/^\/players\/([^\/?#]+)\/characters$/);
-    if (playerCharactersMatch) {
-      const playerId = decodeURIComponent(playerCharactersMatch[1]);
-      if (method !== "GET") return json({ error: "Method not allowed" }, 405);
-      const rows = await env.DB.prepare(
-        `SELECT ch.character_id, ch.player_id, ch.campaign_id, ch.name, c.name AS campaign_name
-         FROM characters ch
-         LEFT JOIN campaigns c ON c.campaign_id = ch.campaign_id
-         WHERE ch.player_id = ?
-         ORDER BY ch.name ASC`
-      ).bind(playerId).all();
-      const list = rows && rows.results ? rows.results : [];
-      return json({ count: list.length, rows: list });
-    }
-
-    const playerCampaignsMatch = path.match(/^\/players\/([^\/?#]+)\/campaigns$/);
-    if (playerCampaignsMatch) {
-      const playerId = decodeURIComponent(playerCampaignsMatch[1]);
-      if (method !== "GET") return json({ error: "Method not allowed" }, 405);
-      const rows = await env.DB.prepare(
-        `SELECT campaign_id, admin_player_id, name, summary_text, status, auth_tokens_json, version, created_at, updated_at
-         FROM campaigns
-         WHERE admin_player_id = ?
-         ORDER BY created_at DESC`
-      ).bind(playerId).all();
-      const list = rows && rows.results ? rows.results : [];
-      const normalized = list.map((row) => {
-        let authToken = null;
-        if (row.auth_tokens_json) {
-          try {
-            const parsed = JSON.parse(row.auth_tokens_json);
-            if (Array.isArray(parsed) && parsed.length) authToken = parsed[0];
-            else if (typeof parsed === "string") authToken = parsed;
-          } catch {
-            authToken = row.auth_tokens_json;
+        const key = `${PORTRAIT_PREFIX}/${characterId}.jpg`;
+        await bucket.put(key, buf, {
+          httpMetadata: {
+            contentType: "image/jpeg",
+            cacheControl: "public, max-age=31536000"
           }
-        }
-        return { ...row, auth_token: authToken };
-      });
-      return json({ count: normalized.length, rows: normalized });
-    }
-
-    const playerInvitesMatch = path.match(/^\/players\/([^\/?#]+)\/invites$/);
-    if (playerInvitesMatch) {
-      if (method !== "GET") return json({ error: "Method not allowed" }, 405);
-      return json({ count: 0, rows: [] });
-    }
-
-    if (path === "/characters") {
-      if (method === "GET") {
-        const campaignId = normStr(url.searchParams.get("campaign_id") || url.searchParams.get("campaignId"));
-        if (!campaignId) return json({ error: "Missing campaign_id" }, 400);
-
-        const rows = await env.DB.prepare(
-          `SELECT character_id, campaign_id, player_id, name, sheet_json, notes_text, version, created_at, updated_at
-           FROM characters
-           WHERE campaign_id = ?
-           ORDER BY name ASC`
-        ).bind(campaignId).all();
-
-        const list = rows && rows.results ? rows.results : [];
-        return json({ count: list.length, rows: list });
-      }
-
-      if (method === "POST") {
-        const incoming = await readJsonBody(request);
-        if (!incoming) return json({ error: "Invalid JSON body" }, 400);
-
-        const campaignId = normStr(incoming.campaign_id ?? incoming.campaignId);
-        const playerId = normStr(incoming.player_id ?? incoming.playerId);
-        const name = normStr(incoming.name);
-        if (!campaignId) return json({ error: "Missing campaign_id" }, 400);
-        if (!name) return json({ error: "Missing name" }, 400);
-
-        let sheetJson;
-        try {
-          sheetJson = normalizeJsonField(incoming.sheet_json, "sheet_json");
-        } catch (e) {
-          return json({ error: e && e.message ? e.message : "Invalid sheet_json" }, 400);
-        }
-        if (!sheetJson) return json({ error: "Missing sheet_json" }, 400);
-
-        const characterId = normStr(incoming.character_id ?? incoming.characterId) || genId22();
-
-        const exists = await env.DB.prepare(
-          `SELECT character_id FROM characters WHERE character_id = ?`
-        ).bind(characterId).first();
-        if (exists) return json({ error: "Character already exists", character_id: characterId }, 409);
-
-        const notesRaw = ("notes_text" in incoming) ? incoming.notes_text : incoming.notes_json;
-        const notesText = normalizeNotes(notesRaw) ?? null;
-
-        const now = nowSeconds();
-        const version = 1;
-
-        await env.DB.prepare(
-          `INSERT INTO characters (character_id, campaign_id, player_id, name, sheet_json, notes_text, version, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(characterId, campaignId, playerId, name, sheetJson, notesText, version, now, now).run();
-
-        return json({
-          character_id: characterId,
-          campaign_id: campaignId,
-          player_id: playerId,
-          name,
-          sheet_json: sheetJson,
-          notes_text: notesText,
-          version,
-          created_at: now,
-          updated_at: now,
         });
-      }
-
-      return json({ error: "Method not allowed" }, 405);
-    }
-
-    const characterMatch = path.match(/^\/characters\/([^\/?#]+)$/);
-    if (characterMatch) {
-      const characterId = decodeURIComponent(characterMatch[1]);
-
-      if (method === "GET") {
-        const row = await env.DB.prepare(
-          `SELECT character_id, campaign_id, player_id, name, sheet_json, notes_text, version, created_at, updated_at
-           FROM characters
-           WHERE character_id = ?`
-        ).bind(characterId).first();
-        if (!row) return json({ error: "Character not found", character_id: characterId }, 404);
-        return json(row);
-      }
-
-      if (method === "PUT") {
-        const incoming = await readJsonBody(request);
-        if (!incoming) return json({ error: "Invalid JSON body" }, 400);
 
         const row = await env.DB.prepare(
-          `SELECT character_id, campaign_id, player_id, name, sheet_json, notes_text, version
-           FROM characters
-           WHERE character_id = ?`
+          `SELECT sheet_json, version FROM characters WHERE character_id = ?`
         ).bind(characterId).first();
         if (!row) return json({ error: "Character not found", character_id: characterId }, 404);
 
-        let name = row.name;
-        let sheetJson = row.sheet_json;
-        let notesText = row.notes_text;
-
-        if ("name" in incoming) {
-          const nextName = normStr(incoming.name);
-          if (!nextName) return json({ error: "Name cannot be empty" }, 400);
-          name = nextName;
+        let sheet = {};
+        if (row.sheet_json) {
+          try { sheet = JSON.parse(row.sheet_json); } catch { sheet = {}; }
         }
+        if (!isObject(sheet)) sheet = {};
+        if (!isObject(sheet.appearance)) sheet.appearance = {};
 
-        if ("sheet_json" in incoming) {
-          try {
-            sheetJson = normalizeJsonField(incoming.sheet_json, "sheet_json");
-          } catch (e) {
-            return json({ error: e && e.message ? e.message : "Invalid sheet_json" }, 400);
-          }
-        }
-
-        if ("notes_text" in incoming || "notes_json" in incoming) {
-          const raw = ("notes_text" in incoming) ? incoming.notes_text : incoming.notes_json;
-          const norm = normalizeNotes(raw);
-          if (norm !== undefined) notesText = norm;
-        }
-
-        const changed =
-          ("name" in incoming) ||
-          ("sheet_json" in incoming) ||
-          ("notes_text" in incoming) ||
-          ("notes_json" in incoming);
-        if (!changed) return json({ error: "No fields to update" }, 400);
+        const portraitUrl = `${R2_PUBLIC_BASE}/${key}`;
+        sheet.appearance.portrait_url = portraitUrl;
+        const sheetJson = JSON.stringify(sheet, null, 2);
 
         const nextVersion = (row.version ?? 0) + 1;
         const updatedAt = nowSeconds();
 
         await env.DB.prepare(
-          `UPDATE characters
-           SET name = ?, sheet_json = ?, notes_text = ?, version = ?, updated_at = ?
-           WHERE character_id = ?`
-        ).bind(name, sheetJson, notesText, nextVersion, updatedAt, characterId).run();
+          `UPDATE characters SET sheet_json = ?, version = ?, updated_at = ? WHERE character_id = ?`
+        ).bind(sheetJson, nextVersion, updatedAt, characterId).run();
 
         return json({
+          ok: true,
           character_id: characterId,
-          campaign_id: row.campaign_id,
-          player_id: row.player_id,
-          name,
-          sheet_json: sheetJson,
-          notes_text: notesText,
+          portrait_url: portraitUrl,
           version: nextVersion,
-          updated_at: updatedAt,
+          updated_at: updatedAt
         });
       }
 
-      return json({ error: "Method not allowed" }, 405);
-    }
+      const playerMatch = path.match(/^\/players\/([^\/?#]+)$/);
+      if (playerMatch) {
+        const playerId = decodeURIComponent(playerMatch[1]);
+        if (method !== "GET") return json({ error: "Method not allowed" }, 405);
+        const row = await env.DB.prepare(
+          `SELECT player_id, dashboard_token, passport_character_id, display_name, email, status, meta_json, version, created_at, updated_at
+           FROM players
+           WHERE player_id = ?`
+        ).bind(playerId).first();
+        if (!row) return json({ error: "Player not found", player_id: playerId }, 404);
+        return json(row);
+      }
 
-    if (path === "/messages") {
-      if (method === "GET") {
-        const battleId = normStr(url.searchParams.get("battle_id") || url.searchParams.get("battleId"));
-        const campaignId = normStr(url.searchParams.get("campaign_id") || url.searchParams.get("campaignId"));
-        const sinceTsRaw = url.searchParams.get("since_ts") || url.searchParams.get("sinceTs");
-        const limitRaw = url.searchParams.get("limit");
-        const sinceTs = sinceTsRaw ? Number(sinceTsRaw) : null;
-        const limit = Math.min(Math.max(Number(limitRaw || 200), 1), 500);
-
-        if (!battleId && !campaignId) {
-          return json({ error: "Missing battle_id or campaign_id" }, 400);
-        }
-
-        let sql = `SELECT chat_id, campaign_id, battle_id, speaker, speaker_id, text, type, status, created_at
-                   FROM messages
-                   WHERE `;
-        const binds = [];
-        if (battleId) {
-          sql += "battle_id = ?";
-          binds.push(battleId);
-        } else {
-          sql += "campaign_id = ?";
-          binds.push(campaignId);
-        }
-        if (sinceTs && Number.isFinite(sinceTs)) {
-          sql += " AND created_at > ?";
-          binds.push(Math.floor(sinceTs));
-        }
-        sql += " ORDER BY created_at ASC LIMIT ?";
-        binds.push(limit);
-
-        const rows = await env.DB.prepare(sql).bind(...binds).all();
+      const playerCharactersMatch = path.match(/^\/players\/([^\/?#]+)\/characters$/);
+      if (playerCharactersMatch) {
+        const playerId = decodeURIComponent(playerCharactersMatch[1]);
+        if (method !== "GET") return json({ error: "Method not allowed" }, 405);
+        const rows = await env.DB.prepare(
+          `SELECT ch.character_id, ch.player_id, ch.campaign_id, ch.name, c.name AS campaign_name
+           FROM characters ch
+           LEFT JOIN campaigns c ON c.campaign_id = ch.campaign_id
+           WHERE ch.player_id = ?
+           ORDER BY ch.name ASC`
+        ).bind(playerId).all();
         const list = rows && rows.results ? rows.results : [];
         return json({ count: list.length, rows: list });
       }
 
-      if (method === "POST") {
-        const incoming = await readJsonBody(request);
-        if (!incoming) return json({ error: "Invalid JSON body" }, 400);
-
-        const battleId = normStr(incoming.battle_id ?? incoming.battleId);
-        let campaignId = normStr(incoming.campaign_id ?? incoming.campaignId);
-        if (!campaignId && battleId) {
-          const row = await env.DB.prepare(
-            `SELECT campaign_id FROM battles WHERE battle_id = ?`
-          ).bind(battleId).first();
-          if (row && row.campaign_id) campaignId = String(row.campaign_id);
-        }
-        if (!battleId && !campaignId) {
-          return json({ error: "Missing battle_id or campaign_id" }, 400);
-        }
-
-        const speaker = normStr(incoming.speaker) || "Player";
-        const text = normStr(incoming.text);
-        if (!text) return json({ error: "Missing text" }, 400);
-
-        const chatId = normStr(incoming.chat_id ?? incoming.chatId) || genId22();
-        const speakerId = normStr(incoming.speaker_id ?? incoming.speakerId) || null;
-        const type = normStr(incoming.type) || "player";
-        const status = normStr(incoming.status) || "new";
-        const createdAt = nowSeconds();
-
-        const exists = await env.DB.prepare(
-          `SELECT chat_id FROM messages WHERE chat_id = ?`
-        ).bind(chatId).first();
-        if (exists) return json({ error: "Message already exists", chat_id: chatId }, 409);
-
-        await env.DB.prepare(
-          `INSERT INTO messages (chat_id, campaign_id, battle_id, speaker, speaker_id, text, type, status, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(chatId, campaignId || null, battleId || null, speaker, speakerId, text, type, status, createdAt).run();
-
-        return json({
-          ok: true,
-          row: {
-            chat_id: chatId,
-            campaign_id: campaignId || null,
-            battle_id: battleId || null,
-            speaker,
-            speaker_id: speakerId,
-            text,
-            type,
-            status,
-            created_at: createdAt
+      const playerCampaignsMatch = path.match(/^\/players\/([^\/?#]+)\/campaigns$/);
+      if (playerCampaignsMatch) {
+        const playerId = decodeURIComponent(playerCampaignsMatch[1]);
+        if (method !== "GET") return json({ error: "Method not allowed" }, 405);
+        const rows = await env.DB.prepare(
+          `SELECT campaign_id, admin_player_id, name, summary_text, status, auth_tokens_json, version, created_at, updated_at
+           FROM campaigns
+           WHERE admin_player_id = ?
+           ORDER BY created_at DESC`
+        ).bind(playerId).all();
+        const list = rows && rows.results ? rows.results : [];
+        const normalized = list.map((row) => {
+          let authToken = null;
+          if (row.auth_tokens_json) {
+            try {
+              const parsed = JSON.parse(row.auth_tokens_json);
+              if (Array.isArray(parsed) && parsed.length) authToken = parsed[0];
+              else if (typeof parsed === "string") authToken = parsed;
+            } catch {
+              authToken = row.auth_tokens_json;
+            }
           }
+          return { ...row, auth_token: authToken };
         });
+        return json({ count: normalized.length, rows: normalized });
       }
 
-      return json({ error: "Method not allowed" }, 405);
-    }
+      const playerInvitesMatch = path.match(/^\/players\/([^\/?#]+)\/invites$/);
+      if (playerInvitesMatch) {
+        if (method !== "GET") return json({ error: "Method not allowed" }, 405);
+        return json({ count: 0, rows: [] });
+      }
 
-    const battleMatch = path.match(/^\/battles\/([^\/?#]+)$/);
-    if (!battleMatch) {
-      return json({ error: "Not found" }, 404);
-    }
+      if (path === "/characters") {
+        if (method === "GET") {
+          const campaignId = normStr(url.searchParams.get("campaign_id") || url.searchParams.get("campaignId"));
+          if (!campaignId) return json({ error: "Missing campaign_id" }, 400);
+
+          const rows = await env.DB.prepare(
+            `SELECT character_id, campaign_id, player_id, name, sheet_json, notes_text, version, created_at, updated_at
+             FROM characters
+             WHERE campaign_id = ?
+             ORDER BY name ASC`
+          ).bind(campaignId).all();
+
+          const list = rows && rows.results ? rows.results : [];
+          return json({ count: list.length, rows: list });
+        }
+
+        if (method === "POST") {
+          const incoming = await readJsonBody(request);
+          if (!incoming) return json({ error: "Invalid JSON body" }, 400);
+
+          const campaignId = normStr(incoming.campaign_id ?? incoming.campaignId);
+          const playerId = normStr(incoming.player_id ?? incoming.playerId);
+          const name = normStr(incoming.name);
+          if (!campaignId) return json({ error: "Missing campaign_id" }, 400);
+          if (!name) return json({ error: "Missing name" }, 400);
+
+          let sheetJson;
+          try {
+            sheetJson = normalizeJsonField(incoming.sheet_json, "sheet_json");
+          } catch (e) {
+            return json({ error: e && e.message ? e.message : "Invalid sheet_json" }, 400);
+          }
+          if (!sheetJson) return json({ error: "Missing sheet_json" }, 400);
+
+          const characterId = normStr(incoming.character_id ?? incoming.characterId) || genId22();
+
+          const exists = await env.DB.prepare(
+            `SELECT character_id FROM characters WHERE character_id = ?`
+          ).bind(characterId).first();
+          if (exists) return json({ error: "Character already exists", character_id: characterId }, 409);
+
+          const notesRaw = ("notes_text" in incoming) ? incoming.notes_text : incoming.notes_json;
+          const notesText = normalizeNotes(notesRaw) ?? null;
+
+          const now = nowSeconds();
+          const version = 1;
+
+          await env.DB.prepare(
+            `INSERT INTO characters (character_id, campaign_id, player_id, name, sheet_json, notes_text, version, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(characterId, campaignId, playerId, name, sheetJson, notesText, version, now, now).run();
+
+          return json({
+            character_id: characterId,
+            campaign_id: campaignId,
+            player_id: playerId,
+            name,
+            sheet_json: sheetJson,
+            notes_text: notesText,
+            version,
+            created_at: now,
+            updated_at: now,
+          });
+        }
+
+        return json({ error: "Method not allowed" }, 405);
+      }
+
+      const characterMatch = path.match(/^\/characters\/([^\/?#]+)$/);
+      if (characterMatch) {
+        const characterId = decodeURIComponent(characterMatch[1]);
+
+        if (method === "GET") {
+          const row = await env.DB.prepare(
+            `SELECT character_id, campaign_id, player_id, name, sheet_json, notes_text, version, created_at, updated_at
+             FROM characters
+             WHERE character_id = ?`
+          ).bind(characterId).first();
+          if (!row) return json({ error: "Character not found", character_id: characterId }, 404);
+          return json(row);
+        }
+
+        if (method === "PUT") {
+          const incoming = await readJsonBody(request);
+          if (!incoming) return json({ error: "Invalid JSON body" }, 400);
+
+          const row = await env.DB.prepare(
+            `SELECT character_id, campaign_id, player_id, name, sheet_json, notes_text, version
+             FROM characters
+             WHERE character_id = ?`
+          ).bind(characterId).first();
+          if (!row) return json({ error: "Character not found", character_id: characterId }, 404);
+
+          let name = row.name;
+          let sheetJson = row.sheet_json;
+          let notesText = row.notes_text;
+
+          if ("name" in incoming) {
+            const nextName = normStr(incoming.name);
+            if (!nextName) return json({ error: "Name cannot be empty" }, 400);
+            name = nextName;
+          }
+
+          if ("sheet_json" in incoming) {
+            try {
+              sheetJson = normalizeJsonField(incoming.sheet_json, "sheet_json");
+            } catch (e) {
+              return json({ error: e && e.message ? e.message : "Invalid sheet_json" }, 400);
+            }
+          }
+
+          if ("notes_text" in incoming || "notes_json" in incoming) {
+            const raw = ("notes_text" in incoming) ? incoming.notes_text : incoming.notes_json;
+            const norm = normalizeNotes(raw);
+            if (norm !== undefined) notesText = norm;
+          }
+
+          const changed =
+            ("name" in incoming) ||
+            ("sheet_json" in incoming) ||
+            ("notes_text" in incoming) ||
+            ("notes_json" in incoming);
+          if (!changed) return json({ error: "No fields to update" }, 400);
+
+          const nextVersion = (row.version ?? 0) + 1;
+          const updatedAt = nowSeconds();
+
+          await env.DB.prepare(
+            `UPDATE characters
+             SET name = ?, sheet_json = ?, notes_text = ?, version = ?, updated_at = ?
+             WHERE character_id = ?`
+          ).bind(name, sheetJson, notesText, nextVersion, updatedAt, characterId).run();
+
+          return json({
+            character_id: characterId,
+            campaign_id: row.campaign_id,
+            player_id: row.player_id,
+            name,
+            sheet_json: sheetJson,
+            notes_text: notesText,
+            version: nextVersion,
+            updated_at: updatedAt,
+          });
+        }
+
+        return json({ error: "Method not allowed" }, 405);
+      }
+
+      if (path === "/messages") {
+        if (method === "GET") {
+          const battleId = normStr(url.searchParams.get("battle_id") || url.searchParams.get("battleId"));
+          const campaignId = normStr(url.searchParams.get("campaign_id") || url.searchParams.get("campaignId"));
+          const sinceTsRaw = url.searchParams.get("since_ts") || url.searchParams.get("sinceTs");
+          const limitRaw = url.searchParams.get("limit");
+          const sinceTs = sinceTsRaw ? Number(sinceTsRaw) : null;
+          const limit = Math.min(Math.max(Number(limitRaw || 200), 1), 500);
+
+          if (!battleId && !campaignId) {
+            return json({ error: "Missing battle_id or campaign_id" }, 400);
+          }
+
+          let sql = `SELECT chat_id, campaign_id, battle_id, speaker, speaker_id, text, type, status, created_at
+                     FROM messages
+                     WHERE `;
+          const binds = [];
+          if (battleId) {
+            sql += "battle_id = ?";
+            binds.push(battleId);
+          } else {
+            sql += "campaign_id = ?";
+            binds.push(campaignId);
+          }
+          if (sinceTs && Number.isFinite(sinceTs)) {
+            sql += " AND created_at > ?";
+            binds.push(Math.floor(sinceTs));
+          }
+          sql += " ORDER BY created_at ASC LIMIT ?";
+          binds.push(limit);
+
+          const rows = await env.DB.prepare(sql).bind(...binds).all();
+          const list = rows && rows.results ? rows.results : [];
+          return json({ count: list.length, rows: list });
+        }
+
+        if (method === "POST") {
+          const incoming = await readJsonBody(request);
+          if (!incoming) return json({ error: "Invalid JSON body" }, 400);
+
+          const battleId = normStr(incoming.battle_id ?? incoming.battleId);
+          let campaignId = normStr(incoming.campaign_id ?? incoming.campaignId);
+          if (!campaignId && battleId) {
+            const row = await env.DB.prepare(
+              `SELECT campaign_id FROM battles WHERE battle_id = ?`
+            ).bind(battleId).first();
+            if (row && row.campaign_id) campaignId = String(row.campaign_id);
+          }
+          if (!battleId && !campaignId) {
+            return json({ error: "Missing battle_id or campaign_id" }, 400);
+          }
+
+          const speaker = normStr(incoming.speaker) || "Player";
+          const text = normStr(incoming.text);
+          if (!text) return json({ error: "Missing text" }, 400);
+
+          const chatId = normStr(incoming.chat_id ?? incoming.chatId) || genId22();
+          const speakerId = normStr(incoming.speaker_id ?? incoming.speakerId) || null;
+          const type = normStr(incoming.type) || "player";
+          const status = normStr(incoming.status) || "new";
+          const createdAt = nowSeconds();
+
+          const exists = await env.DB.prepare(
+            `SELECT chat_id FROM messages WHERE chat_id = ?`
+          ).bind(chatId).first();
+          if (exists) return json({ error: "Message already exists", chat_id: chatId }, 409);
+
+          await env.DB.prepare(
+            `INSERT INTO messages (chat_id, campaign_id, battle_id, speaker, speaker_id, text, type, status, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(chatId, campaignId || null, battleId || null, speaker, speakerId, text, type, status, createdAt).run();
+
+          return json({
+            ok: true,
+            row: {
+              chat_id: chatId,
+              campaign_id: campaignId || null,
+              battle_id: battleId || null,
+              speaker,
+              speaker_id: speakerId,
+              text,
+              type,
+              status,
+              created_at: createdAt
+            }
+          });
+        }
+
+        return json({ error: "Method not allowed" }, 405);
+      }
+
+      const battleMatch = path.match(/^\/battles\/([^\/?#]+)$/);
+      if (!battleMatch) {
+        return json({ error: "Not found" }, 404);
+      }
 
     const battleId = decodeURIComponent(battleMatch[1]);
 
@@ -810,12 +807,16 @@ export default {
       `UPDATE battles SET state_json = ?, chat_json = ?, version = ?, updated_at = ? WHERE battle_id = ?`
     ).bind(stateJson, chatJson, nextVersion, updatedAt, battleId).run();
 
-    return json({
-      battle_id: battleId,
-      state_json: stateJson,
-      chat_json: chatJson,
-      version: nextVersion,
-      updated_at: updatedAt
-    });
+      return json({
+        battle_id: battleId,
+        state_json: stateJson,
+        chat_json: chatJson,
+        version: nextVersion,
+        updated_at: updatedAt
+      });
+    } catch (err) {
+      const msg = err && err.message ? String(err.message) : String(err);
+      return json({ error: "Worker exception", detail: msg }, 500);
+    }
   }
 };
