@@ -687,6 +687,8 @@
         clone.querySelectorAll('script').forEach((node) => node.remove());
         const status = clone.querySelector('#status');
         if (status) status.remove();
+        const topbar = clone.querySelector('.topbar');
+        if (topbar) topbar.remove();
 
         const html = '<!doctype html>\n' + clone.outerHTML;
         const blob = new Blob([html], { type: 'text/html' });

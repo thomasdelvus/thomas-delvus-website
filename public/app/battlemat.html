@@ -317,6 +317,15 @@ Version: set in JS (VERSION)
       margin-left:6px;
       font-size:11px;
     }
+    .chatLess{
+      color:var(--muted);
+      margin-left:6px;
+      font-size:11px;
+      display:none;
+    }
+    .chatDetails[open] .chatPreview{display:none;}
+    .chatDetails[open] .chatMore{display:none;}
+    .chatDetails[open] .chatLess{display:inline;}
     .chatFull{
       display:block;
       margin-top:4px;
@@ -1384,6 +1393,7 @@ Version: set in JS (VERSION)
           ? '<details class="chatDetails"><summary>'
               + '<span class="chatPreview">' + safePreview + '</span>'
               + '<span class="chatMore">(more)</span>'
+              + '<span class="chatLess">(less)</span>'
             + '</summary>'
             + '<div class="chatFull">' + safeText + '</div>'
             + '</details>'
