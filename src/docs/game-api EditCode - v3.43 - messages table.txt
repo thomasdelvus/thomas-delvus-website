@@ -337,6 +337,9 @@ function stripInternalKeys(obj) {
 
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const method = request.method.toUpperCase();
     try {
       if (method === "OPTIONS") {
         return withCors(new Response(null, { status: 204 }));
@@ -721,7 +724,7 @@ export default {
 
     if (method === "GET") {
       const row = await env.DB.prepare(
-        `SELECT battle_id, campaign_id, name, state_json, chat_json, version, updated_at
+        `SELECT battle_id, campaign_id, name, state_json, version, updated_at
          FROM battles
          WHERE battle_id = ?`
       ).bind(battleId).first();
@@ -774,7 +777,7 @@ export default {
     }
 
     const row = await env.DB.prepare(
-      `SELECT battle_id, state_json, chat_json, version FROM battles WHERE battle_id = ?`
+      `SELECT battle_id, state_json, version FROM battles WHERE battle_id = ?`
     ).bind(battleId).first();
 
     if (!row) return json({ error: "Battle not found", battle_id: battleId }, 404);
@@ -801,16 +804,13 @@ export default {
     const nextVersion = (row.version ?? 0) + 1;
     const updatedAt = nowSeconds();
     const stateJson = JSON.stringify(merged, null, 2);
-    const chatJson = (incomingChatJson !== undefined) ? incomingChatJson : (row.chat_json ?? null);
-
     await env.DB.prepare(
-      `UPDATE battles SET state_json = ?, chat_json = ?, version = ?, updated_at = ? WHERE battle_id = ?`
-    ).bind(stateJson, chatJson, nextVersion, updatedAt, battleId).run();
+      `UPDATE battles SET state_json = ?, version = ?, updated_at = ? WHERE battle_id = ?`
+    ).bind(stateJson, nextVersion, updatedAt, battleId).run();
 
       return json({
         battle_id: battleId,
         state_json: stateJson,
-        chat_json: chatJson,
         version: nextVersion,
         updated_at: updatedAt
       });
