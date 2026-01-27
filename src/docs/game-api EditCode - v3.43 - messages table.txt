@@ -1,7 +1,8 @@
-// game-api worker v3.43 (messages table + chat append, player dashboard endpoints, genId22, portrait uploads)
+// game-api worker v3.44 (messages table + status updates, player dashboard endpoints, genId22, portrait uploads)
 // Purpose: GET/PUT battles with safe id-based merges + CRUD for characters + player dashboard reads + portrait uploads.
 //
 // Changelog:
+// - v3.44: add PATCH /messages/:chat_id; auto-cancel prior action messages for same speaker
 // - v3.43: add /messages (GET/POST) for append-only chat table
 // - v3.42: include updated API helper guidance for chat_json
 // - v3.41: add chat_json read/write on battles
@@ -13,7 +14,7 @@
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,PUT,POST,OPTIONS",
+  "Access-Control-Allow-Methods": "GET,PUT,POST,PATCH,OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
@@ -624,11 +625,40 @@ export default {
         return json({ error: "Method not allowed" }, 405);
       }
 
-      if (path === "/messages") {
-        if (method === "GET") {
-          const battleId = normStr(url.searchParams.get("battle_id") || url.searchParams.get("battleId"));
-          const campaignId = normStr(url.searchParams.get("campaign_id") || url.searchParams.get("campaignId"));
-          const sinceTsRaw = url.searchParams.get("since_ts") || url.searchParams.get("sinceTs");
+    const messageMatch = path.match(/^\/messages\/([^\/?#]+)$/);
+    if (messageMatch) {
+      const chatId = decodeURIComponent(messageMatch[1]);
+      if (method !== "PATCH") return json({ error: "Method not allowed" }, 405);
+
+      const incoming = await readJsonBody(request);
+      if (!incoming) return json({ error: "Invalid JSON body" }, 400);
+
+      const status = normStr(incoming.status);
+      if (!status) return json({ error: "Missing status" }, 400);
+
+      const row = await env.DB.prepare(
+        `SELECT chat_id FROM messages WHERE chat_id = ?`
+      ).bind(chatId).first();
+      if (!row) return json({ error: "Message not found", chat_id: chatId }, 404);
+
+      await env.DB.prepare(
+        `UPDATE messages SET status = ? WHERE chat_id = ?`
+      ).bind(status, chatId).run();
+
+      const updated = await env.DB.prepare(
+        `SELECT chat_id, campaign_id, battle_id, speaker, speaker_id, text, type, status, created_at
+         FROM messages
+         WHERE chat_id = ?`
+      ).bind(chatId).first();
+
+      return json({ ok: true, row: updated });
+    }
+
+    if (path === "/messages") {
+      if (method === "GET") {
+        const battleId = normStr(url.searchParams.get("battle_id") || url.searchParams.get("battleId"));
+        const campaignId = normStr(url.searchParams.get("campaign_id") || url.searchParams.get("campaignId"));
+        const sinceTsRaw = url.searchParams.get("since_ts") || url.searchParams.get("sinceTs");
           const limitRaw = url.searchParams.get("limit");
           const sinceTs = sinceTsRaw ? Number(sinceTsRaw) : null;
           const limit = Math.min(Math.max(Number(limitRaw || 200), 1), 500);
@@ -660,9 +690,9 @@ export default {
           return json({ count: list.length, rows: list });
         }
 
-        if (method === "POST") {
-          const incoming = await readJsonBody(request);
-          if (!incoming) return json({ error: "Invalid JSON body" }, 400);
+      if (method === "POST") {
+        const incoming = await readJsonBody(request);
+        if (!incoming) return json({ error: "Invalid JSON body" }, 400);
 
           const battleId = normStr(incoming.battle_id ?? incoming.battleId);
           let campaignId = normStr(incoming.campaign_id ?? incoming.campaignId);
@@ -676,18 +706,39 @@ export default {
             return json({ error: "Missing battle_id or campaign_id" }, 400);
           }
 
-          const speaker = normStr(incoming.speaker) || "Player";
-          const text = normStr(incoming.text);
-          if (!text) return json({ error: "Missing text" }, 400);
+        const speaker = normStr(incoming.speaker) || "Player";
+        const text = normStr(incoming.text);
+        if (!text) return json({ error: "Missing text" }, 400);
 
           const chatId = normStr(incoming.chat_id ?? incoming.chatId) || genId22();
           const speakerId = normStr(incoming.speaker_id ?? incoming.speakerId) || null;
-          const type = normStr(incoming.type) || "player";
-          const status = normStr(incoming.status) || "new";
-          const createdAt = nowSeconds();
+        const type = normStr(incoming.type) || "player";
+        const status = normStr(incoming.status) || "new";
+        const createdAt = nowSeconds();
 
-          const exists = await env.DB.prepare(
-            `SELECT chat_id FROM messages WHERE chat_id = ?`
+        if (type === "action") {
+          let cancelSql = `UPDATE messages SET status = ?
+                           WHERE type = ? AND status IN (?, ?)`;
+          const cancelBinds = ["canceled", "action", "new", "ack"];
+          if (battleId) {
+            cancelSql += " AND battle_id = ?";
+            cancelBinds.push(battleId);
+          } else if (campaignId) {
+            cancelSql += " AND campaign_id = ?";
+            cancelBinds.push(campaignId);
+          }
+          if (speakerId) {
+            cancelSql += " AND speaker_id = ?";
+            cancelBinds.push(speakerId);
+          } else {
+            cancelSql += " AND speaker = ?";
+            cancelBinds.push(speaker);
+          }
+          await env.DB.prepare(cancelSql).bind(...cancelBinds).run();
+        }
+
+        const exists = await env.DB.prepare(
+          `SELECT chat_id FROM messages WHERE chat_id = ?`
           ).bind(chatId).first();
           if (exists) return json({ error: "Message already exists", chat_id: chatId }, 409);
 
