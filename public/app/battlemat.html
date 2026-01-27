@@ -292,6 +292,9 @@ Version: set in JS (VERSION)
       align-items:flex-start;
       line-height:1.3;
     }
+    .chatEntry.unread .chatSpeaker{
+      color:#7fd3ff;
+    }
     .chatSpeaker{
       font-weight:600;
       color:var(--text);
@@ -330,6 +333,20 @@ Version: set in JS (VERSION)
       display:block;
       margin-top:4px;
       white-space:pre-wrap;
+    }
+    .chatUnreadBadge{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:18px;
+      height:18px;
+      padding:0 6px;
+      border-radius:999px;
+      font-size:11px;
+      background:rgba(127,211,255,0.15);
+      color:#bfe9ff;
+      border:1px solid rgba(127,211,255,0.35);
+      margin-left:6px;
     }
 
     #chatBar{
@@ -501,7 +518,9 @@ Version: set in JS (VERSION)
         </div>
         <div id="statusAction" hidden></div>
 
-        <h3>Log</h3>
+        <h3>Log <span id="chatUnreadCount" class="chatUnreadBadge" hidden>0</span>
+          <button id="chatMarkRead" class="mini" title="Mark all messages as read">Mark Read</button>
+        </h3>
         <div id="chatLog"></div>
 
         <h3 id="editorTitle">Editor</h3>
@@ -611,6 +630,8 @@ Version: set in JS (VERSION)
     statusBody: getEl('statusBody'),
     statusAction: getEl('statusAction'),
     chatLog: getEl('chatLog'),
+    chatUnreadCount: getEl('chatUnreadCount'),
+    chatMarkRead: getEl('chatMarkRead'),
     chatSpeaker: getEl('chatSpeaker'),
     chatInput: getEl('chatInput'),
     chatSend: getEl('chatSend'),
@@ -698,6 +719,8 @@ Version: set in JS (VERSION)
   const elToolStatus = els.toolStatus;
   const elPlaytestToggle = els.playtestToggle;
   const elChatLog = els.chatLog;
+  const elChatUnreadCount = els.chatUnreadCount;
+  const elChatMarkRead = els.chatMarkRead;
   const elChatSpeaker = els.chatSpeaker;
   const elChatInput = els.chatInput;
   const elChatSend = els.chatSend;
@@ -825,6 +848,7 @@ Version: set in JS (VERSION)
   let LAST_CHAT_TS = 0;
   let CURRENT_BATTLE_ID = null;
   let CURRENT_CAMPAIGN_ID = null;
+  const STORAGE_CHAT_READ_PREFIX = 'battlemat.chat.read.';
   let CHAT_SAVE_TIMER = null;
 
   const EDITOR = {
@@ -1367,6 +1391,40 @@ Version: set in JS (VERSION)
       renderChatLog();
     }
 
+    function getChatReadKey() {
+      const bid = CURRENT_BATTLE_ID || resolveBattleIdFromUrl() || 'none';
+      return STORAGE_CHAT_READ_PREFIX + bid;
+    }
+
+    function readChatReadTs() {
+      try {
+        const v = localStorage.getItem(getChatReadKey());
+        const n = v ? Number(v) : 0;
+        return Number.isFinite(n) ? n : 0;
+      } catch {
+        return 0;
+      }
+    }
+
+    function setChatReadTs(tsSeconds) {
+      const v = Math.max(0, Number(tsSeconds) || 0);
+      try { localStorage.setItem(getChatReadKey(), String(v)); } catch {}
+      updateChatUnreadIndicator();
+    }
+
+    function updateChatUnreadIndicator() {
+      if (!elChatUnreadCount) return;
+      const readTs = readChatReadTs();
+      const unread = CHAT_LOG.filter(m => (m.created_at || 0) > readTs).length;
+      if (unread > 0) {
+        elChatUnreadCount.hidden = false;
+        elChatUnreadCount.textContent = String(unread);
+      } else {
+        elChatUnreadCount.hidden = true;
+        elChatUnreadCount.textContent = '0';
+      }
+    }
+
     function setChatLogFromMessages(list) {
       if (!Array.isArray(list)) {
         CHAT_LOG = [];
@@ -1396,32 +1454,36 @@ Version: set in JS (VERSION)
   }
 
   function renderChatLog() {
-    if (!elChatLog) return;
-    if (!CHAT_LOG.length) {
-      elChatLog.innerHTML = '<div class="mini" style="opacity:0.7;">No chat yet.</div>';
-      return;
-    }
-    elChatLog.innerHTML = CHAT_LOG.map(e => {
-      const speaker = escapeHtml(e.speaker || 'Unknown');
-      const rawText = String(e.text || '');
-      const safeText = escapeHtml(rawText);
-      const summary = summarizeChatText(rawText, 180);
-      const safePreview = escapeHtml(summary.preview || '');
-      return '<div class="chatEntry">'
-        + '<span class="chatSpeaker">' + speaker + ':</span>'
-        + (summary.collapsed
-          ? '<details class="chatDetails"><summary>'
-              + '<span class="chatPreview">' + safePreview + '</span>'
-              + '<span class="chatMore">(more)</span>'
+      if (!elChatLog) return;
+      if (!CHAT_LOG.length) {
+        elChatLog.innerHTML = '<div class="mini" style="opacity:0.7;">No chat yet.</div>';
+        updateChatUnreadIndicator();
+        return;
+      }
+      const readTs = readChatReadTs();
+      elChatLog.innerHTML = CHAT_LOG.map(e => {
+        const speaker = escapeHtml(e.speaker || 'Unknown');
+        const rawText = String(e.text || '');
+        const safeText = escapeHtml(rawText);
+        const summary = summarizeChatText(rawText, 180);
+        const safePreview = escapeHtml(summary.preview || '');
+        const unreadClass = (e.created_at || 0) > readTs ? ' unread' : '';
+        return '<div class="chatEntry' + unreadClass + '">'
+          + '<span class="chatSpeaker">' + speaker + ':</span>'
+          + (summary.collapsed
+            ? '<details class="chatDetails"><summary>'
+                + '<span class="chatPreview">' + safePreview + '</span>'
+                + '<span class="chatMore">(more)</span>'
               + '<span class="chatLess">(less)</span>'
             + '</summary>'
             + '<div class="chatFull">' + safeText + '</div>'
             + '</details>'
           : '<span class="chatText">' + safeText + '</span>')
-        + '</div>';
-    }).join('');
-    elChatLog.scrollTop = elChatLog.scrollHeight;
-  }
+          + '</div>';
+      }).join('');
+      elChatLog.scrollTop = elChatLog.scrollHeight;
+      updateChatUnreadIndicator();
+    }
 
     function appendChatEntry(entry) {
       const clean = normalizeChatEntry(entry);
@@ -1495,12 +1557,22 @@ Version: set in JS (VERSION)
       }
     }
 
+  function getTokenDisplayName(token) {
+    if (!token || typeof token !== 'object') return '';
+    const meta = token.meta && typeof token.meta === 'object' ? token.meta : null;
+    const sheet = token.sheet && typeof token.sheet === 'object' ? token.sheet : null;
+    const identity = sheet && sheet.identity && typeof sheet.identity === 'object' ? sheet.identity : null;
+    const nickname = normStr(token.nickname || (meta && meta.nickname) || (identity && identity.nickname) || '');
+    const name = normStr(token.name || token.label || token.id || '');
+    return nickname || name;
+  }
+
   function populateChatSpeakerSelect(state) {
     if (!elChatSpeaker) return;
     const tokens = getTokensArray(state).filter(t => t && t.id);
     const names = [];
     for (const t of tokens) {
-      const name = String(t.name || t.id || '').trim();
+      const name = getTokenDisplayName(t);
       if (name && !names.includes(name)) names.push(name);
     }
     if (!names.includes('DM')) names.unshift('DM');
@@ -6792,6 +6864,11 @@ function setActiveFloor(floorId, opts = {}) {
         submitChat();
       }
     };
+    if (elChatMarkRead) {
+      elChatMarkRead.onclick = () => {
+        setChatReadTs(LAST_CHAT_TS || 0);
+      };
+    }
 
     if (canvas) {
       canvas.addEventListener('mousemove', (ev) => {

@@ -372,13 +372,20 @@
       main.className = 'card-main';
 
       const h3 = document.createElement('h3');
-      h3.textContent = character.name || 'Unnamed Character';
+      const fullName = (character.name || '').trim();
+      const nickname = (character.nickname || '').trim();
+      const displayName = nickname || fullName || 'Unnamed Character';
+      h3.textContent = displayName;
       main.appendChild(h3);
 
-      const metaLines = [
-        'ID: ' + character.character_id,
-        character.campaign_id ? ('Campaign: ' + (character.campaign_name || character.campaign_id)) : 'Unbound'
-      ];
+      const metaLines = [];
+      if (nickname && fullName && nickname !== fullName) {
+        metaLines.push('Name: ' + fullName);
+      }
+      metaLines.push('ID: ' + character.character_id);
+      metaLines.push(character.campaign_id
+        ? ('Campaign: ' + (character.campaign_name || character.campaign_id))
+        : 'Unbound');
       metaLines.forEach((line) => {
         const meta = document.createElement('div');
         meta.className = 'meta';
@@ -400,7 +407,7 @@
       if (character.character_id) {
         const img = document.createElement('img');
         img.className = 'char-portrait';
-        img.alt = (character.name || 'Character') + ' portrait';
+        img.alt = displayName + ' portrait';
         img.loading = 'lazy';
         img.src =
           'https://pub-32923a77247d4f2f9ad60bd440ec6e10.r2.dev/portraits/' +

@@ -1,7 +1,8 @@
-// game-api worker v3.43 (messages table + chat append, player dashboard endpoints, genId22, portrait uploads)
+// game-api worker v3.44 (messages table + chat append, player dashboard endpoints, genId22, portrait uploads)
 // Purpose: GET/PUT battles with safe id-based merges + CRUD for characters + player dashboard reads + portrait uploads.
 //
 // Changelog:
+// - v3.44: add nickname field to character CRUD + player character lists
 // - v3.43: add /messages (GET/POST) for append-only chat table
 // - v3.42: include updated API helper guidance for chat_json
 // - v3.41: add chat_json read/write on battles
