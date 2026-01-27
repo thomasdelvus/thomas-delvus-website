@@ -69,14 +69,14 @@ Hard constraints:
 ## 8) Player-visible surface (Critical)
 
 Players watch the battlemat and the in-map log.
-Therefore: write all outcomes into battle state, and add DM/player text to `chat_json`.
+Therefore: write all outcomes into battle state, and add DM/player text to the messages table (append-only).
 
 Always include in the same update after resolving an action:
 
 * `last_action` (string): short mechanical summary
 * `narration` (string): 1–3 sentences for the Narration panel
 * Optional `log` (array): append-only, only when needed
-* `chat_json` (array): append-only chat log entries
+* `messages` (table): append-only chat log entries (use POST /messages)
 
 Example patch:
 
@@ -91,14 +91,17 @@ Example patch:
 }
 ```
 
-Chat log entry format (append-only):
+Chat log append (POST /messages):
 
 ```json
 {
-  "chat_json": [
-    { "ts": 1769000000, "speaker": "DM", "text": "Durin, it’s your turn. What do you do?" },
-    { "ts": 1769000005, "speaker": "Durin", "text": "DM, I attack goblin 3 with my bow." }
-  ]
+  "campaign_id": "CAMP_...",
+  "battle_id": "BATTLE_...",
+  "speaker": "Durin",
+  "speaker_id": "CHAR_...",
+  "text": "DM, I attack goblin 3 with my bow.",
+  "type": "player",
+  "status": "new"
 }
 ```
 

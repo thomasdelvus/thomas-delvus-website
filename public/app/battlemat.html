@@ -821,7 +821,10 @@ Version: set in JS (VERSION)
   let LAST_FETCH_ERROR = '';
   let LAST_FETCH_AT = 0;
   let CHAT_LOG = [];
-  let LAST_CHAT_JSON_TEXT = '';
+  let CHAT_ID_SET = new Set();
+  let LAST_CHAT_TS = 0;
+  let CURRENT_BATTLE_ID = null;
+  let CURRENT_CAMPAIGN_ID = null;
   let CHAT_SAVE_TIMER = null;
 
   const EDITOR = {
@@ -1050,14 +1053,16 @@ Version: set in JS (VERSION)
       throw new Error('State fetch returned non-JSON: ' + (e && e.message ? e.message : String(e)));
     }
 
-    // Common DB shape: { ..., state_json: "{...}", chat_json: "..." }
-    if (parsedOuter && typeof parsedOuter === 'object' && parsedOuter.state_json != null) {
-      const sj = parsedOuter.state_json;
-      const chatJson = parsedOuter.chat_json;
+      // Common DB shape: { ..., state_json: "{...}", chat_json: "...", battle_id, campaign_id }
+      if (parsedOuter && typeof parsedOuter === 'object' && parsedOuter.state_json != null) {
+        const sj = parsedOuter.state_json;
+        const chatJson = parsedOuter.chat_json;
+        const battleId = parsedOuter.battle_id != null ? String(parsedOuter.battle_id) : null;
+        const campaignId = parsedOuter.campaign_id != null ? String(parsedOuter.campaign_id) : null;
 
-      if (typeof sj === 'string') {
-        const sjText = sj.trim();
-        if (!sjText) throw new Error('Battle record has empty state_json');
+        if (typeof sj === 'string') {
+          const sjText = sj.trim();
+          if (!sjText) throw new Error('Battle record has empty state_json');
 
         let parsedState;
         try { parsedState = JSON.parse(sjText); }
@@ -1067,18 +1072,18 @@ Version: set in JS (VERSION)
         }
 
         // Use state_json text for change detection (avoids redrawing if other DB fields change).
-        return { parsed: parsedState, jsonText: sjText, chatJson };
-      }
+          return { parsed: parsedState, jsonText: sjText, chatJson, battleId, campaignId };
+        }
 
-      // state_json provided as object already
-      try {
-        const stable = JSON.stringify(sj);
-        return { parsed: sj, jsonText: stable, chatJson };
-      } catch {
-        // Fallback: if it can't stringify, still apply it
-        return { parsed: sj, jsonText: '[[state_json_object]]', chatJson };
+        // state_json provided as object already
+        try {
+          const stable = JSON.stringify(sj);
+          return { parsed: sj, jsonText: stable, chatJson, battleId, campaignId };
+        } catch {
+          // Fallback: if it can't stringify, still apply it
+          return { parsed: sj, jsonText: '[[state_json_object]]', chatJson, battleId, campaignId };
+        }
       }
-    }
 
     // If the endpoint returns the scene JSON directly.
     return { parsed: parsedOuter, jsonText };
@@ -1120,9 +1125,10 @@ Version: set in JS (VERSION)
     applyViewFromState(scene);
   }
 
-  function applyFetchedState(parsed, jsonText, chatJson) {
+  function applyFetchedState(parsed, jsonText, chatJson, battleId, campaignId) {
     setCanonicalStateFromRaw(parsed, jsonText);
-    if (chatJson !== undefined) setChatLogFromRaw(chatJson);
+    if (battleId) CURRENT_BATTLE_ID = battleId;
+    if (campaignId) CURRENT_CAMPAIGN_ID = campaignId;
     STATE_SOURCE = stateSourceFromUrl(STATE_URL);
   }
 
@@ -1167,10 +1173,11 @@ Version: set in JS (VERSION)
     const got = await fetchStateOnce(u);
     if (!got) throw new Error('State fetch returned empty body');
 
-    setCanonicalStateFromRaw(got.parsed, got.jsonText);
-    if (got.chatJson !== undefined) setChatLogFromRaw(got.chatJson);
-    STATE_SOURCE = sourceLabel || stateSourceFromUrl(u);
-  }
+      setCanonicalStateFromRaw(got.parsed, got.jsonText);
+      if (got.battleId) CURRENT_BATTLE_ID = got.battleId;
+      if (got.campaignId) CURRENT_CAMPAIGN_ID = got.campaignId;
+      STATE_SOURCE = sourceLabel || stateSourceFromUrl(u);
+    }
 
   function syncSourceSelect() {
     if (!elSourceSelect) return;
@@ -1254,11 +1261,12 @@ Version: set in JS (VERSION)
       if (!got) return;
 
       // Only apply when the server payload changes.
-      if (got.jsonText !== LAST_STATE_JSON) {
-        applyFetchedState(got.parsed, got.jsonText, got.chatJson);
-        safeRedraw();
-      }
-      updateStateDebug();
+        if (got.jsonText !== LAST_STATE_JSON) {
+          applyFetchedState(got.parsed, got.jsonText, got.chatJson, got.battleId, got.campaignId);
+          safeRedraw();
+        }
+        await pollMessagesOnce();
+        updateStateDebug();
     } catch (e) {
       console.warn('[Battlemat] state poll error:', e);
       LAST_FETCH_ERROR = LAST_FETCH_ERROR || (e && e.message ? String(e.message) : 'fetch error');
@@ -1315,48 +1323,60 @@ Version: set in JS (VERSION)
   }
 
   function normalizeChatEntry(entry) {
-    if (!entry || typeof entry !== 'object') return null;
-    const speaker = entry.speaker != null ? String(entry.speaker) : '';
-    const text = entry.text != null ? String(entry.text) : '';
-    const ts = Number(entry.ts || entry.time || Date.now());
-    if (!speaker && !text) return null;
-    return { speaker, text, ts };
-  }
-
-  function setChatLogFromRaw(raw) {
-    let list = [];
-    if (raw == null) {
-      CHAT_LOG = [];
-      LAST_CHAT_JSON_TEXT = '';
-      renderChatLog();
-      return;
+      if (!entry || typeof entry !== 'object') return null;
+      const speaker = entry.speaker != null ? String(entry.speaker) : '';
+      const text = entry.text != null ? String(entry.text) : '';
+      const id = entry.chat_id || entry.id || entry.chatId || entry.message_id || entry.messageId || null;
+      let createdAt = Number(entry.created_at ?? entry.ts ?? entry.time ?? 0);
+      if (!Number.isFinite(createdAt) || createdAt <= 0) createdAt = Math.floor(Date.now() / 1000);
+      if (createdAt > 1e12) createdAt = Math.floor(createdAt / 1000);
+      const ts = createdAt * 1000;
+      if (!speaker && !text) return null;
+      return {
+        id: id ? String(id) : null,
+        speaker,
+        speaker_id: entry.speaker_id != null ? String(entry.speaker_id) : null,
+        text,
+        type: entry.type ? String(entry.type) : '',
+        status: entry.status ? String(entry.status) : '',
+        battle_id: entry.battle_id != null ? String(entry.battle_id) : null,
+        campaign_id: entry.campaign_id != null ? String(entry.campaign_id) : null,
+        created_at: createdAt,
+        ts
+      };
     }
 
-    if (typeof raw === 'string') {
-      const trimmed = raw.trim();
-      if (!trimmed) {
+    function mergeChatEntries(list, append) {
+      const normalized = [];
+      for (const entry of list) {
+        const clean = normalizeChatEntry(entry);
+        if (!clean) continue;
+        if (append && clean.id && CHAT_ID_SET.has(clean.id)) continue;
+        normalized.push(clean);
+      }
+      if (!append) {
         CHAT_LOG = [];
-        LAST_CHAT_JSON_TEXT = '';
+        CHAT_ID_SET = new Set();
+      }
+      for (const entry of normalized) {
+        if (entry.id) CHAT_ID_SET.add(entry.id);
+        CHAT_LOG.push(entry);
+        if (entry.created_at > LAST_CHAT_TS) LAST_CHAT_TS = entry.created_at;
+      }
+      if (CHAT_LOG.length > 500) CHAT_LOG = CHAT_LOG.slice(-500);
+      renderChatLog();
+    }
+
+    function setChatLogFromMessages(list) {
+      if (!Array.isArray(list)) {
+        CHAT_LOG = [];
+        CHAT_ID_SET = new Set();
+        LAST_CHAT_TS = 0;
         renderChatLog();
         return;
       }
-      try { list = JSON.parse(trimmed); }
-      catch { list = []; }
-    } else if (Array.isArray(raw)) {
-      list = raw;
-    } else if (typeof raw === 'object' && Array.isArray(raw.entries)) {
-      list = raw.entries;
+      mergeChatEntries(list, false);
     }
-
-    const normalized = [];
-    for (const entry of list) {
-      const clean = normalizeChatEntry(entry);
-      if (clean) normalized.push(clean);
-    }
-    CHAT_LOG = normalized;
-    try { LAST_CHAT_JSON_TEXT = JSON.stringify(normalized); } catch { LAST_CHAT_JSON_TEXT = ''; }
-    renderChatLog();
-  }
 
   function formatChatTime(ts) {
     const d = new Date(ts || Date.now());
@@ -1403,45 +1423,77 @@ Version: set in JS (VERSION)
     elChatLog.scrollTop = elChatLog.scrollHeight;
   }
 
-  function appendChatEntry(entry) {
-    const clean = normalizeChatEntry(entry);
-    if (!clean) return false;
-    CHAT_LOG.push(clean);
-    if (CHAT_LOG.length > 500) CHAT_LOG = CHAT_LOG.slice(-500);
-    renderChatLog();
-    scheduleChatSave();
-    return true;
-  }
-
-  function scheduleChatSave() {
-    if (STATE_SOURCE !== 'database') return;
-    if (CHAT_SAVE_TIMER) clearTimeout(CHAT_SAVE_TIMER);
-    CHAT_SAVE_TIMER = setTimeout(() => {
-      CHAT_SAVE_TIMER = null;
-      saveChatToDatabase();
-    }, 400);
-  }
-
-  async function saveChatToDatabase() {
-    if (STATE_SOURCE !== 'database') return false;
-    const url = resolveDatabaseUrl() || STATE_URL;
-    if (!url) return false;
-    let payload = '[]';
-    try { payload = JSON.stringify(CHAT_LOG); } catch {}
-    try {
-      const res = await fetch(url, {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json', 'accept': 'application/json' },
-        body: JSON.stringify({ chat_json: payload }),
-      });
-      if (!res.ok) throw new Error('Chat save failed: ' + res.status + ' ' + res.statusText);
-      LAST_CHAT_JSON_TEXT = payload;
+    function appendChatEntry(entry) {
+      const clean = normalizeChatEntry(entry);
+      if (!clean) return false;
+      mergeChatEntries([clean], true);
       return true;
-    } catch (e) {
-      console.warn('[Battlemat] chat save failed:', e);
-      return false;
     }
-  }
+
+    function resolveMessagesUrl(params = {}) {
+      const battleId = params.battle_id || params.battleId || CURRENT_BATTLE_ID || resolveBattleIdFromUrl();
+      const campaignId = params.campaign_id || params.campaignId || CURRENT_CAMPAIGN_ID;
+      const qs = [];
+      if (battleId) qs.push('battle_id=' + encodeURIComponent(battleId));
+      if (campaignId && !battleId) qs.push('campaign_id=' + encodeURIComponent(campaignId));
+      if (params.since_ts) qs.push('since_ts=' + encodeURIComponent(params.since_ts));
+      if (params.limit) qs.push('limit=' + encodeURIComponent(params.limit));
+      if (!qs.length) return null;
+      return '/api/messages?' + qs.join('&');
+    }
+
+    async function pollMessagesOnce() {
+      if (STATE_SOURCE !== 'database') return false;
+      const url = resolveMessagesUrl({ since_ts: LAST_CHAT_TS || null, limit: 200 });
+      if (!url) return false;
+      try {
+        const res = await fetch(url, {
+          method: 'GET',
+          cache: 'no-store',
+          headers: { 'accept': 'application/json' },
+        });
+        if (!res.ok) throw new Error('Chat fetch failed: ' + res.status + ' ' + res.statusText);
+        const data = await res.json().catch(() => null);
+        const rows = (data && Array.isArray(data.rows)) ? data.rows
+          : (Array.isArray(data) ? data : []);
+        if (rows.length) mergeChatEntries(rows, true);
+        return true;
+      } catch (e) {
+        console.warn('[Battlemat] chat fetch failed:', e);
+        return false;
+      }
+    }
+
+    async function sendChatMessage(entry) {
+      if (STATE_SOURCE !== 'database') return false;
+      const battleId = CURRENT_BATTLE_ID || resolveBattleIdFromUrl();
+      const campaignId = CURRENT_CAMPAIGN_ID;
+      if (!battleId && !campaignId) return false;
+      const payload = {
+        battle_id: battleId || null,
+        campaign_id: campaignId || null,
+        speaker: entry.speaker || 'Player',
+        speaker_id: entry.speaker_id || null,
+        text: entry.text || '',
+        type: entry.type || (entry.speaker === 'DM' ? 'dm' : 'player'),
+        status: entry.status || 'new',
+      };
+      try {
+        const res = await fetch('/api/messages', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error('Chat send failed: ' + res.status + ' ' + res.statusText);
+        const data = await res.json().catch(() => null);
+        const row = data && (data.row || data.message || data);
+        if (row && typeof row === 'object') appendChatEntry(row);
+        return true;
+      } catch (e) {
+        console.warn('[Battlemat] chat send failed:', e);
+        return false;
+      }
+    }
 
   function populateChatSpeakerSelect(state) {
     if (!elChatSpeaker) return;
@@ -6725,13 +6777,13 @@ function setActiveFloor(floorId, opts = {}) {
       });
     }
 
-    const submitChat = () => {
+    const submitChat = async () => {
       if (!chatInput) return;
       const text = String(chatInput.value || '').trim();
       if (!text) return;
       const speaker = chatSpeaker ? String(chatSpeaker.value || '').trim() : 'Player';
-      appendChatEntry({ speaker, text, ts: Date.now() });
-      chatInput.value = '';
+      const ok = await sendChatMessage({ speaker, text });
+      if (ok) chatInput.value = '';
     };
     if (chatSend) chatSend.onclick = () => submitChat();
     if (chatInput) chatInput.onkeydown = (ev) => {

@@ -1,10 +1,14 @@
-# GPT Actions OpenAPI Spec v3.09
+# GPT Actions OpenAPI Spec v3.10
 openapi: 3.1.0
 
 info:
   title: Game API
   description: Read/write access to battles and characters stored in Cloudflare D1 (Bearer-auth protected).
-  version: "3.09"
+  version: "3.10"
+
+# Changelog (commented out for easy copy/paste)
+# - v3.10: allow chat_json on battle PUT; make state_json optional; include chat_json in Battle schema; add messages endpoints; fix array schema items.
+# - v3.09: prior spec
 
 servers:
   - url: "https://dungeon.delvus.net"
@@ -168,6 +172,8 @@ paths:
                   oneOf:
                     - type: string
                     - type: array
+                      items:
+                        type: object
                 name:
                   type: string
                 campaign_id:
@@ -209,9 +215,106 @@ paths:
         "403":
           description: Invalid token
 
+  /messages:
+    get:
+      operationId: list_messages
+      summary: List chat messages (auth required)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: battle_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: campaign_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: since_ts
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  rows:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Message"
+                required: [count, rows]
+        "400":
+          description: Missing campaign_id or battle_id
+        "401":
+          description: Missing Authorization header
+        "403":
+          description: Invalid token
+
+    post:
+      operationId: create_message
+      summary: Append a chat message (auth required)
+      x-openai-isConsequential: false
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chat_id:
+                  type: string
+                campaign_id:
+                  type: string
+                battle_id:
+                  type: string
+                speaker:
+                  type: string
+                speaker_id:
+                  type: string
+                text:
+                  type: string
+                type:
+                  type: string
+                status:
+                  type: string
+              required: [speaker, text]
+      responses:
+        "200":
+          description: Message created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  row:
+                    $ref: "#/components/schemas/Message"
+                required: [ok, row]
+        "400":
+          description: Invalid request
+        "401":
+          description: Missing Authorization header
+        "403":
+          description: Invalid token
+
   /characters:
-    servers:
-      - url: "https://delvus.net/api"
     post:
       operationId: create_character
       summary: Create a character (auth required)
@@ -255,8 +358,6 @@ paths:
           description: Invalid token
 
   /characters/{character_id}:
-    servers:
-      - url: "https://delvus.net/api"
     get:
       operationId: get_character
       summary: Get a single character by ID (auth required)
@@ -283,8 +384,6 @@ paths:
           description: Invalid token
 
   /characters/{character_id}/portrait:
-    servers:
-      - url: "https://delvus.net/api"
     put:
       operationId: upload_character_portrait
       summary: Upload a character portrait (jpg only, max 512kb)
@@ -378,6 +477,29 @@ components:
         updated_at:
           type: integer
       required: [battle_id, campaign_id, name, version, updated_at]
+
+    Message:
+      type: object
+      properties:
+        chat_id:
+          type: string
+        campaign_id:
+          type: [string, "null"]
+        battle_id:
+          type: [string, "null"]
+        speaker:
+          type: string
+        speaker_id:
+          type: [string, "null"]
+        text:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: integer
+      required: [chat_id, speaker, text, created_at]
 
     Character:
       type: object
