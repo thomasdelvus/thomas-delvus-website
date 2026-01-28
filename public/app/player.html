@@ -172,7 +172,7 @@
       display:grid;
       grid-template-columns:minmax(0,1fr) auto;
       gap:10px;
-      align-items:center;
+      align-items:start;
     }
     .card-main{
       display:flex;
@@ -187,6 +187,7 @@
       border:1px solid rgba(0,0,0,0.2);
       background:#efe2c6;
       box-shadow:0 4px 10px rgba(0,0,0,0.16);
+      align-self:flex-start;
     }
     .card h3{
       margin:0;
@@ -201,6 +202,9 @@
       flex-wrap:wrap;
       gap:8px;
       align-items:center;
+    }
+    .row.character-actions{
+      flex-wrap:nowrap;
     }
     .btn{
       border:1px solid rgba(0,0,0,0.2);
@@ -400,14 +404,17 @@
       const fullName = (character.name || '').trim();
       const nickname = resolveNickname(character);
       const displayName = nickname || fullName || 'Unnamed Character';
-      h3.textContent = displayName;
+      h3.textContent = fullName || displayName;
       main.appendChild(h3);
 
       const metaLines = [];
-      if (nickname && fullName && nickname !== fullName) {
-        metaLines.push('Name: ' + fullName);
-      }
-      metaLines.push('ID: ' + character.character_id);
+      metaLines.push('Nickname: ' + (nickname || '--'));
+      const idLine = 'ID: ' + character.character_id;
+      const idEl = document.createElement('div');
+      idEl.className = 'meta';
+      idEl.textContent = idLine;
+      idEl.hidden = true;
+      main.appendChild(idEl);
       metaLines.push(character.campaign_id
         ? ('Campaign: ' + (character.campaign_name || character.campaign_id))
         : 'Unbound');
@@ -419,7 +426,7 @@
       });
 
       const row = document.createElement('div');
-      row.className = 'row';
+      row.className = 'row character-actions';
       row.appendChild(button('View Sheet', () => {
         window.location.href = '/app/character?character_id=' + encodeURIComponent(character.character_id);
       }));
@@ -432,6 +439,9 @@
         else overrides[character.character_id] = next.trim();
         saveNicknameOverrides(overrides);
         if (CURRENT_PLAYER) renderPlayer(CURRENT_PLAYER);
+      }));
+      row.appendChild(button('Show ID', () => {
+        idEl.hidden = !idEl.hidden;
       }));
       row.appendChild(button(character.campaign_id ? 'Unbind' : 'Bind', () => {
         alert('Binding will be wired once auth is added.');

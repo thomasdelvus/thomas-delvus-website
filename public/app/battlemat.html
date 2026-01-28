@@ -1534,7 +1534,9 @@ Changelog:
         const unreadClass = (e.created_at || 0) > readTs ? ' unread' : '';
         const statusRaw = String(e.status || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '');
         const statusClass = statusRaw ? (' ' + statusRaw) : '';
+        const focusArrow = (statusRaw === 'processing') ? '<span class="chatFocusArrow">→</span>' : '';
         return '<div class="chatEntry' + unreadClass + statusClass + '">'
+          + focusArrow
           + '<span class="chatSpeaker">' + speaker + ':</span>'
           + (summary.collapsed
             ? '<details class="chatDetails"><summary>'
