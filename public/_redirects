@@ -2,6 +2,7 @@
 /play/*  /app/battlemat?battle_id=:splat  200
 /api/messages  https://game-api.abbacasa-031.workers.dev/messages  307
 /api/players/*  https://game-api.abbacasa-031.workers.dev/players/:splat  307
+/api/battles  https://game-api.abbacasa-031.workers.dev/battles  307
 /api/campaigns/*  https://game-api.abbacasa-031.workers.dev/campaigns/:splat  307
 /api/battles/*  https://game-api.abbacasa-031.workers.dev/battles/:splat  307
 /api/characters/*  https://game-api.abbacasa-031.workers.dev/characters/:splat  307
