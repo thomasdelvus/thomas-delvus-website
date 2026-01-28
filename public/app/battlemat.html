@@ -7050,6 +7050,7 @@ function setActiveFloor(floorId, opts = {}) {
       if (!el) console.warn('[Battlemat] missing control #' + id);
       return el;
     };
+    const opt = (id) => els[id] || null;
 
     const btnLeft = req('btnLeft');
     const btnRight = req('btnRight');
@@ -7088,8 +7089,10 @@ function setActiveFloor(floorId, opts = {}) {
     const roomWallKind = req('roomWallKind');
     const roomThickness = req('roomThickness');
     const sourceSelect = req('sourceSelect');
-    const battleIdInput = req('battleIdInput');
-    const battleIdApply = req('battleIdApply');
+    const battleIdInput = opt('battleIdInput');
+    const battleIdApply = opt('battleIdApply');
+    const campaignIdInput = opt('campaignIdInput');
+    const campaignIdApply = opt('campaignIdApply');
     const statusBody = req('statusBody');
     const chatSpeaker = req('chatSpeaker');
     const chatInput = req('chatInput');
