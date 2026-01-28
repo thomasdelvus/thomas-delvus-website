@@ -11,6 +11,7 @@ Changelog:
 - 2026-01-28: messages are campaign-scoped only (no battle_id)
 - 2026-01-28: add POI selector (battle list) for current campaign
 - 2026-01-28: remove unused battle/campaign input handlers
+- 2026-01-28: auto-follow active token POI via campaign meta_json party_locations
 -->
 <!doctype html>
 <html lang="en">
@@ -912,6 +913,8 @@ Changelog:
   let LAST_CHAT_TS = 0;
   let CURRENT_BATTLE_ID = null;
   let CURRENT_CAMPAIGN_ID = null;
+  let CURRENT_CAMPAIGN_META = null;
+  let FOLLOW_ACTIVE_LOCATION = true;
   const STORAGE_CHAT_READ_PREFIX = 'battlemat.chat.read.';
   let CHAT_SAVE_TIMER = null;
 
@@ -1348,7 +1351,16 @@ Changelog:
     return null;
   }
 
-  async function fetchCampaignBattleId(campaignId) {
+  function parseCampaignMeta(raw) {
+    if (!raw) return null;
+    if (typeof raw === 'object') return raw;
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+    return null;
+  }
+
+  async function fetchCampaignInfo(campaignId) {
     const cid = String(campaignId || '').trim();
     if (!cid) return null;
     const bases = [];
@@ -1372,10 +1384,16 @@ Changelog:
         const data = await res.json().catch(() => null);
         if (!data || typeof data !== 'object') continue;
         const bid = data.active_battle_id || data.activeBattleId || data.battle_id || data.battleId || null;
-        if (bid) return String(bid);
+        const meta = parseCampaignMeta(data.meta_json || data.metaJson || null);
+        if (bid) return { battleId: String(bid), meta };
       } catch {}
     }
     return null;
+  }
+
+  async function fetchCampaignBattleId(campaignId) {
+    const info = await fetchCampaignInfo(campaignId);
+    return info && info.battleId ? info.battleId : null;
   }
 
   async function fetchCampaignBattles(campaignId) {
@@ -1418,6 +1436,58 @@ Changelog:
     }
     const rows = await fetchCampaignBattles(campaignId);
     renderPoiSelectOptions(rows, CURRENT_BATTLE_ID || resolveBattleIdFromUrl());
+  }
+
+  function getActiveTokenIdFromState(state) {
+    if (!state || typeof state !== 'object') return null;
+    const t = state.turn && typeof state.turn === 'object' ? state.turn : null;
+    if (!t) return null;
+    const id = t.activeTokenId || t.active_token_id || t.tokenId || t.token_id || t.actorId || t.actor_id;
+    return id != null ? String(id) : null;
+  }
+
+  function findTokenById(state, tokenId) {
+    if (!tokenId) return null;
+    const tokens = getTokensArray(state);
+    return tokens.find(t => t && String(t.id || '') === String(tokenId)) || null;
+  }
+
+  function resolveBattleForActiveToken(state) {
+    if (!FOLLOW_ACTIVE_LOCATION) return null;
+    if (!CURRENT_CAMPAIGN_META || typeof CURRENT_CAMPAIGN_META !== 'object') return null;
+    const map = CURRENT_CAMPAIGN_META.party_locations || CURRENT_CAMPAIGN_META.partyLocations || null;
+    if (!map || typeof map !== 'object') return null;
+    const activeTokenId = getActiveTokenIdFromState(state);
+    if (!activeTokenId) return null;
+    const token = findTokenById(state, activeTokenId);
+    const keys = [];
+    if (token && token.character_id) keys.push(String(token.character_id));
+    if (token && token.characterId) keys.push(String(token.characterId));
+    keys.push(String(activeTokenId));
+    for (const key of keys) {
+      const entry = map[key];
+      if (entry && typeof entry === 'object' && entry.battle_id) return String(entry.battle_id);
+      if (entry && typeof entry === 'object' && entry.battleId) return String(entry.battleId);
+    }
+    return null;
+  }
+
+  function switchBattleTo(battleId, campaignId) {
+    const id = String(battleId || '').trim();
+    if (!id) return;
+    if (CURRENT_BATTLE_ID && String(CURRENT_BATTLE_ID) === id) return;
+    const encId = encodeURIComponent(id);
+    const cid = String(campaignId || CURRENT_CAMPAIGN_ID || '').trim();
+    if (cid) {
+      try { history.replaceState(null, '', '/play/c/' + encodeURIComponent(cid) + '?battle_id=' + encId); } catch {}
+    } else {
+      try { history.replaceState(null, '', '/play/' + encId); } catch {}
+    }
+    CURRENT_BATTLE_ID = id;
+    STATE_URL = '/api/battles/' + encId;
+    STATE_SOURCE = 'database';
+    stopStatePolling();
+    startStatePolling();
   }
 
   async function loadStateFromUrl(url, sourceLabel) {

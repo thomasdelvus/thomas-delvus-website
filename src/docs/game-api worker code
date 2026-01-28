@@ -2,6 +2,7 @@
 // Purpose: GET/PUT battles with safe id-based merges + CRUD for characters + player dashboard reads + portrait uploads.
 //
 // Changelog:
+// - v3.48: include campaigns.meta_json in GET /campaigns/:campaign_id
 // - v3.47: add GET /battles?campaign_id=... list for POI selector
 // - v3.46: messages are campaign-scoped only (remove battle_id usage)
 // - v3.45: add GET /campaigns/:campaign_id; include active_battle_id in player campaign list
@@ -485,7 +486,7 @@ export default {
         const campaignId = decodeURIComponent(campaignMatch[1]);
         if (method !== "GET") return json({ error: "Method not allowed" }, 405);
         const row = await env.DB.prepare(
-          `SELECT campaign_id, admin_player_id, active_battle_id, name, summary_text, status, auth_tokens_json, version, created_at, updated_at
+          `SELECT campaign_id, admin_player_id, active_battle_id, name, summary_text, status, auth_tokens_json, meta_json, version, created_at, updated_at
            FROM campaigns
            WHERE campaign_id = ?`
         ).bind(campaignId).first();

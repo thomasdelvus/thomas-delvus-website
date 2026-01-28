@@ -8,6 +8,7 @@ info:
 
 # Changelog (commented out for easy copy/paste)
 # - add GET /campaigns/{campaign_id} (includes active_battle_id)
+# - include campaign meta_json for party_locations
 # - messages are campaign-scoped only (remove battle_id)
 # - add GET /battles?campaign_id=... for POI selector
 # - add PATCH /messages/{chat_id} for status updates (ack/canceled/processed)
@@ -625,6 +626,8 @@ components:
         status:
           type: [string, "null"]
         auth_tokens_json:
+          type: [string, "null"]
+        meta_json:
           type: [string, "null"]
         version:
           type: integer
