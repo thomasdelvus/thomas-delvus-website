@@ -2,7 +2,7 @@
 title: "Saffrondale Battlemat: Multiplayer Foundations"
 description: "Laying the groundwork for shared play, characters, and access control."
 pubDate: "Jan 28 2026"
-heroImage: "/images/MapOfSaffrondale.jpg"
+heroImage: "/images/battlemat_dev.jpg"
 project: "saffrondale"
 ---
 
