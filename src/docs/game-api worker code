@@ -1,7 +1,8 @@
-// game-api worker v3.46 (campaign active_battle_id, messages status updates, player dashboard endpoints, genId22, portrait uploads)
+// game-api worker v3.47 (campaign active_battle_id, messages status updates, player dashboard endpoints, genId22, portrait uploads)
 // Purpose: GET/PUT battles with safe id-based merges + CRUD for characters + player dashboard reads + portrait uploads.
 //
 // Changelog:
+// - v3.47: add GET /battles?campaign_id=... list for POI selector
 // - v3.46: messages are campaign-scoped only (remove battle_id usage)
 // - v3.45: add GET /campaigns/:campaign_id; include active_battle_id in player campaign list
 // - v3.44: add PATCH /messages/:chat_id; auto-cancel prior action messages for same speaker
@@ -760,6 +761,20 @@ export default {
         }
 
         return json({ error: "Method not allowed" }, 405);
+      }
+
+      if (path === "/battles" && method === "GET") {
+        const campaignId = normStr(url.searchParams.get("campaign_id") || url.searchParams.get("campaignId"));
+        if (!campaignId) return json({ error: "Missing campaign_id" }, 400);
+
+        const rows = await env.DB.prepare(
+          `SELECT battle_id, campaign_id, name, version, updated_at
+           FROM battles
+           WHERE campaign_id = ?
+           ORDER BY name ASC, updated_at DESC`
+        ).bind(campaignId).all();
+        const list = rows && rows.results ? rows.results : [];
+        return json({ count: list.length, rows: list });
       }
 
       const battleMatch = path.match(/^\/battles\/([^\/?#]+)$/);

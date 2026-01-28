@@ -9,6 +9,7 @@ Changelog:
 - 2026-01-28: fix sprite base path for /play/c routes
 - 2026-01-28: chat log uses campaign_id when available
 - 2026-01-28: messages are campaign-scoped only (no battle_id)
+- 2026-01-28: add POI selector (battle list) for current campaign
 -->
 <!doctype html>
 <html lang="en">
@@ -530,6 +531,9 @@ Changelog:
         <input id="campaignIdInput" type="text" inputmode="numeric" placeholder="id" />
         <button id="campaignIdApply" title="Use campaign id">Use</button>
       </div>
+      <div class="mini">POI
+        <select id="poiSelect" title="Select POI (battle record)"></select>
+      </div>
       <label class="mini"><input type="checkbox" id="fogToggle" checked /> Fog</label>
       <label class="mini"><input type="checkbox" id="spriteToggle" checked /> Sprites</label>
       <div class="mini">SS
@@ -690,6 +694,7 @@ Changelog:
     battleIdApply: getEl('battleIdApply'),
     campaignIdInput: getEl('campaignIdInput'),
     campaignIdApply: getEl('campaignIdApply'),
+    poiSelect: getEl('poiSelect'),
     centerOn: getEl('centerOn'),
     jumpHex: getEl('jumpHex'),
     errorBox: getEl('errorBox'),
@@ -775,6 +780,7 @@ Changelog:
   const elBattleIdApply = els.battleIdApply;
   const elCampaignIdInput = els.campaignIdInput;
   const elCampaignIdApply = els.campaignIdApply;
+  const elPoiSelect = els.poiSelect;
   const elCenterOn = els.centerOn;
   const elJumpHex = els.jumpHex;
   const elError = els.errorBox;
@@ -1387,6 +1393,48 @@ Changelog:
     return null;
   }
 
+  async function fetchCampaignBattles(campaignId) {
+    const cid = String(campaignId || '').trim();
+    if (!cid) return [];
+    const url = '/api/battles?campaign_id=' + encodeURIComponent(cid);
+    try {
+      const res = await fetch(url, { method: 'GET', cache: 'no-store', headers: { 'accept': 'application/json' } });
+      if (!res.ok) return [];
+      const data = await res.json().catch(() => null);
+      const rows = data && Array.isArray(data.rows) ? data.rows : [];
+      return rows;
+    } catch {
+      return [];
+    }
+  }
+
+  function renderPoiSelectOptions(rows, activeBattleId) {
+    if (!elPoiSelect) return;
+    const list = Array.isArray(rows) ? rows : [];
+    const activeId = activeBattleId ? String(activeBattleId) : '';
+    const options = ['<option value="">Select POI</option>'];
+    for (const row of list) {
+      if (!row || !row.battle_id) continue;
+      const id = String(row.battle_id);
+      const label = String(row.name || row.slug || row.title || id);
+      const selected = activeId && id === activeId ? ' selected' : '';
+      options.push('<option value="' + escapeHtml(id) + '"' + selected + '>' + escapeHtml(label) + '</option>');
+    }
+    elPoiSelect.innerHTML = options.join('');
+    elPoiSelect.disabled = options.length <= 1;
+  }
+
+  async function refreshPoiSelect(campaignId) {
+    if (!elPoiSelect) return;
+    if (!campaignId) {
+      elPoiSelect.innerHTML = '<option value="">Select POI</option>';
+      elPoiSelect.disabled = true;
+      return;
+    }
+    const rows = await fetchCampaignBattles(campaignId);
+    renderPoiSelectOptions(rows, CURRENT_BATTLE_ID || resolveBattleIdFromUrl());
+  }
+
   async function loadStateFromUrl(url, sourceLabel) {
     const u = String(url || '').trim();
     if (!u) throw new Error('Missing state URL');
@@ -1425,6 +1473,10 @@ Changelog:
     if (document.activeElement !== elCampaignIdInput) {
       elCampaignIdInput.value = v;
       if (!v) elCampaignIdInput.placeholder = 'id';
+    }
+    if (!v && elPoiSelect) {
+      elPoiSelect.innerHTML = '<option value="">Select POI</option>';
+      elPoiSelect.disabled = true;
     }
   }
 
@@ -7478,7 +7530,7 @@ function setActiveFloor(floorId, opts = {}) {
       }
       const cid = encodeURIComponent(v);
       const id = encodeURIComponent(String(bid));
-      try { history.replaceState(null, '', '/play/c/' + cid); } catch {}
+      try { history.replaceState(null, '', '/play/c/' + cid + '?battle_id=' + id); } catch {}
       CURRENT_CAMPAIGN_ID = v;
       CURRENT_BATTLE_ID = String(bid);
       if (battleIdInput) battleIdInput.value = String(bid);
@@ -7488,6 +7540,7 @@ function setActiveFloor(floorId, opts = {}) {
       syncSourceSelect();
       syncBattleIdInput();
       syncCampaignIdInput();
+      refreshPoiSelect(v);
     };
 
     if (battleIdInput) {
@@ -7521,6 +7574,26 @@ function setActiveFloor(floorId, opts = {}) {
     }
 
     if (campaignIdApply) campaignIdApply.onclick = () => applyCampaignId();
+
+    if (elPoiSelect) {
+      elPoiSelect.onchange = () => {
+        const v = String(elPoiSelect.value || '').trim();
+        if (!v) return;
+        CURRENT_BATTLE_ID = v;
+        const cid = CURRENT_CAMPAIGN_ID || resolveCampaignIdFromUrl() || '';
+        const id = encodeURIComponent(v);
+        if (cid) {
+          try { history.replaceState(null, '', '/play/c/' + encodeURIComponent(cid) + '?battle_id=' + id); } catch {}
+        } else {
+          try { history.replaceState(null, '', '/play/' + id); } catch {}
+        }
+        if (battleIdInput) battleIdInput.value = v;
+        STATE_URL = '/api/battles/' + id;
+        STATE_SOURCE = 'database';
+        stopStatePolling();
+        startStatePolling();
+      };
+    }
 
     if (elFogToggle) elFogToggle.onchange = () => safeRedraw();
     if (elSpriteToggle) {
@@ -7828,6 +7901,7 @@ function setActiveFloor(floorId, opts = {}) {
         startStatePolling();
         syncSourceSelect();
         setToolStatus('DB: idle');
+        refreshPoiSelect(CURRENT_CAMPAIGN_ID);
       }
     } else {
       const battleId = resolveBattleIdHintFromUrl();
@@ -7838,6 +7912,7 @@ function setActiveFloor(floorId, opts = {}) {
         startStatePolling();
         syncSourceSelect();
         setToolStatus('DB: idle');
+        refreshPoiSelect(campaignId || CURRENT_CAMPAIGN_ID);
       } else if (campaignId) {
         const bid = await fetchCampaignBattleId(campaignId);
         if (bid) {
@@ -7848,6 +7923,7 @@ function setActiveFloor(floorId, opts = {}) {
           startStatePolling();
           syncSourceSelect();
           setToolStatus('DB: idle');
+          refreshPoiSelect(campaignId);
         } else {
           if (elError) {
             elError.hidden = false;

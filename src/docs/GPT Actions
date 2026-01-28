@@ -9,6 +9,7 @@ info:
 # Changelog (commented out for easy copy/paste)
 # - add GET /campaigns/{campaign_id} (includes active_battle_id)
 # - messages are campaign-scoped only (remove battle_id)
+# - add GET /battles?campaign_id=... for POI selector
 # - add PATCH /messages/{chat_id} for status updates (ack/canceled/processed)
 # - prior: messages endpoints + chat_json optional on battle PUT
 
@@ -84,9 +85,15 @@ paths:
   /battles:
     get:
       operationId: list_battles
-      summary: List all battles (auth required)
+      summary: List battles for a campaign (auth required)
       security:
         - bearerAuth: []
+      parameters:
+        - name: campaign_id
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: List of battles
@@ -178,6 +185,8 @@ paths:
           description: Missing Authorization header
         "403":
           description: Invalid token
+        "400":
+          description: Missing campaign_id
 
     put:
       operationId: update_battle
