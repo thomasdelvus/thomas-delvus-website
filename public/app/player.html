@@ -364,6 +364,31 @@
       return btn;
     }
 
+    const NICKNAME_STORAGE_KEY = 'player.nicknameOverrides.v1';
+    let CURRENT_PLAYER = null;
+
+    function loadNicknameOverrides() {
+      try {
+        const raw = localStorage.getItem(NICKNAME_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveNicknameOverrides(overrides) {
+      try {
+        localStorage.setItem(NICKNAME_STORAGE_KEY, JSON.stringify(overrides || {}));
+      } catch {}
+    }
+
+    function resolveNickname(character) {
+      const overrides = loadNicknameOverrides();
+      const override = character && character.character_id ? overrides[character.character_id] : '';
+      return (override || character.nickname || '').trim();
+    }
+
     function characterCard(character) {
       const el = document.createElement('div');
       el.className = 'card character-card';
@@ -373,7 +398,7 @@
 
       const h3 = document.createElement('h3');
       const fullName = (character.name || '').trim();
-      const nickname = (character.nickname || '').trim();
+      const nickname = resolveNickname(character);
       const displayName = nickname || fullName || 'Unnamed Character';
       h3.textContent = displayName;
       main.appendChild(h3);
@@ -398,6 +423,16 @@
       row.appendChild(button('View Sheet', () => {
         window.location.href = '/app/character?character_id=' + encodeURIComponent(character.character_id);
       }));
+      row.appendChild(button('Nickname', () => {
+        const current = resolveNickname(character) || '';
+        const next = prompt('Nickname for ' + (fullName || 'character') + ':', current);
+        if (next == null) return;
+        const overrides = loadNicknameOverrides();
+        if (!next.trim()) delete overrides[character.character_id];
+        else overrides[character.character_id] = next.trim();
+        saveNicknameOverrides(overrides);
+        if (CURRENT_PLAYER) renderPlayer(CURRENT_PLAYER);
+      }));
       row.appendChild(button(character.campaign_id ? 'Unbind' : 'Bind', () => {
         alert('Binding will be wired once auth is added.');
       }));
@@ -421,6 +456,7 @@
     }
 
     function renderPlayer(player) {
+      CURRENT_PLAYER = player;
       elWrap.hidden = false;
       elStatus.style.display = 'none';
       elPlayerName.textContent = player.display_name || 'Unnamed Player';

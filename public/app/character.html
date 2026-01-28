@@ -1679,7 +1679,9 @@
       const appearance = sheet.appearance || {};
       const personality = sheet.personality || {};
 
-      const name = identity.name || character.name || 'Unknown';
+      const baseName = identity.name || character.name || 'Unknown';
+      const nickname = identity.nickname || character.nickname || '';
+      const displayName = nickname && nickname !== baseName ? (baseName + ' (' + nickname + ')') : baseName;
       const klass = identity.class || identity.class_name || '';
       const level = identity.level != null ? identity.level : '';
       const race = identity.race || '';
@@ -1687,8 +1689,8 @@
       const alignment = identity.alignment || '';
       const xp = identity.experience_points || identity.xp || '';
 
-      document.title = name + ' - Character Sheet';
-      els.name.textContent = name;
+      document.title = displayName + ' - Character Sheet';
+      els.name.textContent = displayName;
       els.meta.textContent = '';
       els.meta.style.display = 'none';
 
