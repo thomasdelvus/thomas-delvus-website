@@ -1357,16 +1357,31 @@ Changelog:
   async function fetchCampaignBattleId(campaignId) {
     const cid = String(campaignId || '').trim();
     if (!cid) return null;
-    try {
-      const res = await fetch('/api/campaigns/' + encodeURIComponent(cid));
-      if (!res.ok) return null;
-      const data = await res.json().catch(() => null);
-      if (!data || typeof data !== 'object') return null;
-      const bid = data.active_battle_id || data.activeBattleId || data.battle_id || data.battleId || null;
-      return bid ? String(bid) : null;
-    } catch {
-      return null;
+    const bases = [];
+    if (window && window.BATTLE_API_BASE) bases.push(String(window.BATTLE_API_BASE));
+    if (STATE_URL && STATE_URL.includes('/battles/')) {
+      const base = STATE_URL.split('/battles/')[0];
+      if (base) bases.push(base);
     }
+    bases.push('/api');
+    bases.push('https://dungeon.delvus.net');
+
+    const seen = new Set();
+    for (const base0 of bases) {
+      const base = String(base0 || '').trim().replace(/\/+$/, '');
+      if (!base || seen.has(base)) continue;
+      seen.add(base);
+      const url = base + '/campaigns/' + encodeURIComponent(cid);
+      try {
+        const res = await fetch(url);
+        if (!res.ok) continue;
+        const data = await res.json().catch(() => null);
+        if (!data || typeof data !== 'object') continue;
+        const bid = data.active_battle_id || data.activeBattleId || data.battle_id || data.battleId || null;
+        if (bid) return String(bid);
+      } catch {}
+    }
+    return null;
   }
 
   async function loadStateFromUrl(url, sourceLabel) {
