@@ -4,6 +4,7 @@ Version: set in JS (VERSION)
 Changelog:
 - 2026-01-28: move chat bar under battlemat, widen sidebar, stretch log, move Send button left
 - 2026-01-28: status turn triangle + hostility name colors; DM chat color neutral
+- 2026-01-28: campaign_id resolver + active_battle_id lookup
 -->
 <!doctype html>
 <html lang="en">
@@ -521,6 +522,10 @@ Changelog:
         <input id="battleIdInput" type="text" inputmode="numeric" placeholder="id" />
         <button id="battleIdApply" title="Use battle id">Use</button>
       </div>
+      <div class="mini">Campaign ID
+        <input id="campaignIdInput" type="text" inputmode="numeric" placeholder="id" />
+        <button id="campaignIdApply" title="Use campaign id">Use</button>
+      </div>
       <label class="mini"><input type="checkbox" id="fogToggle" checked /> Fog</label>
       <label class="mini"><input type="checkbox" id="spriteToggle" checked /> Sprites</label>
       <div class="mini">SS
@@ -679,6 +684,8 @@ Changelog:
     sourceSelect: getEl('sourceSelect'),
     battleIdInput: getEl('battleIdInput'),
     battleIdApply: getEl('battleIdApply'),
+    campaignIdInput: getEl('campaignIdInput'),
+    campaignIdApply: getEl('campaignIdApply'),
     centerOn: getEl('centerOn'),
     jumpHex: getEl('jumpHex'),
     errorBox: getEl('errorBox'),
@@ -762,6 +769,8 @@ Changelog:
   const elSourceSelect = els.sourceSelect;
   const elBattleIdInput = els.battleIdInput;
   const elBattleIdApply = els.battleIdApply;
+  const elCampaignIdInput = els.campaignIdInput;
+  const elCampaignIdApply = els.campaignIdApply;
   const elCenterOn = els.centerOn;
   const elJumpHex = els.jumpHex;
   const elError = els.errorBox;
@@ -1011,6 +1020,49 @@ Changelog:
     return null;
   }
 
+  function parseCampaignIdFromUrlString(rawUrl) {
+    const base = (window && window.location && window.location.href)
+      ? window.location.href
+      : 'http://localhost/';
+    const s = String(rawUrl || '').trim();
+    if (!s) return null;
+
+    let u = null;
+    try { u = new URL(s, base); } catch { u = null; }
+
+    const search = u ? u.search : '';
+    const hash = u ? u.hash : '';
+    const path = u ? u.pathname : s;
+
+    let cid = (
+      getQueryParams(search).get('campaign_id') ||
+      getQueryParams(search).get('campaignId') ||
+      getQueryParams(search).get('campaign') ||
+      ''
+    ).trim();
+    if (cid) return cid;
+
+    cid = (
+      getQueryParams(hash).get('campaign_id') ||
+      getQueryParams(hash).get('campaignId') ||
+      getQueryParams(hash).get('campaign') ||
+      ''
+    ).trim();
+    if (cid) return cid;
+
+    const playMatch = String(path || '').match(/\/play\/c\/([^\/?#]+)/i);
+    if (playMatch && playMatch[1]) {
+      try { return decodeURIComponent(playMatch[1]); } catch { return playMatch[1]; }
+    }
+
+    const campMatch = String(path || '').match(/\/campaign\/([^\/?#]+)/i);
+    if (campMatch && campMatch[1]) {
+      try { return decodeURIComponent(campMatch[1]); } catch { return campMatch[1]; }
+    }
+
+    return null;
+  }
+
   function resolveBattleIdHintFromUrl() {
     const qp = getQueryParamsCached();
     let bid = (
@@ -1067,6 +1119,53 @@ Changelog:
     return null;
   }
 
+  function resolveCampaignIdHintFromUrl() {
+    const qp = getQueryParamsCached();
+    let cid = (
+      qp.get('campaign_id') ||
+      qp.get('campaignId') ||
+      qp.get('campaign') ||
+      ''
+    ).trim();
+    if (cid) return cid;
+
+    const hp = getQueryParams(window.location.hash);
+    cid = (
+      hp.get('campaign_id') ||
+      hp.get('campaignId') ||
+      hp.get('campaign') ||
+      ''
+    ).trim();
+    if (cid) return cid;
+
+    const path = (window && window.location && window.location.pathname)
+      ? String(window.location.pathname)
+      : '';
+    const playMatch = path.match(/\/play\/c\/([^\/?#]+)/i);
+    if (playMatch && playMatch[1]) {
+      try { return decodeURIComponent(playMatch[1]); } catch { return playMatch[1]; }
+    }
+
+    const campMatch = path.match(/\/campaign\/([^\/?#]+)/i);
+    if (campMatch && campMatch[1]) {
+      try { return decodeURIComponent(campMatch[1]); } catch { return campMatch[1]; }
+    }
+
+    const href = (window && window.location && window.location.href)
+      ? String(window.location.href)
+      : '';
+    const refCid = parseCampaignIdFromUrlString(href);
+    if (refCid) return refCid;
+
+    const ref = (document && document.referrer) ? String(document.referrer) : '';
+    if (ref) {
+      const refCid2 = parseCampaignIdFromUrlString(ref);
+      if (refCid2) return refCid2;
+    }
+
+    return null;
+  }
+
   function shouldRunSelfTests() {
     const qp = getQueryParamsCached();
     if (qp.get('selftest') === '1' || qp.get('selftests') === '1') return true;
@@ -1075,6 +1174,10 @@ Changelog:
 
   function resolveBattleIdFromUrl() {
     return resolveBattleIdHintFromUrl();
+  }
+
+  function resolveCampaignIdFromUrl() {
+    return resolveCampaignIdHintFromUrl();
   }
 
   function resolveStateUrl() {
@@ -1250,6 +1353,21 @@ Changelog:
     return null;
   }
 
+  async function fetchCampaignBattleId(campaignId) {
+    const cid = String(campaignId || '').trim();
+    if (!cid) return null;
+    try {
+      const res = await fetch('/api/campaigns/' + encodeURIComponent(cid));
+      if (!res.ok) return null;
+      const data = await res.json().catch(() => null);
+      if (!data || typeof data !== 'object') return null;
+      const bid = data.active_battle_id || data.activeBattleId || data.battle_id || data.battleId || null;
+      return bid ? String(bid) : null;
+    } catch {
+      return null;
+    }
+  }
+
   async function loadStateFromUrl(url, sourceLabel) {
     const u = String(url || '').trim();
     if (!u) throw new Error('Missing state URL');
@@ -1278,6 +1396,16 @@ Changelog:
     if (document.activeElement !== elBattleIdInput) {
       elBattleIdInput.value = v;
       if (!v) elBattleIdInput.placeholder = 'id';
+    }
+  }
+
+  function syncCampaignIdInput() {
+    if (!elCampaignIdInput) return;
+    const hint = resolveCampaignIdHintFromUrl() || '';
+    const v = hint || '';
+    if (document.activeElement !== elCampaignIdInput) {
+      elCampaignIdInput.value = v;
+      if (!v) elCampaignIdInput.placeholder = 'id';
     }
   }
 
@@ -6657,6 +6785,7 @@ function populateFloorSelect(floors) {
     populateRoomKindDatalists();
     syncSourceSelect();
     syncBattleIdInput();
+    syncCampaignIdInput();
   }
 
   function redraw() {
@@ -7316,6 +7445,35 @@ function setActiveFloor(floorId, opts = {}) {
       startStatePolling();
       syncSourceSelect();
       syncBattleIdInput();
+      syncCampaignIdInput();
+    };
+
+    const applyCampaignId = async () => {
+      if (!campaignIdInput) return;
+      const v = String(campaignIdInput.value || '').trim();
+      if (!v) return;
+      if (elError) { elError.hidden = true; elError.textContent = ''; }
+      stopStatePolling();
+      const bid = await fetchCampaignBattleId(v);
+      if (!bid) {
+        if (elError) {
+          elError.hidden = false;
+          elError.textContent = 'Campaign not found or missing active_battle_id.';
+        }
+        return;
+      }
+      const cid = encodeURIComponent(v);
+      const id = encodeURIComponent(String(bid));
+      try { history.replaceState(null, '', '/play/c/' + cid); } catch {}
+      CURRENT_CAMPAIGN_ID = v;
+      CURRENT_BATTLE_ID = String(bid);
+      if (battleIdInput) battleIdInput.value = String(bid);
+      STATE_URL = '/api/battles/' + id;
+      STATE_SOURCE = 'database';
+      startStatePolling();
+      syncSourceSelect();
+      syncBattleIdInput();
+      syncCampaignIdInput();
     };
 
     if (battleIdInput) {
@@ -7333,6 +7491,22 @@ function setActiveFloor(floorId, opts = {}) {
     }
 
     if (battleIdApply) battleIdApply.onclick = () => applyBattleId();
+
+    if (campaignIdInput) {
+      campaignIdInput.value = resolveCampaignIdHintFromUrl() || '';
+      campaignIdInput.onchange = () => {
+        const v = String(campaignIdInput.value || '').trim();
+        if (!v) syncCampaignIdInput();
+      };
+      campaignIdInput.onkeydown = (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          applyCampaignId();
+        }
+      };
+    }
+
+    if (campaignIdApply) campaignIdApply.onclick = () => applyCampaignId();
 
     if (elFogToggle) elFogToggle.onchange = () => safeRedraw();
     if (elSpriteToggle) {
@@ -7573,7 +7747,7 @@ function setActiveFloor(floorId, opts = {}) {
   }
 
   // ===== Boot =====
-  function init() {
+  async function init() {
     const state = getState();
     const floors = getFloorsFromState(state);
     VIEW.floorId = pickActiveFloorId(state, floors);
@@ -7643,12 +7817,30 @@ function setActiveFloor(floorId, opts = {}) {
       }
     } else {
       const battleId = resolveBattleIdHintFromUrl();
+      const campaignId = resolveCampaignIdHintFromUrl();
       if (battleId) {
         STATE_URL = `/api/battles/${encodeURIComponent(battleId)}`;
         STATE_SOURCE = 'database';
         startStatePolling();
         syncSourceSelect();
         setToolStatus('DB: idle');
+      } else if (campaignId) {
+        const bid = await fetchCampaignBattleId(campaignId);
+        if (bid) {
+          CURRENT_CAMPAIGN_ID = campaignId;
+          CURRENT_BATTLE_ID = String(bid);
+          STATE_URL = `/api/battles/${encodeURIComponent(bid)}`;
+          STATE_SOURCE = 'database';
+          startStatePolling();
+          syncSourceSelect();
+          setToolStatus('DB: idle');
+        } else {
+          if (elError) {
+            elError.hidden = false;
+            elError.textContent = 'Campaign not found or missing active_battle_id.';
+          }
+          applySourceSelection('embedded');
+        }
       } else {
         applySourceSelection('embedded');
       }

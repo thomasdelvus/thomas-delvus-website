@@ -7,6 +7,7 @@ info:
   version: "current"
 
 # Changelog (commented out for easy copy/paste)
+# - add GET /campaigns/{campaign_id} (includes active_battle_id)
 # - add PATCH /messages/{chat_id} for status updates (ack/canceled/processed)
 # - prior: messages endpoints + chat_json optional on battle PUT
 
@@ -136,6 +137,42 @@ paths:
                   battle_id:
                     type: string
                 required: [error, battle_id]
+        "401":
+          description: Missing Authorization header
+        "403":
+          description: Invalid token
+
+  /campaigns/{campaign_id}:
+    get:
+      operationId: get_campaign
+      summary: Get a single campaign by ID (auth required)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: campaign_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Campaign found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+        "404":
+          description: Campaign not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  campaign_id:
+                    type: string
+                required: [error, campaign_id]
         "401":
           description: Missing Authorization header
         "403":
@@ -570,6 +607,31 @@ components:
         updated_at:
           type: integer
       required: [character_id, campaign_id, player_id, name, version]
+
+    Campaign:
+      type: object
+      properties:
+        campaign_id:
+          type: string
+        admin_player_id:
+          type: string
+        active_battle_id:
+          type: [string, "null"]
+        name:
+          type: string
+        summary_text:
+          type: [string, "null"]
+        status:
+          type: [string, "null"]
+        auth_tokens_json:
+          type: [string, "null"]
+        version:
+          type: integer
+        created_at:
+          type: integer
+        updated_at:
+          type: integer
+      required: [campaign_id, admin_player_id, name, version]
 
     HexBoard:
       type: object

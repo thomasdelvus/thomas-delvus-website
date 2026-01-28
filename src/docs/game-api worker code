@@ -1,7 +1,8 @@
-// game-api worker v3.44 (messages table + status updates, player dashboard endpoints, genId22, portrait uploads)
+// game-api worker v3.45 (campaign active_battle_id, messages status updates, player dashboard endpoints, genId22, portrait uploads)
 // Purpose: GET/PUT battles with safe id-based merges + CRUD for characters + player dashboard reads + portrait uploads.
 //
 // Changelog:
+// - v3.45: add GET /campaigns/:campaign_id; include active_battle_id in player campaign list
 // - v3.44: add PATCH /messages/:chat_id; auto-cancel prior action messages for same speaker
 // - v3.43: add /messages (GET/POST) for append-only chat table
 // - v3.42: include updated API helper guidance for chat_json
@@ -449,7 +450,7 @@ export default {
         const playerId = decodeURIComponent(playerCampaignsMatch[1]);
         if (method !== "GET") return json({ error: "Method not allowed" }, 405);
         const rows = await env.DB.prepare(
-          `SELECT campaign_id, admin_player_id, name, summary_text, status, auth_tokens_json, version, created_at, updated_at
+          `SELECT campaign_id, admin_player_id, active_battle_id, name, summary_text, status, auth_tokens_json, version, created_at, updated_at
            FROM campaigns
            WHERE admin_player_id = ?
            ORDER BY created_at DESC`
@@ -475,6 +476,19 @@ export default {
       if (playerInvitesMatch) {
         if (method !== "GET") return json({ error: "Method not allowed" }, 405);
         return json({ count: 0, rows: [] });
+      }
+
+      const campaignMatch = path.match(/^\/campaigns\/([^\/?#]+)$/);
+      if (campaignMatch) {
+        const campaignId = decodeURIComponent(campaignMatch[1]);
+        if (method !== "GET") return json({ error: "Method not allowed" }, 405);
+        const row = await env.DB.prepare(
+          `SELECT campaign_id, admin_player_id, active_battle_id, name, summary_text, status, auth_tokens_json, version, created_at, updated_at
+           FROM campaigns
+           WHERE campaign_id = ?`
+        ).bind(campaignId).first();
+        if (!row) return json({ error: "Campaign not found", campaign_id: campaignId }, 404);
+        return json(row);
       }
 
       if (path === "/characters") {
