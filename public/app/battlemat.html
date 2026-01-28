@@ -6,6 +6,7 @@ Changelog:
 - 2026-01-28: move chat bar under battlemat, widen sidebar, stretch log, move Send button left
 - 2026-01-28: status turn triangle + hostility name colors; DM chat color neutral
 - 2026-01-28: campaign_id resolver + active_battle_id lookup
+- 2026-01-28: fix sprite base path for /play/c routes
 -->
 <!doctype html>
 <html lang="en">
@@ -3347,12 +3348,11 @@ Changelog:
   }
 
   function resolveSpriteBasePath() {
-    try {
-      // Resolve relative to the current HTML file so /public/ and root deployments both work.
-      return new URL('../assets/sprites/', window.location.href).toString();
-    } catch {
-      return '/assets/sprites/';
-    }
+    const origin = (window && window.location && window.location.origin)
+      ? window.location.origin
+      : '';
+    if (origin) return origin.replace(/\/+$/, '') + '/assets/sprites/';
+    return '/assets/sprites/';
   }
 
   // ===== Sprites (core, optional) =====
