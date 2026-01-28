@@ -3,6 +3,7 @@ Battlemat
 Version: set in JS (VERSION)
 Changelog:
 - 2026-01-28: move chat bar under battlemat, widen sidebar, stretch log, move Send button left
+- 2026-01-28: status turn triangle + hostility name colors; DM chat color neutral
 -->
 <!doctype html>
 <html lang="en">
@@ -248,10 +249,19 @@ Changelog:
       text-align:center;
     }
     #statusTable tbody tr:last-child td{border-bottom:none;}
-    .statusRow{border-left:4px solid rgba(160,160,160,0.8);}
-    .statusRow.side-pc{border-left-color:rgba(80,160,220,0.95);}
-    .statusRow.side-en{border-left-color:rgba(220,120,80,0.95);}
-    .statusRow.side-npc{border-left-color:rgba(160,160,160,0.85);}
+    .statusNameCell{display:flex;align-items:center;gap:6px;}
+    .statusTurnMarker{
+      width:0;
+      height:0;
+      border-top:6px solid transparent;
+      border-bottom:6px solid transparent;
+      border-left:10px solid rgba(120,220,140,0.9);
+    }
+    .statusTurnMarker.inactive{border-left-color:transparent;}
+    .statusName{font-weight:600;}
+    .status-friendly{color:#7fd3ff;}
+    .status-neutral{color:var(--muted);}
+    .status-hostile{color:rgba(255,140,110,0.95);}
     .statusRow.dead{opacity:0.55;}
     .statusRow.active{background:rgba(67,209,122,0.10);}
     .statusRow.clickable{cursor:pointer;}
@@ -330,6 +340,7 @@ Changelog:
       margin-right:4px;
       white-space:nowrap;
     }
+    .chatSpeaker.dm{color:var(--muted);}
     .chatText{white-space:pre-wrap;}
     .chatDetails{
       display:inline;
@@ -1528,7 +1539,9 @@ Changelog:
       }
       const readTs = readChatReadTs();
       elChatLog.innerHTML = CHAT_LOG.map(e => {
+        const speakerKey = normalizeSpeakerKey(e.speaker || '');
         const speaker = escapeHtml(e.speaker || 'Unknown');
+        const speakerClass = 'chatSpeaker' + (speakerKey === 'dm' ? ' dm' : '');
         const rawText = String(e.text || '');
         const safeText = escapeHtml(rawText);
         const summary = summarizeChatText(rawText, 180);
@@ -1539,7 +1552,7 @@ Changelog:
         const focusArrow = (statusRaw === 'processing') ? '<span class="chatFocusArrow" aria-hidden="true"></span>' : '';
         return '<div class="chatEntry' + unreadClass + statusClass + '">'
           + focusArrow
-          + '<span class="chatSpeaker">' + speaker + ':</span>'
+          + '<span class="' + speakerClass + '">' + speaker + ':</span>'
           + (summary.collapsed
             ? '<details class="chatDetails"><summary>'
                 + '<span class="chatPreview">' + safePreview + '</span>'
@@ -6320,6 +6333,16 @@ const EMBEDDED_WORLD_JSON = `{
     return 'side-npc';
   }
 
+  function tokenHostility(token) {
+    const raw = token && token.hostility != null ? String(token.hostility).trim().toLowerCase() : '';
+    if (raw === 'friendly' || raw === 'neutral' || raw === 'hostile') return raw;
+    const sideRaw = token && token.side != null ? String(token.side) : '';
+    const side = sideRaw.trim().toUpperCase();
+    if (side === 'PC' || side === 'PLAYER') return 'friendly';
+    if (side === 'EN' || side === 'ENEMY') return 'hostile';
+    return 'neutral';
+  }
+
   function updateSidebar(state, floor, rooms, openings, objects, tokens) {
     const statusMeta = els.statusMeta;
     const statusBody = els.statusBody;
@@ -6396,7 +6419,10 @@ const EMBEDDED_WORLD_JSON = `{
       const hpNum = Number(t.hp);
       const hpDead = Number.isFinite(hpNum) ? hpNum <= 0 : false;
       const isDead = hpDead || conditions.some(c => c.label.toLowerCase().includes('dead') || c.label.toLowerCase().includes('down'));
-      const rowClass = 'statusRow ' + tokenSideClass(t) + (isDead ? ' dead' : '') + (isActive ? ' active' : '') + (characterId ? ' clickable' : '');
+      const hostility = tokenHostility(t);
+      const rowClass = 'statusRow' + (isDead ? ' dead' : '') + (isActive ? ' active' : '') + (characterId ? ' clickable' : '');
+      const turnMarkerClass = 'statusTurnMarker' + (isActive ? '' : ' inactive');
+      const nameClass = 'statusName status-' + hostility;
       const rowAttrs = characterId
         ? (' data-character-id="' + escapeHtml(characterId) + '" role="button" tabindex="0" title="Open character sheet"')
         : '';
@@ -6406,7 +6432,10 @@ const EMBEDDED_WORLD_JSON = `{
         'Range: ' + (range != null ? String(range) : '–'),
       ].join('\n');
       return '<tr class="' + rowClass + '"' + rowAttrs + '>'
-        + '<td title="' + escapeHtml(hoverDetails) + '">' + escapeHtml(name) + '</td>'
+        + '<td class="statusNameCell" title="' + escapeHtml(hoverDetails) + '">'
+          + '<span class="' + turnMarkerClass + '" aria-hidden="' + (isActive ? 'false' : 'true') + '"></span>'
+          + '<span class="' + nameClass + '">' + escapeHtml(name) + '</span>'
+        + '</td>'
         + '<td class="statusNum">' + escapeHtml(init != null ? String(init) : '–') + '</td>'
         + '<td class="statusNum">' + escapeHtml(hpText || '–') + '</td>'
         + '<td><div class="statusCond">' + conditionsHtml + actionTickHtml + '</div></td>'

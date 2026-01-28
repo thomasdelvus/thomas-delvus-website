@@ -438,9 +438,12 @@
         saveNicknameOverrides(overrides);
         if (CURRENT_PLAYER) renderPlayer(CURRENT_PLAYER);
       }));
-      row.appendChild(button('Show ID', () => {
-        idEl.hidden = !idEl.hidden;
-      }));
+      const showIdBtn = button('Show ID', () => {
+        const willShow = idEl.hidden;
+        idEl.hidden = !willShow;
+        showIdBtn.textContent = willShow ? 'Hide ID' : 'Show ID';
+      });
+      row.appendChild(showIdBtn);
       row.appendChild(button(character.campaign_id ? 'Unbind' : 'Bind', () => {
         alert('Binding will be wired once auth is added.');
       }));
@@ -487,9 +490,12 @@
 
       const row = document.createElement('div');
       row.className = 'row';
-      row.appendChild(button('Show ID', () => {
-        idEl.hidden = !idEl.hidden;
-      }));
+      const showIdBtn = button('Show ID', () => {
+        const willShow = idEl.hidden;
+        idEl.hidden = !willShow;
+        showIdBtn.textContent = willShow ? 'Hide ID' : 'Show ID';
+      });
+      row.appendChild(showIdBtn);
       row.appendChild(button('Invite Link', () => {
         const link = 'https://delvus.net/app/player?invite=' + encodeURIComponent(campaign.campaign_id);
         if (!navigator.clipboard) return alert(link);
