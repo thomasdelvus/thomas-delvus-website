@@ -1,7 +1,7 @@
 ---
 title: "On the Making of a Character Sheet"
 description: "A character sheet as a surface where systems, aesthetics, and identity converge."
-pubDate: "Jan 26 2026"
+pubDate: "Jan 20 2026"
 heroImage: "/images/character_sheet.jpg"
 project: "saffrondale"
 ---
