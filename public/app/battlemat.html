@@ -8,6 +8,7 @@ Changelog:
 - 2026-01-28: campaign_id resolver + active_battle_id lookup
 - 2026-01-28: fix sprite base path for /play/c routes
 - 2026-01-28: chat log uses campaign_id when available
+- 2026-01-28: messages are campaign-scoped only (no battle_id)
 -->
 <!doctype html>
 <html lang="en">
@@ -1743,14 +1744,9 @@ Changelog:
     }
 
     function resolveMessagesUrl(params = {}) {
-      const battleId = params.battle_id || params.battleId || CURRENT_BATTLE_ID || resolveBattleIdFromUrl();
       const campaignId = params.campaign_id || params.campaignId || CURRENT_CAMPAIGN_ID;
       const qs = [];
-      if (campaignId) {
-        qs.push('campaign_id=' + encodeURIComponent(campaignId));
-      } else if (battleId) {
-        qs.push('battle_id=' + encodeURIComponent(battleId));
-      }
+      if (campaignId) qs.push('campaign_id=' + encodeURIComponent(campaignId));
       if (params.since_ts) qs.push('since_ts=' + encodeURIComponent(params.since_ts));
       if (params.limit) qs.push('limit=' + encodeURIComponent(params.limit));
       if (!qs.length) return null;
@@ -1781,13 +1777,11 @@ Changelog:
 
     async function sendChatMessage(entry) {
       if (STATE_SOURCE !== 'database') return false;
-      const battleId = CURRENT_BATTLE_ID || resolveBattleIdFromUrl();
       const campaignId = CURRENT_CAMPAIGN_ID;
-      if (!battleId && !campaignId) return false;
+      if (!campaignId) return false;
       const textRaw = String(entry.text || '');
       const isAction = /^\s*dm\s*,/i.test(textRaw);
       const payload = {
-        battle_id: battleId || null,
         campaign_id: campaignId || null,
         speaker: entry.speaker || 'Player',
         speaker_id: entry.speaker_id || null,

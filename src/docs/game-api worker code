@@ -1,7 +1,8 @@
-// game-api worker v3.45 (campaign active_battle_id, messages status updates, player dashboard endpoints, genId22, portrait uploads)
+// game-api worker v3.46 (campaign active_battle_id, messages status updates, player dashboard endpoints, genId22, portrait uploads)
 // Purpose: GET/PUT battles with safe id-based merges + CRUD for characters + player dashboard reads + portrait uploads.
 //
 // Changelog:
+// - v3.46: messages are campaign-scoped only (remove battle_id usage)
 // - v3.45: add GET /campaigns/:campaign_id; include active_battle_id in player campaign list
 // - v3.44: add PATCH /messages/:chat_id; auto-cancel prior action messages for same speaker
 // - v3.43: add /messages (GET/POST) for append-only chat table
@@ -660,7 +661,7 @@ export default {
       ).bind(status, chatId).run();
 
       const updated = await env.DB.prepare(
-        `SELECT chat_id, campaign_id, battle_id, speaker, speaker_id, text, type, status, created_at
+        `SELECT chat_id, campaign_id, speaker, speaker_id, text, type, status, created_at
          FROM messages
          WHERE chat_id = ?`
       ).bind(chatId).first();
@@ -670,32 +671,26 @@ export default {
 
     if (path === "/messages") {
       if (method === "GET") {
-        const battleId = normStr(url.searchParams.get("battle_id") || url.searchParams.get("battleId"));
         const campaignId = normStr(url.searchParams.get("campaign_id") || url.searchParams.get("campaignId"));
         const sinceTsRaw = url.searchParams.get("since_ts") || url.searchParams.get("sinceTs");
-          const limitRaw = url.searchParams.get("limit");
-          const sinceTs = sinceTsRaw ? Number(sinceTsRaw) : null;
-          const limit = Math.min(Math.max(Number(limitRaw || 200), 1), 500);
+        const limitRaw = url.searchParams.get("limit");
+        const sinceTs = sinceTsRaw ? Number(sinceTsRaw) : null;
+        const limit = Math.min(Math.max(Number(limitRaw || 200), 1), 500);
 
-          if (!battleId && !campaignId) {
-            return json({ error: "Missing battle_id or campaign_id" }, 400);
-          }
+        if (!campaignId) {
+          return json({ error: "Missing campaign_id" }, 400);
+        }
 
-          let sql = `SELECT chat_id, campaign_id, battle_id, speaker, speaker_id, text, type, status, created_at
-                     FROM messages
-                     WHERE `;
-          const binds = [];
-          if (battleId) {
-            sql += "battle_id = ?";
-            binds.push(battleId);
-          } else {
-            sql += "campaign_id = ?";
-            binds.push(campaignId);
-          }
-          if (sinceTs && Number.isFinite(sinceTs)) {
-            sql += " AND created_at > ?";
-            binds.push(Math.floor(sinceTs));
-          }
+        let sql = `SELECT chat_id, campaign_id, speaker, speaker_id, text, type, status, created_at
+                   FROM messages
+                   WHERE `;
+        const binds = [];
+        sql += "campaign_id = ?";
+        binds.push(campaignId);
+        if (sinceTs && Number.isFinite(sinceTs)) {
+          sql += " AND created_at > ?";
+          binds.push(Math.floor(sinceTs));
+        }
           sql += " ORDER BY created_at ASC LIMIT ?";
           binds.push(limit);
 
@@ -708,16 +703,9 @@ export default {
         const incoming = await readJsonBody(request);
         if (!incoming) return json({ error: "Invalid JSON body" }, 400);
 
-          const battleId = normStr(incoming.battle_id ?? incoming.battleId);
-          let campaignId = normStr(incoming.campaign_id ?? incoming.campaignId);
-          if (!campaignId && battleId) {
-            const row = await env.DB.prepare(
-              `SELECT campaign_id FROM battles WHERE battle_id = ?`
-            ).bind(battleId).first();
-            if (row && row.campaign_id) campaignId = String(row.campaign_id);
-          }
-          if (!battleId && !campaignId) {
-            return json({ error: "Missing battle_id or campaign_id" }, 400);
+          const campaignId = normStr(incoming.campaign_id ?? incoming.campaignId);
+          if (!campaignId) {
+            return json({ error: "Missing campaign_id" }, 400);
           }
 
         const speaker = normStr(incoming.speaker) || "Player";
@@ -734,13 +722,8 @@ export default {
           let cancelSql = `UPDATE messages SET status = ?
                            WHERE type = ? AND status IN (?, ?)`;
           const cancelBinds = ["canceled", "action", "new", "ack"];
-          if (battleId) {
-            cancelSql += " AND battle_id = ?";
-            cancelBinds.push(battleId);
-          } else if (campaignId) {
-            cancelSql += " AND campaign_id = ?";
-            cancelBinds.push(campaignId);
-          }
+          cancelSql += " AND campaign_id = ?";
+          cancelBinds.push(campaignId);
           if (speakerId) {
             cancelSql += " AND speaker_id = ?";
             cancelBinds.push(speakerId);
@@ -757,16 +740,15 @@ export default {
           if (exists) return json({ error: "Message already exists", chat_id: chatId }, 409);
 
           await env.DB.prepare(
-            `INSERT INTO messages (chat_id, campaign_id, battle_id, speaker, speaker_id, text, type, status, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          ).bind(chatId, campaignId || null, battleId || null, speaker, speakerId, text, type, status, createdAt).run();
+            `INSERT INTO messages (chat_id, campaign_id, speaker, speaker_id, text, type, status, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(chatId, campaignId || null, speaker, speakerId, text, type, status, createdAt).run();
 
           return json({
             ok: true,
             row: {
               chat_id: chatId,
               campaign_id: campaignId || null,
-              battle_id: battleId || null,
               speaker,
               speaker_id: speakerId,
               text,

@@ -8,6 +8,7 @@ info:
 
 # Changelog (commented out for easy copy/paste)
 # - add GET /campaigns/{campaign_id} (includes active_battle_id)
+# - messages are campaign-scoped only (remove battle_id)
 # - add PATCH /messages/{chat_id} for status updates (ack/canceled/processed)
 # - prior: messages endpoints + chat_json optional on battle PUT
 
@@ -259,11 +260,6 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: battle_id
-          in: query
-          required: false
-          schema:
-            type: string
         - name: campaign_id
           in: query
           required: false
@@ -295,7 +291,7 @@ paths:
                       $ref: "#/components/schemas/Message"
                 required: [count, rows]
         "400":
-          description: Missing campaign_id or battle_id
+          description: Missing campaign_id
         "401":
           description: Missing Authorization header
         "403":
@@ -317,8 +313,6 @@ paths:
                 chat_id:
                   type: string
                 campaign_id:
-                  type: string
-                battle_id:
                   type: string
                 speaker:
                   type: string
@@ -566,8 +560,6 @@ components:
         chat_id:
           type: string
         campaign_id:
-          type: [string, "null"]
-        battle_id:
           type: [string, "null"]
         speaker:
           type: string
