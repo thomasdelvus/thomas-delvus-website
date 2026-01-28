@@ -9,8 +9,10 @@ info:
 # Changelog (commented out for easy copy/paste)
 # - add GET /campaigns/{campaign_id} (includes active_battle_id)
 # - include campaign meta_json for party_locations
+# - add PATCH /campaigns/{campaign_id} to update meta_json / active_battle_id
 # - messages are campaign-scoped only (remove battle_id)
 # - add GET /battles?campaign_id=... for POI selector
+# - add GET /characters?campaign_id=... for campaign characters
 # - add PATCH /messages/{chat_id} for status updates (ack/canceled/processed)
 # - prior: messages endpoints + chat_json optional on battle PUT
 
@@ -151,44 +153,6 @@ paths:
         "403":
           description: Invalid token
 
-  /campaigns/{campaign_id}:
-    get:
-      operationId: get_campaign
-      summary: Get a single campaign by ID (auth required)
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: campaign_id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Campaign found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Campaign"
-        "404":
-          description: Campaign not found
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                  campaign_id:
-                    type: string
-                required: [error, campaign_id]
-        "401":
-          description: Missing Authorization header
-        "403":
-          description: Invalid token
-        "400":
-          description: Missing campaign_id
-
     put:
       operationId: update_battle
       summary: Update a battle's stored state or chat log (auth required)
@@ -258,6 +222,104 @@ paths:
                   battle_id:
                     type: string
                 required: [error, battle_id]
+        "401":
+          description: Missing Authorization header
+        "403":
+          description: Invalid token
+
+  /campaigns/{campaign_id}:
+    get:
+      operationId: get_campaign
+      summary: Get a single campaign by ID (auth required)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: campaign_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Campaign found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+        "404":
+          description: Campaign not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  campaign_id:
+                    type: string
+                required: [error, campaign_id]
+        "401":
+          description: Missing Authorization header
+        "403":
+          description: Invalid token
+        "400":
+          description: Missing campaign_id
+
+    patch:
+      operationId: update_campaign
+      summary: Update campaign fields (meta_json, active_battle_id)
+      x-openai-isConsequential: false
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: campaign_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                active_battle_id:
+                  type: string
+                meta_json:
+                  oneOf:
+                    - type: string
+                    - type: object
+              required: []
+      responses:
+        "200":
+          description: Campaign updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required: [error]
+        "404":
+          description: Campaign not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  campaign_id:
+                    type: string
+                required: [error, campaign_id]
         "401":
           description: Missing Authorization header
         "403":
@@ -399,6 +461,39 @@ paths:
           description: Invalid token
 
   /characters:
+    get:
+      operationId: list_characters
+      summary: List characters for a campaign (auth required)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: campaign_id
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of characters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  rows:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Character"
+                required: [count, rows]
+        "400":
+          description: Missing campaign_id
+        "401":
+          description: Missing Authorization header
+        "403":
+          description: Invalid token
+
     post:
       operationId: create_character
       summary: Create a character (auth required)
