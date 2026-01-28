@@ -7,6 +7,7 @@ Changelog:
 - 2026-01-28: status turn triangle + hostility name colors; DM chat color neutral
 - 2026-01-28: campaign_id resolver + active_battle_id lookup
 - 2026-01-28: fix sprite base path for /play/c routes
+- 2026-01-28: chat log uses campaign_id when available
 -->
 <!doctype html>
 <html lang="en">
@@ -1745,8 +1746,11 @@ Changelog:
       const battleId = params.battle_id || params.battleId || CURRENT_BATTLE_ID || resolveBattleIdFromUrl();
       const campaignId = params.campaign_id || params.campaignId || CURRENT_CAMPAIGN_ID;
       const qs = [];
-      if (battleId) qs.push('battle_id=' + encodeURIComponent(battleId));
-      if (campaignId && !battleId) qs.push('campaign_id=' + encodeURIComponent(campaignId));
+      if (campaignId) {
+        qs.push('campaign_id=' + encodeURIComponent(campaignId));
+      } else if (battleId) {
+        qs.push('battle_id=' + encodeURIComponent(battleId));
+      }
       if (params.since_ts) qs.push('since_ts=' + encodeURIComponent(params.since_ts));
       if (params.limit) qs.push('limit=' + encodeURIComponent(params.limit));
       if (!qs.length) return null;
