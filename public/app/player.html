@@ -126,7 +126,7 @@
     }
     .grid{
       display:grid;
-      grid-template-columns:repeat(3, minmax(0,1fr));
+      grid-template-columns:minmax(0,1.45fr) minmax(0,0.8fr) minmax(0,0.8fr);
       gap:14px;
     }
     .panel{
@@ -403,12 +403,11 @@
       const h3 = document.createElement('h3');
       const fullName = (character.name || '').trim();
       const nickname = resolveNickname(character);
-      const displayName = nickname || fullName || 'Unnamed Character';
-      h3.textContent = fullName || displayName;
+      const displayName = fullName || 'Unnamed Character';
+      h3.textContent = nickname ? (displayName + ' (' + nickname + ')') : displayName;
       main.appendChild(h3);
 
       const metaLines = [];
-      metaLines.push('Nickname: ' + (nickname || '--'));
       const idLine = 'ID: ' + character.character_id;
       const idEl = document.createElement('div');
       idEl.className = 'meta';
