@@ -313,7 +313,7 @@ Changelog:
     }
     .chatFocusArrow{
       position:absolute;
-      left:-6px;
+      left:-14px;
       top:1px;
       display:inline-flex;
       align-items:center;
@@ -322,12 +322,9 @@ Changelog:
       font-size:12px;
       width:12px;
     }
-    .chatEntry.unread .chatSpeaker{
-      color:#7fd3ff;
-    }
     .chatSpeaker{
       font-weight:600;
-      color:var(--text);
+      color:#7fd3ff;
       margin-right:4px;
       white-space:nowrap;
     }
@@ -569,9 +566,7 @@ Changelog:
         </div>
         <div id="statusAction" hidden></div>
 
-        <h3>Log <span id="chatUnreadCount" class="chatUnreadBadge" hidden>0</span>
-          <button id="chatMarkRead" class="mini" title="Mark all messages as read">Mark Read</button>
-        </h3>
+        <h3>Log</h3>
         <div id="chatLog"></div>
 
         <h3 id="editorTitle">Editor</h3>
