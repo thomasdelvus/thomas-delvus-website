@@ -464,6 +464,10 @@
         "camera_hex": "U18",
         "floorId": "basement"
       },
+      "turn": {
+        "round": 1,
+        "activeTokenId": "b"
+      },
       "fog": {
         "enabled": false,
         "mode": "room",
