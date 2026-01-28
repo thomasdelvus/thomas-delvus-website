@@ -171,7 +171,7 @@
     .card.character-card{
       display:grid;
       grid-template-columns:minmax(0,1fr) auto;
-      gap:10px;
+      gap:6px;
       align-items:start;
     }
     .card-main{
@@ -481,11 +481,17 @@
       renderList(elCharacters, characterCards, 'No characters yet.');
 
       const campaignCards = (player.campaigns || []).map((c) => {
+        const idLine = 'ID: ' + c.campaign_id;
         const meta = [
-          'ID: ' + c.campaign_id,
+          idLine,
           c.status || 'Active'
         ];
+        const showIdAction = button('Show ID', () => {
+          const lines = c.summary ? [idLine, c.status || 'Active', c.summary] : [idLine, c.status || 'Active'];
+          alert(lines.join('\n'));
+        });
         const actions = [
+          showIdAction,
           button('Copy Token', () => {
             if (!navigator.clipboard) return alert('Clipboard not available.');
             navigator.clipboard.writeText(c.auth_token || '');
