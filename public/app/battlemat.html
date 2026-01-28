@@ -10,6 +10,7 @@ Changelog:
 - 2026-01-28: chat log uses campaign_id when available
 - 2026-01-28: messages are campaign-scoped only (no battle_id)
 - 2026-01-28: add POI selector (battle list) for current campaign
+- 2026-01-28: remove unused battle/campaign input handlers
 -->
 <!doctype html>
 <html lang="en">
@@ -682,10 +683,6 @@ Changelog:
     labelBoldToggle: getEl('labelBoldToggle'),
     floorSelect: getEl('floorSelect'),
     sourceSelect: getEl('sourceSelect'),
-    battleIdInput: getEl('battleIdInput'),
-    battleIdApply: getEl('battleIdApply'),
-    campaignIdInput: getEl('campaignIdInput'),
-    campaignIdApply: getEl('campaignIdApply'),
     poiSelect: getEl('poiSelect'),
     centerOn: getEl('centerOn'),
     jumpHex: getEl('jumpHex'),
@@ -768,10 +765,6 @@ Changelog:
   const elLabelBoldToggle = els.labelBoldToggle;
   const elFloorSelect = els.floorSelect;
   const elSourceSelect = els.sourceSelect;
-  const elBattleIdInput = els.battleIdInput;
-  const elBattleIdApply = els.battleIdApply;
-  const elCampaignIdInput = els.campaignIdInput;
-  const elCampaignIdApply = els.campaignIdApply;
   const elPoiSelect = els.poiSelect;
   const elCenterOn = els.centerOn;
   const elJumpHex = els.jumpHex;
@@ -1448,28 +1441,10 @@ Changelog:
     if (document.activeElement !== elSourceSelect) elSourceSelect.value = v;
   }
 
-  function syncBattleIdInput() {
-    if (!elBattleIdInput) return;
-    const hint = resolveBattleIdHintFromUrl() || '';
-    const v = hint || '';
-    if (document.activeElement !== elBattleIdInput) {
-      elBattleIdInput.value = v;
-      if (!v) elBattleIdInput.placeholder = 'id';
-    }
-  }
-
-  function syncCampaignIdInput() {
-    if (!elCampaignIdInput) return;
-    const hint = resolveCampaignIdHintFromUrl() || '';
-    const v = hint || '';
-    if (document.activeElement !== elCampaignIdInput) {
-      elCampaignIdInput.value = v;
-      if (!v) elCampaignIdInput.placeholder = 'id';
-    }
-    if (!v && elPoiSelect) {
-      elPoiSelect.innerHTML = '<option value="">Select POI</option>';
-      elPoiSelect.disabled = true;
-    }
+  function resetPoiSelect() {
+    if (!elPoiSelect) return;
+    elPoiSelect.innerHTML = '<option value="">Select POI</option>';
+    elPoiSelect.disabled = true;
   }
 
   async function applySourceSelection(source) {
@@ -6842,8 +6817,7 @@ function populateFloorSelect(floors) {
     populateObjectKindSelect(state);
     populateRoomKindDatalists();
     syncSourceSelect();
-    syncBattleIdInput();
-    syncCampaignIdInput();
+    if (!CURRENT_CAMPAIGN_ID) resetPoiSelect();
   }
 
   function redraw() {
@@ -7050,7 +7024,6 @@ function setActiveFloor(floorId, opts = {}) {
       if (!el) console.warn('[Battlemat] missing control #' + id);
       return el;
     };
-    const opt = (id) => els[id] || null;
 
     const btnLeft = req('btnLeft');
     const btnRight = req('btnRight');
@@ -7089,10 +7062,6 @@ function setActiveFloor(floorId, opts = {}) {
     const roomWallKind = req('roomWallKind');
     const roomThickness = req('roomThickness');
     const sourceSelect = req('sourceSelect');
-    const battleIdInput = opt('battleIdInput');
-    const battleIdApply = opt('battleIdApply');
-    const campaignIdInput = opt('campaignIdInput');
-    const campaignIdApply = opt('campaignIdApply');
     const statusBody = req('statusBody');
     const chatSpeaker = req('chatSpeaker');
     const chatInput = req('chatInput');
@@ -7493,83 +7462,6 @@ function setActiveFloor(floorId, opts = {}) {
       });
     }
 
-    const applyBattleId = () => {
-      if (!battleIdInput) return;
-      const v = String(battleIdInput.value || '').trim();
-      if (!v) return;
-      const id = encodeURIComponent(v);
-      if (elError) { elError.hidden = true; elError.textContent = ''; }
-      stopStatePolling();
-      try { history.replaceState(null, '', '/play/' + id); } catch {}
-      STATE_URL = '/api/battles/' + id;
-      STATE_SOURCE = 'database';
-      startStatePolling();
-      syncSourceSelect();
-      syncBattleIdInput();
-      syncCampaignIdInput();
-    };
-
-    const applyCampaignId = async () => {
-      if (!campaignIdInput) return;
-      const v = String(campaignIdInput.value || '').trim();
-      if (!v) return;
-      if (elError) { elError.hidden = true; elError.textContent = ''; }
-      stopStatePolling();
-      const bid = await fetchCampaignBattleId(v);
-      if (!bid) {
-        if (elError) {
-          elError.hidden = false;
-          elError.textContent = 'Campaign not found or missing active_battle_id.';
-        }
-        return;
-      }
-      const cid = encodeURIComponent(v);
-      const id = encodeURIComponent(String(bid));
-      try { history.replaceState(null, '', '/play/c/' + cid + '?battle_id=' + id); } catch {}
-      CURRENT_CAMPAIGN_ID = v;
-      CURRENT_BATTLE_ID = String(bid);
-      if (battleIdInput) battleIdInput.value = String(bid);
-      STATE_URL = '/api/battles/' + id;
-      STATE_SOURCE = 'database';
-      startStatePolling();
-      syncSourceSelect();
-      syncBattleIdInput();
-      syncCampaignIdInput();
-      refreshPoiSelect(v);
-    };
-
-    if (battleIdInput) {
-      battleIdInput.value = resolveBattleIdHintFromUrl() || '';
-      battleIdInput.onchange = () => {
-        const v = String(battleIdInput.value || '').trim();
-        if (!v) syncBattleIdInput();
-      };
-      battleIdInput.onkeydown = (ev) => {
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          applyBattleId();
-        }
-      };
-    }
-
-    if (battleIdApply) battleIdApply.onclick = () => applyBattleId();
-
-    if (campaignIdInput) {
-      campaignIdInput.value = resolveCampaignIdHintFromUrl() || '';
-      campaignIdInput.onchange = () => {
-        const v = String(campaignIdInput.value || '').trim();
-        if (!v) syncCampaignIdInput();
-      };
-      campaignIdInput.onkeydown = (ev) => {
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          applyCampaignId();
-        }
-      };
-    }
-
-    if (campaignIdApply) campaignIdApply.onclick = () => applyCampaignId();
-
     if (elPoiSelect) {
       elPoiSelect.onchange = () => {
         const v = String(elPoiSelect.value || '').trim();
@@ -7582,7 +7474,6 @@ function setActiveFloor(floorId, opts = {}) {
         } else {
           try { history.replaceState(null, '', '/play/' + id); } catch {}
         }
-        if (battleIdInput) battleIdInput.value = v;
         STATE_URL = '/api/battles/' + id;
         STATE_SOURCE = 'database';
         stopStatePolling();
