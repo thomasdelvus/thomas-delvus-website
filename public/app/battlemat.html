@@ -1009,7 +1009,7 @@ Changelog:
     if (bid) return bid;
 
     const playMatch = String(path || '').match(/\/play\/([^\/?#]+)/i);
-    if (playMatch && playMatch[1]) {
+    if (playMatch && playMatch[1] && String(playMatch[1]).toLowerCase() !== 'c') {
       try { return decodeURIComponent(playMatch[1]); } catch { return playMatch[1]; }
     }
 
@@ -1090,7 +1090,7 @@ Changelog:
       ? String(window.location.pathname)
       : '';
     const playMatch = path.match(/\/play\/([^\/?#]+)/i);
-    if (playMatch && playMatch[1]) {
+    if (playMatch && playMatch[1] && String(playMatch[1]).toLowerCase() !== 'c') {
       try { return decodeURIComponent(playMatch[1]); } catch { return playMatch[1]; }
     }
 
@@ -1103,7 +1103,7 @@ Changelog:
       ? String(window.location.href)
       : '';
     const hrefPlayMatch = href.match(/\/play\/([^\/?#]+)/i);
-    if (hrefPlayMatch && hrefPlayMatch[1]) {
+    if (hrefPlayMatch && hrefPlayMatch[1] && String(hrefPlayMatch[1]).toLowerCase() !== 'c') {
       try { return decodeURIComponent(hrefPlayMatch[1]); } catch { return hrefPlayMatch[1]; }
     }
     const hrefMatMatch = href.match(/\/battlemat\/([^\/?#]+)/i);
