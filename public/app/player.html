@@ -126,7 +126,7 @@
     }
     .grid{
       display:grid;
-      grid-template-columns:minmax(0,1.35fr) minmax(0,0.85fr) minmax(0,0.85fr);
+      grid-template-columns:minmax(0,1.35fr) minmax(0,0.95fr) minmax(0,0.75fr);
       gap:14px;
     }
     .panel{
@@ -239,7 +239,6 @@
     <div class="brand">Player Dashboard</div>
     <div class="nav">
       <a href="/app/passport.html" id="passportLink">Create Player Passport</a>
-      <a href="/app/battlemat.html">Back to battlemat</a>
     </div>
   </div>
 
@@ -251,7 +250,7 @@
         <h1 id="playerName">Unknown Player</h1>
         <div class="sub" id="playerId">Player ID: --</div>
       </div>
-      <div class="meta-pill" id="playerState">Dashboard active</div>
+      <button class="btn" id="playerShowId" type="button">Show ID</button>
     </header>
 
     <div class="grid">
@@ -278,7 +277,7 @@
     const elWrap = document.getElementById('wrap');
     const elPlayerName = document.getElementById('playerName');
     const elPlayerId = document.getElementById('playerId');
-    const elPlayerState = document.getElementById('playerState');
+    const elPlayerShowId = document.getElementById('playerShowId');
     const elCharacters = document.getElementById('charactersList');
     const elCampaigns = document.getElementById('campaignsList');
     const elInvites = document.getElementById('invitesList');
@@ -488,10 +487,17 @@
 
       const row = document.createElement('div');
       row.className = 'row';
+      row.appendChild(button('Show ID', () => {
+        idEl.hidden = !idEl.hidden;
+      }));
       row.appendChild(button('Invite Link', () => {
         const link = 'https://delvus.net/app/player?invite=' + encodeURIComponent(campaign.campaign_id);
         if (!navigator.clipboard) return alert(link);
         navigator.clipboard.writeText(link);
+      }));
+      row.appendChild(button('Battlemat', () => {
+        const url = '/app/battlemat.html?campaign_id=' + encodeURIComponent(campaign.campaign_id);
+        window.location.href = url;
       }));
       el.appendChild(row);
 
@@ -504,7 +510,15 @@
       elStatus.style.display = 'none';
       elPlayerName.textContent = player.display_name || 'Unnamed Player';
       elPlayerId.textContent = 'Player ID: ' + (player.player_id || '--');
-      elPlayerState.textContent = 'Dashboard active';
+      elPlayerId.hidden = true;
+      if (elPlayerShowId) {
+        elPlayerShowId.textContent = 'Show ID';
+        elPlayerShowId.onclick = () => {
+          const willShow = elPlayerId.hidden;
+          elPlayerId.hidden = !willShow;
+          elPlayerShowId.textContent = willShow ? 'Hide ID' : 'Show ID';
+        };
+      }
       if (elPassportLink) {
         elPassportLink.href = player.player_id
           ? ('/app/passport.html?player_id=' + encodeURIComponent(player.player_id))
