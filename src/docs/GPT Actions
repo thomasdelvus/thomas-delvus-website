@@ -379,6 +379,8 @@ paths:
                   type: string
                 name:
                   type: string
+                nickname:
+                  type: string
                 sheet_json:
                   oneOf:
                     - type: object
@@ -554,6 +556,8 @@ components:
         player_id:
           type: string
         name:
+          type: string
+        nickname:
           type: string
         sheet_json:
           type: [string, "null"]

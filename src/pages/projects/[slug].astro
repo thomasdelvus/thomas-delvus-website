@@ -1,0 +1,152 @@
+---
+import BaseHead from '../../components/BaseHead.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import FormattedDate from '../../components/FormattedDate.astro';
+import { getCollection } from 'astro:content';
+import { PROJECTS } from '../../data/projects';
+
+export async function getStaticPaths() {
+	return PROJECTS.map((project) => ({
+		params: { slug: project.slug },
+		props: project,
+	}));
+}
+
+const project = Astro.props;
+const posts = (await getCollection('blog'))
+	.filter((post) => post.data.project === project.slug)
+	.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+const ogImage = project.heroImage ?? '/blog-placeholder-1.jpg';
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title={project.title} description={project.description} image={ogImage} />
+		<style>
+			.hero {
+				position: relative;
+				border-radius: 18px;
+				overflow: hidden;
+				margin: 24px auto 20px;
+				max-width: 1100px;
+				box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+			}
+			.hero img {
+				width: 100%;
+				height: 360px;
+				object-fit: cover;
+				display: block;
+			}
+			.hero__veil {
+				position: absolute;
+				inset: 0;
+				background: linear-gradient(to top, rgba(0,0,0,.65), rgba(0,0,0,.10));
+			}
+			.hero__content {
+				position: absolute;
+				bottom: 0;
+				left: 0;
+				right: 0;
+				padding: 22px 26px;
+				color: #f6f4ef;
+			}
+			.hero__title {
+				margin: 0 0 6px;
+				font-size: clamp(26px, 3.6vw, 40px);
+			}
+			.hero__desc {
+				margin: 0;
+				opacity: 0.9;
+				line-height: 1.55;
+				max-width: 820px;
+			}
+			main {
+				width: 100%;
+				max-width: 1100px;
+				margin: 0 auto 40px;
+				padding: 0 20px 40px;
+			}
+			.posts {
+				list-style: none;
+				margin: 20px 0 0;
+				padding: 0;
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 18px;
+			}
+			.post {
+				background: #fff;
+				border-radius: 16px;
+				padding: 16px 16px 14px;
+				border: 1px solid rgba(0,0,0,.06);
+				box-shadow: 0 8px 22px rgba(0,0,0,.06);
+			}
+			.post a {
+				text-decoration: none;
+				color: inherit;
+				display: block;
+			}
+			.post__title {
+				margin: 8px 0 6px;
+				font-size: 18px;
+			}
+			.post__date {
+				margin: 0;
+				color: rgba(0,0,0,.6);
+				font-size: 13px;
+			}
+			.post__desc {
+				margin: 8px 0 0;
+				color: rgba(0,0,0,.7);
+				line-height: 1.55;
+			}
+			.empty {
+				margin-top: 16px;
+				background: rgba(255,255,255,.7);
+				border: 1px dashed rgba(0,0,0,.12);
+				border-radius: 14px;
+				padding: 14px 16px;
+				color: rgba(0,0,0,.7);
+			}
+			@media (max-width: 840px) {
+				.hero img { height: 280px; }
+				.posts { grid-template-columns: 1fr; }
+			}
+		</style>
+	</head>
+	<body>
+		<Header />
+		<section class="hero" aria-labelledby="project-title">
+			<img src={project.heroImage} alt="" loading="eager" />
+			<div class="hero__veil"></div>
+			<div class="hero__content">
+				<h1 id="project-title" class="hero__title">{project.title}</h1>
+				<p class="hero__desc">{project.description}</p>
+			</div>
+		</section>
+		<main>
+			{posts.length > 0 ? (
+				<ul class="posts">
+					{posts.map((post) => (
+						<li class="post">
+							<a href={`/blog/${post.id}/`}>
+								<p class="post__date"><FormattedDate date={post.data.pubDate} /></p>
+								<h2 class="post__title">{post.data.title}</h2>
+								<p class="post__desc">{post.data.description}</p>
+							</a>
+						</li>
+					))}
+				</ul>
+			) : (
+				<div class="empty">
+					No posts here yet. Add a blog post with
+					<code>project: &quot;{project.slug}&quot;</code> in frontmatter.
+				</div>
+			)}
+		</main>
+		<Footer />
+	</body>
+</html>
