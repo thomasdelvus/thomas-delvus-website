@@ -1,7 +1,8 @@
-// game-api worker v3.47 (campaign active_battle_id, messages status updates, player dashboard endpoints, genId22, portrait uploads)
+// game-api worker v3.49 (campaign meta updates, messages status updates, player dashboard endpoints, genId22, portrait uploads)
 // Purpose: GET/PUT battles with safe id-based merges + CRUD for characters + player dashboard reads + portrait uploads.
 //
 // Changelog:
+// - v3.49: add PATCH /campaigns/:campaign_id for meta_json + active_battle_id
 // - v3.48: include campaigns.meta_json in GET /campaigns/:campaign_id
 // - v3.47: add GET /battles?campaign_id=... list for POI selector
 // - v3.46: messages are campaign-scoped only (remove battle_id usage)
@@ -484,14 +485,69 @@ export default {
       const campaignMatch = path.match(/^\/campaigns\/([^\/?#]+)$/);
       if (campaignMatch) {
         const campaignId = decodeURIComponent(campaignMatch[1]);
-        if (method !== "GET") return json({ error: "Method not allowed" }, 405);
-        const row = await env.DB.prepare(
-          `SELECT campaign_id, admin_player_id, active_battle_id, name, summary_text, status, auth_tokens_json, meta_json, version, created_at, updated_at
-           FROM campaigns
-           WHERE campaign_id = ?`
-        ).bind(campaignId).first();
-        if (!row) return json({ error: "Campaign not found", campaign_id: campaignId }, 404);
-        return json(row);
+        if (method === "GET") {
+          const row = await env.DB.prepare(
+            `SELECT campaign_id, admin_player_id, active_battle_id, name, summary_text, status, auth_tokens_json, meta_json, version, created_at, updated_at
+             FROM campaigns
+             WHERE campaign_id = ?`
+          ).bind(campaignId).first();
+          if (!row) return json({ error: "Campaign not found", campaign_id: campaignId }, 404);
+          return json(row);
+        }
+
+        if (method === "PATCH") {
+          const incoming = await readJsonBody(request);
+          if (!incoming) return json({ error: "Invalid JSON body" }, 400);
+
+          const row = await env.DB.prepare(
+            `SELECT campaign_id, active_battle_id, meta_json, version
+             FROM campaigns
+             WHERE campaign_id = ?`
+          ).bind(campaignId).first();
+          if (!row) return json({ error: "Campaign not found", campaign_id: campaignId }, 404);
+
+          let activeBattleId = row.active_battle_id ?? null;
+          let metaJson = row.meta_json ?? null;
+
+          if ("active_battle_id" in incoming) {
+            if (incoming.active_battle_id == null) {
+              activeBattleId = null;
+            } else {
+              const nextActive = normStr(incoming.active_battle_id);
+              if (!nextActive) return json({ error: "active_battle_id cannot be empty" }, 400);
+              activeBattleId = nextActive;
+            }
+          }
+
+          if ("meta_json" in incoming) {
+            try {
+              metaJson = normalizeJsonField(incoming.meta_json, "meta_json");
+            } catch (e) {
+              return json({ error: e && e.message ? e.message : "Invalid meta_json" }, 400);
+            }
+          }
+
+          const changed = ("active_battle_id" in incoming) || ("meta_json" in incoming);
+          if (!changed) return json({ error: "No fields to update" }, 400);
+
+          const nextVersion = (row.version ?? 0) + 1;
+          const updatedAt = nowSeconds();
+
+          await env.DB.prepare(
+            `UPDATE campaigns
+             SET active_battle_id = ?, meta_json = ?, version = ?, updated_at = ?
+             WHERE campaign_id = ?`
+          ).bind(activeBattleId, metaJson, nextVersion, updatedAt, campaignId).run();
+
+          const updated = await env.DB.prepare(
+            `SELECT campaign_id, admin_player_id, active_battle_id, name, summary_text, status, auth_tokens_json, meta_json, version, created_at, updated_at
+             FROM campaigns
+             WHERE campaign_id = ?`
+          ).bind(campaignId).first();
+          return json(updated);
+        }
+
+        return json({ error: "Method not allowed" }, 405);
       }
 
       if (path === "/characters") {

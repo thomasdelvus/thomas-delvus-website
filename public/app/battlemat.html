@@ -915,6 +915,8 @@ Changelog:
   let CURRENT_CAMPAIGN_ID = null;
   let CURRENT_CAMPAIGN_META = null;
   let FOLLOW_ACTIVE_LOCATION = true;
+  let LAST_META_FETCH_AT = 0;
+  const META_FETCH_INTERVAL_MS = 15000;
   const STORAGE_CHAT_READ_PREFIX = 'battlemat.chat.read.';
   let CHAT_SAVE_TIMER = null;
 
@@ -1313,7 +1315,13 @@ Changelog:
   function applyFetchedState(parsed, jsonText, chatJson, battleId, campaignId) {
     setCanonicalStateFromRaw(parsed, jsonText);
     if (battleId) CURRENT_BATTLE_ID = battleId;
-    if (campaignId) CURRENT_CAMPAIGN_ID = campaignId;
+    if (campaignId) {
+      const nextCampaignId = String(campaignId);
+      if (CURRENT_CAMPAIGN_ID && String(CURRENT_CAMPAIGN_ID) !== nextCampaignId) {
+        CURRENT_CAMPAIGN_META = null;
+      }
+      CURRENT_CAMPAIGN_ID = nextCampaignId;
+    }
     STATE_SOURCE = stateSourceFromUrl(STATE_URL);
   }
 
@@ -1385,7 +1393,7 @@ Changelog:
         if (!data || typeof data !== 'object') continue;
         const bid = data.active_battle_id || data.activeBattleId || data.battle_id || data.battleId || null;
         const meta = parseCampaignMeta(data.meta_json || data.metaJson || null);
-        if (bid) return { battleId: String(bid), meta };
+        return { battleId: bid != null ? String(bid) : null, meta };
       } catch {}
     }
     return null;
@@ -1394,6 +1402,21 @@ Changelog:
   async function fetchCampaignBattleId(campaignId) {
     const info = await fetchCampaignInfo(campaignId);
     return info && info.battleId ? info.battleId : null;
+  }
+
+  async function ensureCampaignMeta(campaignId, force = false) {
+    const cid = String(campaignId || '').trim();
+    if (!cid) return null;
+    if (!force && CURRENT_CAMPAIGN_META && CURRENT_CAMPAIGN_ID === cid) return CURRENT_CAMPAIGN_META;
+    if (!force && LAST_META_FETCH_AT && (Date.now() - LAST_META_FETCH_AT) < META_FETCH_INTERVAL_MS) {
+      return CURRENT_CAMPAIGN_META;
+    }
+    LAST_META_FETCH_AT = Date.now();
+    const info = await fetchCampaignInfo(cid);
+    if (!info) return CURRENT_CAMPAIGN_META;
+    if (info.meta != null) CURRENT_CAMPAIGN_META = info.meta;
+    if (info.battleId && !CURRENT_BATTLE_ID) CURRENT_BATTLE_ID = info.battleId;
+    return CURRENT_CAMPAIGN_META;
   }
 
   async function fetchCampaignBattles(campaignId) {
@@ -1449,7 +1472,14 @@ Changelog:
   function findTokenById(state, tokenId) {
     if (!tokenId) return null;
     const tokens = getTokensArray(state);
-    return tokens.find(t => t && String(t.id || '') === String(tokenId)) || null;
+    return tokens.find(t => {
+      if (!t) return false;
+      const id = t.id != null ? String(t.id) : '';
+      const cid = t.character_id != null ? String(t.character_id) : '';
+      const cId = t.characterId != null ? String(t.characterId) : '';
+      const tid = String(tokenId);
+      return id === tid || cid === tid || cId === tid;
+    }) || null;
   }
 
   function resolveBattleForActiveToken(state) {
@@ -1466,6 +1496,7 @@ Changelog:
     keys.push(String(activeTokenId));
     for (const key of keys) {
       const entry = map[key];
+      if (typeof entry === 'string' && entry.trim()) return String(entry);
       if (entry && typeof entry === 'object' && entry.battle_id) return String(entry.battle_id);
       if (entry && typeof entry === 'object' && entry.battleId) return String(entry.battleId);
     }
@@ -1583,6 +1614,12 @@ Changelog:
       // Only apply when the server payload changes.
         if (got.jsonText !== LAST_STATE_JSON) {
           applyFetchedState(got.parsed, got.jsonText, got.chatJson, got.battleId, got.campaignId);
+          if (got.campaignId) await ensureCampaignMeta(got.campaignId);
+          const targetBattle = resolveBattleForActiveToken(CURRENT_STATE);
+          if (targetBattle && (!CURRENT_BATTLE_ID || String(CURRENT_BATTLE_ID) !== String(targetBattle))) {
+            switchBattleTo(targetBattle, got.campaignId || CURRENT_CAMPAIGN_ID);
+            return;
+          }
           safeRedraw();
         }
         await pollMessagesOnce();
@@ -7857,6 +7894,11 @@ function setActiveFloor(floorId, opts = {}) {
         startStatePolling();
         syncSourceSelect();
         setToolStatus('DB: idle');
+        const campaignId = resolveCampaignIdHintFromUrl();
+        if (campaignId) {
+          CURRENT_CAMPAIGN_ID = campaignId;
+          await ensureCampaignMeta(campaignId);
+        }
         refreshPoiSelect(CURRENT_CAMPAIGN_ID);
       }
     } else {
@@ -7868,13 +7910,18 @@ function setActiveFloor(floorId, opts = {}) {
         startStatePolling();
         syncSourceSelect();
         setToolStatus('DB: idle');
+        if (campaignId) {
+          CURRENT_CAMPAIGN_ID = campaignId;
+          await ensureCampaignMeta(campaignId);
+        }
         refreshPoiSelect(campaignId || CURRENT_CAMPAIGN_ID);
       } else if (campaignId) {
-        const bid = await fetchCampaignBattleId(campaignId);
-        if (bid) {
+        const info = await fetchCampaignInfo(campaignId);
+        if (info && info.meta != null) CURRENT_CAMPAIGN_META = info.meta;
+        if (info && info.battleId) {
           CURRENT_CAMPAIGN_ID = campaignId;
-          CURRENT_BATTLE_ID = String(bid);
-          STATE_URL = `/api/battles/${encodeURIComponent(bid)}`;
+          CURRENT_BATTLE_ID = String(info.battleId);
+          STATE_URL = `/api/battles/${encodeURIComponent(info.battleId)}`;
           STATE_SOURCE = 'database';
           startStatePolling();
           syncSourceSelect();
