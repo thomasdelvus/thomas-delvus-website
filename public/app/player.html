@@ -126,7 +126,7 @@
     }
     .grid{
       display:grid;
-      grid-template-columns:minmax(0,1.45fr) minmax(0,0.8fr) minmax(0,0.8fr);
+      grid-template-columns:minmax(0,1.35fr) minmax(0,0.85fr) minmax(0,0.85fr);
       gap:14px;
     }
     .panel{
@@ -464,6 +464,40 @@
       return el;
     }
 
+    function campaignCard(campaign) {
+      const el = document.createElement('div');
+      el.className = 'card';
+
+      const title = document.createElement('h3');
+      title.textContent = campaign.name || 'Unnamed Campaign';
+      el.appendChild(title);
+
+      const idLine = 'ID: ' + campaign.campaign_id;
+      const idEl = document.createElement('div');
+      idEl.className = 'meta';
+      idEl.textContent = idLine;
+      idEl.hidden = true;
+      el.appendChild(idEl);
+
+      if (campaign.summary_text || campaign.summary) {
+        const summary = document.createElement('div');
+        summary.className = 'meta';
+        summary.textContent = campaign.summary_text || campaign.summary;
+        el.appendChild(summary);
+      }
+
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.appendChild(button('Invite Link', () => {
+        const link = 'https://delvus.net/app/player?invite=' + encodeURIComponent(campaign.campaign_id);
+        if (!navigator.clipboard) return alert(link);
+        navigator.clipboard.writeText(link);
+      }));
+      el.appendChild(row);
+
+      return el;
+    }
+
     function renderPlayer(player) {
       CURRENT_PLAYER = player;
       elWrap.hidden = false;
@@ -480,30 +514,7 @@
       const characterCards = (player.characters || []).map((c) => characterCard(c));
       renderList(elCharacters, characterCards, 'No characters yet.');
 
-      const campaignCards = (player.campaigns || []).map((c) => {
-        const idLine = 'ID: ' + c.campaign_id;
-        const meta = [
-          idLine,
-          c.status || 'Active'
-        ];
-        const showIdAction = button('Show ID', () => {
-          const lines = c.summary ? [idLine, c.status || 'Active', c.summary] : [idLine, c.status || 'Active'];
-          alert(lines.join('\n'));
-        });
-        const actions = [
-          showIdAction,
-          button('Copy Token', () => {
-            if (!navigator.clipboard) return alert('Clipboard not available.');
-            navigator.clipboard.writeText(c.auth_token || '');
-          }),
-          button('Invite Link', () => {
-            const link = 'https://delvus.net/app/player?invite=' + encodeURIComponent(c.campaign_id);
-            if (!navigator.clipboard) return alert(link);
-            navigator.clipboard.writeText(link);
-          })
-        ];
-        return card(c.name || 'Unnamed Campaign', meta.concat(c.summary ? [c.summary] : []), actions);
-      });
+      const campaignCards = (player.campaigns || []).map((c) => campaignCard(c));
       renderList(elCampaigns, campaignCards, 'No campaigns yet.');
 
       const inviteCards = (player.invites || []).map((inv) => {
