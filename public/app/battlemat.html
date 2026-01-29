@@ -4897,6 +4897,10 @@ const EMBEDDED_WORLD_JSON = `{
   // v6.20+: tolerate older schema variants while keeping the renderer deterministic.
   function getTokensArray(state) {
     const s = (state && typeof state === 'object') ? state : null;
+    const recordId = s && s.active && s.active.recordId ? String(s.active.recordId) : '';
+    const poiId = recordId || (CURRENT_BATTLE_ID ? resolvePoiForBattle(CURRENT_BATTLE_ID) : '');
+    const worldTokens = buildTokensFromWorldEntities(poiId);
+    if (Array.isArray(worldTokens) && worldTokens.length) return worldTokens;
     if (s && s.records && typeof s.records === 'object') {
       const rid = (s.active && s.active.recordId) ? String(s.active.recordId) : null;
       const record = rid && s.records[rid] ? s.records[rid] : (Object.values(s.records)[0] || null);
