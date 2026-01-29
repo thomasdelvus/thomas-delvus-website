@@ -1498,6 +1498,14 @@ Changelog:
 
   function getCampaignTurnActiveId() {
     if (!CURRENT_CAMPAIGN_META || typeof CURRENT_CAMPAIGN_META !== 'object') return null;
+    const world = CURRENT_CAMPAIGN_META.world && typeof CURRENT_CAMPAIGN_META.world === 'object'
+      ? CURRENT_CAMPAIGN_META.world
+      : null;
+    const battle = world && typeof world.battle === 'object' ? world.battle : null;
+    if (battle) {
+      const id = battle.active || battle.active_id || battle.activeId || battle.active_entity || battle.activeEntity;
+      if (id != null) return String(id);
+    }
     const t = CURRENT_CAMPAIGN_META.turn && typeof CURRENT_CAMPAIGN_META.turn === 'object'
       ? CURRENT_CAMPAIGN_META.turn
       : null;
@@ -1508,7 +1516,13 @@ Changelog:
 
   function getCampaignEntities() {
     if (!CURRENT_CAMPAIGN_META || typeof CURRENT_CAMPAIGN_META !== 'object') return null;
-    const ents = CURRENT_CAMPAIGN_META.entities || CURRENT_CAMPAIGN_META.creatures || null;
+    const world = CURRENT_CAMPAIGN_META.world && typeof CURRENT_CAMPAIGN_META.world === 'object'
+      ? CURRENT_CAMPAIGN_META.world
+      : null;
+    const ents = (world && (world.entities || world.creatures))
+      || CURRENT_CAMPAIGN_META.entities
+      || CURRENT_CAMPAIGN_META.creatures
+      || null;
     if (!ents) return null;
     if (Array.isArray(ents)) return ents.slice();
     if (typeof ents === 'object') {
@@ -1593,6 +1607,8 @@ Changelog:
   function getPoiBattleMap() {
     if (!CURRENT_CAMPAIGN_META || typeof CURRENT_CAMPAIGN_META !== 'object') return null;
     return (
+      (CURRENT_CAMPAIGN_META.world && CURRENT_CAMPAIGN_META.world.poi_index) ||
+      (CURRENT_CAMPAIGN_META.world && CURRENT_CAMPAIGN_META.world.poiIndex) ||
       CURRENT_CAMPAIGN_META.poi_index ||
       CURRENT_CAMPAIGN_META.poiIndex ||
       CURRENT_CAMPAIGN_META.poi_to_battle ||
@@ -1661,12 +1677,13 @@ Changelog:
     const entity = findEntityById(id) || findEntityByCharacterId(id);
 
     if (entity) {
+      const loc = entity.location && typeof entity.location === 'object' ? entity.location : null;
       const battleDirect =
         entity.current_battle_id || entity.currentBattleId ||
-        entity.battle_id || entity.battleId;
+        entity.battle_id || entity.battleId || (loc && (loc.battle_id || loc.battleId || loc.battle));
       if (battleDirect) return String(battleDirect);
 
-      const poi = entity.current_poi || entity.currentPoi || entity.poi || null;
+      const poi = entity.current_poi || entity.currentPoi || entity.poi || (loc && (loc.poi_id || loc.poiId || loc.poi)) || null;
       const fromPoi = poi ? resolveBattleFromPoi(poi) : null;
       if (fromPoi) return fromPoi;
     }
@@ -6966,7 +6983,10 @@ const EMBEDDED_WORLD_JSON = `{
       if (entCharId && localCharacterIds.has(entCharId)) continue;
       if (!entCharId && entId && allTokens.some(t => t && String(t.id) === entId)) continue;
 
-      let poiId = ent.current_poi || ent.currentPoi || ent.poi_id || ent.poiId || ent.poi || null;
+      const loc = ent.location && typeof ent.location === 'object' ? ent.location : null;
+      let poiId = ent.current_poi || ent.currentPoi || ent.poi_id || ent.poiId || ent.poi
+        || (loc && (loc.poi_id || loc.poiId || loc.poi))
+        || null;
       if (!poiId && entCharId && partyLocations[entCharId]) poiId = partyLocations[entCharId];
       if (!poiId && entId && partyLocations[entId]) poiId = partyLocations[entId];
       let poiLabel = poiId ? getPoiLabel(poiId) : '';
@@ -6977,14 +6997,15 @@ const EMBEDDED_WORLD_JSON = `{
           poiLabel = getPoiLabel(resolvedPoi);
         }
       }
-      const battleIdOther = resolveBattleIdMaybe(poiId) || (ent.current_battle_id || ent.currentBattleId || ent.battle_id || ent.battleId || null);
+      const stats = ent.stats && typeof ent.stats === 'object' ? ent.stats : null;
+      const battleIdOther = resolveBattleIdMaybe(poiId) || (ent.current_battle_id || ent.currentBattleId || ent.battle_id || ent.battleId || (loc && (loc.battle_id || loc.battleId || loc.battle)) || null);
       const cached = (battleIdOther && String(battleIdOther) !== String(CURRENT_BATTLE_ID || '')) ? ensureBattleStateCached(battleIdOther) : null;
       const liveToken = cached ? findTokenInList(cached.tokens, entCharId, entId) : null;
-      const initValue = liveToken && liveToken.init != null ? liveToken.init : (ent.init != null ? ent.init : -1);
-      const hpValue = liveToken && liveToken.hp != null ? liveToken.hp : (ent.hp != null ? ent.hp : null);
+      const initValue = liveToken && liveToken.init != null ? liveToken.init : (ent.init != null ? ent.init : (stats && stats.init != null ? stats.init : -1));
+      const hpValue = liveToken && liveToken.hp != null ? liveToken.hp : (ent.hp != null ? ent.hp : (stats && stats.hp != null ? stats.hp : null));
       const maxHpValue = liveToken && (liveToken.maxHp != null || liveToken.max_hp != null)
         ? (liveToken.maxHp != null ? liveToken.maxHp : liveToken.max_hp)
-        : (ent.maxHp != null ? ent.maxHp : ent.max_hp);
+        : (ent.maxHp != null ? ent.maxHp : (ent.max_hp != null ? ent.max_hp : (stats && (stats.maxHp != null ? stats.maxHp : stats.max_hp))));
       extraPcTokens.push({
         id: entId || ('entity_' + entCharId),
         character_id: entCharId || null,
@@ -7045,9 +7066,10 @@ const EMBEDDED_WORLD_JSON = `{
     }
     for (const ent of campaignEntities) {
       if (!ent) continue;
+      const loc = ent.location && typeof ent.location === 'object' ? ent.location : null;
       const b = ent.current_battle_id || ent.currentBattleId || ent.battle_id || ent.battleId || null;
       if (b) battleIdsToInclude.add(String(b));
-      const p = ent.current_poi || ent.currentPoi || ent.poi_id || ent.poiId || ent.poi || null;
+      const p = ent.current_poi || ent.currentPoi || ent.poi_id || ent.poiId || ent.poi || (loc && (loc.poi_id || loc.poiId || loc.poi)) || null;
       const fromPoi = resolveBattleIdMaybe(p);
       if (fromPoi) battleIdsToInclude.add(String(fromPoi));
     }
