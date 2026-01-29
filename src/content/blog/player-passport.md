@@ -77,10 +77,10 @@ Lose the Passport, and access is lost - just like losing a physical object. That
 
 ## How It's Implemented (Briefly)
 
-The Passport connects to the Player Dashboard, which reads from D1 tables for players, campaigns, and characters. The key is stored as a `dashboard_token` on the player record and exposed via a QR code and copyable text.
+The Passport connects to the Player Dashboard, which reads from database tables for players, campaigns, and characters. The key is stored as a `dashboard_token` on the player record and exposed via a QR code and copyable text.
 
 This keeps the system simple and auditable:
-- D1 holds the source of truth (players, campaigns, characters, battles)
+- database holds the source of truth (players, campaigns, characters, battles)
 - R2 stores images (character portraits and a shared Passport background)
 - The dashboard aggregates characters and campaigns for a player
 
