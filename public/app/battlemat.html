@@ -7157,7 +7157,10 @@ const EMBEDDED_WORLD_JSON = `{
       const hpDead = Number.isFinite(hpNum) ? hpNum <= 0 : false;
       const isDead = hpDead || conditions.some(c => c.label.toLowerCase().includes('dead') || c.label.toLowerCase().includes('down'));
       const hostility = tokenHostility(t);
-      const isMob = hostility === 'hostile';
+      const kind = t && t.kind != null ? String(t.kind).trim().toLowerCase() : '';
+      const sideRaw = t && t.side != null ? String(t.side) : '';
+      const side = sideRaw.trim().toUpperCase();
+      const isMob = hostility === 'hostile' || kind === 'monster' || kind === 'creature' || side === 'EN' || side === 'ENEMY';
       const elsewhere = !!t._elsewhere;
       const rowClass = 'statusRow' + (isDead ? ' dead' : '') + (elsewhere ? ' elsewhere' : '') + (isMob ? ' mob' : '') + (isActive ? ' active' : '') + (characterId ? ' clickable' : '');
       const turnMarkerClass = 'statusTurnMarker' + (isActive ? '' : ' inactive');
