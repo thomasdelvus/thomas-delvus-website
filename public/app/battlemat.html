@@ -12,6 +12,7 @@ Changelog:
 - 2026-01-28: add POI selector (battle list) for current campaign
 - 2026-01-28: remove unused battle/campaign input handlers
 - 2026-01-28: auto-follow active token POI via campaign meta_json party_locations
+- 2026-01-29: campaign meta entities + global turn active follow
 -->
 <!doctype html>
 <html lang="en">
@@ -1469,6 +1470,107 @@ Changelog:
     return id != null ? String(id) : null;
   }
 
+  function getCampaignTurnActiveId() {
+    if (!CURRENT_CAMPAIGN_META || typeof CURRENT_CAMPAIGN_META !== 'object') return null;
+    const t = CURRENT_CAMPAIGN_META.turn && typeof CURRENT_CAMPAIGN_META.turn === 'object'
+      ? CURRENT_CAMPAIGN_META.turn
+      : null;
+    if (!t) return null;
+    const id = t.active || t.active_id || t.activeId || t.active_entity || t.activeEntity;
+    return id != null ? String(id) : null;
+  }
+
+  function getCampaignEntities() {
+    if (!CURRENT_CAMPAIGN_META || typeof CURRENT_CAMPAIGN_META !== 'object') return null;
+    const ents = CURRENT_CAMPAIGN_META.entities || CURRENT_CAMPAIGN_META.creatures || null;
+    if (!ents) return null;
+    if (Array.isArray(ents)) return ents.slice();
+    if (typeof ents === 'object') {
+      return Object.entries(ents).map(([id, data]) => ({ id, ...(data || {}) }));
+    }
+    return null;
+  }
+
+  function findEntityById(entityId) {
+    const id = String(entityId || '').trim();
+    if (!id) return null;
+    const ents = getCampaignEntities();
+    if (!Array.isArray(ents)) return null;
+    return ents.find(e => e && String(e.id || '') === id) || null;
+  }
+
+  function findEntityByCharacterId(characterId) {
+    const cid = String(characterId || '').trim();
+    if (!cid) return null;
+    const ents = getCampaignEntities();
+    if (!Array.isArray(ents)) return null;
+    return ents.find(e => {
+      if (!e) return false;
+      const eCid = e.character_id != null ? String(e.character_id) : '';
+      const eCId = e.characterId != null ? String(e.characterId) : '';
+      return eCid === cid || eCId === cid;
+    }) || null;
+  }
+
+  function getPoiBattleMap() {
+    if (!CURRENT_CAMPAIGN_META || typeof CURRENT_CAMPAIGN_META !== 'object') return null;
+    return (
+      CURRENT_CAMPAIGN_META.poi_index ||
+      CURRENT_CAMPAIGN_META.poiIndex ||
+      CURRENT_CAMPAIGN_META.poi_to_battle ||
+      CURRENT_CAMPAIGN_META.poiToBattle ||
+      CURRENT_CAMPAIGN_META.pois ||
+      null
+    );
+  }
+
+  function resolveBattleFromPoi(poiId) {
+    const map = getPoiBattleMap();
+    if (!map || typeof map !== 'object') return null;
+    const pid = String(poiId || '').trim();
+    if (!pid) return null;
+    const entry = map[pid];
+    if (typeof entry === 'string' && entry.trim()) return String(entry);
+    if (entry && typeof entry === 'object') {
+      const bid = entry.battle_id || entry.battleId || entry.battle || entry.id;
+      if (bid) return String(bid);
+    }
+    return null;
+  }
+
+  function resolveBattleForEntity(entityId) {
+    if (!FOLLOW_ACTIVE_LOCATION) return null;
+    if (!CURRENT_CAMPAIGN_META || typeof CURRENT_CAMPAIGN_META !== 'object') return null;
+
+    const id = String(entityId || '').trim();
+    if (!id) return null;
+
+    const map = CURRENT_CAMPAIGN_META.party_locations || CURRENT_CAMPAIGN_META.partyLocations || null;
+    const entity = findEntityById(id) || findEntityByCharacterId(id);
+
+    if (entity) {
+      const battleDirect =
+        entity.current_battle_id || entity.currentBattleId ||
+        entity.battle_id || entity.battleId;
+      if (battleDirect) return String(battleDirect);
+
+      const poi = entity.current_poi || entity.currentPoi || entity.poi || null;
+      const fromPoi = poi ? resolveBattleFromPoi(poi) : null;
+      if (fromPoi) return fromPoi;
+    }
+
+    if (map && typeof map === 'object') {
+      const entry = map[id];
+      if (typeof entry === 'string' && entry.trim()) return String(entry);
+      if (entry && typeof entry === 'object') {
+        const bid = entry.battle_id || entry.battleId || entry.battle;
+        if (bid) return String(bid);
+      }
+    }
+
+    return null;
+  }
+
   function findTokenById(state, tokenId) {
     if (!tokenId) return null;
     const tokens = getTokensArray(state);
@@ -1485,8 +1587,12 @@ Changelog:
   function resolveBattleForActiveToken(state) {
     if (!FOLLOW_ACTIVE_LOCATION) return null;
     if (!CURRENT_CAMPAIGN_META || typeof CURRENT_CAMPAIGN_META !== 'object') return null;
-    const map = CURRENT_CAMPAIGN_META.party_locations || CURRENT_CAMPAIGN_META.partyLocations || null;
-    if (!map || typeof map !== 'object') return null;
+    const campaignActiveId = getCampaignTurnActiveId();
+    if (campaignActiveId) {
+      const fromCampaign = resolveBattleForEntity(campaignActiveId);
+      if (fromCampaign) return fromCampaign;
+    }
+
     const activeTokenId = getActiveTokenIdFromState(state);
     if (!activeTokenId) return null;
     const token = findTokenById(state, activeTokenId);
@@ -1494,12 +1600,12 @@ Changelog:
     if (token && token.character_id) keys.push(String(token.character_id));
     if (token && token.characterId) keys.push(String(token.characterId));
     keys.push(String(activeTokenId));
+
     for (const key of keys) {
-      const entry = map[key];
-      if (typeof entry === 'string' && entry.trim()) return String(entry);
-      if (entry && typeof entry === 'object' && entry.battle_id) return String(entry.battle_id);
-      if (entry && typeof entry === 'object' && entry.battleId) return String(entry.battleId);
+      const resolved = resolveBattleForEntity(key);
+      if (resolved) return resolved;
     }
+
     return null;
   }
 
@@ -6622,13 +6728,17 @@ const EMBEDDED_WORLD_JSON = `{
     const roundRaw = (state && state.turn && state.turn.round != null) ? state.turn.round : meta.round;
     const round = Number.isFinite(Number(roundRaw)) ? Number(roundRaw) : null;
 
-    const activeId = (state && state.turn && state.turn.activeTokenId)
+    const campaignActiveId = getCampaignTurnActiveId();
+    const activeId = campaignActiveId || ((state && state.turn && state.turn.activeTokenId)
       ? String(state.turn.activeTokenId)
       : (state && state.turn && state.turn.active_actor_id ? String(state.turn.active_actor_id)
-        : (state && (state.activeActorId || state.active_actor_id) ? String(state.activeActorId || state.active_actor_id) : ''));
+        : (state && (state.activeActorId || state.active_actor_id) ? String(state.activeActorId || state.active_actor_id) : '')));
     const allTokens = getTokensArray(state).filter(t => t && t.id);
     const activeToken = activeId ? allTokens.find(t => String(t.id) === activeId) : null;
-    const activeName = activeToken ? String(activeToken.name || activeToken.id || '') : '';
+    const activeEntity = !activeToken && activeId ? findEntityById(activeId) || findEntityByCharacterId(activeId) : null;
+    const activeName = activeToken
+      ? String(activeToken.name || activeToken.id || '')
+      : (activeEntity ? String(activeEntity.name || activeEntity.id || '') : '');
 
     statusMeta.innerHTML = [
       '<div class="statusPill">Round <strong>' + escapeHtml(round != null ? String(round) : '–') + '</strong></div>',
@@ -6659,7 +6769,10 @@ const EMBEDDED_WORLD_JSON = `{
     const actionMap = getLatestActionBySpeaker();
 
     statusBody.innerHTML = sorted.map(t => {
-      const isActive = activeId && String(t.id) === activeId;
+      const tid = t && t.id != null ? String(t.id) : '';
+      const tcid = t && t.character_id != null ? String(t.character_id) : '';
+      const tcId = t && t.characterId != null ? String(t.characterId) : '';
+      const isActive = activeId && (tid === activeId || tcid === activeId || tcId === activeId);
       const name = t.name ? String(t.name) : String(t.id);
       const speakerKey = normalizeSpeakerKey(name);
       const actionEntry = actionMap.get(speakerKey) || null;
