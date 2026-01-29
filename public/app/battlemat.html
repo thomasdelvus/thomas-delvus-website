@@ -1550,7 +1550,8 @@ Changelog:
         }
       }
       if (!state || typeof state !== 'object') return;
-    const tokens = normalizeTokenCharacterIds(getTokensArray(state));
+      const render = buildRenderState(state);
+      const tokens = normalizeTokenCharacterIds((render && Array.isArray(render.tokens)) ? render.tokens : getTokensArray(state));
       BATTLE_STATE_CACHE.set(id, { ts: Date.now(), state, tokens });
       if (CURRENT_STATE) {
         const render = buildRenderState(CURRENT_STATE);
