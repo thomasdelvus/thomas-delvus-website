@@ -2021,7 +2021,7 @@
           "character_id": "uKHpm1HN6NNvbcQyYvKLkw",
           "name": "Durin",
           "side": "PC",
-          "hex": "U16",
+          "hex": "V16",
           "label": "D",
           "init": 14,
           "hp": 42,
@@ -2034,7 +2034,7 @@
           "character_id": "Dd0Y0tucPXlFY44Nz4YdnQ",
           "name": "Myrr",
           "side": "PC",
-          "hex": "S17",
+          "hex": "T17",
           "label": "M",
           "init": 12,
           "hp": 35,
@@ -2072,4 +2072,5 @@
   "openings": [],
   "objects": []
 }
+
 
