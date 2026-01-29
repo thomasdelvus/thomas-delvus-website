@@ -6,10 +6,8 @@ heroImage: "/images/character_sheet.jpg"
 project: "saffrondale"
 ---
 
-# On the Making of a Character Sheet
-
 Some character sheets record numbers.  
-This one records *intent* ó and does it with strict respect for the rules.
+This one records *intent* ‚Äî and does it with strict respect for the rules.
 
 Seraphina Ashveil began the same way most 5e characters do: a first-level wizard, a sage, a half-elf with a bias toward study and persuasion. Nothing exotic. The difference is how her sheet *communicates* that reality, quickly and honestly.
 
@@ -22,11 +20,11 @@ The foundation is entirely orthodox. Every value on the sheet obeys 5e:
 - Attacks list real ranges, damage, and types  
 - No hidden bonuses, no narrative exceptions  
 
-This matters because constraint is the pressure that reveals story. The rules do the work. We donít editorialize them.
+This matters because constraint is the pressure that reveals story. The rules do the work. We don‚Äôt editorialize them.
 
 ## A Sheet That Communicates at a Glance
 
-The design goal was clarity without sterility. The layout is optimized for ìtable glanceî use: what a DM or player needs in five seconds.
+The design goal was clarity without sterility. The layout is optimized for ‚Äútable glance‚Äù use: what a DM or player needs in five seconds.
 
 Each section of the sheet answers a single question:
 
@@ -41,11 +39,11 @@ This is not UI for a video game. It is a player-facing artifact meant to survive
 
 ## Seraphina Ashveil, Revealed
 
-Seraphina is not powerful ó yet. Seven hit points make that abundantly clear. Her strength is negligible. Her armor nonexistent.
+Seraphina is not powerful ‚Äî yet. Seven hit points make that abundantly clear. Her strength is negligible. Her armor nonexistent.
 
 What she *does* have is focus.
 
-High Intelligence and Charisma point toward a character whose influence will not come from force, but from understanding ó of arcane systems, of people, of history. Skills are not scattershot; they cluster around investigation, knowledge, and persuasion. This is someone who uncovers, not conquers.
+High Intelligence and Charisma point toward a character whose influence will not come from force, but from understanding ‚Äî of arcane systems, of people, of history. Skills are not scattershot; they cluster around investigation, knowledge, and persuasion. This is someone who uncovers, not conquers.
 
 Even the equipment choices reinforce restraint. Nothing exotic. Nothing magical. Just enough to survive the early chapters.
 
@@ -59,7 +57,7 @@ It does not assume heroism.
 It does not pre-write destiny.  
 It leaves room for consequence.
 
-In Saffrondale, characters are not protected by narrative convenience. They persist ó or fail ó according to the same rules every time. A sheet that clearly exposes weakness is not a liability; it is an invitation to meaningful play.
+In Saffrondale, characters are not protected by narrative convenience. They persist ‚Äî or fail ‚Äî according to the same rules every time. A sheet that clearly exposes weakness is not a liability; it is an invitation to meaningful play.
 
 Seraphina Ashveil is not yet a legend.
 
