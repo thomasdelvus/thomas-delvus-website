@@ -272,6 +272,7 @@ Changelog:
     .status-neutral{color:var(--muted);}
     .status-hostile{color:rgba(255,140,110,0.95);}
     .statusRow.dead{opacity:0.55;}
+    .statusRow.elsewhere{opacity:0.7;}
     .statusRow.active{background:rgba(67,209,122,0.10);}
     .statusRow.clickable{cursor:pointer;}
     .statusRow.clickable:hover{background:rgba(90,170,255,0.12);}
@@ -976,6 +977,28 @@ Changelog:
     return getQueryParamsCached._cached;
   }
 
+  function getAuthToken() {
+    const qp = getQueryParamsCached();
+    const token = (
+      qp.get('token') ||
+      qp.get('auth') ||
+      qp.get('bearer') ||
+      ''
+    ).trim();
+    if (token) return token;
+    if (window && window.BATTLE_API_TOKEN) {
+      const w = String(window.BATTLE_API_TOKEN).trim();
+      if (w) return w;
+    }
+    return '';
+  }
+
+  function getAuthHeaders() {
+    const token = getAuthToken();
+    if (!token) return {};
+    return { Authorization: 'Bearer ' + token };
+  }
+
   function parseBattleIdFromUrlString(rawUrl) {
     const base = (window && window.location && window.location.href)
       ? window.location.href
@@ -1220,7 +1243,7 @@ Changelog:
     const res = await fetch(fetchUrl, {
       method: 'GET',
       cache: 'no-store',
-      headers: { 'Accept': 'application/json' },
+      headers: { 'Accept': 'application/json', ...getAuthHeaders() },
     });
 
     LAST_FETCH_STATUS = res.status;
@@ -1388,7 +1411,7 @@ Changelog:
       seen.add(base);
       const url = base + '/campaigns/' + encodeURIComponent(cid);
       try {
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: getAuthHeaders() });
         if (!res.ok) continue;
         const data = await res.json().catch(() => null);
         if (!data || typeof data !== 'object') continue;
@@ -1425,7 +1448,7 @@ Changelog:
     if (!cid) return [];
     const url = '/api/battles?campaign_id=' + encodeURIComponent(cid);
     try {
-      const res = await fetch(url, { method: 'GET', cache: 'no-store', headers: { 'accept': 'application/json' } });
+      const res = await fetch(url, { method: 'GET', cache: 'no-store', headers: { 'accept': 'application/json', ...getAuthHeaders() } });
       if (!res.ok) return [];
       const data = await res.json().catch(() => null);
       const rows = data && Array.isArray(data.rows) ? data.rows : [];
@@ -1522,6 +1545,40 @@ Changelog:
       CURRENT_CAMPAIGN_META.pois ||
       null
     );
+  }
+
+  function getPoiLabel(poiId) {
+    const pid = String(poiId || '').trim();
+    if (!pid) return '';
+    const map = getPoiBattleMap();
+    if (!map || typeof map !== 'object') return pid;
+    const entry = map[pid];
+    if (!entry || typeof entry !== 'object') return pid;
+    const label = entry.title || entry.name || entry.label || entry.poi_name || entry.poiName || '';
+    return label ? String(label) : pid;
+  }
+
+  function resolvePoiForBattle(battleId) {
+    const bid = String(battleId || '').trim();
+    if (!bid) return null;
+    const map = getPoiBattleMap();
+    if (!map || typeof map !== 'object') return null;
+    for (const [poiId, entry] of Object.entries(map)) {
+      if (typeof entry === 'string' && String(entry) === bid) return poiId;
+      if (entry && typeof entry === 'object') {
+        const id = entry.battle_id || entry.battleId || entry.battle || entry.id;
+        if (id && String(id) === bid) return poiId;
+      }
+    }
+    return null;
+  }
+
+  function isPcEntity(entity) {
+    if (!entity || typeof entity !== 'object') return false;
+    const kind = String(entity.kind || entity.type || '').trim().toLowerCase();
+    if (kind === 'npc' || kind === 'monster' || kind === 'creature') return false;
+    if (kind === 'pc') return true;
+    return !!(entity.character_id || entity.characterId);
   }
 
   function resolveBattleFromPoi(poiId) {
@@ -1993,7 +2050,7 @@ Changelog:
         const res = await fetch(url, {
           method: 'GET',
           cache: 'no-store',
-          headers: { 'accept': 'application/json' },
+          headers: { 'accept': 'application/json', ...getAuthHeaders() },
         });
         if (!res.ok) throw new Error('Chat fetch failed: ' + res.status + ' ' + res.statusText);
         const data = await res.json().catch(() => null);
@@ -2024,7 +2081,7 @@ Changelog:
       try {
         const res = await fetch('/api/messages', {
           method: 'POST',
-          headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+          headers: { 'content-type': 'application/json', 'accept': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error('Chat send failed: ' + res.status + ' ' + res.statusText);
@@ -2043,7 +2100,7 @@ Changelog:
       try {
         const res = await fetch('/api/messages/' + encodeURIComponent(chatId), {
           method: 'PATCH',
-          headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+          headers: { 'content-type': 'application/json', 'accept': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({ status }),
         });
         if (!res.ok) throw new Error('Chat update failed: ' + res.status + ' ' + res.statusText);
@@ -3546,7 +3603,7 @@ Changelog:
     try {
       const res = await fetch(url, {
         method: 'PUT',
-        headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+        headers: { 'content-type': 'application/json', 'accept': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ state_json: raw }),
       });
       if (!res.ok) throw new Error('DB save failed: ' + res.status + ' ' + res.statusText);
@@ -6740,6 +6797,44 @@ const EMBEDDED_WORLD_JSON = `{
       ? String(activeToken.name || activeToken.id || '')
       : (activeEntity ? String(activeEntity.name || activeEntity.id || '') : '');
 
+    const battlePoiId = CURRENT_BATTLE_ID ? resolvePoiForBattle(CURRENT_BATTLE_ID) : null;
+    const localCharacterIds = new Set();
+    const localEntityIds = new Set();
+    for (const t of allTokens) {
+      if (!t) continue;
+      if (t.id) localEntityIds.add(String(t.id));
+      if (t.character_id) localCharacterIds.add(String(t.character_id));
+      if (t.characterId) localCharacterIds.add(String(t.characterId));
+    }
+
+    const campaignEntities = getCampaignEntities() || [];
+    const extraPcTokens = [];
+    for (const ent of campaignEntities) {
+      if (!isPcEntity(ent)) continue;
+      const entId = ent.id != null ? String(ent.id) : '';
+      const entCharId = ent.character_id != null ? String(ent.character_id)
+        : (ent.characterId != null ? String(ent.characterId) : '');
+      if (entCharId && localCharacterIds.has(entCharId)) continue;
+      if (entId && localEntityIds.has(entId)) continue;
+
+      const poiId = ent.current_poi || ent.currentPoi || ent.poi || null;
+      const poiLabel = poiId ? getPoiLabel(poiId) : '';
+      extraPcTokens.push({
+        id: entId || ('entity_' + entCharId),
+        character_id: entCharId || null,
+        name: ent.name || ent.label || entCharId || entId,
+        side: 'PC',
+        init: ent.init != null ? ent.init : -1,
+        hp: ent.hp != null ? ent.hp : null,
+        maxHp: ent.maxHp != null ? ent.maxHp : ent.max_hp,
+        _globalOnly: true,
+        _locationLabel: poiLabel,
+        _elsewhere: (poiId && battlePoiId) ? String(poiId) !== String(battlePoiId) : false
+      });
+    }
+
+    const combinedTokens = allTokens.concat(extraPcTokens);
+
     statusMeta.innerHTML = [
       '<div class="statusPill">Round <strong>' + escapeHtml(round != null ? String(round) : '–') + '</strong></div>',
       '<div class="statusPill">Active <strong>' + escapeHtml(activeName || '–') + '</strong></div>',
@@ -6756,10 +6851,12 @@ const EMBEDDED_WORLD_JSON = `{
       }
     }
 
-    const sorted = [...allTokens]
+    const sorted = [...combinedTokens]
       .sort((a, b) => {
-        const ai = Number(a.init) || 0;
-        const bi = Number(b.init) || 0;
+        const aiRaw = Number(a.init);
+        const biRaw = Number(b.init);
+        const ai = Number.isFinite(aiRaw) ? aiRaw : (a._globalOnly ? -1 : 0);
+        const bi = Number.isFinite(biRaw) ? biRaw : (b._globalOnly ? -1 : 0);
         if (bi !== ai) return bi - ai;
         const an = String(a.name || a.id || '');
         const bn = String(b.name || b.id || '');
@@ -6802,7 +6899,8 @@ const EMBEDDED_WORLD_JSON = `{
       const hpDead = Number.isFinite(hpNum) ? hpNum <= 0 : false;
       const isDead = hpDead || conditions.some(c => c.label.toLowerCase().includes('dead') || c.label.toLowerCase().includes('down'));
       const hostility = tokenHostility(t);
-      const rowClass = 'statusRow' + (isDead ? ' dead' : '') + (isActive ? ' active' : '') + (characterId ? ' clickable' : '');
+      const elsewhere = !!t._elsewhere;
+      const rowClass = 'statusRow' + (isDead ? ' dead' : '') + (elsewhere ? ' elsewhere' : '') + (isActive ? ' active' : '') + (characterId ? ' clickable' : '');
       const turnMarkerClass = 'statusTurnMarker' + (isActive ? '' : ' inactive');
       const nameClass = 'statusName status-' + hostility;
       const rowAttrs = characterId
@@ -6812,7 +6910,7 @@ const EMBEDDED_WORLD_JSON = `{
         'AC: ' + (ac != null ? String(ac) : '–'),
         'Speed: ' + (speed != null ? String(speed) : '–'),
         'Range: ' + (range != null ? String(range) : '–'),
-      ].join('\n');
+      ].concat(t._locationLabel ? ['Location: ' + String(t._locationLabel)] : []).join('\n');
       return '<tr class="' + rowClass + '"' + rowAttrs + '>'
         + '<td class="statusNameCell" title="' + escapeHtml(hoverDetails) + '">'
           + '<span class="' + turnMarkerClass + '" aria-hidden="' + (isActive ? 'false' : 'true') + '"></span>'
@@ -8068,4 +8166,9 @@ function setActiveFloor(floorId, opts = {}) {
   </script>
 </body>
 </html>
+
+
+
+
+
 
