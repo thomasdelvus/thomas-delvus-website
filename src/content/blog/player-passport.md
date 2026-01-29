@@ -58,7 +58,7 @@ Character sheets are meant to be shared:
 
 The Passport is different. It represents *authority*, not *identity*.
 
-Anyone who possesses it can act on the player’s behalf. Which leads to a simple rule:
+Anyone who possesses it can act on the player's behalf. Which leads to a simple rule:
 
 > **Character sheets may be shared. Player Passports must not be.**
 
@@ -75,7 +75,7 @@ At first glance, bearer tokens feel risky. In practice, they dramatically reduce
 
 Lose the Passport, and access is lost - just like losing a physical object. That tradeoff is intentional. It mirrors how tabletop play already works: if you lose your character sheet, the world does not owe you a backup.
 
-## How It’s Implemented (Briefly)
+## How It's Implemented (Briefly)
 
 The Passport connects to the Player Dashboard, which reads from D1 tables for players, campaigns, and characters. The key is stored as a `dashboard_token` on the player record and exposed via a QR code and copyable text.
 
