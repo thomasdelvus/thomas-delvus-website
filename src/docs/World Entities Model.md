@@ -81,3 +81,52 @@ This document describes the current data model where **world entities are canoni
 - Remove `tokens` and `actors` from battle records.
 - Move all entity data into `campaign.meta_json.world.entities`.
 
+## NPC Intent + Movement (GPT-directed)
+Use **intentional movement** to avoid teleporting. The GPT/DM updates `intent` and advances NPCs each turn.
+
+### Intent schema (recommended)
+```json
+{
+  "id": "bank_head",
+  "kind": "npc",
+  "name": "Varyn Holt",
+  "location": { "poi_id": "BankOfGalt", "floorId": "ground", "hex": "K12" },
+  "intent": {
+    "state": "travel",
+    "goal": { "poi_id": "CrossedKeysInn", "floorId": "ground", "hex": "P18" },
+    "reason": "pint at the pub",
+    "path": ["K12","L12","M12","N12","O12","P12","P13","P14","P15","P16","P17","P18"],
+    "speed": 6
+  }
+}
+```
+
+### Other intent states
+```json
+{ "intent": { "state": "idle", "role": "working" } }
+```
+
+```json
+{
+  "intent": {
+    "state": "patrol",
+    "path": ["A10","D10","D14","A14"],
+    "speed": 4,
+    "loop": true
+  }
+}
+```
+
+### Turn-step algorithm (GPT/DM)
+1) If `intent.state = travel` and `intent.path` exists:
+   - Advance `speed` hexes along `path`.
+   - Update `location.hex` each step.
+2) If target reached:
+   - Set `intent.state = idle` (or next intent).
+3) If `intent.state = patrol`:
+   - Advance along `path`, loop if `loop = true`.
+
+### Why this works
+- No teleporting: movement is explicit and step-based.
+- Narrative control: GPT decides when to trigger intents.
+- Lightweight: no autonomous sim engine required.
