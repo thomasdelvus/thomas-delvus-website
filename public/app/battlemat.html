@@ -1551,11 +1551,11 @@ Changelog:
       }
       if (!state || typeof state !== 'object') return;
       const render = buildRenderState(state);
-      const tokens = normalizeTokenCharacterIds((render && Array.isArray(render.tokens)) ? render.tokens : getTokensArray(state));
-      BATTLE_STATE_CACHE.set(id, { ts: Date.now(), state, tokens });
+      const tokens = normalizeTokenCharacterIds((render && Array.isArray(render.tokensAll)) ? render.tokensAll : getTokensArray(state));
+      BATTLE_STATE_CACHE.set(id, { ts: Date.now(), state, tokens, render });
       if (CURRENT_STATE) {
         const render = buildRenderState(CURRENT_STATE);
-        updateSidebar(CURRENT_STATE, render.floor, render.rooms, render.openings, render.objects, render.tokens);
+        updateSidebar(CURRENT_STATE, render.floor, render.rooms, render.openings, render.objects, render.tokensAll || render.tokens);
       }
     } finally {
       BATTLE_STATE_FETCHING.delete(id);
@@ -2061,7 +2061,7 @@ Changelog:
       if (CURRENT_STATE) {
         try {
           const render = buildRenderState(CURRENT_STATE);
-          updateSidebar(CURRENT_STATE, render.floor, render.rooms, render.openings, render.objects, render.tokens);
+          updateSidebar(CURRENT_STATE, render.floor, render.rooms, render.openings, render.objects, render.tokensAll || render.tokens);
         } catch {}
       }
     }
@@ -6891,11 +6891,21 @@ const EMBEDDED_WORLD_JSON = `{
 
     const battlePoiId = CURRENT_BATTLE_ID ? resolvePoiForBattle(CURRENT_BATTLE_ID) : null;
     const localBattleId = CURRENT_BATTLE_ID ? String(CURRENT_BATTLE_ID) : '';
+    const currentFloorId = floor && (floor.id || floor.floorId) ? String(floor.id || floor.floorId) : '';
     const localCharacterIds = new Set();
     for (const t of allTokens) {
       if (!t) continue;
       if (t.character_id) localCharacterIds.add(String(t.character_id));
       if (t.characterId) localCharacterIds.add(String(t.characterId));
+    }
+
+    for (const t of allTokens) {
+      if (!t) continue;
+      const tfloor = t.floorId || t.floor_id || (t.view && t.view.floorId);
+      if (tfloor && currentFloorId && String(tfloor) !== currentFloorId) {
+        t._elsewhere = true;
+        if (!t._locationLabel) t._locationLabel = currentFloorId ? ('Floor: ' + String(tfloor)) : '';
+      }
     }
 
     const campaignEntities = getCampaignEntities() || [];
@@ -6919,6 +6929,14 @@ const EMBEDDED_WORLD_JSON = `{
       const poi = resolvePoiForBattle(v);
       if (poi) return v;
       return resolveBattleFromPoi(v);
+    };
+    const getFloorLabelFromRender = (render, token) => {
+      if (!render || !token) return '';
+      const floors = Array.isArray(render.floors) ? render.floors : [];
+      const fid = token.floorId || token.floor_id || (token.view && token.view.floorId);
+      if (!fid) return '';
+      const match = floors.find(f => f && (f.id === fid || f.floorId === fid));
+      return match && match.name ? String(match.name) : String(fid);
     };
     for (const ent of campaignEntities) {
       if (!ent) continue;
@@ -7006,7 +7024,60 @@ const EMBEDDED_WORLD_JSON = `{
       });
     }
 
-    const combinedTokens = allTokens.concat(extraPcTokens);
+    const battleIdsToInclude = new Set();
+    if (localBattleId) battleIdsToInclude.add(localBattleId);
+    for (const loc of Object.values(partyLocations || {})) {
+      const bid = resolveBattleIdMaybe(loc);
+      if (bid) battleIdsToInclude.add(String(bid));
+    }
+    for (const ent of campaignEntities) {
+      if (!ent) continue;
+      const b = ent.current_battle_id || ent.currentBattleId || ent.battle_id || ent.battleId || null;
+      if (b) battleIdsToInclude.add(String(b));
+      const p = ent.current_poi || ent.currentPoi || ent.poi_id || ent.poiId || ent.poi || null;
+      const fromPoi = resolveBattleIdMaybe(p);
+      if (fromPoi) battleIdsToInclude.add(String(fromPoi));
+    }
+
+    const extraTokens = [];
+    const seenKeys = new Set();
+    for (const t of allTokens) {
+      if (!t) continue;
+      const cid = t.character_id != null ? String(t.character_id) : (t.characterId != null ? String(t.characterId) : '');
+      if (cid) seenKeys.add('pc:' + cid);
+      else if (t.id) seenKeys.add('id:' + String(t.id));
+    }
+    for (const t of extraPcTokens) {
+      if (!t) continue;
+      const cid = t.character_id != null ? String(t.character_id) : (t.characterId != null ? String(t.characterId) : '');
+      if (cid) seenKeys.add('pc:' + cid);
+      else if (t.id) seenKeys.add('id:' + String(t.id));
+    }
+
+    for (const bid of battleIdsToInclude) {
+      if (!bid || bid === localBattleId) continue;
+      const cached = ensureBattleStateCached(bid);
+      if (!cached || !Array.isArray(cached.tokens)) continue;
+      const poiId = resolvePoiForBattle(bid);
+      const poiLabel = poiId ? getPoiLabel(poiId) : '';
+      for (const tok of cached.tokens) {
+        if (!tok) continue;
+        const cid = tok.character_id != null ? String(tok.character_id) : (tok.characterId != null ? String(tok.characterId) : '');
+        const key = cid ? ('pc:' + cid) : ('id:' + String(tok.id || ''));
+        if (seenKeys.has(key)) continue;
+        seenKeys.add(key);
+        const floorLabel = getFloorLabelFromRender(cached.render, tok);
+        const label = poiLabel ? (poiLabel + (floorLabel ? ' / ' + floorLabel : '')) : floorLabel;
+        extraTokens.push({
+          ...tok,
+          _globalOnly: true,
+          _locationLabel: label || '',
+          _elsewhere: true
+        });
+      }
+    }
+
+    const combinedTokens = allTokens.concat(extraPcTokens, extraTokens);
 
     statusMeta.innerHTML = [
       '<div class="statusPill">Round <strong>' + escapeHtml(round != null ? String(round) : '–') + '</strong></div>',
