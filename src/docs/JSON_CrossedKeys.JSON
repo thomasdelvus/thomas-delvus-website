@@ -2028,18 +2028,7 @@
           "floorId": "upper",
           "spriteFile": "fighter_male.png"
         },
-        {
-          "id": "character_2",
-          "character_id": "gzVRo76msnG3tE2MVAHfPQ",
-          "name": "Sera",
-          "side": "PC",
-          "hex": "X16",
-          "label": "S",
-          "init": 12,
-          "hp": 35,
-          "floorId": "ground",
-          "spriteFile": "wizard_female.png"
-        },
+
 	{
           "id": "character_3",
           "character_id": "Dd0Y0tucPXlFY44Nz4YdnQ",
