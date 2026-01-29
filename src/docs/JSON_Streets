@@ -73,7 +73,7 @@
              },
     "active":  {
                    "camera_hex":  "W16",
-                   "recordId":  "NewSceneId",
+                   "recordId":  "SaffrondaleStreets",
                    "floorId":  "ground"
                },
     "links":  [
@@ -92,7 +92,7 @@
 
                 ],
     "records":  {
-                    "NewSceneId":  {
+                    "SaffrondaleStreets":  {
                                        "meta":  {
                                                     "title":  "Street View",
                                                     "battleId":  "local",
