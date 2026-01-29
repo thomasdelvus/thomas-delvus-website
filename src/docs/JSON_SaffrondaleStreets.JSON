@@ -387,15 +387,17 @@
         }
       ],
       "tokens": [
-        {
-          "id": "pc1",
-          "name": "Hero",
+                {
+          "id": "character_2",
+          "character_id": "gzVRo76msnG3tE2MVAHfPQ",
+          "name": "Sera",
           "side": "PC",
-          "hex": "D4",
-          "label": "H",
-          "init": 10,
-          "hp": 20,
-          "floorId": "ground"
+          "hex": "U11",
+          "label": "S",
+          "init": 12,
+          "hp": 35,
+          "floorId": "ground",
+          "spriteFile": "wizard_female.png"
         }
       ]
     }
