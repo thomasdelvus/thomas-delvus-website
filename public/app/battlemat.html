@@ -4961,7 +4961,8 @@ const EMBEDDED_WORLD_JSON = `{
   function normalizeTokenSideFromKind(kind) {
     const k = String(kind || '').trim().toLowerCase();
     if (k === 'pc' || k === 'player') return 'PC';
-    if (k === 'npc' || k === 'monster' || k === 'creature') return 'NPC';
+    if (k === 'npc') return 'NPC';
+    if (k === 'monster' || k === 'creature') return 'ENEMY';
     return '';
   }
 
