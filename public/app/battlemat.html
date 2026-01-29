@@ -273,7 +273,7 @@ Changelog:
     .status-hostile{color:rgba(255,140,110,0.95);}
     .statusRow.dead{opacity:0.55;}
     .statusRow.elsewhere{opacity:0.85;}
-    .statusRow.elsewhere .statusName{color:#f1c08a;}
+    .statusRow.elsewhere.mob .statusName{color:#f1c08a;}
     .statusRow.active{background:rgba(67,209,122,0.10);}
     .statusRow.clickable{cursor:pointer;}
     .statusRow.clickable:hover{background:rgba(90,170,255,0.12);}
@@ -7153,8 +7153,9 @@ const EMBEDDED_WORLD_JSON = `{
       const hpDead = Number.isFinite(hpNum) ? hpNum <= 0 : false;
       const isDead = hpDead || conditions.some(c => c.label.toLowerCase().includes('dead') || c.label.toLowerCase().includes('down'));
       const hostility = tokenHostility(t);
+      const isMob = hostility === 'hostile';
       const elsewhere = !!t._elsewhere;
-      const rowClass = 'statusRow' + (isDead ? ' dead' : '') + (elsewhere ? ' elsewhere' : '') + (isActive ? ' active' : '') + (characterId ? ' clickable' : '');
+      const rowClass = 'statusRow' + (isDead ? ' dead' : '') + (elsewhere ? ' elsewhere' : '') + (isMob ? ' mob' : '') + (isActive ? ' active' : '') + (characterId ? ' clickable' : '');
       const turnMarkerClass = 'statusTurnMarker' + (isActive ? '' : ' inactive');
       const nameClass = 'statusName status-' + hostility;
       const rowAttrs = characterId
