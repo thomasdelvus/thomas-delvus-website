@@ -901,6 +901,9 @@ Changelog:
   let STATE_URL = null;
   let STATE_POLL_TIMER = null;
   let LAST_STATE_JSON = '';
+  const BATTLE_STATE_CACHE = new Map();
+  const BATTLE_STATE_FETCHING = new Set();
+  const BATTLE_STATE_TTL_MS = 8000;
   let LAST_RENDER_SIGNATURE = '';
   let LAST_EDITOR_SIGNATURE = '';
   let SPRITE_LOAD_TICK = 0;
@@ -1517,6 +1520,52 @@ Changelog:
   function getCampaignPartyLocations() {
     if (!CURRENT_CAMPAIGN_META || typeof CURRENT_CAMPAIGN_META !== 'object') return null;
     return CURRENT_CAMPAIGN_META.party_locations || CURRENT_CAMPAIGN_META.partyLocations || null;
+  }
+
+  function getBattleStateCached(battleId) {
+    const id = String(battleId || '').trim();
+    if (!id) return null;
+    const entry = BATTLE_STATE_CACHE.get(id);
+    if (!entry) return null;
+    if ((Date.now() - entry.ts) > BATTLE_STATE_TTL_MS) return null;
+    return entry;
+  }
+
+  async function fetchBattleStateForId(battleId) {
+    const id = String(battleId || '').trim();
+    if (!id || BATTLE_STATE_FETCHING.has(id)) return;
+    BATTLE_STATE_FETCHING.add(id);
+    try {
+      const url = '/api/battles/' + encodeURIComponent(id);
+      const res = await fetch(url, { method: 'GET', cache: 'no-store', headers: { 'accept': 'application/json', ...getAuthHeaders() } });
+      if (!res.ok) return;
+      const data = await res.json().catch(() => null);
+      if (!data) return;
+      let state = null;
+      if (data.state_json) {
+        if (typeof data.state_json === 'string') {
+          try { state = JSON.parse(data.state_json); } catch { state = null; }
+        } else if (typeof data.state_json === 'object') {
+          state = data.state_json;
+        }
+      }
+      if (!state || typeof state !== 'object') return;
+      const tokens = getTokensArray(state);
+      BATTLE_STATE_CACHE.set(id, { ts: Date.now(), state, tokens });
+      if (CURRENT_STATE) {
+        const render = buildRenderState(CURRENT_STATE);
+        updateSidebar(CURRENT_STATE, render.floor, render.rooms, render.openings, render.objects, render.tokens);
+      }
+    } finally {
+      BATTLE_STATE_FETCHING.delete(id);
+    }
+  }
+
+  function ensureBattleStateCached(battleId) {
+    const entry = getBattleStateCached(battleId);
+    if (entry) return entry;
+    fetchBattleStateForId(battleId);
+    return null;
   }
 
   function findEntityById(entityId) {
@@ -6815,6 +6864,25 @@ const EMBEDDED_WORLD_JSON = `{
     const campaignEntities = getCampaignEntities() || [];
     const partyLocations = getCampaignPartyLocations() || {};
     const entityByCharacterId = new Map();
+    const findTokenInList = (tokens, characterId, entityId) => {
+      if (!Array.isArray(tokens)) return null;
+      const cid = characterId ? String(characterId) : '';
+      const eid = entityId ? String(entityId) : '';
+      return tokens.find(t => {
+        if (!t) return false;
+        const tid = t.id != null ? String(t.id) : '';
+        const tcid = t.character_id != null ? String(t.character_id) : '';
+        const tCid = t.characterId != null ? String(t.characterId) : '';
+        return (cid && (tcid === cid || tCid === cid)) || (eid && tid === eid);
+      }) || null;
+    };
+    const resolveBattleIdMaybe = (value) => {
+      if (!value) return null;
+      const v = String(value);
+      const poi = resolvePoiForBattle(v);
+      if (poi) return v;
+      return resolveBattleFromPoi(v);
+    };
     for (const ent of campaignEntities) {
       if (!ent) continue;
       const entCharId = ent.character_id != null ? String(ent.character_id)
@@ -6841,14 +6909,22 @@ const EMBEDDED_WORLD_JSON = `{
           poiLabel = getPoiLabel(resolvedPoi);
         }
       }
+      const battleIdOther = resolveBattleIdMaybe(poiId) || (ent.current_battle_id || ent.currentBattleId || ent.battle_id || ent.battleId || null);
+      const cached = (battleIdOther && String(battleIdOther) !== String(CURRENT_BATTLE_ID || '')) ? ensureBattleStateCached(battleIdOther) : null;
+      const liveToken = cached ? findTokenInList(cached.tokens, entCharId, entId) : null;
+      const initValue = liveToken && liveToken.init != null ? liveToken.init : (ent.init != null ? ent.init : -1);
+      const hpValue = liveToken && liveToken.hp != null ? liveToken.hp : (ent.hp != null ? ent.hp : null);
+      const maxHpValue = liveToken && (liveToken.maxHp != null || liveToken.max_hp != null)
+        ? (liveToken.maxHp != null ? liveToken.maxHp : liveToken.max_hp)
+        : (ent.maxHp != null ? ent.maxHp : ent.max_hp);
       extraPcTokens.push({
         id: entId || ('entity_' + entCharId),
         character_id: entCharId || null,
         name: ent.name || ent.label || entCharId || entId,
         side: 'PC',
-        init: ent.init != null ? ent.init : -1,
-        hp: ent.hp != null ? ent.hp : null,
-        maxHp: ent.maxHp != null ? ent.maxHp : ent.max_hp,
+        init: initValue,
+        hp: hpValue,
+        maxHp: maxHpValue,
         _globalOnly: true,
         _locationLabel: poiLabel,
         _elsewhere: (poiId && battlePoiId) ? String(poiId) !== String(battlePoiId) : false
@@ -6870,14 +6946,19 @@ const EMBEDDED_WORLD_JSON = `{
           poiLabel = getPoiLabel(resolvedPoi);
         }
       }
+      const battleIdOther = resolveBattleIdMaybe(poiId);
+      const cached = (battleIdOther && String(battleIdOther) !== String(CURRENT_BATTLE_ID || '')) ? ensureBattleStateCached(battleIdOther) : null;
+      const liveToken = cached ? findTokenInList(cached.tokens, charId, null) : null;
+      const initValue = liveToken && liveToken.init != null ? liveToken.init : -1;
+      const hpValue = liveToken && liveToken.hp != null ? liveToken.hp : null;
 
       extraPcTokens.push({
         id: 'entity_' + charId,
         character_id: charId,
         name: charId,
         side: 'PC',
-        init: -1,
-        hp: null,
+        init: initValue,
+        hp: hpValue,
         _globalOnly: true,
         _locationLabel: poiLabel,
         _elsewhere: (poiId && battlePoiId) ? String(poiId) !== String(battlePoiId) : false
