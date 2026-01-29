@@ -2017,7 +2017,7 @@
       ],
       "tokens": [
         {
-          "id": "character_1",
+          "id": "uKHpm1HN6NNvbcQyYvKLkw",
           "character_id": "uKHpm1HN6NNvbcQyYvKLkw",
           "name": "Durin",
           "side": "PC",
@@ -2030,7 +2030,7 @@
         },
 
 	{
-          "id": "character_3",
+          "id": "Dd0Y0tucPXlFY44Nz4YdnQ",
           "character_id": "Dd0Y0tucPXlFY44Nz4YdnQ",
           "name": "Myrr",
           "side": "PC",
@@ -2072,3 +2072,4 @@
   "openings": [],
   "objects": []
 }
+
