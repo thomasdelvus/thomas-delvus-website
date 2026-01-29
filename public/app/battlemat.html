@@ -920,6 +920,7 @@ Changelog:
   let CURRENT_CAMPAIGN_ID = null;
   let CURRENT_CAMPAIGN_META = null;
   let FOLLOW_ACTIVE_LOCATION = true;
+  let FOLLOW_LOCATION_MANUAL_OVERRIDE = false;
   let LAST_META_FETCH_AT = 0;
   const META_FETCH_INTERVAL_MS = 15000;
   const STORAGE_CHAT_READ_PREFIX = 'battlemat.chat.read.';
@@ -1443,6 +1444,10 @@ Changelog:
     if (!info) return CURRENT_CAMPAIGN_META;
     if (info.meta != null) CURRENT_CAMPAIGN_META = info.meta;
     if (info.battleId && !CURRENT_BATTLE_ID) CURRENT_BATTLE_ID = info.battleId;
+    if (!FOLLOW_LOCATION_MANUAL_OVERRIDE && CURRENT_CAMPAIGN_META && typeof CURRENT_CAMPAIGN_META === 'object') {
+      const mode = String(CURRENT_CAMPAIGN_META.follow_mode || CURRENT_CAMPAIGN_META.followMode || '').trim().toLowerCase();
+      if (mode) FOLLOW_ACTIVE_LOCATION = (mode === 'active_turn' || mode === 'active');
+    }
     return CURRENT_CAMPAIGN_META;
   }
 
@@ -8063,6 +8068,8 @@ function setActiveFloor(floorId, opts = {}) {
       elPoiSelect.onchange = () => {
         const v = String(elPoiSelect.value || '').trim();
         if (!v) return;
+        FOLLOW_LOCATION_MANUAL_OVERRIDE = true;
+        FOLLOW_ACTIVE_LOCATION = false;
         CURRENT_BATTLE_ID = v;
         const cid = CURRENT_CAMPAIGN_ID || resolveCampaignIdFromUrl() || '';
         const id = encodeURIComponent(v);
