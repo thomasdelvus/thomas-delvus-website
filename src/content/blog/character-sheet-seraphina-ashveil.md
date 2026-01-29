@@ -7,7 +7,7 @@ project: "saffrondale"
 ---
 
 Some character sheets record numbers.  
-This one records *intent* — and does it with strict respect for the rules.
+This one records *intent* - and does it with strict respect for the rules.
 
 Seraphina Ashveil began the same way most 5e characters do: a first-level wizard, a sage, a half-elf with a bias toward study and persuasion. Nothing exotic. The difference is how her sheet *communicates* that reality, quickly and honestly.
 
