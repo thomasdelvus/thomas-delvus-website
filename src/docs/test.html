@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Delvus Worker Auth Test</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; }
+    input, button { font-size: 14px; padding: 8px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+    pre { background: #f4f4f4; padding: 12px; border: 1px solid #ddd; overflow: auto; }
+    .ok { color: #0b6b0b; font-weight: 700; }
+    .bad { color: #b00020; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <h2>Worker Auth Test (Browser)</h2>
+
+  <div class="row">
+    <label>Battle ID:
+      <input id="battleId" value="27" />
+    </label>
+  </div>
+
+  <div class="row">
+    <label>Bearer token:
+      <input id="token" style="width: 520px" placeholder="paste token here (TEMP — in the clear)" />
+    </label>
+  </div>
+
+  <div class="row">
+    <button id="btn">Fetch from Worker</button>
+    <span id="status"></span>
+  </div>
+
+  <pre id="out">(output)</pre>
+
+  <script>
+    const API_BASE = "https://game-api.abbacasa-031.workers.dev";
+
+    const out = document.getElementById("out");
+    const statusEl = document.getElementById("status");
+
+    function setStatus(ok, msg) {
+      statusEl.className = ok ? "ok" : "bad";
+      statusEl.textContent = msg;
+    }
+
+    function safeJson(text) {
+      try { return JSON.stringify(JSON.parse(text), null, 2); }
+      catch { return text; }
+    }
+
+    document.getElementById("btn").addEventListener("click", async () => {
+      out.textContent = "";
+      setStatus(true, "Fetching…");
+
+      const battleId = document.getElementById("battleId").value.trim();
+      const token = document.getElementById("token").value.trim();
+
+      const url = `${API_BASE}/battles/${encodeURIComponent(battleId)}`;
+
+      try {
+        const res = await fetch(url, {
+          method: "GET",
+          headers: {
+            "Accept": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          cache: "no-store"
+        });
+
+        const text = await res.text();
+        out.textContent =
+          `URL: ${url}\n` +
+          `HTTP: ${res.status} ${res.statusText}\n\n` +
+          safeJson(text);
+
+        if (!res.ok) {
+          setStatus(false, `FAILED: HTTP ${res.status}`);
+          return;
+        }
+        setStatus(true, "OK ✅");
+      } catch (e) {
+        setStatus(false, "Fetch error (likely CORS or network)");
+        out.textContent = String(e && e.message ? e.message : e);
+      }
+    });
+  </script>
+</body>
+</html>
