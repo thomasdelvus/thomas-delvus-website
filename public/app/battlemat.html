@@ -4943,6 +4943,49 @@ const EMBEDDED_WORLD_JSON = `{
     return tokens;
   }
 
+  function normalizeTokenSideFromKind(kind) {
+    const k = String(kind || '').trim().toLowerCase();
+    if (k === 'pc' || k === 'player') return 'PC';
+    if (k === 'npc' || k === 'monster' || k === 'creature') return 'NPC';
+    return '';
+  }
+
+  function buildTokensFromWorldEntities(poiId) {
+    const ents = getCampaignEntities();
+    if (!Array.isArray(ents) || !ents.length) return null;
+    const pid = String(poiId || '').trim();
+    if (!pid) return null;
+
+    const out = [];
+    for (const ent of ents) {
+      if (!ent) continue;
+      const loc = ent.location && typeof ent.location === 'object' ? ent.location : null;
+      const entPoi = ent.current_poi || ent.currentPoi || ent.poi_id || ent.poiId || ent.poi || (loc && (loc.poi_id || loc.poiId || loc.poi)) || null;
+      if (!entPoi || String(entPoi) !== pid) continue;
+
+      const stats = ent.stats && typeof ent.stats === 'object' ? ent.stats : null;
+      const appearance = ent.appearance && typeof ent.appearance === 'object' ? ent.appearance : null;
+      const side = ent.side || normalizeTokenSideFromKind(ent.kind);
+      const token = {
+        id: ent.id || ent.character_id || ent.characterId || ent.name,
+        character_id: ent.character_id || ent.characterId || null,
+        name: ent.name || ent.label || ent.id || '',
+        side,
+        hex: (loc && loc.hex) || ent.hex || ent.tile || '',
+        floorId: (loc && (loc.floorId || loc.floor_id)) || ent.floorId || ent.floor_id || '',
+        init: (stats && stats.init != null) ? stats.init : (ent.init != null ? ent.init : null),
+        hp: (stats && stats.hp != null) ? stats.hp : (ent.hp != null ? ent.hp : null),
+        maxHp: (stats && (stats.maxHp != null || stats.max_hp != null)) ? (stats.maxHp != null ? stats.maxHp : stats.max_hp)
+          : (ent.maxHp != null ? ent.maxHp : ent.max_hp),
+        conditions: (stats && stats.conditions) ? stats.conditions : ent.conditions,
+        spriteFile: ent.spriteFile || (appearance && (appearance.spriteFile || appearance.sprite_file || appearance.sprite)) || ent.sprite || null,
+        hostility: ent.hostility || ent.attitude || null
+      };
+      out.push(token);
+    }
+    return out;
+  }
+
   function getMeta(state) {
     const s = (state && typeof state === 'object') ? state : null;
     return (s && s.meta && typeof s.meta === 'object') ? s.meta : {};
@@ -7329,7 +7372,10 @@ function populateFloorSelect(floors) {
     const floor = floorById(floors, activeFloorId) || floors[0];
     const floorId = floor ? String(floor.id) : String(activeFloorId || '');
 
-    const tokensAll = normalizeTokenCharacterIds(getTokensArray(state));
+    const recordId = (state && state.active && state.active.recordId) ? String(state.active.recordId) : '';
+    const poiId = recordId || resolvePoiForBattle(CURRENT_BATTLE_ID);
+    const worldTokens = buildTokensFromWorldEntities(poiId);
+    const tokensAll = normalizeTokenCharacterIds(worldTokens && worldTokens.length ? worldTokens : getTokensArray(state));
     const rooms = Array.isArray(floor && floor.rooms) ? floor.rooms : [];
     const openings = Array.isArray(floor && floor.openings) ? floor.openings : [];
     const objects = Array.isArray(floor && floor.objects) ? floor.objects : [];
