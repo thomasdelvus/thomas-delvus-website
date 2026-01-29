@@ -4902,6 +4902,15 @@ const EMBEDDED_WORLD_JSON = `{
       const cid = byName.get(name);
       if (cid) token.character_id = cid;
     }
+    for (const token of tokens) {
+      if (!token) continue;
+      const cid = token.character_id != null ? String(token.character_id)
+        : (token.characterId != null ? String(token.characterId) : '');
+      if (!cid) continue;
+      const side = String(token.side || token.team || '').trim().toLowerCase();
+      if (side && side !== 'pc' && side !== 'player') continue;
+      if (!token.id || String(token.id) !== cid) token.id = cid;
+    }
     return tokens;
   }
 
@@ -6882,10 +6891,8 @@ const EMBEDDED_WORLD_JSON = `{
     const battlePoiId = CURRENT_BATTLE_ID ? resolvePoiForBattle(CURRENT_BATTLE_ID) : null;
     const localBattleId = CURRENT_BATTLE_ID ? String(CURRENT_BATTLE_ID) : '';
     const localCharacterIds = new Set();
-    const localEntityIds = new Set();
     for (const t of allTokens) {
       if (!t) continue;
-      if (t.id) localEntityIds.add(String(t.id));
       if (t.character_id) localCharacterIds.add(String(t.character_id));
       if (t.characterId) localCharacterIds.add(String(t.characterId));
     }
@@ -6925,7 +6932,7 @@ const EMBEDDED_WORLD_JSON = `{
       const entCharId = ent.character_id != null ? String(ent.character_id)
         : (ent.characterId != null ? String(ent.characterId) : '');
       if (entCharId && localCharacterIds.has(entCharId)) continue;
-      if (entId && localEntityIds.has(entId)) continue;
+      if (!entCharId && entId && allTokens.some(t => t && String(t.id) === entId)) continue;
 
       let poiId = ent.current_poi || ent.currentPoi || ent.poi_id || ent.poiId || ent.poi || null;
       if (!poiId && entCharId && partyLocations[entCharId]) poiId = partyLocations[entCharId];
