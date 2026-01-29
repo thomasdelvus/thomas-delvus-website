@@ -1550,7 +1550,7 @@ Changelog:
         }
       }
       if (!state || typeof state !== 'object') return;
-      const tokens = getTokensArray(state);
+    const tokens = normalizeTokenCharacterIds(getTokensArray(state));
       BATTLE_STATE_CACHE.set(id, { ts: Date.now(), state, tokens });
       if (CURRENT_STATE) {
         const render = buildRenderState(CURRENT_STATE);
@@ -1684,7 +1684,7 @@ Changelog:
 
   function findTokenById(state, tokenId) {
     if (!tokenId) return null;
-    const tokens = getTokensArray(state);
+    const tokens = normalizeTokenCharacterIds(getTokensArray(state));
     return tokens.find(t => {
       if (!t) return false;
       const id = t.id != null ? String(t.id) : '';
@@ -2180,7 +2180,7 @@ Changelog:
 
   function populateChatSpeakerSelect(state) {
     if (!elChatSpeaker) return;
-    const tokens = getTokensArray(state).filter(t => t && t.id);
+    const tokens = normalizeTokenCharacterIds(getTokensArray(state)).filter(t => t && t.id);
     const names = [];
     for (const t of tokens) {
       const name = getTokenDisplayName(t);
@@ -4878,6 +4878,33 @@ const EMBEDDED_WORLD_JSON = `{
     return Array.isArray(arr) ? arr : [];
   }
 
+  function normalizeTokenName(value) {
+    return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
+  function normalizeTokenCharacterIds(tokens) {
+    if (!Array.isArray(tokens)) return tokens;
+    const ents = getCampaignEntities();
+    if (!Array.isArray(ents) || !ents.length) return tokens;
+    const byName = new Map();
+    for (const ent of ents) {
+      if (!ent) continue;
+      const cid = ent.character_id != null ? String(ent.character_id)
+        : (ent.characterId != null ? String(ent.characterId) : '');
+      if (!cid) continue;
+      const name = normalizeTokenName(ent.name || ent.label || ent.title || ent.id || cid);
+      if (name && !byName.has(name)) byName.set(name, cid);
+    }
+    for (const token of tokens) {
+      if (!token || token.character_id || token.characterId) continue;
+      const name = normalizeTokenName(token.name || token.label);
+      if (!name) continue;
+      const cid = byName.get(name);
+      if (cid) token.character_id = cid;
+    }
+    return tokens;
+  }
+
   function getMeta(state) {
     const s = (state && typeof state === 'object') ? state : null;
     return (s && s.meta && typeof s.meta === 'object') ? s.meta : {};
@@ -5127,7 +5154,7 @@ const EMBEDDED_WORLD_JSON = `{
   }
 
   function tokensOnFloor(state, floorId) {
-    const all = getTokensArray(state);
+    const all = normalizeTokenCharacterIds(getTokensArray(state));
     return all.filter(t => {
       const fid = entityFloorId(t);
       return fid ? fid === String(floorId) : true;
@@ -6844,7 +6871,7 @@ const EMBEDDED_WORLD_JSON = `{
       ? String(state.turn.activeTokenId)
       : (state && state.turn && state.turn.active_actor_id ? String(state.turn.active_actor_id)
         : (state && (state.activeActorId || state.active_actor_id) ? String(state.activeActorId || state.active_actor_id) : '')));
-    const allTokens = getTokensArray(state).filter(t => t && t.id);
+    const allTokens = normalizeTokenCharacterIds(getTokensArray(state)).filter(t => t && t.id);
     const activeToken = activeId ? allTokens.find(t => String(t.id) === activeId) : null;
     const activeEntity = !activeToken && activeId ? findEntityById(activeId) || findEntityByCharacterId(activeId) : null;
     const activeName = activeToken
@@ -6852,6 +6879,7 @@ const EMBEDDED_WORLD_JSON = `{
       : (activeEntity ? String(activeEntity.name || activeEntity.id || '') : '');
 
     const battlePoiId = CURRENT_BATTLE_ID ? resolvePoiForBattle(CURRENT_BATTLE_ID) : null;
+    const localBattleId = CURRENT_BATTLE_ID ? String(CURRENT_BATTLE_ID) : '';
     const localCharacterIds = new Set();
     const localEntityIds = new Set();
     for (const t of allTokens) {
@@ -6927,7 +6955,9 @@ const EMBEDDED_WORLD_JSON = `{
         maxHp: maxHpValue,
         _globalOnly: true,
         _locationLabel: poiLabel,
-        _elsewhere: (poiId && battlePoiId) ? String(poiId) !== String(battlePoiId) : false
+        _elsewhere: (poiId && (battlePoiId || localBattleId))
+          ? (String(poiId) !== String(battlePoiId || '') && String(poiId) !== localBattleId)
+          : false
       });
     }
 
@@ -6961,7 +6991,9 @@ const EMBEDDED_WORLD_JSON = `{
         hp: hpValue,
         _globalOnly: true,
         _locationLabel: poiLabel,
-        _elsewhere: (poiId && battlePoiId) ? String(poiId) !== String(battlePoiId) : false
+        _elsewhere: (poiId && (battlePoiId || localBattleId))
+          ? (String(poiId) !== String(battlePoiId || '') && String(poiId) !== localBattleId)
+          : false
       });
     }
 
@@ -7177,7 +7209,7 @@ function populateFloorSelect(floors) {
     const floor = floorById(floors, activeFloorId) || floors[0];
     const floorId = floor ? String(floor.id) : String(activeFloorId || '');
 
-    const tokensAll = getTokensArray(state);
+    const tokensAll = normalizeTokenCharacterIds(getTokensArray(state));
     const rooms = Array.isArray(floor && floor.rooms) ? floor.rooms : [];
     const openings = Array.isArray(floor && floor.openings) ? floor.openings : [];
     const objects = Array.isArray(floor && floor.objects) ? floor.objects : [];
@@ -8189,7 +8221,7 @@ function setActiveFloor(floorId, opts = {}) {
         VIEW.camera.row = p.row;
       } catch {}
     } else {
-      const pc = (getTokensArray(state)).find(isPlayerToken);
+      const pc = (normalizeTokenCharacterIds(getTokensArray(state))).find(isPlayerToken);
       if (pc && pc.hex) {
         try {
           const p = parseHexId(pc.hex);
