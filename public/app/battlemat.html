@@ -1514,6 +1514,11 @@ Changelog:
     return null;
   }
 
+  function getCampaignPartyLocations() {
+    if (!CURRENT_CAMPAIGN_META || typeof CURRENT_CAMPAIGN_META !== 'object') return null;
+    return CURRENT_CAMPAIGN_META.party_locations || CURRENT_CAMPAIGN_META.partyLocations || null;
+  }
+
   function findEntityById(entityId) {
     const id = String(entityId || '').trim();
     if (!id) return null;
@@ -6808,6 +6813,14 @@ const EMBEDDED_WORLD_JSON = `{
     }
 
     const campaignEntities = getCampaignEntities() || [];
+    const partyLocations = getCampaignPartyLocations() || {};
+    const entityByCharacterId = new Map();
+    for (const ent of campaignEntities) {
+      if (!ent) continue;
+      const entCharId = ent.character_id != null ? String(ent.character_id)
+        : (ent.characterId != null ? String(ent.characterId) : '');
+      if (entCharId) entityByCharacterId.set(entCharId, ent);
+    }
     const extraPcTokens = [];
     for (const ent of campaignEntities) {
       if (!isPcEntity(ent)) continue;
@@ -6817,8 +6830,17 @@ const EMBEDDED_WORLD_JSON = `{
       if (entCharId && localCharacterIds.has(entCharId)) continue;
       if (entId && localEntityIds.has(entId)) continue;
 
-      const poiId = ent.current_poi || ent.currentPoi || ent.poi || null;
-      const poiLabel = poiId ? getPoiLabel(poiId) : '';
+      let poiId = ent.current_poi || ent.currentPoi || ent.poi_id || ent.poiId || ent.poi || null;
+      if (!poiId && entCharId && partyLocations[entCharId]) poiId = partyLocations[entCharId];
+      if (!poiId && entId && partyLocations[entId]) poiId = partyLocations[entId];
+      let poiLabel = poiId ? getPoiLabel(poiId) : '';
+      if (poiId && !poiLabel) {
+        const resolvedPoi = resolvePoiForBattle(poiId);
+        if (resolvedPoi) {
+          poiId = resolvedPoi;
+          poiLabel = getPoiLabel(resolvedPoi);
+        }
+      }
       extraPcTokens.push({
         id: entId || ('entity_' + entCharId),
         character_id: entCharId || null,
@@ -6827,6 +6849,35 @@ const EMBEDDED_WORLD_JSON = `{
         init: ent.init != null ? ent.init : -1,
         hp: ent.hp != null ? ent.hp : null,
         maxHp: ent.maxHp != null ? ent.maxHp : ent.max_hp,
+        _globalOnly: true,
+        _locationLabel: poiLabel,
+        _elsewhere: (poiId && battlePoiId) ? String(poiId) !== String(battlePoiId) : false
+      });
+    }
+
+    for (const [charIdRaw, loc] of Object.entries(partyLocations || {})) {
+      const charId = String(charIdRaw);
+      if (!charId) continue;
+      if (localCharacterIds.has(charId)) continue;
+      if (entityByCharacterId.has(charId)) continue;
+
+      let poiId = loc || null;
+      let poiLabel = poiId ? getPoiLabel(poiId) : '';
+      if (poiId && !poiLabel) {
+        const resolvedPoi = resolvePoiForBattle(poiId);
+        if (resolvedPoi) {
+          poiId = resolvedPoi;
+          poiLabel = getPoiLabel(resolvedPoi);
+        }
+      }
+
+      extraPcTokens.push({
+        id: 'entity_' + charId,
+        character_id: charId,
+        name: charId,
+        side: 'PC',
+        init: -1,
+        hp: null,
         _globalOnly: true,
         _locationLabel: poiLabel,
         _elsewhere: (poiId && battlePoiId) ? String(poiId) !== String(battlePoiId) : false
