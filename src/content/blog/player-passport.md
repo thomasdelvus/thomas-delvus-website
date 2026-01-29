@@ -6,14 +6,13 @@ heroImage: "/images/player_passport.jpg"
 project: "saffrondale"
 ---
 
-# The Player Passport
 *A practical, low-friction identity system for a living world*
 
-One of the quieter problems in tabletop gaming — especially when it crosses into digital space — is identity.
+One of the quieter problems in tabletop gaming - especially when it crosses into digital space - is identity.
 
 Characters are meant to be shared.  
 Stories are meant to be retold.  
-But **authority** — who can act on behalf of a player — must remain singular.
+But **authority** - who can act on behalf of a player - must remain singular.
 
 The Player Passport is how Saffrondale solves that without accounts, passwords, or a long recovery flow.
 
@@ -59,7 +58,7 @@ Character sheets are meant to be shared:
 
 The Passport is different. It represents *authority*, not *identity*.
 
-Anyone who possesses it can act on the player’s behalf. Which leads to a simple rule:
+Anyone who possesses it can act on the playerâ€™s behalf. Which leads to a simple rule:
 
 > **Character sheets may be shared. Player Passports must not be.**
 
@@ -74,9 +73,9 @@ At first glance, bearer tokens feel risky. In practice, they dramatically reduce
 - There is nothing to phish  
 - There is nothing to recover  
 
-Lose the Passport, and access is lost — just like losing a physical object. That tradeoff is intentional. It mirrors how tabletop play already works: if you lose your character sheet, the world does not owe you a backup.
+Lose the Passport, and access is lost - just like losing a physical object. That tradeoff is intentional. It mirrors how tabletop play already works: if you lose your character sheet, the world does not owe you a backup.
 
-## How It’s Implemented (Briefly)
+## How Itâ€™s Implemented (Briefly)
 
 The Passport connects to the Player Dashboard, which reads from D1 tables for players, campaigns, and characters. The key is stored as a `dashboard_token` on the player record and exposed via a QR code and copyable text.
 
@@ -91,7 +90,7 @@ The key never needs to be emailed, reset, or recovered. It just needs to be guar
 
 The Passport is intentionally diegetic. It is a document you could imagine keeping in a satchel or locked in a drawer. It fits the fiction because it behaves like an object *within* it.
 
-Saffrondale is built around persistent artifacts: maps, locations, and consequences. The Passport is simply another artifact — one that lives half in the story and half in the machinery that supports it.
+Saffrondale is built around persistent artifacts: maps, locations, and consequences. The Passport is simply another artifact - one that lives half in the story and half in the machinery that supports it.
 
 Store it securely.  
 Do not distribute it.  
