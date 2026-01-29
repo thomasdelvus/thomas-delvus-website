@@ -81,14 +81,14 @@ The Passport connects to the Player Dashboard, which reads from database tables 
 
 This keeps the system simple and auditable:
 - database holds the source of truth (players, campaigns, characters, battles)
-- R2 stores images (character portraits and a shared Passport background)
+- database stores images (character portraits and a shared Passport background)
 - The dashboard aggregates characters and campaigns for a player
 
 The key never needs to be emailed, reset, or recovered. It just needs to be guarded.
 
 ## A Physical Metaphor for a Digital World
 
-The Passport is intentionally diegetic. It is a document you could imagine keeping in a satchel or locked in a drawer. It fits the fiction because it behaves like an object *within* it.
+The Passport is intentionally narrative. It is a document you could imagine keeping in a satchel or locked in a drawer. It fits the fiction because it behaves like an object *within* it.
 
 Saffrondale is built around persistent artifacts: maps, locations, and consequences. The Passport is simply another artifact - one that lives half in the story and half in the machinery that supports it.
 
