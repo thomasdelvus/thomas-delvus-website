@@ -272,7 +272,7 @@ Changelog:
     .status-neutral{color:var(--muted);}
     .status-hostile{color:rgba(255,140,110,0.95);}
     .statusRow.dead{opacity:0.55;}
-    .statusRow.elsewhere{opacity:0.7;}
+    .statusRow.elsewhere{opacity:0.85; color:#f1c08a;}
     .statusRow.active{background:rgba(67,209,122,0.10);}
     .statusRow.clickable{cursor:pointer;}
     .statusRow.clickable:hover{background:rgba(90,170,255,0.12);}
@@ -1655,6 +1655,14 @@ Changelog:
     if (kind === 'npc' || kind === 'monster' || kind === 'creature') return false;
     if (kind === 'pc') return true;
     return !!(entity.character_id || entity.characterId);
+  }
+
+  function isEntityListed(entity) {
+    if (!entity || typeof entity !== 'object') return false;
+    if (isPcEntity(entity)) return true;
+    const flag = entity.listed ?? entity.in_battle ?? entity.inBattle ?? entity.show_in_hud ?? entity.showInHud;
+    if (typeof flag === 'boolean') return flag;
+    return false;
   }
 
   function resolveBattleFromPoi(poiId) {
@@ -7030,7 +7038,7 @@ const EMBEDDED_WORLD_JSON = `{
     }
     const extraEntityTokens = [];
     for (const ent of campaignEntities) {
-      if (!ent) continue;
+      if (!ent || !isEntityListed(ent)) continue;
       const entId = ent.id != null ? String(ent.id) : '';
       const entCharId = ent.character_id != null ? String(ent.character_id)
         : (ent.characterId != null ? String(ent.characterId) : '');
