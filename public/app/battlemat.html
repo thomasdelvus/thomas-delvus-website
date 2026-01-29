@@ -6871,7 +6871,8 @@ const EMBEDDED_WORLD_JSON = `{
       ? String(state.turn.activeTokenId)
       : (state && state.turn && state.turn.active_actor_id ? String(state.turn.active_actor_id)
         : (state && (state.activeActorId || state.active_actor_id) ? String(state.activeActorId || state.active_actor_id) : '')));
-    const allTokens = normalizeTokenCharacterIds(getTokensArray(state)).filter(t => t && t.id);
+    const baseTokens = Array.isArray(tokens) && tokens.length ? tokens : getTokensArray(state);
+    const allTokens = normalizeTokenCharacterIds(baseTokens).filter(t => t && t.id);
     const activeToken = activeId ? allTokens.find(t => String(t.id) === activeId) : null;
     const activeEntity = !activeToken && activeId ? findEntityById(activeId) || findEntityByCharacterId(activeId) : null;
     const activeName = activeToken
