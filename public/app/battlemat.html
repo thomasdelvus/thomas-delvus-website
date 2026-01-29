@@ -273,7 +273,7 @@ Changelog:
     .status-hostile{color:rgba(255,140,110,0.95);}
     .statusRow.dead{opacity:0.55;}
     .statusRow.elsewhere{opacity:0.85;}
-    .statusRow.elsewhere.mob .statusName{color:#f1c08a; opacity:1;}
+    .statusRow.elsewhere.mob .statusName{color:#f1c08a; opacity:1; text-shadow:0 0 0.01px currentColor;}
     .statusRow.active{background:rgba(67,209,122,0.10);}
     .statusRow.clickable{cursor:pointer;}
     .statusRow.clickable:hover{background:rgba(90,170,255,0.12);}
@@ -4980,12 +4980,14 @@ const EMBEDDED_WORLD_JSON = `{
 
       const stats = ent.stats && typeof ent.stats === 'object' ? ent.stats : null;
       const appearance = ent.appearance && typeof ent.appearance === 'object' ? ent.appearance : null;
-      const side = ent.side || normalizeTokenSideFromKind(ent.kind);
+      const normalizedSide = normalizeTokenSideFromKind(ent.kind);
+      const side = ent.side || normalizedSide || (ent.hostility === 'hostile' ? 'ENEMY' : '');
       const token = {
         id: ent.id || ent.character_id || ent.characterId || ent.name,
         character_id: ent.character_id || ent.characterId || null,
         name: ent.name || ent.label || ent.id || '',
         side,
+        kind: ent.kind || null,
         hex: (loc && loc.hex) || ent.hex || ent.tile || '',
         floorId: (loc && (loc.floorId || loc.floor_id)) || ent.floorId || ent.floor_id || '',
         init: (stats && stats.init != null) ? stats.init : (ent.init != null ? ent.init : null),
@@ -6945,6 +6947,8 @@ const EMBEDDED_WORLD_JSON = `{
   function tokenHostility(token) {
     const raw = token && token.hostility != null ? String(token.hostility).trim().toLowerCase() : '';
     if (raw === 'friendly' || raw === 'neutral' || raw === 'hostile') return raw;
+    const kind = token && token.kind != null ? String(token.kind).trim().toLowerCase() : '';
+    if (kind === 'monster' || kind === 'creature') return 'hostile';
     const sideRaw = token && token.side != null ? String(token.side) : '';
     const side = sideRaw.trim().toUpperCase();
     if (side === 'PC' || side === 'PLAYER') return 'friendly';
