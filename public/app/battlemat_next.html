@@ -855,7 +855,7 @@
 
         const fk = room.floor && room.floor.kind ? String(room.floor.kind) : 'default';
         const floorColor = FLOOR_COLORS[fk] || FLOOR_COLORS.default;
-        ctx.fillStyle = floorColor;
+        ctx.fillStyle = getFillStyle('floor', fk, floorColor);
         ctx.globalAlpha = 1;
         ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
 
@@ -869,7 +869,7 @@
           const oy1 = Math.min(o1.y, o2.y);
           const ow = Math.abs(o2.x - o1.x);
           const oh = Math.abs(o2.y - o1.y);
-          ctx.strokeStyle = wallColor;
+          ctx.strokeStyle = getFillStyle('wall', wk, wallColor);
           ctx.lineWidth = 2;
           ctx.strokeRect(ox1, oy1, ow, oh);
         }
@@ -904,13 +904,14 @@
         const thick = GRID.size * thickUnits * VIEW.zoom;
         const seamKind = opening.seam_kind || opening.seamKind || '';
         const seamColor = seamKind ? (FLOOR_COLORS[String(seamKind)] || FLOOR_COLORS.default) : null;
+        const seamFill = seamKind ? getFillStyle('floor', String(seamKind), seamColor) : null;
         const seamLen = len * 1.15;
         const seamThick = thick * 1.6;
         ctx.save();
         ctx.translate(center.x, center.y);
         if (orient === 'v') ctx.rotate(Math.PI / 2);
-        if (seamColor) {
-          ctx.fillStyle = seamColor;
+        if (seamFill) {
+          ctx.fillStyle = seamFill;
           ctx.fillRect(-seamLen / 2, -seamThick / 2, seamLen, seamThick);
         }
         ctx.fillStyle = style.color;
