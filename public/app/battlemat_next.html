@@ -744,10 +744,18 @@
         }
       }
 
-      function drawOpening(opening) {
+      function openingWorldCenter(opening, floor) {
         const p = parseHexLabel(opening.hex);
-        if (!p) return;
-        const center = worldToScreen(hexToWorld(p.col, p.row));
+        if (!p) return null;
+        const world = hexToWorld(p.col, p.row);
+        const orient = opening && opening.orientation === 'v' ? 'v' : 'h';
+        return snapWorldToWall(world, floor, orient);
+      }
+
+      function drawOpening(opening, floor) {
+        const world = openingWorldCenter(opening, floor);
+        if (!world) return;
+        const center = worldToScreen(world);
         const orient = opening.orientation === 'v' ? 'v' : 'h';
         const len = GRID.size * 1.2 * VIEW.zoom;
         const thick = GRID.size * 0.25 * VIEW.zoom;
@@ -857,7 +865,7 @@
         const tokens = buildTokens().filter(t => !t.floorId || t.floorId === floor.id);
 
         rooms.forEach(drawRoom);
-        openings.forEach(drawOpening);
+        openings.forEach(o => drawOpening(o, floor));
         objects.forEach(drawObject);
         tokens.forEach(drawToken);
       }
@@ -1047,8 +1055,8 @@
 
         const openings = floor.openings || [];
         const opening = nearestItem(openings, screenPoint, o => {
-          const pos = parseHexLabel(o.hex);
-          return pos ? worldToScreen(hexToWorld(pos.col, pos.row)) : null;
+          const world = openingWorldCenter(o, floor);
+          return world ? worldToScreen(world) : null;
         }, 14);
         if (opening) return { type: 'opening', item: opening, floorId: floor.id };
 
