@@ -6415,6 +6415,8 @@ const EMBEDDED_WORLD_JSON = `{
 
   let POI_HOVER_ID = null;
   let POI_HOVER_ANIMATING = false;
+  let LAST_POINTER_WORLD = null;
+  let LAST_POINTER_CTX = null;
 
   function isPoiViewObject(o) {
     const kind = String(o && o.kind ? o.kind : '').toLowerCase();
@@ -6423,6 +6425,8 @@ const EMBEDDED_WORLD_JSON = `{
 
   function updatePoiHover(world, ctx) {
     if (!canvas) return;
+    LAST_POINTER_WORLD = world || null;
+    LAST_POINTER_CTX = ctx || null;
     if (!world || !ctx) {
       if (POI_HOVER_ID) {
         POI_HOVER_ID = null;
@@ -6431,7 +6435,7 @@ const EMBEDDED_WORLD_JSON = `{
       }
       return;
     }
-    const hit = findObjectNear(world, ctx);
+    const hit = findObjectNear(world, ctx, GRID.size * 0.65);
     const next = (hit && isPoiViewObject(hit)) ? (hit.id || null) : null;
     if (next !== POI_HOVER_ID) {
       POI_HOVER_ID = next;
@@ -6441,10 +6445,26 @@ const EMBEDDED_WORLD_JSON = `{
     }
   }
 
+  function refreshPoiHoverFromPointer() {
+    if (!LAST_POINTER_WORLD || !LAST_POINTER_CTX) return;
+    const hit = findObjectNear(LAST_POINTER_WORLD, LAST_POINTER_CTX, GRID.size * 0.65);
+    const next = (hit && isPoiViewObject(hit)) ? (hit.id || null) : null;
+    if (next !== POI_HOVER_ID) {
+      POI_HOVER_ID = next;
+      if (canvas) canvas.style.cursor = next ? 'pointer' : '';
+      safeRedraw();
+    }
+  }
+
   function startPoiHoverAnimation() {
     if (POI_HOVER_ANIMATING) return;
     POI_HOVER_ANIMATING = true;
     const tick = () => {
+      if (!POI_HOVER_ID) {
+        POI_HOVER_ANIMATING = false;
+        return;
+      }
+      refreshPoiHoverFromPointer();
       if (!POI_HOVER_ID) {
         POI_HOVER_ANIMATING = false;
         return;
