@@ -188,6 +188,28 @@
         <button id="toolObject" class="toolBtn">Object</button>
         <button id="toolToken" class="toolBtn">Token</button>
         <button id="toolDelete" class="toolBtn">Delete</button>
+        <label class="status">Opening</label>
+        <select id="openingKind">
+          <option value="door.wood">door.wood</option>
+          <option value="door">door</option>
+          <option value="window">window</option>
+          <option value="threshold">threshold</option>
+          <option value="portal">portal</option>
+        </select>
+        <button id="openingOrientH" class="toolBtn">H</button>
+        <button id="openingOrientV" class="toolBtn">V</button>
+        <label class="status">Object</label>
+        <select id="objectKind">
+          <option value="object">object</option>
+          <option value="poi.view">poi.view</option>
+          <option value="table.round">table.round</option>
+          <option value="table.rect">table.rect</option>
+          <option value="chair">chair</option>
+          <option value="crate">crate</option>
+          <option value="barrel">barrel</option>
+          <option value="stairs">stairs</option>
+          <option value="bed">bed</option>
+        </select>
         <select id="floorSelect"></select>
         <label class="status">Zoom</label>
         <input id="zoom" type="range" min="0.25" max="4" step="0.05" value="1" />
@@ -225,6 +247,10 @@
       };
 
       const floorSelect = document.getElementById('floorSelect');
+      const openingKindSelect = document.getElementById('openingKind');
+      const openingOrientH = document.getElementById('openingOrientH');
+      const openingOrientV = document.getElementById('openingOrientV');
+      const objectKindSelect = document.getElementById('objectKind');
       const zoomInput = document.getElementById('zoom');
       const saveButton = document.getElementById('btnSave');
       const saveStatus = document.getElementById('saveStatus');
@@ -235,7 +261,17 @@
       const GRID = { size: 32 };
       const VIEW = { camera: { col: 0, row: 0 }, zoom: 1, floorId: '' };
       const STATE = { battle: null, campaign: null, entities: [] };
-      const EDITOR = { tool: 'select', selection: null, roomStart: null, dirty: false, drag: null, ignoreClick: false };
+      const EDITOR = {
+        tool: 'select',
+        selection: null,
+        roomStart: null,
+        dirty: false,
+        drag: null,
+        ignoreClick: false,
+        openingKind: 'door.wood',
+        openingOrientation: 'h',
+        objectKind: 'object'
+      };
 
       const FLOOR_COLORS = {
         fog: '#0e1117',
@@ -1188,14 +1224,14 @@
         }
 
         if (EDITOR.tool === 'opening') {
-          const snapped = snapWorldToWall(world, floor, 'h');
+          const snapped = snapWorldToWall(world, floor, EDITOR.openingOrientation || 'h');
           const openHex = openingHexFromWorld(snapped);
           const openLabel = openingHexLabelFromCoords(openHex.col, openHex.row) || hexLabel;
           const opening = {
             id: 'opening_' + Date.now().toString(36),
-            kind: 'door.wood',
+            kind: EDITOR.openingKind || 'door.wood',
             hex: openLabel,
-            orientation: 'h',
+            orientation: EDITOR.openingOrientation || 'h',
             openPct: 0
           };
           floor.openings.push(opening);
@@ -1208,7 +1244,7 @@
         if (EDITOR.tool === 'object') {
           const obj = {
             id: 'object_' + Date.now().toString(36),
-            kind: 'object',
+            kind: EDITOR.objectKind || 'object',
             hex: hexLabel,
             floorId: floor.id
           };
@@ -1378,6 +1414,26 @@
           if (!btn) return;
           btn.addEventListener('click', () => setTool(key));
         });
+        if (openingKindSelect) {
+          openingKindSelect.addEventListener('change', () => {
+            EDITOR.openingKind = openingKindSelect.value;
+          });
+          openingKindSelect.value = EDITOR.openingKind;
+        }
+        const setOpeningOrientation = (val) => {
+          EDITOR.openingOrientation = val;
+          if (openingOrientH) openingOrientH.classList.toggle('active', val === 'h');
+          if (openingOrientV) openingOrientV.classList.toggle('active', val === 'v');
+        };
+        if (openingOrientH) openingOrientH.addEventListener('click', () => setOpeningOrientation('h'));
+        if (openingOrientV) openingOrientV.addEventListener('click', () => setOpeningOrientation('v'));
+        setOpeningOrientation(EDITOR.openingOrientation);
+        if (objectKindSelect) {
+          objectKindSelect.addEventListener('change', () => {
+            EDITOR.objectKind = objectKindSelect.value;
+          });
+          objectKindSelect.value = EDITOR.objectKind;
+        }
         floorSelect.addEventListener('change', () => {
           VIEW.floorId = floorSelect.value;
           render();
