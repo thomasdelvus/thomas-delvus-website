@@ -6458,6 +6458,25 @@ const EMBEDDED_WORLD_JSON = `{
     if (els.poiOverlayImage) els.poiOverlayImage.removeAttribute('src');
   }
 
+  function drawPoiHoverRing(center, w, h) {
+    if (!center) return;
+    const pulse = 0.7 + Math.sin((performance.now() || 0) / 260) * 0.35;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.85 * pulse;
+    ctx.fillStyle = 'rgba(255,210,140,0.98)';
+    ctx.beginPath();
+    ctx.ellipse(center.x, center.y, w * 1.6, h * 1.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.9 * pulse;
+    ctx.strokeStyle = 'rgba(255,235,180,1)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(center.x, center.y, w * 1.95, h * 1.95, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawObjectGhost(o, roomMetaAll) {
     if (!o) return;
     const ghost = { ...o, __forceVisible: true };
@@ -6512,24 +6531,6 @@ const EMBEDDED_WORLD_JSON = `{
 
     const kind = String(o.kind || 'object').toLowerCase();
     const hoverPoi = isPoiViewObject(o) && o.id && POI_HOVER_ID && String(o.id) === String(POI_HOVER_ID);
-    if (hoverPoi) {
-      const pulse = 0.7 + Math.sin((performance.now() || 0) / 260) * 0.35;
-      ctx.save();
-      ctx.globalAlpha = 0.75 * pulse;
-      ctx.fillStyle = 'rgba(255,200,120,0.95)';
-      ctx.beginPath();
-      ctx.ellipse(c.x, c.y, w * 1.35, h * 1.35, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-      ctx.save();
-      ctx.globalAlpha = 0.6 * pulse;
-      ctx.strokeStyle = 'rgba(255,220,160,0.95)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.ellipse(c.x, c.y, w * 1.6, h * 1.6, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
 
     if (SPRITES_ENABLED) {
       const def = getSpriteDef(kind);
@@ -6563,7 +6564,10 @@ const EMBEDDED_WORLD_JSON = `{
             fit: 'stretch',
             rotRad: def.rotate === 'deg' ? rot : 0,
           });
-          if (ok) return;
+          if (ok) {
+            if (hoverPoi) drawPoiHoverRing(c, w, h);
+            return;
+          }
         } else {
           const ok = drawSpriteImage(img, {
             x: c.x,
@@ -6573,7 +6577,10 @@ const EMBEDDED_WORLD_JSON = `{
             fit: 'contain',
             rotRad: def.rotate === 'deg' ? rot : 0,
           });
-          if (ok) return;
+          if (ok) {
+            if (hoverPoi) drawPoiHoverRing(c, w, h);
+            return;
+          }
         }
       }
     }
@@ -6803,6 +6810,7 @@ const EMBEDDED_WORLD_JSON = `{
 
 
     ctx.restore();
+    if (hoverPoi) drawPoiHoverRing(c, w, h);
   }
 
   // ===== Tokens =====
