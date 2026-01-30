@@ -6513,13 +6513,21 @@ const EMBEDDED_WORLD_JSON = `{
     const kind = String(o.kind || 'object').toLowerCase();
     const hoverPoi = isPoiViewObject(o) && o.id && POI_HOVER_ID && String(o.id) === String(POI_HOVER_ID);
     if (hoverPoi) {
-      const pulse = 0.75 + Math.sin((performance.now() || 0) / 350) * 0.2;
+      const pulse = 0.7 + Math.sin((performance.now() || 0) / 260) * 0.35;
       ctx.save();
-      ctx.globalAlpha = 0.25 * pulse;
-      ctx.fillStyle = 'rgba(255,180,90,0.7)';
+      ctx.globalAlpha = 0.75 * pulse;
+      ctx.fillStyle = 'rgba(255,200,120,0.95)';
       ctx.beginPath();
-      ctx.ellipse(c.x, c.y, w * 0.9, h * 0.9, 0, 0, Math.PI * 2);
+      ctx.ellipse(c.x, c.y, w * 1.35, h * 1.35, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
+      ctx.save();
+      ctx.globalAlpha = 0.6 * pulse;
+      ctx.strokeStyle = 'rgba(255,220,160,0.95)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(c.x, c.y, w * 1.6, h * 1.6, 0, 0, Math.PI * 2);
+      ctx.stroke();
       ctx.restore();
     }
 
