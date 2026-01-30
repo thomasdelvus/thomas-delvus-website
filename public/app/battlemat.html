@@ -6476,19 +6476,19 @@ const EMBEDDED_WORLD_JSON = `{
 
   function drawPoiHoverRing(center, w, h) {
     if (!center) return;
-    const pulse = 0.7 + Math.sin((performance.now() || 0) / 260) * 0.35;
+    const pulse = 0.85 + Math.sin((performance.now() || 0) / 420) * 0.15;
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = 0.85 * pulse;
-    ctx.fillStyle = 'rgba(255,210,140,0.98)';
+    ctx.globalAlpha = 0.35 * pulse;
+    ctx.fillStyle = 'rgba(255,200,120,0.75)';
     ctx.beginPath();
-    ctx.ellipse(center.x, center.y, w * 1.6, h * 1.6, 0, 0, Math.PI * 2);
+    ctx.ellipse(center.x, center.y, w * 1.15, h * 1.15, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.globalAlpha = 0.9 * pulse;
-    ctx.strokeStyle = 'rgba(255,235,180,1)';
-    ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.45 * pulse;
+    ctx.strokeStyle = 'rgba(255,210,140,0.85)';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.ellipse(center.x, center.y, w * 1.95, h * 1.95, 0, 0, Math.PI * 2);
+    ctx.ellipse(center.x, center.y, w * 1.35, h * 1.35, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
@@ -6547,6 +6547,7 @@ const EMBEDDED_WORLD_JSON = `{
 
     const kind = String(o.kind || 'object').toLowerCase();
     const hoverPoi = isPoiViewObject(o) && o.id && POI_HOVER_ID && String(o.id) === String(POI_HOVER_ID);
+    if (hoverPoi) drawPoiHoverRing(c, w, h);
 
     if (SPRITES_ENABLED) {
       const def = getSpriteDef(kind);
@@ -6580,10 +6581,7 @@ const EMBEDDED_WORLD_JSON = `{
             fit: 'stretch',
             rotRad: def.rotate === 'deg' ? rot : 0,
           });
-          if (ok) {
-            if (hoverPoi) drawPoiHoverRing(c, w, h);
-            return;
-          }
+          if (ok) return;
         } else {
           const ok = drawSpriteImage(img, {
             x: c.x,
@@ -6593,10 +6591,7 @@ const EMBEDDED_WORLD_JSON = `{
             fit: 'contain',
             rotRad: def.rotate === 'deg' ? rot : 0,
           });
-          if (ok) {
-            if (hoverPoi) drawPoiHoverRing(c, w, h);
-            return;
-          }
+          if (ok) return;
         }
       }
     }
@@ -6826,7 +6821,6 @@ const EMBEDDED_WORLD_JSON = `{
 
 
     ctx.restore();
-    if (hoverPoi) drawPoiHoverRing(c, w, h);
   }
 
   // ===== Tokens =====
