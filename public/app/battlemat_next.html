@@ -1047,6 +1047,7 @@
           addField('Type', 'token', 'type', { readonly: true });
           addField('ID', sel.item.id, 'id', { readonly: true });
           addField('Name', sel.item.name || '', 'name');
+          addField('Kind', sel.item.kind || '', 'kind');
           addField('Hex', sel.item.hex || '', 'hex');
           addField('Floor', sel.item.floorId || '', 'floorId');
           addField('POI', sel.item.poi_id || '', 'poi_id');
@@ -1106,6 +1107,7 @@
 
         if (sel.type === 'token') {
           if (key === 'name') item.name = value;
+          if (key === 'kind') item.kind = value;
           if (key === 'hex') item.hex = value;
           if (key === 'floorId') item.floorId = value;
           if (key === 'poi_id') item.poi_id = value;
@@ -1114,6 +1116,7 @@
           if (key === 'init') item.init = num(value, null);
           syncEntityFromToken(item);
           queueEntitySave(item);
+          renderStatus();
         }
 
         EDITOR.dirty = true;
@@ -1350,13 +1353,32 @@
         }
 
         if (EDITOR.tool === 'token') {
-          const token = {
-            id: 'token_' + Date.now().toString(36),
+          const poiId = resolvePoiId();
+          const entityId = `entity_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+          const entity = {
+            id: entityId,
             name: 'Token',
-            hex: hexLabel,
-            floorId: floor.id
+            kind: 'npc',
+            poi_id: poiId || '',
+            location: { hex: hexLabel, floorId: floor.id }
+          };
+          STATE.entities = Array.isArray(STATE.entities) ? STATE.entities : [];
+          STATE.entities.push(entity);
+
+          const token = {
+            id: entityId,
+            name: entity.name,
+            kind: entity.kind,
+            hex: entity.location.hex,
+            floorId: entity.location.floorId,
+            poi_id: entity.poi_id,
+            side: entity.side || (entity.kind === 'npc' ? 'NPC' : 'PC'),
+            __entity: entity
           };
           selectItem('token', token, floor.id);
+          syncEntityFromToken(token);
+          queueEntitySave(token);
+          renderStatus();
           EDITOR.dirty = true;
           render();
         }
@@ -1366,6 +1388,7 @@
         const entity = token && token.__entity;
         if (!entity) return;
         entity.name = token.name;
+        if (token.kind) entity.kind = token.kind;
         if (!entity.location || typeof entity.location !== 'object') entity.location = {};
         if (token.hex) entity.location.hex = token.hex;
         if (token.floorId) entity.location.floorId = token.floorId;
@@ -1442,7 +1465,11 @@
           if (dragged.didMove) {
             EDITOR.ignoreClick = true;
             updateInspector();
-            if (dragged.type === 'token') queueEntitySave(dragged.item);
+            if (dragged.type === 'token') {
+              syncEntityFromToken(dragged.item);
+              queueEntitySave(dragged.item);
+              renderStatus();
+            }
           }
         });
       }
@@ -1485,12 +1512,18 @@
       async function saveEntity(token) {
         const cid = getCampaignId();
         if (!cid) return;
+        const stats = {};
+        if (token.hp != null) stats.hp = token.hp;
+        if (token.init != null) stats.init = token.init;
         const payload = {
           entity_id: token.id,
           patch: {
             name: token.name,
+            kind: token.kind,
+            side: token.side,
             poi_id: token.poi_id || resolvePoiId(),
-            location: { hex: token.hex, floorId: token.floorId }
+            location: { hex: token.hex, floorId: token.floorId },
+            ...(Object.keys(stats).length ? { stats } : {})
           },
           create_if_missing: true
         };
