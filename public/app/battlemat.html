@@ -253,6 +253,19 @@ Changelog:
       color:var(--text);
       letter-spacing:0.02em;
     }
+    .sectionHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
+    .sectionToggle{
+      padding:2px 8px;
+      border-radius:999px;
+      font-size:12px;
+      line-height:1;
+    }
+    .sectionBody[hidden]{display:none;}
 
     #statusMeta{
       display:flex;
@@ -625,25 +638,35 @@ Changelog:
       <div id="canvasWrap"><canvas id="canvas" aria-label="Battlemat canvas"></canvas></div>
       <div id="sidebar">
         <div id="stateDebug" class="mini" style="opacity:0.75;"></div>
-        <h3>Status</h3>
-        <div id="statusMeta"></div>
-        <div class="statusWrap">
-          <table id="statusTable">
-            <thead>
-              <tr>
-                <th>Actor</th>
-                <th class="statusNum" title="Initiative">Init</th>
-                <th class="statusNum" title="Hit Points">HP</th>
-                <th title="Conditions">Cond</th>
-              </tr>
-            </thead>
-            <tbody id="statusBody"></tbody>
-          </table>
+        <div class="sectionHeader">
+          <h3>Status</h3>
+          <button class="sectionToggle" id="toggleStatus" aria-expanded="true" title="Collapse Status">▾</button>
         </div>
-        <div id="statusAction" hidden></div>
+        <div class="sectionBody" id="statusSection">
+          <div id="statusMeta"></div>
+          <div class="statusWrap">
+            <table id="statusTable">
+              <thead>
+                <tr>
+                  <th>Actor</th>
+                  <th class="statusNum" title="Initiative">Init</th>
+                  <th class="statusNum" title="Hit Points">HP</th>
+                  <th title="Conditions">Cond</th>
+                </tr>
+              </thead>
+              <tbody id="statusBody"></tbody>
+            </table>
+          </div>
+          <div id="statusAction" hidden></div>
+        </div>
 
-        <h3>Log</h3>
-        <div id="chatLog"></div>
+        <div class="sectionHeader">
+          <h3>Log</h3>
+          <button class="sectionToggle" id="toggleLog" aria-expanded="true" title="Collapse Log">▾</button>
+        </div>
+        <div class="sectionBody" id="logSection">
+          <div id="chatLog"></div>
+        </div>
 
         <h3 id="editorTitle">Editor</h3>
         <div id="editorPanel">
@@ -765,6 +788,10 @@ Changelog:
     statusBody: getEl('statusBody'),
     statusAction: getEl('statusAction'),
     chatLog: getEl('chatLog'),
+    toggleStatus: getEl('toggleStatus'),
+    toggleLog: getEl('toggleLog'),
+    statusSection: getEl('statusSection'),
+    logSection: getEl('logSection'),
     chatUnreadCount: getEl('chatUnreadCount'),
     chatMarkRead: getEl('chatMarkRead'),
     chatSpeaker: getEl('chatSpeaker'),
@@ -859,6 +886,10 @@ Changelog:
   const elToolStatus = els.toolStatus;
   const elPlaytestToggle = els.playtestToggle;
   const elChatLog = els.chatLog;
+  const elToggleStatus = els.toggleStatus;
+  const elToggleLog = els.toggleLog;
+  const elStatusSection = els.statusSection;
+  const elLogSection = els.logSection;
   const elChatUnreadCount = els.chatUnreadCount;
   const elChatMarkRead = els.chatMarkRead;
   const elChatSpeaker = els.chatSpeaker;
@@ -879,6 +910,7 @@ Changelog:
   const elObjFront = els.btnObjFront;
   const elOpeningKind = els.openingKind;
   const elOpeningHex = els.openingHex;
+  const elOpeningSeam = els.openingSeam;
   const elOpeningOrientation = els.openingOrientation;
   const elOpeningOpenPct = els.openingOpenPct;
   const elOpeningHinge = els.openingHinge;
@@ -7866,7 +7898,7 @@ function populateFloorSelect(floors) {
   safeRedraw();
 }
 
-function setActiveFloor(floorId, opts = {}) {
+  function setActiveFloor(floorId, opts = {}) {
     const state = getState();
     const floors = getFloorsFromState(state);
 
@@ -7906,6 +7938,17 @@ function setActiveFloor(floorId, opts = {}) {
     }
 
     safeRedraw();
+  }
+
+  const STORAGE_STATUS_COLLAPSE = 'battlemat.collapse.status';
+  const STORAGE_LOG_COLLAPSE = 'battlemat.collapse.log';
+
+  function setSectionCollapsed(btn, section, collapsed) {
+    if (section) section.hidden = !!collapsed;
+    if (btn) {
+      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      btn.textContent = collapsed ? '▸' : '▾';
+    }
   }
 
   function wireUI() {
@@ -7958,6 +8001,8 @@ function setActiveFloor(floorId, opts = {}) {
     const chatInput = req('chatInput');
     const chatSend = req('chatSend');
     const playtestToggle = req('playtestToggle');
+    const toggleStatus = req('toggleStatus');
+    const toggleLog = req('toggleLog');
     const hexGridToggle = req('hexGridToggle');
 
     if (btnLeft) btnLeft.onclick = () => pan(-PAN_STEP, 0);
@@ -7989,6 +8034,24 @@ function setActiveFloor(floorId, opts = {}) {
     if (btnScanIssues) btnScanIssues.onclick = () => window.BattlematScanIssues();
     if (btnCleanOrphans) btnCleanOrphans.onclick = () => window.BattlematCleanOrphanOpenings();
     if (playtestToggle) playtestToggle.onchange = () => setPlaytestMode(playtestToggle.checked);
+    if (toggleStatus && elStatusSection) {
+      const collapsed = localStorage.getItem(STORAGE_STATUS_COLLAPSE) === '1';
+      setSectionCollapsed(toggleStatus, elStatusSection, collapsed);
+      toggleStatus.onclick = () => {
+        const next = !(elStatusSection && elStatusSection.hidden);
+        setSectionCollapsed(toggleStatus, elStatusSection, next);
+        localStorage.setItem(STORAGE_STATUS_COLLAPSE, next ? '1' : '0');
+      };
+    }
+    if (toggleLog && elLogSection) {
+      const collapsed = localStorage.getItem(STORAGE_LOG_COLLAPSE) === '1';
+      setSectionCollapsed(toggleLog, elLogSection, collapsed);
+      toggleLog.onclick = () => {
+        const next = !(elLogSection && elLogSection.hidden);
+        setSectionCollapsed(toggleLog, elLogSection, next);
+        localStorage.setItem(STORAGE_LOG_COLLAPSE, next ? '1' : '0');
+      };
+    }
     if (hexGridToggle) hexGridToggle.onchange = () => safeRedraw();
 
     const onObjectControlChange = () => updateObjectControlsFromInputs({ applyToSelection: true });
