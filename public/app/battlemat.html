@@ -550,6 +550,7 @@ Changelog:
   <div id="topbar">
     <div id="topbarMain">
       <label class="mini"><input type="checkbox" id="labelBoldToggle" /> Bright Labels</label>
+      <label class="mini"><input type="checkbox" id="hexGridToggle" checked /> Hexgrid</label>
       <label class="mini" title="Hide editor/debug UI"><input type="checkbox" id="playtestToggle" /> Playtest</label>
 
       <div class="dpad" title="Pan camera">
@@ -748,6 +749,7 @@ Changelog:
     fogToggle: getEl('fogToggle'),
     spriteToggle: getEl('spriteToggle'),
     labelBoldToggle: getEl('labelBoldToggle'),
+    hexGridToggle: getEl('hexGridToggle'),
     floorSelect: getEl('floorSelect'),
     sourceSelect: getEl('sourceSelect'),
     poiSelect: getEl('poiSelect'),
@@ -3987,7 +3989,7 @@ Changelog:
   const PATTERN_CACHE = new Map();
 
   const FLOOR_IMAGES = {
-    crosskeys: { file: '/images/the_cross_keys.jpg', alpha: 1 },
+    crosskeys: { file: '/images/the_cross_keys_floor.jpg', alpha: 1 },
   };
 
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -5131,6 +5133,7 @@ const EMBEDDED_WORLD_JSON = `{
           fog: !!opts.fogEnabled,
           sprites: !!opts.spritesEnabled,
           labels: !!opts.labelsEnabled,
+          hexgrid: !!opts.hexGridEnabled,
         },
         spritesLoaded: SPRITE_LOAD_TICK,
       },
@@ -6997,6 +7000,7 @@ const EMBEDDED_WORLD_JSON = `{
   }
 
   function drawGrid() {
+    if (elHexGridToggle && !elHexGridToggle.checked) return;
     const rect = canvas.getBoundingClientRect();
     const w = Math.max(1, rect.width);
     const h = Math.max(1, rect.height);
@@ -7688,6 +7692,7 @@ function populateFloorSelect(floors) {
       fogEnabled,
       spritesEnabled,
       labelsEnabled,
+      hexGridEnabled: !!(elHexGridToggle && elHexGridToggle.checked),
     });
     const editorSig = editorSignatureFor();
     const shouldRender = (renderSig !== LAST_RENDER_SIGNATURE) || (editorSig !== LAST_EDITOR_SIGNATURE) || !!POI_HOVER_ID;
@@ -7888,6 +7893,7 @@ function setActiveFloor(floorId, opts = {}) {
     const chatInput = req('chatInput');
     const chatSend = req('chatSend');
     const playtestToggle = req('playtestToggle');
+    const hexGridToggle = req('hexGridToggle');
 
     if (btnLeft) btnLeft.onclick = () => pan(-PAN_STEP, 0);
     if (btnRight) btnRight.onclick = () => pan(PAN_STEP, 0);
@@ -7918,6 +7924,7 @@ function setActiveFloor(floorId, opts = {}) {
     if (btnScanIssues) btnScanIssues.onclick = () => window.BattlematScanIssues();
     if (btnCleanOrphans) btnCleanOrphans.onclick = () => window.BattlematCleanOrphanOpenings();
     if (playtestToggle) playtestToggle.onchange = () => setPlaytestMode(playtestToggle.checked);
+    if (hexGridToggle) hexGridToggle.onchange = () => safeRedraw();
 
     const onObjectControlChange = () => updateObjectControlsFromInputs({ applyToSelection: true });
     if (objectKindSelect) objectKindSelect.onchange = () => onObjectControlChange();
