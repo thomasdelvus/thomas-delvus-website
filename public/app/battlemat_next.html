@@ -231,6 +231,10 @@
       </section>
     </aside>
   </div>
+  <datalist id="floorKindList"></datalist>
+  <datalist id="wallKindList"></datalist>
+  <datalist id="openingKindList"></datalist>
+  <datalist id="objectKindList"></datalist>
 
   <script>
     (() => {
@@ -257,6 +261,10 @@
       const statusList = document.getElementById('statusList');
       const inspectorEmpty = document.getElementById('inspectorEmpty');
       const inspectorFields = document.getElementById('inspectorFields');
+      const floorKindList = document.getElementById('floorKindList');
+      const wallKindList = document.getElementById('wallKindList');
+      const openingKindList = document.getElementById('openingKindList');
+      const objectKindList = document.getElementById('objectKindList');
 
       const GRID = { size: 32 };
       const VIEW = { camera: { col: 0, row: 0 }, zoom: 1, floorId: '' };
@@ -272,6 +280,21 @@
         openingOrientation: 'h',
         objectKind: 'object'
       };
+
+      const DEFAULT_FLOOR_KINDS = [
+        'wood_oak', 'wood', 'stone', 'cobble', 'brick', 'brick_dark', 'gravel', 'fog'
+      ];
+      const DEFAULT_WALL_KINDS = [
+        'brick', 'brick_dark', 'wood_dark', 'wood', 'stone', 'cobble', 'none'
+      ];
+      const DEFAULT_OPENING_KINDS = [
+        'door.wood', 'door', 'window', 'threshold', 'portal'
+      ];
+      const DEFAULT_OBJECT_KINDS = [
+        'object', 'poi.view', 'table.rect', 'table.round', 'table.sqr', 'table.hot', 'table.cold', 'table.prep',
+        'chair', 'bed', 'bed.double', 'bath', 'chest', 'hearth', 'cooking.hearth', 'stairs',
+        'crate', 'barrel', 'keg'
+      ];
 
       const FLOOR_COLORS = {
         fog: '#0e1117',
@@ -826,7 +849,7 @@
         return img;
       }
 
-      function drawObject(obj) {
+      function drawObject(obj, zIndex) {
         const world = objectWorldCenter(obj);
         if (!world) return;
         const center = worldToScreen(world);
@@ -862,7 +885,10 @@
         ctx.font = `${10 * VIEW.zoom}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(obj.name || obj.kind || 'obj', 0, 0);
+        const baseLabel = obj.name || obj.kind || 'obj';
+        const displayZ = obj.z != null ? obj.z : (Number.isFinite(zIndex) ? zIndex : null);
+        const label = displayZ != null ? `${baseLabel} (${displayZ})` : baseLabel;
+        ctx.fillText(label, 0, 0);
         ctx.restore();
       }
 
@@ -918,7 +944,7 @@
 
         rooms.forEach(drawRoom);
         openings.forEach(o => drawOpening(o, floor));
-        objects.forEach(drawObject);
+        objects.forEach((obj, idx) => drawObject(obj, idx));
         tokens.forEach(drawToken);
       }
 
@@ -943,6 +969,7 @@
           const input = document.createElement('input');
           if (opts.type) input.type = opts.type;
           if (opts.step != null) input.step = String(opts.step);
+          if (opts.list) input.setAttribute('list', opts.list);
           input.value = value == null ? '' : String(value);
           if (opts.readonly) input.readOnly = true;
           input.addEventListener('input', () => {
@@ -972,8 +999,8 @@
           addField('Corner TL', sel.item.corners ? sel.item.corners[0] : '', 'cornerTL');
           addField('Corner BR', sel.item.corners ? sel.item.corners[2] : '', 'cornerBR');
           addField('Thickness', sel.item.thickness != null ? sel.item.thickness : '', 'thickness', { type: 'number', step: '1' });
-          addField('Floor Kind', sel.item.floor && sel.item.floor.kind ? sel.item.floor.kind : '', 'floor.kind');
-          addField('Wall Kind', sel.item.wall && sel.item.wall.kind ? sel.item.wall.kind : '', 'wall.kind');
+          addField('Floor Kind', sel.item.floor && sel.item.floor.kind ? sel.item.floor.kind : '', 'floor.kind', { list: 'floorKindList' });
+          addField('Wall Kind', sel.item.wall && sel.item.wall.kind ? sel.item.wall.kind : '', 'wall.kind', { list: 'wallKindList' });
           addButtonRow([
             { label: 'To Front', onClick: () => reorderSelection('front') },
             { label: 'To Back', onClick: () => reorderSelection('back') },
@@ -984,7 +1011,7 @@
           addField('Type', 'opening', 'type', { readonly: true });
           addField('ID', sel.item.id, 'id', { readonly: true });
           addField('Name', sel.item.name || '', 'name');
-          addField('Kind', sel.item.kind || '', 'kind');
+          addField('Kind', sel.item.kind || '', 'kind', { list: 'openingKindList' });
           addField('Hex', sel.item.hex || '', 'hex');
           addField('Floor', sel.floorId || '', 'floorId');
           addField('Orientation', sel.item.orientation || 'h', 'orientation');
@@ -1000,7 +1027,7 @@
           addField('Type', 'object', 'type', { readonly: true });
           addField('ID', sel.item.id, 'id', { readonly: true });
           addField('Name', sel.item.name || '', 'name');
-          addField('Kind', sel.item.kind || '', 'kind');
+          addField('Kind', sel.item.kind || '', 'kind', { list: 'objectKindList' });
           addField('Hex', sel.item.hex || '', 'hex');
           addField('Floor', sel.item.floorId || '', 'floorId');
           addField('Sprite', sel.item.sprite || sel.item.spriteFile || '', 'sprite');
@@ -1515,10 +1542,51 @@
         window.addEventListener('resize', () => render());
       }
 
+      function populateKindLists() {
+        if (!floorKindList || !wallKindList || !openingKindList || !objectKindList) return;
+        const floorKinds = new Set(DEFAULT_FLOOR_KINDS);
+        const wallKinds = new Set(DEFAULT_WALL_KINDS);
+        const openingKinds = new Set(DEFAULT_OPENING_KINDS);
+        const objectKinds = new Set(DEFAULT_OBJECT_KINDS);
+
+        if (STATE.battle && Array.isArray(STATE.battle.floors)) {
+          for (const floor of STATE.battle.floors) {
+            if (Array.isArray(floor.rooms)) {
+              for (const room of floor.rooms) {
+                const fk = room && room.floor && room.floor.kind;
+                const wk = room && room.wall && room.wall.kind;
+                if (fk) floorKinds.add(String(fk));
+                if (wk) wallKinds.add(String(wk));
+              }
+            }
+            if (Array.isArray(floor.openings)) {
+              for (const o of floor.openings) {
+                if (o && o.kind) openingKinds.add(String(o.kind));
+                if (o && o.seam_kind) floorKinds.add(String(o.seam_kind));
+              }
+            }
+            if (Array.isArray(floor.objects)) {
+              for (const o of floor.objects) {
+                if (o && o.kind) objectKinds.add(String(o.kind));
+              }
+            }
+          }
+        }
+
+        const fill = (el, values) => {
+          el.innerHTML = Array.from(values).sort().map(v => `<option value="${String(v).replace(/\"/g, '&quot;')}"></option>`).join('');
+        };
+        fill(floorKindList, floorKinds);
+        fill(wallKindList, wallKinds);
+        fill(openingKindList, openingKinds);
+        fill(objectKindList, objectKinds);
+      }
+
       async function init() {
         await loadBattle();
         await loadCampaign();
         setFloorOptions();
+        populateKindLists();
         VIEW.zoom = Number(zoomInput.value);
         autoCenterCamera();
         renderStatus();
