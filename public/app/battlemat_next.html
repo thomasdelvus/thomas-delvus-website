@@ -235,7 +235,7 @@
       const GRID = { size: 32 };
       const VIEW = { camera: { col: 0, row: 0 }, zoom: 1, floorId: '' };
       const STATE = { battle: null, campaign: null, entities: [] };
-      const EDITOR = { tool: 'select', selection: null, roomStart: null, dirty: false };
+      const EDITOR = { tool: 'select', selection: null, roomStart: null, dirty: false, drag: null, ignoreClick: false };
 
       const FLOOR_COLORS = {
         fog: '#0e1117',
@@ -511,7 +511,8 @@
               kind: e.kind || 'pc',
               hp: e.hp || (e.stats && e.stats.hp) || null,
               init: e.init || (e.stats && e.stats.init) || null,
-              side: e.side || (e.kind === 'npc' ? 'NPC' : 'PC')
+              side: e.side || (e.kind === 'npc' ? 'NPC' : 'PC'),
+              __entity: e
             };
           });
       }
@@ -891,6 +892,7 @@
           if (key === 'hex') item.hex = value;
           if (key === 'floorId') item.floorId = value;
           if (key === 'poi_id') item.poi_id = value;
+          syncEntityFromToken(item);
           queueEntitySave(item);
         }
 
@@ -994,6 +996,10 @@
       }
 
       function handleCanvasClick(ev) {
+        if (EDITOR.ignoreClick) {
+          EDITOR.ignoreClick = false;
+          return;
+        }
         const rect = canvas.getBoundingClientRect();
         const x = ev.clientX - rect.left;
         const y = ev.clientY - rect.top;
@@ -1094,6 +1100,75 @@
         }
       }
 
+      function syncEntityFromToken(token) {
+        const entity = token && token.__entity;
+        if (!entity) return;
+        entity.name = token.name;
+        if (!entity.location || typeof entity.location !== 'object') entity.location = {};
+        if (token.hex) entity.location.hex = token.hex;
+        if (token.floorId) entity.location.floorId = token.floorId;
+        if (token.poi_id) entity.poi_id = token.poi_id;
+      }
+
+      function onDragMove(worldPoint) {
+        const drag = EDITOR.drag;
+        if (!drag) return;
+        const hex = worldToHex(worldPoint);
+        const hexLabel = toHexLabel(hex.col, hex.row);
+
+        if (drag.type === 'token') {
+          drag.item.hex = hexLabel;
+          drag.item.floorId = VIEW.floorId || drag.floorId || drag.item.floorId;
+          syncEntityFromToken(drag.item);
+        } else if (drag.type === 'opening') {
+          drag.item.hex = hexLabel;
+        } else if (drag.type === 'object') {
+          const base = hexToWorld(hex.col, hex.row);
+          const ox = (worldPoint.x - base.x) / GRID.size;
+          const oy = (worldPoint.y - base.y) / GRID.size;
+          drag.item.hex = hexLabel;
+          drag.item.ox = Math.round(ox * 100) / 100;
+          drag.item.oy = Math.round(oy * 100) / 100;
+        }
+        EDITOR.dirty = true;
+        render();
+      }
+
+      function attachDragHandlers() {
+        canvas.addEventListener('mousedown', (ev) => {
+          if (EDITOR.tool !== 'select') return;
+          const rect = canvas.getBoundingClientRect();
+          const x = ev.clientX - rect.left;
+          const y = ev.clientY - rect.top;
+          const world = screenToWorld(x, y);
+          const sel = findSelectionAt(world);
+          if (!sel) return;
+          if (sel.type === 'room') return;
+          EDITOR.drag = sel;
+          EDITOR.drag.didMove = false;
+        });
+
+        canvas.addEventListener('mousemove', (ev) => {
+          if (!EDITOR.drag) return;
+          EDITOR.drag.didMove = true;
+          const rect = canvas.getBoundingClientRect();
+          const x = ev.clientX - rect.left;
+          const y = ev.clientY - rect.top;
+          const world = screenToWorld(x, y);
+          onDragMove(world);
+        });
+
+        window.addEventListener('mouseup', () => {
+          if (!EDITOR.drag) return;
+          const dragged = EDITOR.drag;
+          EDITOR.drag = null;
+          if (dragged.didMove) {
+            EDITOR.ignoreClick = true;
+            if (dragged.type === 'token') queueEntitySave(dragged.item);
+          }
+        });
+      }
+
       async function saveState() {
         const battleId = resolveBattleId();
         if (!battleId || !STATE.battle) return;
@@ -1165,6 +1240,7 @@
         });
         saveButton.addEventListener('click', () => saveState());
         canvas.addEventListener('click', handleCanvasClick);
+        attachDragHandlers();
         window.addEventListener('resize', () => render());
       }
 
