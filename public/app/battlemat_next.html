@@ -308,6 +308,13 @@
       ];
       const DEFAULT_TOKEN_KINDS = ['pc', 'npc', 'monster', 'creature'];
 
+      const OPENING_STYLE = {
+        door: { len: 1.5, thick: 0.25, color: '#9a6b3a' },
+        window: { len: 1.2, thick: 0.2, color: '#7aaad6' },
+        threshold: { len: 1.4, thick: 0.12, color: '#6f7884' },
+        portal: { len: 1.3, thick: 0.22, color: '#6fd3ff' }
+      };
+
       const FLOOR_COLORS = {
         fog: '#0e1117',
         wood: '#2a1f17',
@@ -828,12 +835,32 @@
         if (!world) return;
         const center = worldToScreen(world);
         const orient = opening.orientation === 'v' ? 'v' : 'h';
-        const len = GRID.size * 1.2 * VIEW.zoom;
-        const thick = GRID.size * 0.25 * VIEW.zoom;
+        const kindRaw = String(opening.kind || '').toLowerCase();
+        const kind =
+          kindRaw.startsWith('window') ? 'window' :
+          kindRaw.startsWith('portal') ? 'portal' :
+          kindRaw.startsWith('threshold') ? 'threshold' : 'door';
+        const style = OPENING_STYLE[kind] || OPENING_STYLE.door;
+        const lenUnits = Number.isFinite(Number(opening.len ?? opening.length ?? opening.size))
+          ? Number(opening.len ?? opening.length ?? opening.size)
+          : style.len;
+        const thickUnits = Number.isFinite(Number(opening.thick ?? opening.thickness))
+          ? Number(opening.thick ?? opening.thickness)
+          : style.thick;
+        const len = GRID.size * lenUnits * VIEW.zoom;
+        const thick = GRID.size * thickUnits * VIEW.zoom;
+        const seamKind = opening.seam_kind || opening.seamKind || '';
+        const seamColor = seamKind ? (FLOOR_COLORS[String(seamKind)] || FLOOR_COLORS.default) : null;
+        const seamLen = len * 1.15;
+        const seamThick = thick * 1.6;
         ctx.save();
         ctx.translate(center.x, center.y);
         if (orient === 'v') ctx.rotate(Math.PI / 2);
-        ctx.fillStyle = '#9a6b3a';
+        if (seamColor) {
+          ctx.fillStyle = seamColor;
+          ctx.fillRect(-seamLen / 2, -seamThick / 2, seamLen, seamThick);
+        }
+        ctx.fillStyle = style.color;
         ctx.fillRect(-len / 2, -thick / 2, len, thick);
         ctx.restore();
       }
@@ -1002,6 +1029,17 @@
           });
           inspectorFields.appendChild(row);
         };
+        const bumpToken = (key, delta) => {
+          const cur = Number(sel.item[key]);
+          const next = Number.isFinite(cur) ? cur + delta : delta;
+          applyFieldChange(key, String(next));
+          updateInspector();
+        };
+        const setTokenSide = (side, kind) => {
+          applyFieldChange('side', side);
+          if (kind) applyFieldChange('kind', kind);
+          updateInspector();
+        };
 
         if (sel.type === 'room') {
           addField('Type', 'room', 'type', { readonly: true });
@@ -1028,6 +1066,8 @@
           addField('Floor', sel.floorId || '', 'floorId');
           addField('Orientation', sel.item.orientation || 'h', 'orientation');
           addField('Open %', sel.item.openPct != null ? sel.item.openPct : 0, 'openPct', { type: 'number', step: '0.05' });
+          addField('Length', sel.item.len != null ? sel.item.len : '', 'len', { type: 'number', step: '0.05' });
+          addField('Thickness', sel.item.thickness != null ? sel.item.thickness : '', 'thickness', { type: 'number', step: '0.05' });
           addField('Seam', sel.item.seam_kind || '', 'seam_kind');
           addButtonRow([
             { label: 'To Front', onClick: () => reorderSelection('front') },
@@ -1066,6 +1106,16 @@
           addField('Side', sel.item.side || '', 'side');
           addField('HP', sel.item.hp != null ? sel.item.hp : '', 'hp', { type: 'number', step: '1' });
           addField('Init', sel.item.init != null ? sel.item.init : '', 'init', { type: 'number', step: '1' });
+          addButtonRow([
+            { label: 'HP -1', onClick: () => bumpToken('hp', -1) },
+            { label: 'HP +1', onClick: () => bumpToken('hp', 1) },
+            { label: 'Init -1', onClick: () => bumpToken('init', -1) },
+            { label: 'Init +1', onClick: () => bumpToken('init', 1) },
+          ]);
+          addButtonRow([
+            { label: 'Set PC', onClick: () => setTokenSide('PC', 'pc') },
+            { label: 'Set NPC', onClick: () => setTokenSide('NPC', 'npc') },
+          ]);
         }
       }
       function applyFieldChange(key, value) {
@@ -1100,6 +1150,16 @@
           if (key === 'floorId') moveOpeningToFloor(item, value);
           if (key === 'orientation') item.orientation = value;
           if (key === 'openPct') item.openPct = Math.max(0, Math.min(1, num(value, 0)));
+          if (key === 'len') {
+            const n = num(value, null);
+            if (n == null) delete item.len;
+            else item.len = n;
+          }
+          if (key === 'thickness') {
+            const n = num(value, null);
+            if (n == null) delete item.thickness;
+            else item.thickness = n;
+          }
           if (key === 'seam_kind') item.seam_kind = value;
         }
 
