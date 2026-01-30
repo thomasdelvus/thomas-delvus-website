@@ -6656,6 +6656,7 @@ const EMBEDDED_WORLD_JSON = `{
 
   function objectVisible(o, roomMetaAll) {
     if (o && o.__forceVisible) return true;
+    if (isPoiViewObject(o)) return true;
     if (EDITOR && EDITOR.tool === 'object') return true;
     if (!RENDER_FOG || !RENDER_FOG.enabled) return true;
 
@@ -8081,6 +8082,7 @@ function populateFloorSelect(floors) {
     if (openingSeam) {
       openingSeam.onchange = () => onOpeningControlChange();
       openingSeam.onkeydown = (ev) => { if (ev.key === 'Enter') onOpeningControlChange(); };
+      openingSeam.oninput = () => onOpeningControlChange();
     }
     if (openingOrientation) openingOrientation.onchange = () => onOpeningControlChange();
     if (openingOpenPct) openingOpenPct.oninput = () => onOpeningControlChange();
