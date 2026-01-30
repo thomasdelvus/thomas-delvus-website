@@ -936,6 +936,17 @@
           row.appendChild(input);
           inspectorFields.appendChild(row);
         };
+        const addButtonRow = (buttons) => {
+          const row = document.createElement('div');
+          row.className = 'btnRow';
+          buttons.forEach(({ label, onClick }) => {
+            const btn = document.createElement('button');
+            btn.textContent = label;
+            btn.addEventListener('click', onClick);
+            row.appendChild(btn);
+          });
+          inspectorFields.appendChild(row);
+        };
 
         if (sel.type === 'room') {
           addField('Type', 'room', 'type', { readonly: true });
@@ -947,6 +958,10 @@
           addField('Thickness', sel.item.thickness != null ? sel.item.thickness : '', 'thickness', { type: 'number', step: '1' });
           addField('Floor Kind', sel.item.floor && sel.item.floor.kind ? sel.item.floor.kind : '', 'floor.kind');
           addField('Wall Kind', sel.item.wall && sel.item.wall.kind ? sel.item.wall.kind : '', 'wall.kind');
+          addButtonRow([
+            { label: 'To Front', onClick: () => reorderSelection('front') },
+            { label: 'To Back', onClick: () => reorderSelection('back') },
+          ]);
         }
 
         if (sel.type === 'opening') {
@@ -959,6 +974,10 @@
           addField('Orientation', sel.item.orientation || 'h', 'orientation');
           addField('Open %', sel.item.openPct != null ? sel.item.openPct : 0, 'openPct', { type: 'number', step: '0.05' });
           addField('Seam', sel.item.seam_kind || '', 'seam_kind');
+          addButtonRow([
+            { label: 'To Front', onClick: () => reorderSelection('front') },
+            { label: 'To Back', onClick: () => reorderSelection('back') },
+          ]);
         }
 
         if (sel.type === 'object') {
@@ -975,6 +994,10 @@
           addField('Rot Deg', sel.item.rotDeg != null ? sel.item.rotDeg : '', 'rotDeg', { type: 'number', step: '1' });
           addField('Offset X', sel.item.ox != null ? sel.item.ox : '', 'ox', { type: 'number', step: '0.05' });
           addField('Offset Y', sel.item.oy != null ? sel.item.oy : '', 'oy', { type: 'number', step: '0.05' });
+          addButtonRow([
+            { label: 'To Front', onClick: () => reorderSelection('front') },
+            { label: 'To Back', onClick: () => reorderSelection('back') },
+          ]);
         }
 
         if (sel.type === 'token') {
@@ -1081,6 +1104,28 @@
         if (!Array.isArray(target.openings)) target.openings = [];
         target.openings.push(opening);
         EDITOR.selection.floorId = floorId;
+      }
+
+      function reorderSelection(direction) {
+        const sel = EDITOR.selection;
+        if (!sel || !STATE.battle) return;
+        const floor = STATE.battle.floors.find(f => String(f.id) === String(sel.floorId));
+        if (!floor) return;
+
+        let list = null;
+        if (sel.type === 'room') list = floor.rooms;
+        if (sel.type === 'opening') list = floor.openings;
+        if (sel.type === 'object') list = floor.objects;
+        if (!Array.isArray(list)) return;
+
+        const idx = list.indexOf(sel.item);
+        if (idx === -1) return;
+        list.splice(idx, 1);
+        if (direction === 'front') list.push(sel.item);
+        else list.unshift(sel.item);
+
+        EDITOR.dirty = true;
+        render();
       }
 
       function selectItem(type, item, floorId) {
