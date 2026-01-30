@@ -10,6 +10,7 @@ info:
 # - add GET /campaigns/{campaign_id} (includes active_battle_id)
 # - include campaign meta_json for party_locations
 # - add PATCH /campaigns/{campaign_id} to update meta_json / active_battle_id
+# - add PATCH /campaigns/{campaign_id}/entities to update world.entities (location/intent/stats)
 # - messages are campaign-scoped only (remove battle_id)
 # - add GET /battles?campaign_id=... for POI selector
 # - add GET /characters?campaign_id=... for campaign characters
@@ -320,6 +321,78 @@ paths:
                   campaign_id:
                     type: string
                 required: [error, campaign_id]
+        "401":
+          description: Missing Authorization header
+        "403":
+          description: Invalid token
+
+  /campaigns/{campaign_id}/entities:
+    patch:
+      operationId: update_campaign_entity
+      summary: Update a single world entity (location/intent/stats)
+      x-openai-isConsequential: false
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: campaign_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                entity_id:
+                  type: string
+                patch:
+                  type: object
+                create_if_missing:
+                  type: boolean
+              required: [entity_id, patch]
+            examples:
+              moveNpc:
+                value:
+                  entity_id: "g1"
+                  patch:
+                    location:
+                      poi_id: "CrossedKeysInn"
+                      floorId: "upper"
+                      hex: "U19"
+      responses:
+        "200":
+          description: Entity updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  campaign_id:
+                    type: string
+                  entity:
+                    type: object
+                  version:
+                    type: integer
+                  updated_at:
+                    type: integer
+                required: [ok, campaign_id, entity]
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required: [error]
+        "404":
+          description: Campaign or entity not found
         "401":
           description: Missing Authorization header
         "403":

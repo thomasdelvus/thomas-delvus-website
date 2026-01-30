@@ -482,6 +482,82 @@ export default {
         return json({ count: 0, rows: [] });
       }
 
+      const campaignEntitiesMatch = path.match(/^\/campaigns\/([^\/?#]+)\/entities$/);
+      if (campaignEntitiesMatch) {
+        const campaignId = decodeURIComponent(campaignEntitiesMatch[1]);
+        if (method !== "PATCH") return json({ error: "Method not allowed" }, 405);
+
+        const incoming = await readJsonBody(request);
+        if (!incoming) return json({ error: "Invalid JSON body" }, 400);
+
+        const entityId = normStr(incoming.entity_id ?? incoming.entityId ?? incoming.id ?? incoming.character_id ?? incoming.characterId);
+        if (!entityId) return json({ error: "Missing entity_id" }, 400);
+
+        const patch = isObject(incoming.patch) ? incoming.patch
+          : (isObject(incoming.entity) ? incoming.entity : null);
+        if (!patch) return json({ error: "Missing patch object" }, 400);
+
+        const row = await env.DB.prepare(
+          `SELECT campaign_id, meta_json, version
+           FROM campaigns
+           WHERE campaign_id = ?`
+        ).bind(campaignId).first();
+        if (!row) return json({ error: "Campaign not found", campaign_id: campaignId }, 404);
+
+        let meta = {};
+        if (row.meta_json) {
+          try { meta = JSON.parse(row.meta_json); } catch { meta = {}; }
+        }
+        if (!isObject(meta)) meta = {};
+        if (!isObject(meta.world)) meta.world = {};
+        let entities = meta.world.entities;
+        if (Array.isArray(entities)) {
+          entities = entities.slice();
+        } else if (isObject(entities)) {
+          entities = Object.entries(entities).map(([id, data]) => ({ id, ...(data || {}) }));
+        } else {
+          entities = [];
+        }
+
+        let idx = entities.findIndex(e => e && String(e.id || '') === entityId);
+        if (idx === -1) {
+          idx = entities.findIndex(e => e && String(e.character_id || e.characterId || '') === entityId);
+        }
+
+        if (idx === -1 && incoming.create_if_missing !== true) {
+          return json({ error: "Entity not found", entity_id: entityId }, 404);
+        }
+
+        const existing = idx !== -1 ? entities[idx] : { id: entityId };
+        const next = { ...existing, ...patch };
+        if (isObject(patch.location)) next.location = { ...(existing.location || {}), ...patch.location };
+        if (isObject(patch.stats)) next.stats = { ...(existing.stats || {}), ...patch.stats };
+        if (isObject(patch.intent)) next.intent = { ...(existing.intent || {}), ...patch.intent };
+
+        if (idx === -1) entities.push(next);
+        else entities[idx] = next;
+
+        meta.world.entities = entities;
+        const metaJson = JSON.stringify(meta, null, 2);
+
+        const nextVersion = (row.version ?? 0) + 1;
+        const updatedAt = nowSeconds();
+
+        await env.DB.prepare(
+          `UPDATE campaigns
+           SET meta_json = ?, version = ?, updated_at = ?
+           WHERE campaign_id = ?`
+        ).bind(metaJson, nextVersion, updatedAt, campaignId).run();
+
+        return json({
+          ok: true,
+          campaign_id: campaignId,
+          entity: next,
+          version: nextVersion,
+          updated_at: updatedAt
+        });
+      }
+
       const campaignMatch = path.match(/^\/campaigns\/([^\/?#]+)$/);
       if (campaignMatch) {
         const campaignId = decodeURIComponent(campaignMatch[1]);
