@@ -313,6 +313,31 @@
         return { col, row };
       }
 
+      function roundQuarter(v) {
+        return Math.round(v * 4) / 4;
+      }
+
+      function formatStep(v) {
+        const s = roundQuarter(v).toFixed(2);
+        return s.replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+      }
+
+      function openingHexFromWorld(p) {
+        const size = GRID.size || 1;
+        const qf = (2 / 3) * (p.x / size);
+        const rf = ((-p.y) / size) / Math.sqrt(3) - (qf / 2);
+        const col = Math.round(qf);
+        const rowf = rf + (col - (col & 1)) / 2;
+        const row = roundQuarter(rowf);
+        return { col, row };
+      }
+
+      function openingHexLabelFromCoords(col, row) {
+        if (!Number.isFinite(col) || !Number.isFinite(row)) return null;
+        const rowNum = row + 1;
+        return indexToLetters(col) + formatStep(rowNum);
+      }
+
       function indexToLetters(idx) {
         let n = idx;
         let out = '';
@@ -1059,10 +1084,12 @@
         }
 
         if (EDITOR.tool === 'opening') {
+          const openHex = openingHexFromWorld(world);
+          const openLabel = openingHexLabelFromCoords(openHex.col, openHex.row) || hexLabel;
           const opening = {
             id: 'opening_' + Date.now().toString(36),
             kind: 'door.wood',
-            hex: hexLabel,
+            hex: openLabel,
             orientation: 'h',
             openPct: 0
           };
@@ -1121,7 +1148,9 @@
           drag.item.floorId = VIEW.floorId || drag.floorId || drag.item.floorId;
           syncEntityFromToken(drag.item);
         } else if (drag.type === 'opening') {
-          drag.item.hex = hexLabel;
+          const openHex = openingHexFromWorld(worldPoint);
+          const openLabel = openingHexLabelFromCoords(openHex.col, openHex.row) || hexLabel;
+          drag.item.hex = openLabel;
         } else if (drag.type === 'object') {
           const base = hexToWorld(hex.col, hex.row);
           const ox = (worldPoint.x - base.x) / GRID.size;
