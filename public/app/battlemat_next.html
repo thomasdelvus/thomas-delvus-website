@@ -645,6 +645,62 @@
         return { x1: src.x1, y1: src.y1, x2: src.x2, y2: src.y2 };
       }
 
+      function buildWallSegments(rooms) {
+        const segs = [];
+        for (const room of (Array.isArray(rooms) ? rooms : [])) {
+          const box = roomToWallBox(room);
+          if (!box) continue;
+          segs.push({ orientation: 'h', y: box.yTop, x1: box.xL, x2: box.xR });
+          segs.push({ orientation: 'h', y: box.yBot, x1: box.xL, x2: box.xR });
+          segs.push({ orientation: 'v', x: box.xL, y1: box.yTop, y2: box.yBot });
+          segs.push({ orientation: 'v', x: box.xR, y1: box.yTop, y2: box.yBot });
+        }
+        return segs;
+      }
+
+      function wallSegDistance2(seg, p) {
+        if (!seg || !p) return Infinity;
+        if (seg.orientation === 'h') {
+          const dy = Math.abs(p.y - seg.y);
+          let dx = 0;
+          if (p.x < seg.x1) dx = seg.x1 - p.x;
+          else if (p.x > seg.x2) dx = p.x - seg.x2;
+          return dx * dx + dy * dy;
+        }
+        const dx = Math.abs(p.x - seg.x);
+        let dy = 0;
+        if (p.y < seg.y1) dy = seg.y1 - p.y;
+        else if (p.y > seg.y2) dy = p.y - seg.y2;
+        return dx * dx + dy * dy;
+      }
+
+      function projectToWall(seg, p) {
+        if (!seg || !p) return null;
+        if (seg.orientation === 'h') {
+          const x = Math.min(seg.x2, Math.max(seg.x1, p.x));
+          return { x, y: seg.y };
+        }
+        const y = Math.min(seg.y2, Math.max(seg.y1, p.y));
+        return { x: seg.x, y };
+      }
+
+      function snapWorldToWall(worldPoint, floor, orientation) {
+        const want = orientation === 'v' ? 'v' : 'h';
+        const segs = buildWallSegments(floor ? floor.rooms : []);
+        let best = null;
+        let bestD2 = Infinity;
+        for (const seg of segs) {
+          if (!seg || seg.orientation !== want) continue;
+          const d2 = wallSegDistance2(seg, worldPoint);
+          if (d2 < bestD2) {
+            bestD2 = d2;
+            best = seg;
+          }
+        }
+        if (!best) return worldPoint;
+        return projectToWall(best, worldPoint) || worldPoint;
+      }
+
       function roomRectScreen(room) {
         const box = roomToWallBox(room);
         if (!box) return null;
@@ -1084,7 +1140,8 @@
         }
 
         if (EDITOR.tool === 'opening') {
-          const openHex = openingHexFromWorld(world);
+          const snapped = snapWorldToWall(world, floor, 'h');
+          const openHex = openingHexFromWorld(snapped);
           const openLabel = openingHexLabelFromCoords(openHex.col, openHex.row) || hexLabel;
           const opening = {
             id: 'opening_' + Date.now().toString(36),
@@ -1148,7 +1205,9 @@
           drag.item.floorId = VIEW.floorId || drag.floorId || drag.item.floorId;
           syncEntityFromToken(drag.item);
         } else if (drag.type === 'opening') {
-          const openHex = openingHexFromWorld(worldPoint);
+          const orient = drag.item && drag.item.orientation === 'v' ? 'v' : 'h';
+          const snapped = snapWorldToWall(worldPoint, pickFloor(), orient);
+          const openHex = openingHexFromWorld(snapped);
           const openLabel = openingHexLabelFromCoords(openHex.col, openHex.row) || hexLabel;
           drag.item.hex = openLabel;
         } else if (drag.type === 'object') {
