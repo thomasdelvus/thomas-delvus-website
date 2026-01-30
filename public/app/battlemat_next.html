@@ -889,6 +889,8 @@
           const lab = document.createElement('label');
           lab.textContent = label;
           const input = document.createElement('input');
+          if (opts.type) input.type = opts.type;
+          if (opts.step != null) input.step = String(opts.step);
           input.value = value == null ? '' : String(value);
           if (opts.readonly) input.readOnly = true;
           input.addEventListener('input', () => {
@@ -906,6 +908,7 @@
           addField('Floor', sel.floorId, 'floorId');
           addField('Corner TL', sel.item.corners ? sel.item.corners[0] : '', 'cornerTL');
           addField('Corner BR', sel.item.corners ? sel.item.corners[2] : '', 'cornerBR');
+          addField('Thickness', sel.item.thickness != null ? sel.item.thickness : '', 'thickness', { type: 'number', step: '1' });
           addField('Floor Kind', sel.item.floor && sel.item.floor.kind ? sel.item.floor.kind : '', 'floor.kind');
           addField('Wall Kind', sel.item.wall && sel.item.wall.kind ? sel.item.wall.kind : '', 'wall.kind');
         }
@@ -916,8 +919,9 @@
           addField('Name', sel.item.name || '', 'name');
           addField('Kind', sel.item.kind || '', 'kind');
           addField('Hex', sel.item.hex || '', 'hex');
+          addField('Floor', sel.floorId || '', 'floorId');
           addField('Orientation', sel.item.orientation || 'h', 'orientation');
-          addField('Open %', sel.item.openPct || 0, 'openPct');
+          addField('Open %', sel.item.openPct != null ? sel.item.openPct : 0, 'openPct', { type: 'number', step: '0.05' });
           addField('Seam', sel.item.seam_kind || '', 'seam_kind');
         }
 
@@ -929,6 +933,12 @@
           addField('Hex', sel.item.hex || '', 'hex');
           addField('Floor', sel.item.floorId || '', 'floorId');
           addField('Sprite', sel.item.sprite || sel.item.spriteFile || '', 'sprite');
+          addField('Scale', sel.item.spriteScale != null ? sel.item.spriteScale : '', 'spriteScale', { type: 'number', step: '0.05' });
+          addField('Scale X', sel.item.spriteScaleX != null ? sel.item.spriteScaleX : '', 'spriteScaleX', { type: 'number', step: '0.05' });
+          addField('Scale Y', sel.item.spriteScaleY != null ? sel.item.spriteScaleY : '', 'spriteScaleY', { type: 'number', step: '0.05' });
+          addField('Rot Deg', sel.item.rotDeg != null ? sel.item.rotDeg : '', 'rotDeg', { type: 'number', step: '1' });
+          addField('Offset X', sel.item.ox != null ? sel.item.ox : '', 'ox', { type: 'number', step: '0.05' });
+          addField('Offset Y', sel.item.oy != null ? sel.item.oy : '', 'oy', { type: 'number', step: '0.05' });
         }
 
         if (sel.type === 'token') {
@@ -938,17 +948,26 @@
           addField('Hex', sel.item.hex || '', 'hex');
           addField('Floor', sel.item.floorId || '', 'floorId');
           addField('POI', sel.item.poi_id || '', 'poi_id');
+          addField('Side', sel.item.side || '', 'side');
+          addField('HP', sel.item.hp != null ? sel.item.hp : '', 'hp', { type: 'number', step: '1' });
+          addField('Init', sel.item.init != null ? sel.item.init : '', 'init', { type: 'number', step: '1' });
         }
       }
       function applyFieldChange(key, value) {
         const sel = EDITOR.selection;
         if (!sel) return;
         const item = sel.item;
+        const num = (val, fallback = null) => {
+          if (val == null || String(val).trim() === '') return fallback;
+          const n = Number(val);
+          return Number.isFinite(n) ? n : fallback;
+        };
 
         if (sel.type === 'room') {
           if (key === 'name') item.name = value;
           if (key === 'floorId') moveRoomToFloor(item, value);
           if (key === 'cornerTL' || key === 'cornerBR') updateRoomCorners(item, key, value);
+          if (key === 'thickness') item.thickness = num(value, 0);
           if (key === 'floor.kind') {
             item.floor = item.floor || {};
             item.floor.kind = value;
@@ -963,8 +982,9 @@
           if (key === 'name') item.name = value;
           if (key === 'kind') item.kind = value;
           if (key === 'hex') item.hex = value;
+          if (key === 'floorId') moveOpeningToFloor(item, value);
           if (key === 'orientation') item.orientation = value;
-          if (key === 'openPct') item.openPct = Number(value) || 0;
+          if (key === 'openPct') item.openPct = Math.max(0, Math.min(1, num(value, 0)));
           if (key === 'seam_kind') item.seam_kind = value;
         }
 
@@ -974,6 +994,12 @@
           if (key === 'hex') item.hex = value;
           if (key === 'floorId') item.floorId = value;
           if (key === 'sprite') item.sprite = value;
+          if (key === 'spriteScale') item.spriteScale = num(value, 1);
+          if (key === 'spriteScaleX') item.spriteScaleX = num(value, null);
+          if (key === 'spriteScaleY') item.spriteScaleY = num(value, null);
+          if (key === 'rotDeg') item.rotDeg = num(value, 0);
+          if (key === 'ox') item.ox = num(value, 0);
+          if (key === 'oy') item.oy = num(value, 0);
         }
 
         if (sel.type === 'token') {
@@ -981,6 +1007,9 @@
           if (key === 'hex') item.hex = value;
           if (key === 'floorId') item.floorId = value;
           if (key === 'poi_id') item.poi_id = value;
+          if (key === 'side') item.side = value;
+          if (key === 'hp') item.hp = num(value, null);
+          if (key === 'init') item.init = num(value, null);
           syncEntityFromToken(item);
           queueEntitySave(item);
         }
@@ -1004,6 +1033,17 @@
         if (!source || !target) return;
         source.rooms = source.rooms.filter(r => r !== room);
         target.rooms.push(room);
+        EDITOR.selection.floorId = floorId;
+      }
+
+      function moveOpeningToFloor(opening, floorId) {
+        const floors = STATE.battle.floors;
+        const source = floors.find(f => f.openings && f.openings.includes(opening));
+        const target = floors.find(f => f.id === floorId);
+        if (!source || !target) return;
+        source.openings = source.openings.filter(o => o !== opening);
+        if (!Array.isArray(target.openings)) target.openings = [];
+        target.openings.push(opening);
         EDITOR.selection.floorId = floorId;
       }
 
@@ -1200,6 +1240,16 @@
         if (token.hex) entity.location.hex = token.hex;
         if (token.floorId) entity.location.floorId = token.floorId;
         if (token.poi_id) entity.poi_id = token.poi_id;
+        if (token.side) entity.side = token.side;
+        if (!entity.stats || typeof entity.stats !== 'object') entity.stats = {};
+        if (token.hp != null) {
+          entity.stats.hp = token.hp;
+          entity.hp = token.hp;
+        }
+        if (token.init != null) {
+          entity.stats.init = token.init;
+          entity.init = token.init;
+        }
       }
 
       function onDragMove(worldPoint) {
