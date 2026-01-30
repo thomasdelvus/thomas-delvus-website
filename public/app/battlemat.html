@@ -3990,7 +3990,7 @@ Changelog:
   const PATTERN_CACHE = new Map();
 
   const FLOOR_IMAGES = {
-    crosskeys: { file: '/images/the_cross_keys_floor.jpg', alpha: 1 },
+    crosskeys: { file: '/images/the_cross_keys_floor.jpg', alpha: 1, seamKind: 'wood_oak' },
   };
 
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -6173,11 +6173,17 @@ const EMBEDDED_WORLD_JSON = `{
     const rid = openingPreferredRoomId(opening, roomMetaAll);
     const room = rid ? roomById(rooms, rid) : null;
     const fk = room ? roomFloorKind(room) : 'wood';
+    const seamOverride =
+      (room && room.floor && (room.floor.seam_kind || room.floor.seamKind))
+        ? String(room.floor.seam_kind || room.floor.seamKind).toLowerCase()
+        : '';
+    const imgDef = (FLOOR_IMAGES && fk in FLOOR_IMAGES) ? FLOOR_IMAGES[fk] : null;
+    const seamKind = seamOverride || (imgDef && imgDef.seamKind ? String(imgDef.seamKind) : fk);
 
-    if (!fogEnabled) return getFloorFillStyle(fk, wantTextures, ctx);
+    if (!fogEnabled) return getFloorFillStyle(seamKind, wantTextures, ctx);
 
     if (RENDER_FOG && RENDER_FOG.enabled && rid && RENDER_FOG.visible && RENDER_FOG.visible.has(rid)) {
-      return getFloorFillStyle(fk, wantTextures, ctx);
+      return getFloorFillStyle(seamKind, wantTextures, ctx);
     }
 
     return floorBaseColor('fog');
