@@ -1,0 +1,381 @@
+{
+  "meta": {
+    "title": "Street View",
+    "battleId": "local",
+    "round": 1
+  },
+  "view": {
+    "camera_hex": "U16",
+    "floorId": "ground"
+  },
+  "fog": {
+    "enabled": false,
+    "mode": "room",
+    "visibleRoomIdsByFloor": {
+      "ground": [
+        "room_mkmu2yeb_433",
+        "room_mkli30iq_2yw"
+      ]
+    },
+    "exploredRoomIdsByFloor": {
+      "ground": [
+        "room_mkmu2yeb_433",
+        "room_mkli0xd9_g8",
+        "room_mkli30iq_2yw"
+      ]
+    },
+    "autoCompute": true,
+    "autoExplore": true,
+    "maxDepth": 1,
+    "unseenAlpha": 0.92,
+    "exploredAlpha": 0.55
+  },
+  "floors": [
+    {
+      "id": "ground",
+      "name": "Ground",
+      "rooms": [
+        {
+          "id": "room_mkle3qxf_5rr",
+          "corners": [
+            "AP25",
+            "AV25",
+            "AV20",
+            "AP20"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mkle45ne_g",
+          "corners": [
+            "AP30",
+            "AV30",
+            "AV25",
+            "AP25"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mklecjhm_2h3",
+          "corners": [
+            "BN26",
+            "BR26",
+            "BR22",
+            "BN22"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mkli3rr4_jt",
+          "corners": [
+            "AJ21",
+            "AP21",
+            "AP12.5",
+            "AJ12.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mkli46vt_7fu",
+          "corners": [
+            "AP20",
+            "AV20",
+            "AV12.5",
+            "AP12.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mkli4dl5_1zn",
+          "corners": [
+            "AV20",
+            "AZ20",
+            "AZ12.5",
+            "AV12.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mkli550f_2na",
+          "corners": [
+            "BB22",
+            "BN22",
+            "BN12.5",
+            "BB12.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mkmu2yeb_433",
+          "corners": [
+            "M12.75",
+            "AP12.75",
+            "AP8",
+            "M8"
+          ],
+          "thickness": 0,
+          "floor": {
+            "kind": "cobble"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mkmu0w6i_ye",
+          "corners": [
+            "F24",
+            "M24",
+            "M8",
+            "F8"
+          ],
+          "thickness": 0,
+          "floor": {
+            "kind": "cobble"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mkmuw9iz_53a",
+          "corners": [
+            "AZ20",
+            "BB20",
+            "BB12.5",
+            "AZ12.5"
+          ],
+          "thickness": 1,
+          "floor": {
+            "kind": "cobble"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mkli3g41_z",
+          "corners": [
+            "M26.5",
+            "W26.5",
+            "W21.5",
+            "M21.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mkli30iq_2yw",
+          "corners": [
+            "M21.25",
+            "AJ21.25",
+            "AJ12.75",
+            "M12.75"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "crosskeys"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        }
+      ],
+      "openings": [
+        {
+          "id": "door_mklhw1tx_78q",
+          "kind": "door.wood",
+          "hex": "AV28",
+          "orientation": "v",
+          "openPct": 0
+        },
+        {
+          "id": "door_mklhw3r1_24w",
+          "kind": "door.wood",
+          "hex": "AV23",
+          "orientation": "v",
+          "openPct": 0
+        },
+        {
+          "id": "door_mkli3uew_254",
+          "kind": "door.wood",
+          "hex": "AM13",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "door_mkli4h1y_1zp",
+          "kind": "door.wood",
+          "hex": "AS13",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "door_mkli4hxt_1gj",
+          "kind": "door.wood",
+          "hex": "AX12.5",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "door_mkli57wg_3i6",
+          "kind": "door.wood",
+          "hex": "BH12.5",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "door_mkmuwwle_14p",
+          "kind": "door.wood",
+          "hex": "BA13",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "door_mkmuy3fz_5jn",
+          "kind": "door.wood",
+          "hex": "U13",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "door_mkmuy4y7_4d3",
+          "kind": "door.wood",
+          "hex": "AE13.25",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "window_mkmuzbm3_3s9",
+          "kind": "window",
+          "hex": "N12.5",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "window_mkmuzcah_6fd",
+          "kind": "window",
+          "hex": "P12.5",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "window_mkmuzz1q_3h7",
+          "kind": "window",
+          "hex": "M14.25",
+          "orientation": "v",
+          "openPct": 0
+        },
+        {
+          "id": "window_mkmuzzmx_6qu",
+          "kind": "window",
+          "hex": "M15",
+          "orientation": "v",
+          "openPct": 0
+        },
+        {
+          "id": "window_mkmv00jm_3p1",
+          "kind": "window",
+          "hex": "M19",
+          "orientation": "v",
+          "openPct": 0
+        },
+        {
+          "id": "window_mkmv012r_1um",
+          "kind": "window",
+          "hex": "M20",
+          "orientation": "v",
+          "openPct": 0
+        },
+        {
+          "id": "window_mkmv01uh_63z",
+          "kind": "window",
+          "hex": "N12.5",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "window_mkmv02ia_1pe",
+          "kind": "window",
+          "hex": "P12.5",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "door_ml0toqa9_644",
+          "kind": "door.wood",
+          "hex": "M17",
+          "orientation": "v",
+          "openPct": 0
+        }
+      ],
+      "objects": [
+        {
+          "id": "poi_cross_keys_view",
+          "kind": "poi.view",
+          "hex": "M18",
+          "poi_id": "CrossedKeysInn",
+          "view_url": "/images/the_cross_keys.jpg",
+          "ox": -0.7,
+          "oy": 0.1,
+          "spriteScale": 2,
+          "floorId": "ground"
+        },
+        {
+          "id": "object_ml153brl",
+          "kind": "object",
+          "hex": "R23",
+          "floorId": "ground"
+        }
+      ]
+    }
+  ],
+  "tokens": []
+}
