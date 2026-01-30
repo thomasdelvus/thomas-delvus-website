@@ -210,6 +210,13 @@
           <option value="stairs">stairs</option>
           <option value="bed">bed</option>
         </select>
+        <label class="status">Token</label>
+        <select id="tokenKind">
+          <option value="pc">pc</option>
+          <option value="npc" selected>npc</option>
+          <option value="monster">monster</option>
+          <option value="creature">creature</option>
+        </select>
         <select id="floorSelect"></select>
         <label class="status">Zoom</label>
         <input id="zoom" type="range" min="0.25" max="4" step="0.05" value="1" />
@@ -235,6 +242,7 @@
   <datalist id="wallKindList"></datalist>
   <datalist id="openingKindList"></datalist>
   <datalist id="objectKindList"></datalist>
+  <datalist id="tokenKindList"></datalist>
 
   <script>
     (() => {
@@ -255,6 +263,7 @@
       const openingOrientH = document.getElementById('openingOrientH');
       const openingOrientV = document.getElementById('openingOrientV');
       const objectKindSelect = document.getElementById('objectKind');
+      const tokenKindSelect = document.getElementById('tokenKind');
       const zoomInput = document.getElementById('zoom');
       const saveButton = document.getElementById('btnSave');
       const saveStatus = document.getElementById('saveStatus');
@@ -265,6 +274,7 @@
       const wallKindList = document.getElementById('wallKindList');
       const openingKindList = document.getElementById('openingKindList');
       const objectKindList = document.getElementById('objectKindList');
+      const tokenKindList = document.getElementById('tokenKindList');
 
       const GRID = { size: 32 };
       const VIEW = { camera: { col: 0, row: 0 }, zoom: 1, floorId: '' };
@@ -278,7 +288,8 @@
         ignoreClick: false,
         openingKind: 'door.wood',
         openingOrientation: 'h',
-        objectKind: 'object'
+        objectKind: 'object',
+        tokenKind: 'npc'
       };
 
       const DEFAULT_FLOOR_KINDS = [
@@ -295,6 +306,7 @@
         'chair', 'bed', 'bed.double', 'bath', 'chest', 'hearth', 'cooking.hearth', 'stairs',
         'crate', 'barrel', 'keg'
       ];
+      const DEFAULT_TOKEN_KINDS = ['pc', 'npc', 'monster', 'creature'];
 
       const FLOOR_COLORS = {
         fog: '#0e1117',
@@ -1047,7 +1059,7 @@
           addField('Type', 'token', 'type', { readonly: true });
           addField('ID', sel.item.id, 'id', { readonly: true });
           addField('Name', sel.item.name || '', 'name');
-          addField('Kind', sel.item.kind || '', 'kind');
+          addField('Kind', sel.item.kind || '', 'kind', { list: 'tokenKindList' });
           addField('Hex', sel.item.hex || '', 'hex');
           addField('Floor', sel.item.floorId || '', 'floorId');
           addField('POI', sel.item.poi_id || '', 'poi_id');
@@ -1355,10 +1367,12 @@
         if (EDITOR.tool === 'token') {
           const poiId = resolvePoiId();
           const entityId = `entity_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+          const tokenKind = (EDITOR.tokenKind || 'npc').toLowerCase();
+          const tokenSide = tokenKind === 'pc' ? 'PC' : 'NPC';
           const entity = {
             id: entityId,
             name: 'Token',
-            kind: 'npc',
+            kind: tokenKind,
             poi_id: poiId || '',
             location: { hex: hexLabel, floorId: floor.id }
           };
@@ -1372,7 +1386,7 @@
             hex: entity.location.hex,
             floorId: entity.location.floorId,
             poi_id: entity.poi_id,
-            side: entity.side || (entity.kind === 'npc' ? 'NPC' : 'PC'),
+            side: entity.side || tokenSide,
             __entity: entity
           };
           selectItem('token', token, floor.id);
@@ -1561,6 +1575,12 @@
           });
           objectKindSelect.value = EDITOR.objectKind;
         }
+        if (tokenKindSelect) {
+          tokenKindSelect.addEventListener('change', () => {
+            EDITOR.tokenKind = tokenKindSelect.value;
+          });
+          tokenKindSelect.value = EDITOR.tokenKind;
+        }
         floorSelect.addEventListener('change', () => {
           VIEW.floorId = floorSelect.value;
           render();
@@ -1581,6 +1601,7 @@
         const wallKinds = new Set(DEFAULT_WALL_KINDS);
         const openingKinds = new Set(DEFAULT_OPENING_KINDS);
         const objectKinds = new Set(DEFAULT_OBJECT_KINDS);
+        const tokenKinds = new Set(DEFAULT_TOKEN_KINDS);
 
         if (STATE.battle && Array.isArray(STATE.battle.floors)) {
           for (const floor of STATE.battle.floors) {
@@ -1613,6 +1634,7 @@
         fill(wallKindList, wallKinds);
         fill(openingKindList, openingKinds);
         fill(objectKindList, objectKinds);
+        if (tokenKindList) fill(tokenKindList, tokenKinds);
       }
 
       async function init() {
