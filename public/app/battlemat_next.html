@@ -616,6 +616,19 @@
         ctx.restore();
       }
 
+      function objectWorldCenter(obj) {
+        if (!obj) return null;
+        const p = parseHexLabel(obj.hex);
+        if (!p) return null;
+        const base = hexToWorld(p.col, p.row);
+        const ox = Number(obj.ox);
+        const oy = Number(obj.oy);
+        return {
+          x: base.x + (Number.isFinite(ox) ? ox : 0) * GRID.size,
+          y: base.y + (Number.isFinite(oy) ? oy : 0) * GRID.size,
+        };
+      }
+
       const spriteCache = new Map();
       function loadSprite(url) {
         if (!url) return null;
@@ -627,29 +640,43 @@
       }
 
       function drawObject(obj) {
-        const p = parseHexLabel(obj.hex);
-        if (!p) return;
-        const center = worldToScreen(hexToWorld(p.col, p.row));
+        const world = objectWorldCenter(obj);
+        if (!world) return;
+        const center = worldToScreen(world);
         const url = obj.sprite || obj.spriteFile || SPRITE_MAP[obj.kind];
-        const size = GRID.size * (obj.spriteScale || 1) * VIEW.zoom;
+        const scale = Number.isFinite(Number(obj.spriteScale)) ? Number(obj.spriteScale) : 1;
+        const scaleX = Number.isFinite(Number(obj.spriteScaleX)) ? Number(obj.spriteScaleX) : scale;
+        const scaleY = Number.isFinite(Number(obj.spriteScaleY)) ? Number(obj.spriteScaleY) : scale;
+        const sizeW = GRID.size * 1.15 * scaleX * VIEW.zoom;
+        const sizeH = GRID.size * 1.15 * scaleY * VIEW.zoom;
+        const rotDeg = Number.isFinite(Number(obj.rotDeg)) ? Number(obj.rotDeg) : 0;
+        const rot = rotDeg * Math.PI / 180;
 
         if (url) {
           const img = loadSprite(url);
           if (img && img.complete) {
-            ctx.drawImage(img, center.x - size / 2, center.y - size / 2, size, size);
+            ctx.save();
+            ctx.translate(center.x, center.y);
+            if (rot) ctx.rotate(rot);
+            ctx.drawImage(img, -sizeW / 2, -sizeH / 2, sizeW, sizeH);
+            ctx.restore();
             return;
           }
         }
 
+        ctx.save();
+        ctx.translate(center.x, center.y);
+        if (rot) ctx.rotate(rot);
         ctx.fillStyle = '#2b2f3a';
-        ctx.fillRect(center.x - size / 2, center.y - size / 2, size, size);
+        ctx.fillRect(-sizeW / 2, -sizeH / 2, sizeW, sizeH);
         ctx.strokeStyle = '#4a5568';
-        ctx.strokeRect(center.x - size / 2, center.y - size / 2, size, size);
+        ctx.strokeRect(-sizeW / 2, -sizeH / 2, sizeW, sizeH);
         ctx.fillStyle = '#cfd6df';
         ctx.font = `${10 * VIEW.zoom}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(obj.name || obj.kind || 'obj', center.x, center.y);
+        ctx.fillText(obj.name || obj.kind || 'obj', 0, 0);
+        ctx.restore();
       }
 
       function drawToken(token) {
@@ -869,8 +896,8 @@
 
         const objects = floor.objects || [];
         const object = nearestItem(objects, screenPoint, o => {
-          const pos = parseHexLabel(o.hex);
-          return pos ? worldToScreen(hexToWorld(pos.col, pos.row)) : null;
+          const world = objectWorldCenter(o);
+          return world ? worldToScreen(world) : null;
         }, 18);
         if (object) return { type: 'object', item: object, floorId: floor.id };
 
