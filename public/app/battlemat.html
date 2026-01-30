@@ -671,6 +671,7 @@ Changelog:
           <div class="mini" style="opacity:0.7;">Opening</div>
           <div class="mini">Kind <input id="openingKind" type="text" list="openingKindList" placeholder="door.wood" /></div>
           <div class="mini">Hex <input id="openingHex" type="text" placeholder="M17" /></div>
+          <div class="mini">Seam <input id="openingSeam" type="text" placeholder="stone_cobble" /></div>
           <div class="mini">Orient
             <select id="openingOrientation">
               <option value="h">h</option>
@@ -796,6 +797,7 @@ Changelog:
     btnObjFront: getEl('btnObjFront'),
     openingKind: getEl('openingKind'),
     openingHex: getEl('openingHex'),
+    openingSeam: getEl('openingSeam'),
     openingOrientation: getEl('openingOrientation'),
     openingOpenPct: getEl('openingOpenPct'),
     openingHinge: getEl('openingHinge'),
@@ -2976,6 +2978,7 @@ Changelog:
     EDITOR.openingUiLock = true;
     if (elOpeningKind) elOpeningKind.value = v.kind != null ? String(v.kind) : '';
     if (elOpeningHex) elOpeningHex.value = v.hex != null ? String(v.hex) : '';
+    if (elOpeningSeam) elOpeningSeam.value = v.seam != null ? String(v.seam) : '';
     if (elOpeningOrientation) elOpeningOrientation.value = v.orientation != null ? String(v.orientation) : 'h';
     if (elOpeningOpenPct) elOpeningOpenPct.value = v.openPct != null ? String(v.openPct) : '';
     if (elOpeningHinge) elOpeningHinge.value = v.hinge != null ? String(v.hinge) : '';
@@ -2987,6 +2990,7 @@ Changelog:
     return {
       kind: elOpeningKind ? String(elOpeningKind.value || '').trim() : '',
       hex: elOpeningHex ? String(elOpeningHex.value || '').trim() : '',
+      seam: elOpeningSeam ? String(elOpeningSeam.value || '').trim() : '',
       orientation: elOpeningOrientation ? String(elOpeningOrientation.value || '').trim() : '',
       openPct: elOpeningOpenPct ? String(elOpeningOpenPct.value || '').trim() : '',
       hinge: elOpeningHinge ? String(elOpeningHinge.value || '').trim() : '',
@@ -3005,9 +3009,11 @@ Changelog:
     const openPct = Number.isFinite(Number(opening.openPct)) ? Number(opening.openPct) : 0;
     const hinge = opening.hinge != null ? String(opening.hinge) : '';
     const swing = opening.swing != null ? String(opening.swing) : '';
+    const seam = opening.seam_kind != null ? String(opening.seam_kind) : (opening.seamKind != null ? String(opening.seamKind) : '');
     setOpeningControls({
       kind,
       hex,
+      seam,
       orientation,
       openPct,
       hinge,
@@ -3021,6 +3027,7 @@ Changelog:
 
     const kindRaw = String(values.kind || '').trim();
     const hexRaw = String(values.hex || '').trim();
+    const seamRaw = String(values.seam || '').trim();
     const orientRaw = String(values.orientation || '').trim();
     const openPctRaw = String(values.openPct != null ? values.openPct : '').trim();
     const hingeRaw = String(values.hinge || '').trim();
@@ -3064,6 +3071,16 @@ Changelog:
         sel.openPct = nextOpen;
         changed = true;
       }
+    }
+
+    if (seamRaw !== '') {
+      if (sel.seam_kind !== seamRaw) {
+        sel.seam_kind = seamRaw;
+        changed = true;
+      }
+    } else if (sel.seam_kind != null && sel.seam_kind !== '') {
+      delete sel.seam_kind;
+      changed = true;
     }
 
     if (hingeRaw !== '') {
@@ -6173,12 +6190,16 @@ const EMBEDDED_WORLD_JSON = `{
     const rid = openingPreferredRoomId(opening, roomMetaAll);
     const room = rid ? roomById(rooms, rid) : null;
     const fk = room ? roomFloorKind(room) : 'wood';
+    const openingSeamOverride =
+      (opening && (opening.seam_kind || opening.seamKind))
+        ? String(opening.seam_kind || opening.seamKind).toLowerCase()
+        : '';
     const seamOverride =
       (room && room.floor && (room.floor.seam_kind || room.floor.seamKind))
         ? String(room.floor.seam_kind || room.floor.seamKind).toLowerCase()
         : '';
     const imgDef = (FLOOR_IMAGES && fk in FLOOR_IMAGES) ? FLOOR_IMAGES[fk] : null;
-    const seamKind = seamOverride || (imgDef && imgDef.seamKind ? String(imgDef.seamKind) : fk);
+    const seamKind = openingSeamOverride || seamOverride || (imgDef && imgDef.seamKind ? String(imgDef.seamKind) : fk);
 
     if (!fogEnabled) return getFloorFillStyle(seamKind, wantTextures, ctx);
 
@@ -6227,7 +6248,11 @@ const EMBEDDED_WORLD_JSON = `{
       const rid = openingPreferredRoomId(o, roomMetaAll);
       const room = rid ? roomById(rooms, rid) : null;
       const fk = room ? roomFloorKind(room) : 'wood';
-      const imgDef = (FLOOR_IMAGES && fk in FLOOR_IMAGES) ? FLOOR_IMAGES[fk] : null;
+      const openingSeamOverride =
+        (o && (o.seam_kind || o.seamKind))
+          ? String(o.seam_kind || o.seamKind).toLowerCase()
+          : '';
+      const imgDef = (!openingSeamOverride && FLOOR_IMAGES && fk in FLOOR_IMAGES) ? FLOOR_IMAGES[fk] : null;
       const isVisible = !fogEnabled || (RENDER_FOG && rid && RENDER_FOG.visible && RENDER_FOG.visible.has(rid));
 
       ctx.save();
@@ -7917,6 +7942,7 @@ function setActiveFloor(floorId, opts = {}) {
     const btnObjFront = req('btnObjFront');
     const openingKind = req('openingKind');
     const openingHex = req('openingHex');
+    const openingSeam = req('openingSeam');
     const openingOrientation = req('openingOrientation');
     const openingOpenPct = req('openingOpenPct');
     const openingHinge = req('openingHinge');
@@ -7988,6 +8014,10 @@ function setActiveFloor(floorId, opts = {}) {
     if (openingHex) {
       openingHex.onchange = () => onOpeningControlChange();
       openingHex.onkeydown = (ev) => { if (ev.key === 'Enter') onOpeningControlChange(); };
+    }
+    if (openingSeam) {
+      openingSeam.onchange = () => onOpeningControlChange();
+      openingSeam.onkeydown = (ev) => { if (ev.key === 'Enter') onOpeningControlChange(); };
     }
     if (openingOrientation) openingOrientation.onchange = () => onOpeningControlChange();
     if (openingOpenPct) openingOpenPct.oninput = () => onOpeningControlChange();
