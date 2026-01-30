@@ -390,6 +390,39 @@
         return state;
       }
 
+      function extractScene(raw) {
+        if (!raw || typeof raw !== 'object') return { scene: { floors: [] }, wrapper: null, recordId: '' };
+        if (raw.records && typeof raw.records === 'object') {
+          const activeId = raw.active && raw.active.recordId ? String(raw.active.recordId) : '';
+          let recordId = activeId;
+          let scene = recordId && raw.records[recordId] ? raw.records[recordId] : null;
+          if (!scene) {
+            const keys = Object.keys(raw.records);
+            if (keys.length) {
+              recordId = keys[0];
+              scene = raw.records[recordId];
+            }
+          }
+          if (!scene || typeof scene !== 'object') return { scene: { floors: [] }, wrapper: raw, recordId: recordId || '' };
+          return { scene, wrapper: raw, recordId: recordId || '' };
+        }
+        return { scene: raw, wrapper: null, recordId: '' };
+      }
+
+      function applyViewFromState(scene) {
+        const view = scene && scene.view ? scene.view : {};
+        const floorId = view.floorId || view.floor_id || view.floor || null;
+        if (floorId) VIEW.floorId = String(floorId);
+        const camHex = view.camera_hex || view.cameraHex || null;
+        if (camHex) {
+          const p = parseHexLabel(camHex);
+          if (p) {
+            VIEW.camera.col = p.col;
+            VIEW.camera.row = p.row;
+          }
+        }
+      }
+
       function resolveBattleId() {
         const qp = getQueryParams();
         return qp.get('battle_id') || qp.get('battleId') || qp.get('id');
@@ -406,7 +439,11 @@
           const res = await fetch(devStateUrl, { cache: 'no-store' });
           if (!res.ok) throw new Error('Dev state load failed');
           const raw = await res.json();
-          STATE.battle = normalizeState(raw);
+          const extracted = extractScene(raw);
+          STATE.wrapper = extracted.wrapper;
+          STATE.recordId = extracted.recordId;
+          STATE.battle = normalizeState(extracted.scene);
+          applyViewFromState(STATE.battle);
           return;
         }
 
@@ -416,7 +453,11 @@
         if (!res.ok) throw new Error('Battle load failed');
         const data = await res.json();
         const raw = data && data.state_json ? JSON.parse(data.state_json) : data;
-        STATE.battle = normalizeState(raw);
+        const extracted = extractScene(raw);
+        STATE.wrapper = extracted.wrapper;
+        STATE.recordId = extracted.recordId;
+        STATE.battle = normalizeState(extracted.scene);
+        applyViewFromState(STATE.battle);
         STATE.battle._battle_id = data.battle_id || battleId;
         STATE.battle._campaign_id = data.campaign_id || data.campaignId || null;
       }
@@ -502,6 +543,34 @@
       function pickFloor() {
         const floors = STATE.battle ? STATE.battle.floors : [];
         return floors.find(f => f.id === VIEW.floorId) || floors[0];
+      }
+
+      function autoCenterCamera() {
+        if (!STATE.battle) return;
+        const view = STATE.battle.view || {};
+        if (view.camera_hex || view.cameraHex) return;
+        const floor = pickFloor();
+        if (!floor) return;
+        let target = null;
+        if (Array.isArray(floor.rooms) && floor.rooms.length) {
+          const corners = Array.isArray(floor.rooms[0].corners) ? floor.rooms[0].corners : [];
+          const pts = corners.map(parseHexLabel).filter(Boolean);
+          if (pts.length) {
+            const avg = pts.reduce((acc, p) => ({ col: acc.col + p.col, row: acc.row + p.row }), { col: 0, row: 0 });
+            target = { col: avg.col / pts.length, row: avg.row / pts.length };
+          }
+        }
+        if (!target && Array.isArray(floor.objects) && floor.objects.length) {
+          target = parseHexLabel(floor.objects[0].hex);
+        }
+        if (!target) {
+          const tokens = buildTokens();
+          if (tokens.length) target = parseHexLabel(tokens[0].hex);
+        }
+        if (target) {
+          VIEW.camera.col = Math.round(target.col);
+          VIEW.camera.row = Math.round(target.row);
+        }
       }
 
       function drawRoom(room) {
@@ -946,7 +1015,16 @@
         if (!battleId || !STATE.battle) return;
         saveStatus.textContent = 'DB: saving...';
         try {
-          const body = JSON.stringify({ state_json: STATE.battle });
+          let payloadState = STATE.battle;
+          if (STATE.wrapper && STATE.recordId) {
+            const wrapper = STATE.wrapper;
+            if (!wrapper.records || typeof wrapper.records !== 'object') wrapper.records = {};
+            wrapper.records[STATE.recordId] = STATE.battle;
+            if (!wrapper.active || typeof wrapper.active !== 'object') wrapper.active = { recordId: STATE.recordId };
+            if (!wrapper.active.recordId) wrapper.active.recordId = STATE.recordId;
+            payloadState = wrapper;
+          }
+          const body = JSON.stringify({ state_json: payloadState });
           const res = await fetch(`/api/battles/${encodeURIComponent(battleId)}`, {
             method: 'PUT',
             headers: { 'content-type': 'application/json', 'accept': 'application/json', ...getAuthHeaders() },
@@ -1011,6 +1089,7 @@
         await loadCampaign();
         setFloorOptions();
         VIEW.zoom = Number(zoomInput.value);
+        autoCenterCamera();
         renderStatus();
         attachEvents();
         render();
