@@ -5757,7 +5757,7 @@ const EMBEDDED_WORLD_JSON = `{
     const thickness = openingWallThickness(opening, wallSegs, rooms, roomMetaAll);
 
     const c = worldToScreen({ x: cx, y: cy });
-    const len = (GRID.size * 1.2) * openingSpan(opening);
+    const len = (GRID.size * 1.5) * openingSpan(opening);
     const openPct = clamp(Number(opening && opening.openPct != null ? opening.openPct : 0), 0, 1);
 
     ctx.save();
