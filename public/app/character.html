@@ -765,7 +765,7 @@
   <div class="topbar">
     <div class="brand">Saffrondale Character Sheet</div>
     <div class="nav">
-      <a id="backLink" href="/app/battlemat.html">Back to battlemat</a>
+      <a id="backLink" href="/app/battlemat_next.html">Back to battlemat</a>
       <a id="playerDashLink" href="/app/player.html">Player Dashboard</a>
       <button id="uploadPortraitBtn" type="button">Upload Portrait</button>
       <input id="portraitUpload" type="file" accept="image/jpeg" hidden />
@@ -1901,7 +1901,7 @@
       let useSample = false;
       const battleId = params.get('battle_id') || params.get('battleId') || params.get('battle');
       if (battleId && elBackLink) {
-        elBackLink.href = '/app/battlemat.html?battle_id=' + encodeURIComponent(battleId);
+        elBackLink.href = '/app/battlemat_next.html?battle_id=' + encodeURIComponent(battleId);
       }
       let detailsState = null;
 
