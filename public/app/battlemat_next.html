@@ -1,1 +1,1026 @@
 
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Battlemat Next</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0c0f14;
+      --panel: #131722;
+      --panel-2: #0f141c;
+      --accent: #6fd3ff;
+      --text: #e6ecf3;
+      --muted: #97a2b3;
+      --danger: #ff7a7a;
+      --success: #63d18d;
+      --grid: rgba(255,255,255,0.06);
+      --room-outline: rgba(255,255,255,0.18);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.4 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+    }
+
+    #app {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      min-height: 100vh;
+    }
+
+    #canvasWrap {
+      position: relative;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #toolbar {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: rgba(15,20,28,0.85);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      backdrop-filter: blur(8px);
+      z-index: 10;
+    }
+
+    #toolbar select, #toolbar input, #toolbar button {
+      background: #0f141c;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 13px;
+    }
+
+    #toolbar button {
+      cursor: pointer;
+    }
+
+    #toolbar .toolBtn.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(111,211,255,0.35) inset;
+    }
+
+    #toolbar .status {
+      padding: 0 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    #sidebar {
+      background: var(--panel);
+      border-left: 1px solid rgba(255,255,255,0.08);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    section {
+      background: var(--panel-2);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    section h3 {
+      margin: 0 0 8px 0;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .row input, .row select, .row textarea {
+      background: #0f141c;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 13px;
+    }
+
+    .row input[readonly] {
+      opacity: 0.6;
+    }
+
+    #statusList {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 240px;
+      overflow: auto;
+    }
+
+    .statusItem {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px;
+      align-items: center;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .statusItem .meta { color: var(--muted); font-size: 12px; }
+
+    #inspectorEmpty {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .btnRow {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .btnRow button {
+      flex: 1;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: #0f141c;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .warning {
+      color: var(--danger);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvasWrap">
+      <canvas id="map"></canvas>
+      <div id="toolbar">
+        <button id="toolSelect" class="toolBtn active">Select</button>
+        <button id="toolRoom" class="toolBtn">Room</button>
+        <button id="toolOpening" class="toolBtn">Opening</button>
+        <button id="toolObject" class="toolBtn">Object</button>
+        <button id="toolToken" class="toolBtn">Token</button>
+        <button id="toolDelete" class="toolBtn">Delete</button>
+        <select id="floorSelect"></select>
+        <label class="status">Zoom</label>
+        <input id="zoom" type="range" min="0.25" max="4" step="0.05" value="1" />
+        <button id="btnSave">Save</button>
+        <span id="saveStatus" class="status">DB: idle</span>
+      </div>
+    </div>
+
+    <aside id="sidebar">
+      <section>
+        <h3>Status</h3>
+        <div id="statusList"></div>
+      </section>
+
+      <section>
+        <h3>Inspector</h3>
+        <div id="inspectorEmpty">Select something to edit.</div>
+        <div id="inspectorFields" hidden></div>
+      </section>
+    </aside>
+  </div>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById('map');
+      const ctx = canvas.getContext('2d');
+
+      const toolButtons = {
+        select: document.getElementById('toolSelect'),
+        room: document.getElementById('toolRoom'),
+        opening: document.getElementById('toolOpening'),
+        object: document.getElementById('toolObject'),
+        token: document.getElementById('toolToken'),
+        delete: document.getElementById('toolDelete'),
+      };
+
+      const floorSelect = document.getElementById('floorSelect');
+      const zoomInput = document.getElementById('zoom');
+      const saveButton = document.getElementById('btnSave');
+      const saveStatus = document.getElementById('saveStatus');
+      const statusList = document.getElementById('statusList');
+      const inspectorEmpty = document.getElementById('inspectorEmpty');
+      const inspectorFields = document.getElementById('inspectorFields');
+
+      const GRID = { size: 32 };
+      const VIEW = { camera: { col: 0, row: 0 }, zoom: 1, floorId: '' };
+      const STATE = { battle: null, campaign: null, entities: [] };
+      const EDITOR = { tool: 'select', selection: null, roomStart: null, dirty: false };
+
+      const FLOOR_COLORS = {
+        fog: '#0e1117',
+        wood: '#2a1f17',
+        wood_oak: '#3a2b1e',
+        cobble: '#45474a',
+        stone: '#3f3f3f',
+        default: '#1a1f2a'
+      };
+
+      const WALL_COLORS = {
+        brick: '#3d2b23',
+        brick_dark: '#2c1e19',
+        wood_dark: '#2b231a',
+        none: 'transparent',
+        default: '#2d2f33'
+      };
+
+      const SPRITE_MAP = {
+        'poi.view': '/assets/sprites/cross_keys.png'
+      };
+
+      function colStep() { return 1.5 * GRID.size; }
+      function rowStep() { return Math.sqrt(3) * GRID.size; }
+
+      function hexToWorld(col, row) {
+        const x = col * colStep();
+        const y = -(row * rowStep() + (col & 1) * (rowStep() / 2));
+        return { x, y };
+      }
+
+      function worldToScreen(p) {
+        const cam = hexToWorld(VIEW.camera.col, VIEW.camera.row);
+        const w = canvas.width / devicePixelRatio;
+        const h = canvas.height / devicePixelRatio;
+        return {
+          x: w / 2 + (p.x - cam.x) * VIEW.zoom,
+          y: h / 2 + (p.y - cam.y) * VIEW.zoom,
+        };
+      }
+
+      function screenToWorld(x, y) {
+        const cam = hexToWorld(VIEW.camera.col, VIEW.camera.row);
+        const w = canvas.width / devicePixelRatio;
+        const h = canvas.height / devicePixelRatio;
+        const wx = (x - w / 2) / VIEW.zoom + cam.x;
+        const wy = (y - h / 2) / VIEW.zoom + cam.y;
+        return { x: wx, y: wy };
+      }
+
+      function axialToCube(q, r) {
+        return { x: q, z: r, y: -q - r };
+      }
+
+      function cubeRound(c) {
+        let rx = Math.round(c.x);
+        let ry = Math.round(c.y);
+        let rz = Math.round(c.z);
+        const dx = Math.abs(rx - c.x);
+        const dy = Math.abs(ry - c.y);
+        const dz = Math.abs(rz - c.z);
+        if (dx > dy && dx > dz) rx = -ry - rz;
+        else if (dy > dz) ry = -rx - rz;
+        else rz = -rx - ry;
+        return { x: rx, y: ry, z: rz };
+      }
+
+      function worldToHex(p) {
+        const size = GRID.size;
+        const q = (2 / 3 * p.x) / size;
+        const r = (-1 / 3 * p.x + Math.sqrt(3) / 3 * p.y) / size;
+        const cube = axialToCube(q, r);
+        const rounded = cubeRound(cube);
+        const col = rounded.x;
+        const row = rounded.z + (rounded.x - (rounded.x & 1)) / 2;
+        return { col, row };
+      }
+
+      function indexToLetters(idx) {
+        let n = idx;
+        let out = '';
+        while (n >= 0) {
+          out = String.fromCharCode(65 + (n % 26)) + out;
+          n = Math.floor(n / 26) - 1;
+        }
+        return out;
+      }
+
+      function lettersToIndex(letters) {
+        let n = 0;
+        for (let i = 0; i < letters.length; i++) {
+          n = n * 26 + (letters.charCodeAt(i) - 64);
+        }
+        return n - 1;
+      }
+
+      function toHexLabel(col, row) {
+        return indexToLetters(col) + String(row + 1);
+      }
+
+      function parseHexLabel(label) {
+        if (!label) return null;
+        const m = String(label).trim().toUpperCase().match(/^([A-Z]+)(-?\d+(?:\.\d+)?)$/);
+        if (!m) return null;
+        const col = lettersToIndex(m[1]);
+        const row = parseFloat(m[2]) - 1;
+        return { col, row };
+      }
+
+      function getQueryParams() {
+        return new URLSearchParams(window.location.search || '');
+      }
+
+      function getAuthHeaders() {
+        const qp = getQueryParams();
+        const token = (qp.get('token') || qp.get('auth') || qp.get('bearer') || '').trim();
+        if (!token) return {};
+        return { Authorization: 'Bearer ' + token };
+      }
+
+      function setTool(tool) {
+        EDITOR.tool = tool;
+        Object.entries(toolButtons).forEach(([key, btn]) => {
+          if (!btn) return;
+          btn.classList.toggle('active', key === tool);
+        });
+        EDITOR.roomStart = null;
+      }
+
+      function normalizeState(state) {
+        if (!state || typeof state !== 'object') return { floors: [] };
+        if (!Array.isArray(state.floors)) {
+          const floorId = state.view && state.view.floorId ? String(state.view.floorId) : 'ground';
+          state.floors = [{
+            id: floorId,
+            name: floorId,
+            rooms: Array.isArray(state.rooms) ? state.rooms : [],
+            openings: Array.isArray(state.openings) ? state.openings : [],
+            objects: Array.isArray(state.objects) ? state.objects : []
+          }];
+        }
+        for (const floor of state.floors) {
+          if (!floor || typeof floor !== 'object') continue;
+          floor.id = String(floor.id || 'floor');
+          if (!Array.isArray(floor.rooms)) floor.rooms = [];
+          if (!Array.isArray(floor.openings)) floor.openings = [];
+          if (!Array.isArray(floor.objects)) floor.objects = [];
+          for (const obj of floor.objects) {
+            if (obj && obj.floorId == null) obj.floorId = floor.id;
+          }
+        }
+        return state;
+      }
+
+      function resolveBattleId() {
+        const qp = getQueryParams();
+        return qp.get('battle_id') || qp.get('battleId') || qp.get('id');
+      }
+
+      async function loadBattle() {
+        const battleId = resolveBattleId();
+        if (!battleId) throw new Error('Missing battle_id');
+
+        const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+        const qp = getQueryParams();
+        const devStateUrl = isLocal ? (qp.get('dev_state') || qp.get('state_url') || '') : '';
+        if (devStateUrl) {
+          const res = await fetch(devStateUrl, { cache: 'no-store' });
+          if (!res.ok) throw new Error('Dev state load failed');
+          const raw = await res.json();
+          STATE.battle = normalizeState(raw);
+          return;
+        }
+
+        const res = await fetch(`/api/battles/${encodeURIComponent(battleId)}`, {
+          headers: { 'accept': 'application/json', ...getAuthHeaders() }
+        });
+        if (!res.ok) throw new Error('Battle load failed');
+        const data = await res.json();
+        const raw = data && data.state_json ? JSON.parse(data.state_json) : data;
+        STATE.battle = normalizeState(raw);
+        STATE.battle._battle_id = data.battle_id || battleId;
+        STATE.battle._campaign_id = data.campaign_id || data.campaignId || null;
+      }
+
+      function getCampaignId() {
+        return STATE.battle && (STATE.battle._campaign_id || STATE.battle.campaign_id || STATE.battle.campaignId) || null;
+      }
+
+      async function loadCampaign() {
+        const cid = getCampaignId();
+        if (!cid) return;
+        const res = await fetch(`/api/campaigns/${encodeURIComponent(cid)}`, {
+          headers: { 'accept': 'application/json', ...getAuthHeaders() }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        let meta = data.meta_json || data.metaJson || null;
+        if (typeof meta === 'string') {
+          try { meta = JSON.parse(meta); } catch { meta = null; }
+        }
+        STATE.campaign = meta || {};
+        STATE.entities = (STATE.campaign.world && Array.isArray(STATE.campaign.world.entities))
+          ? STATE.campaign.world.entities
+          : [];
+      }
+
+      function resolvePoiId() {
+        const campaign = STATE.campaign || {};
+        const index = campaign.poi_index || (campaign.world && campaign.world.poi_index) || null;
+        const bid = STATE.battle && STATE.battle._battle_id;
+        if (!index || !bid) return '';
+        for (const [poi, battleId] of Object.entries(index)) {
+          if (String(battleId) === String(bid)) return String(poi);
+        }
+        return '';
+      }
+
+      function buildTokens() {
+        const poiId = resolvePoiId();
+        const entities = Array.isArray(STATE.entities) ? STATE.entities : [];
+        return entities
+          .filter(e => e && (!e.poi_id || e.poi_id === poiId))
+          .map(e => {
+            const loc = e.location || e.position || {};
+            const hex = e.hex || loc.hex || '';
+            const floorId = e.floorId || loc.floorId || loc.floor_id || e.floor_id || '';
+            return {
+              id: String(e.id || e.character_id || ''),
+              name: e.name || e.label || e.title || e.id,
+              hex,
+              floorId,
+              kind: e.kind || 'pc',
+              hp: e.hp || (e.stats && e.stats.hp) || null,
+              init: e.init || (e.stats && e.stats.init) || null,
+              side: e.side || (e.kind === 'npc' ? 'NPC' : 'PC')
+            };
+          });
+      }
+      function renderStatus() {
+        statusList.innerHTML = '';
+        const tokens = buildTokens();
+        for (const t of tokens) {
+          const div = document.createElement('div');
+          div.className = 'statusItem';
+          div.innerHTML = `<div><strong>${t.name || t.id}</strong><div class="meta">${t.floorId || ''}</div></div><div class="meta">${t.hp != null ? t.hp : '-'} / ${t.init != null ? t.init : '-'}</div>`;
+          statusList.appendChild(div);
+        }
+      }
+
+      function setFloorOptions() {
+        floorSelect.innerHTML = '';
+        const floors = STATE.battle ? STATE.battle.floors : [];
+        floors.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.id;
+          opt.textContent = f.name || f.id;
+          floorSelect.appendChild(opt);
+        });
+        if (!VIEW.floorId && floors[0]) VIEW.floorId = floors[0].id;
+        floorSelect.value = VIEW.floorId;
+      }
+
+      function pickFloor() {
+        const floors = STATE.battle ? STATE.battle.floors : [];
+        return floors.find(f => f.id === VIEW.floorId) || floors[0];
+      }
+
+      function drawRoom(room) {
+        const corners = Array.isArray(room.corners) ? room.corners : [];
+        if (corners.length < 4) return;
+        const points = corners.map(c => {
+          const p = parseHexLabel(c);
+          if (!p) return null;
+          return worldToScreen(hexToWorld(p.col, p.row));
+        }).filter(Boolean);
+        if (!points.length) return;
+
+        const fk = room.floor && room.floor.kind ? String(room.floor.kind) : 'default';
+        const floorColor = FLOOR_COLORS[fk] || FLOOR_COLORS.default;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+        ctx.closePath();
+        ctx.fillStyle = floorColor;
+        ctx.globalAlpha = 1;
+        ctx.fill();
+
+        const wk = room.wall && room.wall.kind ? String(room.wall.kind) : 'default';
+        const wallColor = WALL_COLORS[wk] || WALL_COLORS.default;
+        if (wk !== 'none') {
+          ctx.strokeStyle = wallColor;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      }
+
+      function drawOpening(opening) {
+        const p = parseHexLabel(opening.hex);
+        if (!p) return;
+        const center = worldToScreen(hexToWorld(p.col, p.row));
+        const orient = opening.orientation === 'v' ? 'v' : 'h';
+        const len = GRID.size * 1.2 * VIEW.zoom;
+        const thick = GRID.size * 0.25 * VIEW.zoom;
+        ctx.save();
+        ctx.translate(center.x, center.y);
+        if (orient === 'v') ctx.rotate(Math.PI / 2);
+        ctx.fillStyle = '#9a6b3a';
+        ctx.fillRect(-len / 2, -thick / 2, len, thick);
+        ctx.restore();
+      }
+
+      const spriteCache = new Map();
+      function loadSprite(url) {
+        if (!url) return null;
+        if (spriteCache.has(url)) return spriteCache.get(url);
+        const img = new Image();
+        img.src = url;
+        spriteCache.set(url, img);
+        return img;
+      }
+
+      function drawObject(obj) {
+        const p = parseHexLabel(obj.hex);
+        if (!p) return;
+        const center = worldToScreen(hexToWorld(p.col, p.row));
+        const url = obj.sprite || obj.spriteFile || SPRITE_MAP[obj.kind];
+        const size = GRID.size * (obj.spriteScale || 1) * VIEW.zoom;
+
+        if (url) {
+          const img = loadSprite(url);
+          if (img && img.complete) {
+            ctx.drawImage(img, center.x - size / 2, center.y - size / 2, size, size);
+            return;
+          }
+        }
+
+        ctx.fillStyle = '#2b2f3a';
+        ctx.fillRect(center.x - size / 2, center.y - size / 2, size, size);
+        ctx.strokeStyle = '#4a5568';
+        ctx.strokeRect(center.x - size / 2, center.y - size / 2, size, size);
+        ctx.fillStyle = '#cfd6df';
+        ctx.font = `${10 * VIEW.zoom}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(obj.name || obj.kind || 'obj', center.x, center.y);
+      }
+
+      function drawToken(token) {
+        const p = parseHexLabel(token.hex);
+        if (!p) return;
+        const center = worldToScreen(hexToWorld(p.col, p.row));
+        const r = GRID.size * 0.35 * VIEW.zoom;
+        ctx.fillStyle = token.side === 'NPC' ? '#c95c5c' : '#5ca9c9';
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#0b0f14';
+        ctx.font = `${11 * VIEW.zoom}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const label = token.name ? token.name[0].toUpperCase() : '?';
+        ctx.fillText(label, center.x, center.y);
+      }
+
+      function render() {
+        if (!STATE.battle) return;
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        const floor = pickFloor();
+        if (!floor) return;
+
+        const rooms = floor.rooms || [];
+        const openings = floor.openings || [];
+        const objects = floor.objects || [];
+        const tokens = buildTokens().filter(t => !t.floorId || t.floorId === floor.id);
+
+        rooms.forEach(drawRoom);
+        openings.forEach(drawOpening);
+        objects.forEach(drawObject);
+        tokens.forEach(drawToken);
+      }
+
+      function updateInspector() {
+        const sel = EDITOR.selection;
+        if (!sel) {
+          inspectorEmpty.hidden = false;
+          inspectorFields.hidden = true;
+          inspectorFields.innerHTML = '';
+          return;
+        }
+
+        inspectorEmpty.hidden = true;
+        inspectorFields.hidden = false;
+        inspectorFields.innerHTML = '';
+
+        const addField = (label, value, key, opts = {}) => {
+          const row = document.createElement('div');
+          row.className = 'row';
+          const lab = document.createElement('label');
+          lab.textContent = label;
+          const input = document.createElement('input');
+          input.value = value == null ? '' : String(value);
+          if (opts.readonly) input.readOnly = true;
+          input.addEventListener('input', () => {
+            applyFieldChange(key, input.value);
+          });
+          row.appendChild(lab);
+          row.appendChild(input);
+          inspectorFields.appendChild(row);
+        };
+
+        if (sel.type === 'room') {
+          addField('Type', 'room', 'type', { readonly: true });
+          addField('ID', sel.item.id, 'id', { readonly: true });
+          addField('Name', sel.item.name || '', 'name');
+          addField('Floor', sel.floorId, 'floorId');
+          addField('Corner TL', sel.item.corners ? sel.item.corners[0] : '', 'cornerTL');
+          addField('Corner BR', sel.item.corners ? sel.item.corners[2] : '', 'cornerBR');
+          addField('Floor Kind', sel.item.floor && sel.item.floor.kind ? sel.item.floor.kind : '', 'floor.kind');
+          addField('Wall Kind', sel.item.wall && sel.item.wall.kind ? sel.item.wall.kind : '', 'wall.kind');
+        }
+
+        if (sel.type === 'opening') {
+          addField('Type', 'opening', 'type', { readonly: true });
+          addField('ID', sel.item.id, 'id', { readonly: true });
+          addField('Name', sel.item.name || '', 'name');
+          addField('Kind', sel.item.kind || '', 'kind');
+          addField('Hex', sel.item.hex || '', 'hex');
+          addField('Orientation', sel.item.orientation || 'h', 'orientation');
+          addField('Open %', sel.item.openPct || 0, 'openPct');
+          addField('Seam', sel.item.seam_kind || '', 'seam_kind');
+        }
+
+        if (sel.type === 'object') {
+          addField('Type', 'object', 'type', { readonly: true });
+          addField('ID', sel.item.id, 'id', { readonly: true });
+          addField('Name', sel.item.name || '', 'name');
+          addField('Kind', sel.item.kind || '', 'kind');
+          addField('Hex', sel.item.hex || '', 'hex');
+          addField('Floor', sel.item.floorId || '', 'floorId');
+          addField('Sprite', sel.item.sprite || sel.item.spriteFile || '', 'sprite');
+        }
+
+        if (sel.type === 'token') {
+          addField('Type', 'token', 'type', { readonly: true });
+          addField('ID', sel.item.id, 'id', { readonly: true });
+          addField('Name', sel.item.name || '', 'name');
+          addField('Hex', sel.item.hex || '', 'hex');
+          addField('Floor', sel.item.floorId || '', 'floorId');
+          addField('POI', sel.item.poi_id || '', 'poi_id');
+        }
+      }
+      function applyFieldChange(key, value) {
+        const sel = EDITOR.selection;
+        if (!sel) return;
+        const item = sel.item;
+
+        if (sel.type === 'room') {
+          if (key === 'name') item.name = value;
+          if (key === 'floorId') moveRoomToFloor(item, value);
+          if (key === 'cornerTL' || key === 'cornerBR') updateRoomCorners(item, key, value);
+          if (key === 'floor.kind') {
+            item.floor = item.floor || {};
+            item.floor.kind = value;
+          }
+          if (key === 'wall.kind') {
+            item.wall = item.wall || {};
+            item.wall.kind = value;
+          }
+        }
+
+        if (sel.type === 'opening') {
+          if (key === 'name') item.name = value;
+          if (key === 'kind') item.kind = value;
+          if (key === 'hex') item.hex = value;
+          if (key === 'orientation') item.orientation = value;
+          if (key === 'openPct') item.openPct = Number(value) || 0;
+          if (key === 'seam_kind') item.seam_kind = value;
+        }
+
+        if (sel.type === 'object') {
+          if (key === 'name') item.name = value;
+          if (key === 'kind') item.kind = value;
+          if (key === 'hex') item.hex = value;
+          if (key === 'floorId') item.floorId = value;
+          if (key === 'sprite') item.sprite = value;
+        }
+
+        if (sel.type === 'token') {
+          if (key === 'name') item.name = value;
+          if (key === 'hex') item.hex = value;
+          if (key === 'floorId') item.floorId = value;
+          if (key === 'poi_id') item.poi_id = value;
+          queueEntitySave(item);
+        }
+
+        EDITOR.dirty = true;
+        render();
+      }
+
+      function updateRoomCorners(room, key, value) {
+        const corners = Array.isArray(room.corners) ? room.corners.slice() : [];
+        if (corners.length < 4) return;
+        if (key === 'cornerTL') corners[0] = value;
+        if (key === 'cornerBR') corners[2] = value;
+        room.corners = corners;
+      }
+
+      function moveRoomToFloor(room, floorId) {
+        const floors = STATE.battle.floors;
+        const source = floors.find(f => f.rooms.includes(room));
+        const target = floors.find(f => f.id === floorId);
+        if (!source || !target) return;
+        source.rooms = source.rooms.filter(r => r !== room);
+        target.rooms.push(room);
+        EDITOR.selection.floorId = floorId;
+      }
+
+      function selectItem(type, item, floorId) {
+        EDITOR.selection = { type, item, floorId };
+        updateInspector();
+      }
+
+      function clearSelection() {
+        EDITOR.selection = null;
+        updateInspector();
+      }
+
+      function nearestItem(list, point, getPos, maxDist = 20) {
+        let best = null;
+        let bestD = Infinity;
+        for (const item of list) {
+          const pos = getPos(item);
+          if (!pos) continue;
+          const dx = pos.x - point.x;
+          const dy = pos.y - point.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < bestD && d <= maxDist) {
+            bestD = d;
+            best = item;
+          }
+        }
+        return best;
+      }
+
+      function findSelectionAt(worldPoint) {
+        const floor = pickFloor();
+        if (!floor) return null;
+        const screenPoint = worldToScreen(worldPoint);
+
+        const tokens = buildTokens().filter(t => !t.floorId || t.floorId === floor.id);
+        const token = nearestItem(tokens, screenPoint, t => {
+          const pos = parseHexLabel(t.hex);
+          return pos ? worldToScreen(hexToWorld(pos.col, pos.row)) : null;
+        }, 18);
+        if (token) return { type: 'token', item: token, floorId: floor.id };
+
+        const objects = floor.objects || [];
+        const object = nearestItem(objects, screenPoint, o => {
+          const pos = parseHexLabel(o.hex);
+          return pos ? worldToScreen(hexToWorld(pos.col, pos.row)) : null;
+        }, 18);
+        if (object) return { type: 'object', item: object, floorId: floor.id };
+
+        const openings = floor.openings || [];
+        const opening = nearestItem(openings, screenPoint, o => {
+          const pos = parseHexLabel(o.hex);
+          return pos ? worldToScreen(hexToWorld(pos.col, pos.row)) : null;
+        }, 14);
+        if (opening) return { type: 'opening', item: opening, floorId: floor.id };
+
+        for (const room of floor.rooms) {
+          const corners = Array.isArray(room.corners) ? room.corners : [];
+          const poly = corners.map(c => {
+            const p = parseHexLabel(c);
+            if (!p) return null;
+            return worldToScreen(hexToWorld(p.col, p.row));
+          }).filter(Boolean);
+          if (poly.length && pointInPolygon(screenPoint, poly)) {
+            return { type: 'room', item: room, floorId: floor.id };
+          }
+        }
+
+        return null;
+      }
+
+      function pointInPolygon(point, vs) {
+        let inside = false;
+        for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+          const xi = vs[i].x, yi = vs[i].y;
+          const xj = vs[j].x, yj = vs[j].y;
+          const intersect = ((yi > point.y) !== (yj > point.y)) &&
+            (point.x < (xj - xi) * (point.y - yi) / (yj - yi + 0.00001) + xi);
+          if (intersect) inside = !inside;
+        }
+        return inside;
+      }
+
+      function handleCanvasClick(ev) {
+        const rect = canvas.getBoundingClientRect();
+        const x = ev.clientX - rect.left;
+        const y = ev.clientY - rect.top;
+        const world = screenToWorld(x, y);
+        const hex = worldToHex(world);
+        const hexLabel = toHexLabel(hex.col, hex.row);
+        const floor = pickFloor();
+        if (!floor) return;
+
+        if (EDITOR.tool === 'select') {
+          const sel = findSelectionAt(world);
+          if (sel) selectItem(sel.type, sel.item, sel.floorId);
+          else clearSelection();
+          return;
+        }
+
+        if (EDITOR.tool === 'delete') {
+          const sel = findSelectionAt(world);
+          if (!sel) return;
+          if (sel.type === 'room') floor.rooms = floor.rooms.filter(r => r !== sel.item);
+          if (sel.type === 'opening') floor.openings = floor.openings.filter(o => o !== sel.item);
+          if (sel.type === 'object') floor.objects = floor.objects.filter(o => o !== sel.item);
+          clearSelection();
+          EDITOR.dirty = true;
+          render();
+          return;
+        }
+
+        if (EDITOR.tool === 'room') {
+          if (!EDITOR.roomStart) {
+            EDITOR.roomStart = hex;
+            return;
+          }
+          const start = EDITOR.roomStart;
+          EDITOR.roomStart = null;
+          const minCol = Math.min(start.col, hex.col);
+          const maxCol = Math.max(start.col, hex.col);
+          const minRow = Math.min(start.row, hex.row);
+          const maxRow = Math.max(start.row, hex.row);
+          const room = {
+            id: 'room_' + Date.now().toString(36),
+            corners: [
+              toHexLabel(minCol, maxRow),
+              toHexLabel(maxCol, maxRow),
+              toHexLabel(maxCol, minRow),
+              toHexLabel(minCol, minRow)
+            ],
+            thickness: 12,
+            floor: { kind: 'wood_oak' },
+            wall: { kind: 'brick' }
+          };
+          floor.rooms.push(room);
+          selectItem('room', room, floor.id);
+          EDITOR.dirty = true;
+          render();
+          return;
+        }
+
+        if (EDITOR.tool === 'opening') {
+          const opening = {
+            id: 'opening_' + Date.now().toString(36),
+            kind: 'door.wood',
+            hex: hexLabel,
+            orientation: 'h',
+            openPct: 0
+          };
+          floor.openings.push(opening);
+          selectItem('opening', opening, floor.id);
+          EDITOR.dirty = true;
+          render();
+          return;
+        }
+
+        if (EDITOR.tool === 'object') {
+          const obj = {
+            id: 'object_' + Date.now().toString(36),
+            kind: 'object',
+            hex: hexLabel,
+            floorId: floor.id
+          };
+          floor.objects.push(obj);
+          selectItem('object', obj, floor.id);
+          EDITOR.dirty = true;
+          render();
+          return;
+        }
+
+        if (EDITOR.tool === 'token') {
+          const token = {
+            id: 'token_' + Date.now().toString(36),
+            name: 'Token',
+            hex: hexLabel,
+            floorId: floor.id
+          };
+          selectItem('token', token, floor.id);
+          EDITOR.dirty = true;
+          render();
+        }
+      }
+
+      async function saveState() {
+        const battleId = resolveBattleId();
+        if (!battleId || !STATE.battle) return;
+        saveStatus.textContent = 'DB: saving...';
+        try {
+          const body = JSON.stringify({ state_json: STATE.battle });
+          const res = await fetch(`/api/battles/${encodeURIComponent(battleId)}`, {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json', 'accept': 'application/json', ...getAuthHeaders() },
+            body
+          });
+          if (!res.ok) throw new Error('Save failed');
+          saveStatus.textContent = 'DB: saved';
+          EDITOR.dirty = false;
+        } catch (e) {
+          saveStatus.textContent = 'DB: error';
+        }
+      }
+
+      let entitySaveTimer = null;
+      function queueEntitySave(token) {
+        if (!getCampaignId()) return;
+        if (entitySaveTimer) clearTimeout(entitySaveTimer);
+        entitySaveTimer = setTimeout(() => saveEntity(token), 400);
+      }
+
+      async function saveEntity(token) {
+        const cid = getCampaignId();
+        if (!cid) return;
+        const payload = {
+          entity_id: token.id,
+          patch: {
+            name: token.name,
+            poi_id: token.poi_id || resolvePoiId(),
+            location: { hex: token.hex, floorId: token.floorId }
+          },
+          create_if_missing: true
+        };
+        try {
+          await fetch(`/api/campaigns/${encodeURIComponent(cid)}/entities`, {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json', 'accept': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify(payload)
+          });
+        } catch {}
+      }
+
+      function attachEvents() {
+        Object.entries(toolButtons).forEach(([key, btn]) => {
+          if (!btn) return;
+          btn.addEventListener('click', () => setTool(key));
+        });
+        floorSelect.addEventListener('change', () => {
+          VIEW.floorId = floorSelect.value;
+          render();
+        });
+        zoomInput.addEventListener('input', () => {
+          VIEW.zoom = Number(zoomInput.value);
+          render();
+        });
+        saveButton.addEventListener('click', () => saveState());
+        canvas.addEventListener('click', handleCanvasClick);
+        window.addEventListener('resize', () => render());
+      }
+
+      async function init() {
+        await loadBattle();
+        await loadCampaign();
+        setFloorOptions();
+        VIEW.zoom = Number(zoomInput.value);
+        renderStatus();
+        attachEvents();
+        render();
+      }
+
+      init().catch(err => {
+        saveStatus.textContent = 'DB: error';
+        console.error(err);
+      });
+    })();
+  </script>
+</body>
+</html>
