@@ -386,7 +386,27 @@
       };
 
       const SPRITE_MAP = {
-        'poi.view': '/assets/sprites/cross_keys.png'
+        'poi.view': '/assets/sprites/cross_keys.png',
+        'chair': '/assets/sprites/chair.png',
+        'table.round': '/assets/sprites/table_round.png',
+        'table.rect': '/assets/sprites/table_rectangle.png',
+        'table.sqr': '/assets/sprites/table_square.png',
+        'table.hot': '/assets/sprites/table_hot.png',
+        'table.cold': '/assets/sprites/table_cold.png',
+        'table.prep': '/assets/sprites/table_prep.png',
+        'table.plate': '/assets/sprites/table_plate.png',
+        'bed': '/assets/sprites/bed.png',
+        'bed.double': '/assets/sprites/bed_double.png',
+        'bath': '/assets/sprites/bath.png',
+        'chest': '/assets/sprites/chest_closed.png',
+        'hearth': '/assets/sprites/hearth.png',
+        'cooking.hearth': '/assets/sprites/cooking_hearth.png',
+        'stairs': '/assets/sprites/stairs.png',
+        'stairs.up': '/assets/sprites/stairs_up.png',
+        'stairs.down': '/assets/sprites/stairs_down.png',
+        'crate': '/assets/sprites/crate.png',
+        'barrel': '/assets/sprites/barrel.png',
+        'keg': '/assets/sprites/keg.png'
       };
 
       function colStep() { return 1.5 * GRID.size; }
@@ -855,12 +875,28 @@
 
         const fk = room.floor && room.floor.kind ? String(room.floor.kind) : 'default';
         const floorColor = FLOOR_COLORS[fk] || FLOOR_COLORS.default;
+        const wk = roomWallKind(room);
+        const wallColor = WALL_COLORS[wk] || WALL_COLORS.default;
+
+        // Fill wall band first (outer rect), then floor (inner rect) so walls aren't black.
+        if (wk !== 'none' && box && box.thickness > 0) {
+          const outer = box.mid;
+          const o1 = worldToScreen({ x: outer.x1, y: outer.y1 });
+          const o2 = worldToScreen({ x: outer.x2, y: outer.y2 });
+          const ox1 = Math.min(o1.x, o2.x);
+          const oy1 = Math.min(o1.y, o2.y);
+          const ow = Math.abs(o2.x - o1.x);
+          const oh = Math.abs(o2.y - o1.y);
+          ctx.fillStyle = getFillStyle('wall', wk, wallColor);
+          ctx.globalAlpha = 1;
+          ctx.fillRect(ox1, oy1, ow, oh);
+        }
+
         ctx.fillStyle = getFillStyle('floor', fk, floorColor);
         ctx.globalAlpha = 1;
         ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
 
-        const wk = roomWallKind(room);
-        const wallColor = WALL_COLORS[wk] || WALL_COLORS.default;
+        // Subtle outline to keep edges crisp.
         if (wk !== 'none') {
           const outer = box ? box.mid : { x1, y1, x2, y2 };
           const o1 = worldToScreen({ x: outer.x1, y: outer.y1 });
@@ -869,8 +905,8 @@
           const oy1 = Math.min(o1.y, o2.y);
           const ow = Math.abs(o2.x - o1.x);
           const oh = Math.abs(o2.y - o1.y);
-          ctx.strokeStyle = getFillStyle('wall', wk, wallColor);
-          ctx.lineWidth = 2;
+          ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+          ctx.lineWidth = 1;
           ctx.strokeRect(ox1, oy1, ow, oh);
         }
       }
