@@ -21,7 +21,7 @@
         "round": 1
       },
       "view": {
-        "camera_hex": "U14",
+        "camera_hex": "U16",
         "floorId": "ground"
       },
       "turn": {
@@ -1403,7 +1403,8 @@
               "kind": "door",
               "hex": "U13",
               "orientation": "h",
-              "openPct": 0
+              "openPct": 0,
+              "seam_kind": "cobble"
             },
             {
               "id": "door_pantry",
@@ -2069,18 +2070,19 @@
         "floorId": "ground"
       },
       "fog": {
-        "enabled": false,
+        "enabled": true,
         "mode": "room",
         "visibleRoomIdsByFloor": {
           "ground": [
             "room_mkmu2yeb_433",
-            "room_mkli0xd9_g8"
+            "room_mkli30iq_2yw"
           ]
         },
         "exploredRoomIdsByFloor": {
           "ground": [
             "room_mkmu2yeb_433",
-            "room_mkli0xd9_g8"
+            "room_mkli0xd9_g8",
+            "room_mkli30iq_2yw"
           ]
         },
         "autoCompute": true,
@@ -2169,7 +2171,7 @@
               ],
               "thickness": 15,
               "floor": {
-                "kind": "wood_oak"
+                "kind": "crosskeys"
               },
               "wall": {
                 "kind": "brick"
@@ -2358,15 +2360,17 @@
               "id": "door_mkmuy3fz_5jn",
               "kind": "door.wood",
               "hex": "U13",
-              "orientation": "h",
-              "openPct": 0
+              "orientation": "v",
+              "openPct": 0,
+              "seam_kind": "cobble"
             },
             {
               "id": "door_mkmuy4y7_4d3",
               "kind": "door.wood",
               "hex": "AE13",
               "orientation": "h",
-              "openPct": 0
+              "openPct": 0,
+              "seam_kind": "cobble"
             },
             {
               "id": "window_mkmuzbm3_3s9",
@@ -2423,6 +2427,14 @@
               "hex": "P12.5",
               "orientation": "h",
               "openPct": 0
+            },
+            {
+              "id": "door_ml0toqa9_644",
+              "kind": "door.wood",
+              "hex": "M17",
+              "orientation": "v",
+              "openPct": 0,
+              "seam_kind": "cobble"
             }
           ],
           "objects": [
@@ -2433,7 +2445,7 @@
               "poi_id": "CrossedKeysInn",
               "view_url": "/images/the_cross_keys.jpg",
               "ox": -0.75,
-              "oy": 0.0,
+              "oy": 0,
               "spriteScale": 2,
               "floorId": "ground"
             }
