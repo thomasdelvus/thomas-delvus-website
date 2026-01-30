@@ -784,15 +784,17 @@
         const t = roomHasWalls(room) ? thicknessBase : 0;
         const half = t / 2;
 
-        const mid = { x1: xL, y1: yTop, x2: xR, y2: yBot };
-        const floor = { x1: xL + half, y1: yTop + half, x2: xR - half, y2: yBot - half };
+        // Treat corners as the wall centerline. Expand outward for wall band.
+        const center = { x1: xL, y1: yTop, x2: xR, y2: yBot };
+        const outer = { x1: xL - half, y1: yTop - half, x2: xR + half, y2: yBot + half };
+        const inner = { x1: xL + half, y1: yTop + half, x2: xR - half, y2: yBot - half };
 
-        return { xL, xR, yTop, yBot, thickness: t, mid, floor };
+        return { xL, xR, yTop, yBot, thickness: t, center, outer, inner };
       }
 
       function roomFloorRectWorld(room, box) {
         if (!box) return null;
-        const src = roomHasWalls(room) ? box.floor : box.mid;
+        const src = roomHasWalls(room) ? box.inner : box.center;
         return { x1: src.x1, y1: src.y1, x2: src.x2, y2: src.y2 };
       }
 
@@ -880,7 +882,7 @@
 
         // Fill wall band first (outer rect), then floor (inner rect) so walls aren't black.
         if (wk !== 'none' && box && box.thickness > 0) {
-          const outer = box.mid;
+          const outer = box.outer || box.center;
           const o1 = worldToScreen({ x: outer.x1, y: outer.y1 });
           const o2 = worldToScreen({ x: outer.x2, y: outer.y2 });
           const ox1 = Math.min(o1.x, o2.x);
@@ -898,7 +900,7 @@
 
         // Subtle outline to keep edges crisp.
         if (wk !== 'none') {
-          const outer = box ? box.mid : { x1, y1, x2, y2 };
+          const outer = box ? (box.outer || box.center) : { x1, y1, x2, y2 };
           const o1 = worldToScreen({ x: outer.x1, y: outer.y1 });
           const o2 = worldToScreen({ x: outer.x2, y: outer.y2 });
           const ox1 = Math.min(o1.x, o2.x);
