@@ -6413,6 +6413,32 @@ const EMBEDDED_WORLD_JSON = `{
     return null;
   }
 
+  let POI_HOVER_ID = null;
+
+  function isPoiViewObject(o) {
+    const kind = String(o && o.kind ? o.kind : '').toLowerCase();
+    return kind === 'poi.view' || kind === 'poi.marker' || kind === 'poi.sign';
+  }
+
+  function updatePoiHover(world, ctx) {
+    if (!canvas) return;
+    if (!world || !ctx) {
+      if (POI_HOVER_ID) {
+        POI_HOVER_ID = null;
+        canvas.style.cursor = '';
+        safeRedraw();
+      }
+      return;
+    }
+    const hit = findObjectNear(world, ctx);
+    const next = (hit && isPoiViewObject(hit)) ? (hit.id || null) : null;
+    if (next !== POI_HOVER_ID) {
+      POI_HOVER_ID = next;
+      canvas.style.cursor = next ? 'pointer' : '';
+      safeRedraw();
+    }
+  }
+
   function openPoiOverlay(config) {
     if (!config || !config.url) return false;
     if (els.poiOverlayTitle) els.poiOverlayTitle.textContent = config.title || 'Street View';
@@ -6485,6 +6511,17 @@ const EMBEDDED_WORLD_JSON = `{
     const rot = objectRotationRad(o);
 
     const kind = String(o.kind || 'object').toLowerCase();
+    const hoverPoi = isPoiViewObject(o) && o.id && POI_HOVER_ID && String(o.id) === String(POI_HOVER_ID);
+    if (hoverPoi) {
+      const pulse = 0.75 + Math.sin((performance.now() || 0) / 350) * 0.2;
+      ctx.save();
+      ctx.globalAlpha = 0.25 * pulse;
+      ctx.fillStyle = 'rgba(255,180,90,0.7)';
+      ctx.beginPath();
+      ctx.ellipse(c.x, c.y, w * 0.9, h * 0.9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
     if (SPRITES_ENABLED) {
       const def = getSpriteDef(kind);
@@ -7920,6 +7957,9 @@ function setActiveFloor(floorId, opts = {}) {
           if (EDITOR.preview) { EDITOR.preview = null; changed = true; }
           if (EDITOR.roomPreview) { EDITOR.roomPreview = null; changed = true; }
           if (EDITOR.objectPreview) { EDITOR.objectPreview = null; changed = true; }
+          const ctx = getEditorContext();
+          const world = ctx ? eventToWorld(ev) : null;
+          updatePoiHover(world, ctx);
           if (changed) safeRedraw();
           return;
         }
@@ -7927,6 +7967,7 @@ function setActiveFloor(floorId, opts = {}) {
         const ctx = getEditorContext();
         if (!ctx) return;
         const world = eventToWorld(ev);
+        updatePoiHover(world, ctx);
 
         if (tool === 'door' || tool === 'window') {
           const placement = computeDoorPlacement(world, ctx);
@@ -8033,6 +8074,7 @@ function setActiveFloor(floorId, opts = {}) {
         if (EDITOR.preview) { EDITOR.preview = null; changed = true; }
         if (EDITOR.roomPreview) { EDITOR.roomPreview = null; changed = true; }
         if (EDITOR.objectPreview) { EDITOR.objectPreview = null; changed = true; }
+        if (POI_HOVER_ID) { POI_HOVER_ID = null; canvas.style.cursor = ''; changed = true; }
         if (changed) safeRedraw();
       }, { passive: true });
 
