@@ -1,6 +1,5 @@
 {
   "world": "Saffrondale",
-  
   "version": 1,
   "meta": {
     "scale": "1 hex = 5 ft",
@@ -22,8 +21,8 @@
         "round": 1
       },
       "view": {
-        "camera_hex": "U18",
-        "floorId": "basement"
+        "camera_hex": "U14",
+        "floorId": "ground"
       },
       "turn": {
         "round": 1,
@@ -40,13 +39,7 @@
             "Hallway3",
             "Hallway1"
           ],
-          "ground": [
-            "Pub",
-            "room_mkmtvibn_3gx",
-            "room_mkmtxd6b_509",
-            "Kitchen",
-            "StairsUp"
-          ],
+          "ground": [],
           "basement": []
         },
         "exploredRoomIdsByFloor": {
@@ -1388,14 +1381,14 @@
               "kind": "door",
               "hex": "X14",
               "orientation": "v",
-              "openPct": 1
+              "openPct": 0
             },
             {
               "id": "door_to_upstairs",
               "kind": "door",
               "hex": "X20.25",
               "orientation": "v",
-              "openPct": 1,
+              "openPct": 0,
               "swing": 1
             },
             {
@@ -1403,21 +1396,21 @@
               "kind": "door",
               "hex": "M17",
               "orientation": "v",
-              "openPct": 1
+              "openPct": 0
             },
             {
               "id": "door_out2",
               "kind": "door",
               "hex": "U13",
               "orientation": "h",
-              "openPct": 1
+              "openPct": 0
             },
             {
               "id": "door_pantry",
               "kind": "door.wood",
               "hex": "AE20",
               "orientation": "h",
-              "openPct": 1,
+              "openPct": 0,
               "swing": 1
             },
             {
@@ -1461,7 +1454,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": -0.25,
-              "oy": 0
+              "oy": 0,
+              "z": 0
             },
             {
               "id": "pub_table1_c2",
@@ -1471,7 +1465,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": -0.25,
-              "oy": 0
+              "oy": 0,
+              "z": 1
             },
             {
               "id": "pub_table1_c3",
@@ -1481,7 +1476,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": 0.25,
-              "oy": 0
+              "oy": 0,
+              "z": 2
             },
             {
               "id": "pub_table1_c4",
@@ -1491,7 +1487,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": 0.25,
-              "oy": 0
+              "oy": 0,
+              "z": 3
             },
             {
               "id": "pub_table2_c1",
@@ -1501,7 +1498,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": -0.1,
-              "oy": 0.2
+              "oy": 0.2,
+              "z": 4
             },
             {
               "id": "pub_table2_c2",
@@ -1511,7 +1509,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": -0.1,
-              "oy": 0.2
+              "oy": 0.2,
+              "z": 5
             },
             {
               "id": "pub_table2_c3",
@@ -1521,7 +1520,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": 0.1,
-              "oy": -0.2
+              "oy": -0.2,
+              "z": 6
             },
             {
               "id": "pub_table2_c4",
@@ -1531,7 +1531,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": 0.1,
-              "oy": -0.2
+              "oy": -0.2,
+              "z": 7
             },
             {
               "id": "pub_table3_c1",
@@ -1541,7 +1542,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": -0.2,
-              "oy": -0.2
+              "oy": -0.2,
+              "z": 8
             },
             {
               "id": "pub_table3_c2",
@@ -1551,7 +1553,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": -0.2,
-              "oy": -0.2
+              "oy": -0.2,
+              "z": 9
             },
             {
               "id": "pub_table3_c3",
@@ -1561,7 +1564,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": 0.1,
-              "oy": 0.2
+              "oy": 0.2,
+              "z": 10
             },
             {
               "id": "pub_table3_c4",
@@ -1571,7 +1575,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": 0.1,
-              "oy": 0.2
+              "oy": 0.2,
+              "z": 11
             },
             {
               "id": "pub_table4_c1",
@@ -1581,7 +1586,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": 0,
-              "oy": 0.25
+              "oy": 0.25,
+              "z": 12
             },
             {
               "id": "pub_table4_c2",
@@ -1591,7 +1597,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": 0.2,
-              "oy": -0.2
+              "oy": -0.2,
+              "z": 13
             },
             {
               "id": "pub_table4_c3",
@@ -1601,7 +1608,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": -0.2,
-              "oy": -0.2
+              "oy": -0.2,
+              "z": 14
             },
             {
               "id": "pub_table5_c1",
@@ -1611,7 +1619,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": -0.2,
-              "oy": -0.2
+              "oy": 0,
+              "z": 15
             },
             {
               "id": "pub_table5_c2",
@@ -1621,7 +1630,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": 0,
-              "oy": -0.25
+              "oy": -0.25,
+              "z": 16
             },
             {
               "id": "pub_table5_c3",
@@ -1631,7 +1641,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": 0.2,
-              "oy": 0.2
+              "oy": 0.2,
+              "z": 17
             },
             {
               "id": "pub_table6_c1",
@@ -1641,7 +1652,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": 0,
-              "oy": 0.25
+              "oy": 0.25,
+              "z": 18
             },
             {
               "id": "pub_table6_c2",
@@ -1651,7 +1663,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": 0.2,
-              "oy": -0.2
+              "oy": -0.2,
+              "z": 19
             },
             {
               "id": "pub_table6_c3",
@@ -1661,7 +1674,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": -0.2,
-              "oy": -0.2
+              "oy": -0.2,
+              "z": 20
             },
             {
               "id": "pub_table6_c4",
@@ -1671,7 +1685,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": 0.2,
-              "oy": 0.2
+              "oy": 0.2,
+              "z": 21
             },
             {
               "id": "pub_table6_c5",
@@ -1681,7 +1696,8 @@
               "spriteScale": 0.9,
               "floorId": "ground",
               "ox": 0,
-              "oy": -0.25
+              "oy": -0.25,
+              "z": 22
             },
             {
               "id": "pub_hearth",
@@ -1691,7 +1707,8 @@
               "ox": -0.9500000000000001,
               "oy": -0.8,
               "spriteScale": 2.1,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 23
             },
             {
               "id": "stairs_up_to_upper",
@@ -1702,7 +1719,8 @@
               "oy": 0.43,
               "spriteScaleX": 1.95,
               "spriteScaleY": 3.1,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 24
             },
             {
               "id": "stairs_down_to_basement",
@@ -1713,7 +1731,8 @@
               "oy": 0.43,
               "spriteScaleX": 1.95,
               "spriteScaleY": 3.1,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 25
             },
             {
               "id": "kitchen_hearth",
@@ -1723,7 +1742,8 @@
               "ox": 1.35,
               "oy": -0.45,
               "spriteScale": 4,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 26
             },
             {
               "id": "kitchen_sort_table",
@@ -1733,7 +1753,8 @@
               "ox": 0,
               "oy": -0.5,
               "spriteScale": 3,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 27
             },
             {
               "id": "kitchen_misc_table",
@@ -1743,7 +1764,8 @@
               "ox": 0,
               "oy": -0.5,
               "spriteScale": 3,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 28
             },
             {
               "id": "kitchen_plate_table",
@@ -1753,7 +1775,8 @@
               "ox": 0,
               "oy": -0.5,
               "spriteScale": 2.5,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 29
             },
             {
               "id": "kitchen_chop_block",
@@ -1763,7 +1786,8 @@
               "oy": 0,
               "rotDeg": 90,
               "spriteScale": 1.25,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 30
             },
             {
               "id": "kitchen_crate1",
@@ -1773,7 +1797,8 @@
               "oy": -0.5,
               "rotDeg": 0,
               "spriteScale": 1.5,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 31
             },
             {
               "id": "kitchen_crate2",
@@ -1783,7 +1808,8 @@
               "oy": 0,
               "rotDeg": 75,
               "spriteScale": 1.5,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 32
             },
             {
               "id": "kitchen_barrel1",
@@ -1791,7 +1817,8 @@
               "hex": "AH19",
               "rotDeg": 0,
               "spriteScale": 1.25,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 33
             },
             {
               "id": "object_mkmj4v2v_2gu",
@@ -1801,7 +1828,8 @@
               "oy": 0,
               "rotDeg": 45,
               "spriteScale": 2.4,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 34
             },
             {
               "id": "object_mkmj85nz_1k0",
@@ -1811,7 +1839,8 @@
               "oy": 0,
               "rotDeg": -105,
               "spriteScale": 2.4,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 35
             },
             {
               "id": "object_mkmj8jdq_6qd",
@@ -1821,7 +1850,8 @@
               "oy": 0,
               "rotDeg": -45,
               "spriteScale": 2.4,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 47
             },
             {
               "id": "object_mkmjk1rq_1nc",
@@ -1831,7 +1861,8 @@
               "oy": 0,
               "rotDeg": 150,
               "spriteScale": 3.5,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 36
             },
             {
               "id": "object_mkmjk7di_7la",
@@ -1841,7 +1872,8 @@
               "oy": 0,
               "rotDeg": 270,
               "spriteScale": 3.5,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 37
             },
             {
               "id": "object_mkmjkfnh_16n",
@@ -1851,7 +1883,8 @@
               "oy": 0,
               "rotDeg": 390,
               "spriteScale": 3.5,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 38
             },
             {
               "id": "object_mkmjqyyl_2wc",
@@ -1861,7 +1894,8 @@
               "oy": 0.15000000000000002,
               "rotDeg": 0,
               "spriteScale": 2,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 39
             },
             {
               "id": "object_mkmjqzt1_612",
@@ -1871,7 +1905,8 @@
               "oy": 0.15000000000000002,
               "rotDeg": 0,
               "spriteScale": 2,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 40
             },
             {
               "id": "object_mkmjrmj0_34b",
@@ -1881,7 +1916,8 @@
               "oy": 0,
               "rotDeg": 0,
               "spriteScale": 1.25,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 41
             },
             {
               "id": "object_mkmjrpoe_2xl",
@@ -1891,7 +1927,8 @@
               "oy": 0,
               "rotDeg": 0,
               "spriteScale": 1.25,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 42
             },
             {
               "id": "object_mkmmh4z4_6h4",
@@ -1901,7 +1938,8 @@
               "oy": -0.25,
               "rotDeg": -90,
               "spriteScale": 3,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 43
             },
             {
               "id": "object_mkmni5v4_2vt",
@@ -1911,7 +1949,8 @@
               "oy": 0,
               "rotDeg": 0,
               "spriteScale": 1.25,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 44
             },
             {
               "id": "object_mkmnivcj_2of",
@@ -1921,7 +1960,8 @@
               "oy": 0,
               "rotDeg": 0,
               "spriteScale": 1.25,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 45
             },
             {
               "id": "object_mkmnj037_22l",
@@ -1931,7 +1971,8 @@
               "oy": 0,
               "rotDeg": 0,
               "spriteScale": 1.25,
-              "floorId": "ground"
+              "floorId": "ground",
+              "z": 46
             }
           ]
         },
@@ -2014,6 +2055,390 @@
             }
           ]
         }
+      ],
+      "tokens": []
+    },
+    "SaffrondaleStreets": {
+      "meta": {
+        "title": "Street View",
+        "battleId": "local",
+        "round": 1
+      },
+      "view": {
+        "camera_hex": "U16",
+        "floorId": "ground"
+      },
+      "fog": {
+        "enabled": false,
+        "mode": "room",
+        "visibleRoomIdsByFloor": {
+          "ground": [
+            "room_mkmu2yeb_433",
+            "room_mkli0xd9_g8"
+          ]
+        },
+        "exploredRoomIdsByFloor": {
+          "ground": [
+            "room_mkmu2yeb_433",
+            "room_mkli0xd9_g8"
+          ]
+        },
+        "autoCompute": true,
+        "autoExplore": true,
+        "maxDepth": 1,
+        "unseenAlpha": 0.92,
+        "exploredAlpha": 0.55
+      },
+      "tokens": [],
+      "floors": [
+        {
+          "id": "ground",
+          "name": "Ground",
+          "rooms": [
+            {
+              "id": "room_mkle3qxf_5rr",
+              "corners": [
+                "AP25",
+                "AV25",
+                "AV20",
+                "AP20"
+              ],
+              "thickness": 15,
+              "floor": {
+                "kind": "wood_oak"
+              },
+              "wall": {
+                "kind": "brick"
+              }
+            },
+            {
+              "id": "room_mkle45ne_g",
+              "corners": [
+                "AP30",
+                "AV30",
+                "AV25",
+                "AP25"
+              ],
+              "thickness": 15,
+              "floor": {
+                "kind": "wood_oak"
+              },
+              "wall": {
+                "kind": "brick"
+              }
+            },
+            {
+              "id": "room_mklecjhm_2h3",
+              "corners": [
+                "BN26",
+                "BR26",
+                "BR22",
+                "BN22"
+              ],
+              "thickness": 15,
+              "floor": {
+                "kind": "wood_oak"
+              },
+              "wall": {
+                "kind": "brick"
+              }
+            },
+            {
+              "id": "room_mkli0xd9_g8",
+              "corners": [
+                "M21.25",
+                "AJ21.25",
+                "AJ12.75",
+                "M12.75"
+              ],
+              "thickness": 15,
+              "floor": {
+                "kind": "wood_oak"
+              },
+              "wall": {
+                "kind": "brick"
+              }
+            },
+            {
+              "id": "room_mkli30iq_2yw",
+              "corners": [
+                "M21.25",
+                "AJ21.25",
+                "AJ12.75",
+                "M12.75"
+              ],
+              "thickness": 15,
+              "floor": {
+                "kind": "wood_oak"
+              },
+              "wall": {
+                "kind": "brick"
+              }
+            },
+            {
+              "id": "room_mkli3g41_z",
+              "corners": [
+                "M26.5",
+                "W26.5",
+                "W21.5",
+                "M21.5"
+              ],
+              "thickness": 15,
+              "floor": {
+                "kind": "wood_oak"
+              },
+              "wall": {
+                "kind": "brick"
+              }
+            },
+            {
+              "id": "room_mkli3rr4_jt",
+              "corners": [
+                "AJ21",
+                "AP21",
+                "AP12.5",
+                "AJ12.5"
+              ],
+              "thickness": 15,
+              "floor": {
+                "kind": "wood_oak"
+              },
+              "wall": {
+                "kind": "brick"
+              }
+            },
+            {
+              "id": "room_mkli46vt_7fu",
+              "corners": [
+                "AP20",
+                "AV20",
+                "AV12.5",
+                "AP12.5"
+              ],
+              "thickness": 15,
+              "floor": {
+                "kind": "wood_oak"
+              },
+              "wall": {
+                "kind": "brick"
+              }
+            },
+            {
+              "id": "room_mkli4dl5_1zn",
+              "corners": [
+                "AV20",
+                "AZ20",
+                "AZ12.5",
+                "AV12.5"
+              ],
+              "thickness": 15,
+              "floor": {
+                "kind": "wood_oak"
+              },
+              "wall": {
+                "kind": "brick"
+              }
+            },
+            {
+              "id": "room_mkli550f_2na",
+              "corners": [
+                "BB22",
+                "BN22",
+                "BN12.5",
+                "BB12.5"
+              ],
+              "thickness": 15,
+              "floor": {
+                "kind": "wood_oak"
+              },
+              "wall": {
+                "kind": "brick"
+              }
+            },
+            {
+              "id": "room_mkmu2yeb_433",
+              "corners": [
+                "M12.75",
+                "AP12.75",
+                "AP8",
+                "M8"
+              ],
+              "thickness": 0,
+              "floor": {
+                "kind": "cobble"
+              },
+              "wall": {
+                "kind": "brick"
+              }
+            },
+            {
+              "id": "room_mkmu0w6i_ye",
+              "corners": [
+                "F24",
+                "M24",
+                "M8",
+                "F8"
+              ],
+              "thickness": 0,
+              "floor": {
+                "kind": "cobble"
+              },
+              "wall": {
+                "kind": "brick"
+              }
+            },
+            {
+              "id": "room_mkmuw9iz_53a",
+              "corners": [
+                "AZ20",
+                "BB20",
+                "BB12.5",
+                "AZ12.5"
+              ],
+              "thickness": 1,
+              "floor": {
+                "kind": "cobble"
+              },
+              "wall": {
+                "kind": "brick"
+              }
+            }
+          ],
+          "openings": [
+            {
+              "id": "door_mklhw1tx_78q",
+              "kind": "door.wood",
+              "hex": "AV28",
+              "orientation": "v",
+              "openPct": 0
+            },
+            {
+              "id": "door_mklhw3r1_24w",
+              "kind": "door.wood",
+              "hex": "AV23",
+              "orientation": "v",
+              "openPct": 0
+            },
+            {
+              "id": "door_mkli3uew_254",
+              "kind": "door.wood",
+              "hex": "AM13",
+              "orientation": "h",
+              "openPct": 0
+            },
+            {
+              "id": "door_mkli4h1y_1zp",
+              "kind": "door.wood",
+              "hex": "AS13",
+              "orientation": "h",
+              "openPct": 0
+            },
+            {
+              "id": "door_mkli4hxt_1gj",
+              "kind": "door.wood",
+              "hex": "AX12.5",
+              "orientation": "h",
+              "openPct": 0
+            },
+            {
+              "id": "door_mkli57wg_3i6",
+              "kind": "door.wood",
+              "hex": "BH12.5",
+              "orientation": "h",
+              "openPct": 0
+            },
+            {
+              "id": "door_mkmuwwle_14p",
+              "kind": "door.wood",
+              "hex": "BA13",
+              "orientation": "h",
+              "openPct": 0
+            },
+            {
+              "id": "door_mkmuy3fz_5jn",
+              "kind": "door.wood",
+              "hex": "U13",
+              "orientation": "h",
+              "openPct": 0
+            },
+            {
+              "id": "door_mkmuy4y7_4d3",
+              "kind": "door.wood",
+              "hex": "AE13",
+              "orientation": "h",
+              "openPct": 0
+            },
+            {
+              "id": "window_mkmuzbm3_3s9",
+              "kind": "window",
+              "hex": "N12.5",
+              "orientation": "h",
+              "openPct": 0
+            },
+            {
+              "id": "window_mkmuzcah_6fd",
+              "kind": "window",
+              "hex": "P12.5",
+              "orientation": "h",
+              "openPct": 0
+            },
+            {
+              "id": "window_mkmuzz1q_3h7",
+              "kind": "window",
+              "hex": "M14.25",
+              "orientation": "v",
+              "openPct": 0
+            },
+            {
+              "id": "window_mkmuzzmx_6qu",
+              "kind": "window",
+              "hex": "M15",
+              "orientation": "v",
+              "openPct": 0
+            },
+            {
+              "id": "window_mkmv00jm_3p1",
+              "kind": "window",
+              "hex": "M19",
+              "orientation": "v",
+              "openPct": 0
+            },
+            {
+              "id": "window_mkmv012r_1um",
+              "kind": "window",
+              "hex": "M20",
+              "orientation": "v",
+              "openPct": 0
+            },
+            {
+              "id": "window_mkmv01uh_63z",
+              "kind": "window",
+              "hex": "N12.5",
+              "orientation": "h",
+              "openPct": 0
+            },
+            {
+              "id": "window_mkmv02ia_1pe",
+              "kind": "window",
+              "hex": "P12.5",
+              "orientation": "h",
+              "openPct": 0
+            }
+          ],
+          "objects": [
+            {
+              "id": "poi_cross_keys_view",
+              "kind": "poi.view",
+              "hex": "M18",
+              "poi_id": "CrossedKeysInn",
+              "view_url": "/images/the_cross_keys.jpg",
+              "ox": -0.75,
+              "oy": 0.0,
+              "spriteScale": 2,
+              "floorId": "ground"
+            }
+          ]
+        }
       ]
     }
   },
@@ -2023,5 +2448,3 @@
   "openings": [],
   "objects": []
 }
-
-
