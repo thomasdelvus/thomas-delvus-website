@@ -332,6 +332,59 @@
         default: '#2d2f33'
       };
 
+      const TEXTURE_FILES = {
+        wood_oak: '/assets/sprites/wood_oak.png',
+        wood_elm: '/assets/sprites/wood_elm.png',
+        wood_dark: '/assets/sprites/wood_dark.png',
+        stone: '/assets/sprites/stone.png',
+        stone_cobble: '/assets/sprites/stone_cobble.png',
+        brick_gray: '/assets/sprites/brick_gray.png',
+        brick_red: '/assets/sprites/brick_red.png',
+        brick_dark: '/assets/sprites/brick_dark.png',
+        crosskeys: '/images/the_cross_keys_floor.jpg'
+      };
+
+      const TEXTURE_SCALES = {
+        wall: {
+          wood_oak: 0.5,
+          wood_elm: 0.5,
+          wood_dark: 0.5,
+          stone: 0.5,
+          stone_cobble: 0.1,
+          brick_gray: 0.15,
+          brick_red: 0.15,
+          brick_dark: 0.15,
+        },
+        floor: {
+          wood_oak: 0.5,
+          wood_elm: 0.5,
+          wood_dark: 0.5,
+          stone: 0.25,
+          stone_cobble: 0.15,
+          brick_gray: 0.15,
+          brick_red: 0.15,
+          brick_dark: 0.15,
+          crosskeys: 1.0
+        }
+      };
+
+      const TEXTURE_ALIASES = {
+        wall: {
+          brick: 'brick_gray',
+          wood: 'wood_oak',
+          cobble: 'stone_cobble',
+          stone: 'stone',
+          gravel: 'stone_cobble'
+        },
+        floor: {
+          wood: 'wood_oak',
+          stone: 'stone',
+          cobble: 'stone_cobble',
+          gravel: 'stone_cobble',
+          brick: 'brick_gray'
+        }
+      };
+
       const SPRITE_MAP = {
         'poi.view': '/assets/sprites/cross_keys.png'
       };
@@ -886,6 +939,73 @@
         img.src = url;
         spriteCache.set(url, img);
         return img;
+      }
+
+      const PATTERN_CACHE = new Map();
+
+      function resolveTextureDef(category, kind) {
+        const cat = String(category || '').toLowerCase();
+        const k0 = String(kind || '').toLowerCase();
+        if (!cat || !k0) return null;
+        if (k0 === 'fog' || k0 === 'none') return null;
+
+        const aliases = TEXTURE_ALIASES[cat] || {};
+        const key = (k0 in TEXTURE_FILES) ? k0 : (aliases[k0] || '');
+        if (!key || !(key in TEXTURE_FILES)) return null;
+
+        const scale = (TEXTURE_SCALES[cat] && Number.isFinite(Number(TEXTURE_SCALES[cat][key])))
+          ? Number(TEXTURE_SCALES[cat][key])
+          : 1;
+        return { url: TEXTURE_FILES[key], scale };
+      }
+
+      function getTexturePattern(category, kind) {
+        const def = resolveTextureDef(category, kind);
+        if (!def) return null;
+        const cached = PATTERN_CACHE.get(def.url);
+        if (cached && cached.pattern) return { pattern: cached.pattern, scale: def.scale };
+
+        const img = loadSprite(def.url);
+        if (!img || !img.complete) {
+          if (img && !img.__patternHooked) {
+            img.__patternHooked = true;
+            img.onload = () => {
+              img.__patternHooked = false;
+              PATTERN_CACHE.delete(def.url);
+              render();
+            };
+          }
+          return null;
+        }
+
+        const pattern = ctx.createPattern(img, 'repeat');
+        if (!pattern) return null;
+        PATTERN_CACHE.set(def.url, { pattern });
+        return { pattern, scale: def.scale };
+      }
+
+      function applyPatternTransform(pattern, scale) {
+        if (!pattern || typeof pattern.setTransform !== 'function') return;
+        const cam = hexToWorld(VIEW.camera.col, VIEW.camera.row);
+        const rect = canvas.getBoundingClientRect();
+        const originX = rect.width / 2 - cam.x * VIEW.zoom;
+        const originY = rect.height / 2 - cam.y * VIEW.zoom;
+        const s = (Number(scale) || 1) * VIEW.zoom;
+        const m = new DOMMatrix();
+        m.a = s;
+        m.d = s;
+        m.e = originX;
+        m.f = originY;
+        pattern.setTransform(m);
+      }
+
+      function getFillStyle(category, kind, fallback) {
+        const tex = getTexturePattern(category, kind);
+        if (tex && tex.pattern) {
+          applyPatternTransform(tex.pattern, tex.scale);
+          return tex.pattern;
+        }
+        return fallback;
       }
 
       function drawObject(obj, zIndex) {
