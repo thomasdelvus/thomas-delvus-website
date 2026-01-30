@@ -1290,6 +1290,7 @@
           const sel = findSelectionAt(world);
           if (!sel) return;
           if (sel.type === 'room') return;
+          selectItem(sel.type, sel.item, sel.floorId);
           EDITOR.drag = sel;
           EDITOR.drag.didMove = false;
         });
@@ -1310,6 +1311,7 @@
           EDITOR.drag = null;
           if (dragged.didMove) {
             EDITOR.ignoreClick = true;
+            updateInspector();
             if (dragged.type === 'token') queueEntitySave(dragged.item);
           }
         });
