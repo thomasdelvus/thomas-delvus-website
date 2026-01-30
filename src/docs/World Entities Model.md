@@ -81,6 +81,26 @@ This document describes the current data model where **world entities are canoni
 - Remove `tokens` and `actors` from battle records.
 - Move all entity data into `campaign.meta_json.world.entities`.
 
+## API: Update a single entity
+If your API supports it, prefer a single-entity patch over replacing the full `meta_json`.
+
+Endpoint:
+```
+PATCH /campaigns/{campaign_id}/entities
+```
+
+Body:
+```json
+{
+  "entity_id": "g1",
+  "patch": {
+    "location": { "poi_id": "CrossedKeysInn", "floorId": "upper", "hex": "U19" },
+    "intent": { "state": "travel", "goal": { "poi_id": "CrossedKeysInn" } },
+    "stats": { "hp": 8, "maxHp": 8, "init": 10 }
+  }
+}
+```
+
 ## NPC Intent + Movement (GPT-directed)
 Use **intentional movement** to avoid teleporting. The GPT/DM updates `intent` and advances NPCs each turn.
 

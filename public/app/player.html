@@ -283,6 +283,7 @@
     const elInvites = document.getElementById('invitesList');
     const elPassportLink = document.getElementById('passportLink');
     const STORAGE_KEY = 'passport_token';
+    const SHOW_ID_STORAGE_KEY = 'player.showIds.v1';
 
     const SAMPLE_PLAYER = {
       player_id: 'YHGxImkt3NhbT5ExZOXpIQ',
@@ -370,6 +371,33 @@
     const NICKNAME_STORAGE_KEY = 'player.nicknameOverrides.v1';
     let CURRENT_PLAYER = null;
 
+    function loadShowIds() {
+      try {
+        const raw = localStorage.getItem(SHOW_ID_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveShowIds(map) {
+      try {
+        localStorage.setItem(SHOW_ID_STORAGE_KEY, JSON.stringify(map || {}));
+      } catch {}
+    }
+
+    function getShowId(key) {
+      const map = loadShowIds();
+      return !!map[key];
+    }
+
+    function setShowId(key, value) {
+      const map = loadShowIds();
+      map[key] = !!value;
+      saveShowIds(map);
+    }
+
     function loadNicknameOverrides() {
       try {
         const raw = localStorage.getItem(NICKNAME_STORAGE_KEY);
@@ -436,13 +464,31 @@
         if (!next.trim()) delete overrides[character.character_id];
         else overrides[character.character_id] = next.trim();
         saveNicknameOverrides(overrides);
+        const token = readPassportToken();
+        if (character.character_id) {
+          fetch('/api/characters/' + encodeURIComponent(character.character_id), {
+            method: 'PUT',
+            headers: {
+              'content-type': 'application/json',
+              'accept': 'application/json',
+              ...authHeaders(token),
+            },
+            body: JSON.stringify({ nickname: next.trim() }),
+          }).then((res) => {
+            if (!res.ok) console.warn('Nickname update failed:', res.status);
+          }).catch((err) => console.warn('Nickname update failed:', err));
+        }
         if (CURRENT_PLAYER) renderPlayer(CURRENT_PLAYER);
       }));
       const showIdBtn = button('Show ID', () => {
         const willShow = idEl.hidden;
         idEl.hidden = !willShow;
+        setShowId('char:' + character.character_id, willShow);
         showIdBtn.textContent = willShow ? 'Hide ID' : 'Show ID';
       });
+      const showCharId = getShowId('char:' + character.character_id);
+      idEl.hidden = !showCharId;
+      showIdBtn.textContent = showCharId ? 'Hide ID' : 'Show ID';
       row.appendChild(showIdBtn);
       row.appendChild(button(character.campaign_id ? 'Unbind' : 'Bind', () => {
         alert('Binding will be wired once auth is added.');
@@ -493,8 +539,12 @@
       const showIdBtn = button('Show ID', () => {
         const willShow = idEl.hidden;
         idEl.hidden = !willShow;
+        setShowId('camp:' + campaign.campaign_id, willShow);
         showIdBtn.textContent = willShow ? 'Hide ID' : 'Show ID';
       });
+      const showCampId = getShowId('camp:' + campaign.campaign_id);
+      idEl.hidden = !showCampId;
+      showIdBtn.textContent = showCampId ? 'Hide ID' : 'Show ID';
       row.appendChild(showIdBtn);
       row.appendChild(button('Invite Link', () => {
         const link = 'https://delvus.net/app/player?invite=' + encodeURIComponent(campaign.campaign_id);
@@ -502,7 +552,7 @@
         navigator.clipboard.writeText(link);
       }));
       row.appendChild(button('Battlemat', () => {
-        const url = '/app/battlemat.html?campaign_id=' + encodeURIComponent(campaign.campaign_id);
+        const url = 'https://www.delvus.net/play/c/' + encodeURIComponent(campaign.campaign_id);
         window.location.href = url;
       }));
       el.appendChild(row);
@@ -516,12 +566,14 @@
       elStatus.style.display = 'none';
       elPlayerName.textContent = player.display_name || 'Unnamed Player';
       elPlayerId.textContent = 'Player ID: ' + (player.player_id || '--');
-      elPlayerId.hidden = true;
+      const showPlayerId = getShowId('player');
+      elPlayerId.hidden = !showPlayerId;
       if (elPlayerShowId) {
-        elPlayerShowId.textContent = 'Show ID';
+        elPlayerShowId.textContent = showPlayerId ? 'Hide ID' : 'Show ID';
         elPlayerShowId.onclick = () => {
           const willShow = elPlayerId.hidden;
           elPlayerId.hidden = !willShow;
+          setShowId('player', willShow);
           elPlayerShowId.textContent = willShow ? 'Hide ID' : 'Show ID';
         };
       }
