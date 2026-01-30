@@ -5352,7 +5352,14 @@ const EMBEDDED_WORLD_JSON = `{
     if (Array.isArray(f)) return f;
 
     if (f && typeof f === 'object') {
-      return Object.entries(f).map(([id, data]) => ({ id, ...(data || {}) }));
+      // Preserve object references so editor mutations persist back to state.floors.
+      return Object.entries(f).map(([id, data]) => {
+        if (data && typeof data === 'object') {
+          if (data.id == null) data.id = id;
+          return data;
+        }
+        return { id };
+      });
     }
 
     return [{
