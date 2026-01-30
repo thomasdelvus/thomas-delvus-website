@@ -1,4 +1,4 @@
----
+﻿---
 import BaseHead from '../components/BaseHead.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
@@ -26,6 +26,8 @@ const angwythMap = "/images/MapOfAngwyth.jpg";
 						src={heroImage}
 						alt="The Cross Keys Inn — a rustic landmark in Saffrondale"
 						loading="eager"
+						width="1100"
+						height="520"
 					/>
 					<div class="hero__veil"></div>
 				</div>
@@ -58,9 +60,13 @@ const angwythMap = "/images/MapOfAngwyth.jpg";
 						Thomas Delvus builds worlds where stories are not merely told, but revealed.
 					</p>
 					<p>
-						At the heart of the work is The Watchers — a long-form narrative unfolding across mediums, exploring unseen forces, fractured truths, and the quiet machinery beneath power and belief. It is a story still becoming, shaped as much by structure and implication as by plot.</p>
-						Alongside it stands Saffrondale, a living fantasy world run through an AI-assisted Dungeon Master, where geography matters, rules have weight, and choice leaves scars. Here, stories emerge not from scripts, but from consequence.</p>
-						A third current flows through these projects: AI-generated conversations and podcasts on science, finance, and emerging ideas — not as commentary, but as deliberate experiments in structured thought, designed to surface patterns, assumptions, and fault lines.</p>
+						At the heart of the work is The Watchers — a long-form narrative unfolding across mediums, exploring unseen forces, fractured truths, and the quiet machinery beneath power and belief. It is a story still becoming, shaped as much by structure and implication as by plot.
+					</p>
+					<p>
+						Alongside it stands Saffrondale, a living fantasy world run through an AI-assisted Dungeon Master, where geography matters, rules have weight, and choice leaves scars. Here, stories emerge not from scripts, but from consequence.
+					</p>
+					<p>
+						A third current flows through these projects: AI-generated conversations and podcasts on science, finance, and emerging ideas — not as commentary, but as deliberate experiments in structured thought, designed to surface patterns, assumptions, and fault lines.
 					</p>
 					<p class="note">
 						Together, these works form a single pursuit: the creation of coherent worlds — fictional and analytical — where systems are visible, meaning is earned, and discovery is left to the participant.
@@ -72,6 +78,8 @@ const angwythMap = "/images/MapOfAngwyth.jpg";
 						src={watchersImage}
 						alt="A classical scene of gods amid smoke and ash — an echo of Pompeii"
 						loading="lazy"
+						width="1200"
+						height="800"
 					/>
 					<div class="mediaCard__caption">
 						<span class="chip">The Watchers</span>
@@ -146,7 +154,13 @@ const angwythMap = "/images/MapOfAngwyth.jpg";
 
 				<div class="artifactGrid">
 					<a class="artifact" href={saffrondaleMap} target="_blank" rel="noopener">
-						<img src={saffrondaleMap} alt="Map of Saffrondale (Town)" loading="lazy" />
+						<img
+							src={saffrondaleMap}
+							alt="Map of Saffrondale (Town)"
+							loading="lazy"
+							width="1400"
+							height="900"
+						/>
 						<div class="artifact__label">
 							<span class="artifact__title">Map of Saffrondale</span>
 							<span class="artifact__meta">Town • canonical</span>
@@ -154,7 +168,13 @@ const angwythMap = "/images/MapOfAngwyth.jpg";
 					</a>
 
 					<a class="artifact" href={angwythMap} target="_blank" rel="noopener">
-						<img src={angwythMap} alt="Map of the Region of Angwyth" loading="lazy" />
+						<img
+							src={angwythMap}
+							alt="Map of the Region of Angwyth"
+							loading="lazy"
+							width="1400"
+							height="900"
+						/>
 						<div class="artifact__label">
 							<span class="artifact__title">Map of Angwyth</span>
 							<span class="artifact__meta">Region • canonical</span>
@@ -473,3 +493,8 @@ const angwythMap = "/images/MapOfAngwyth.jpg";
 		</style>
 	</body>
 </html>
+
+
+
+
+

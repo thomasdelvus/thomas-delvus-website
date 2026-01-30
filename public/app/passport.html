@@ -645,12 +645,36 @@
       elPrint.addEventListener('click', () => window.print());
     }
 
+    function copyText(text) {
+      if (!text) return false;
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text);
+        return true;
+      }
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'absolute';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        return true;
+      } catch {
+        document.body.removeChild(textarea);
+        return false;
+      }
+    }
+
     if (elCopyTokenBtn) {
       elCopyTokenBtn.addEventListener('click', () => {
         const token = elPassportToken?.textContent || '';
         if (!token || token === '--') return;
-        if (!navigator.clipboard) return alert('Clipboard not available.');
-        navigator.clipboard.writeText(token);
+        if (!copyText(token)) {
+          alert('Clipboard not available. You can select and copy the key manually.');
+        }
       });
     }
 
@@ -684,7 +708,6 @@
           }
         }
 
-        clone.querySelectorAll('script').forEach((node) => node.remove());
         const status = clone.querySelector('#status');
         if (status) status.remove();
         const topbar = clone.querySelector('.topbar');

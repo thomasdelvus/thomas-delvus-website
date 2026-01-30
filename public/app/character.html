@@ -182,6 +182,16 @@
       font-size:34px;
       letter-spacing:0.02em;
       font-family:"Copperplate Gothic","Garamond","Book Antiqua",serif;
+      max-width:520px;
+      line-height:1.05;
+      word-break:break-word;
+    }
+    .name-block h1 .nickname{
+      font-size:0.7em;
+      font-weight:500;
+      opacity:0.7;
+      margin-left:8px;
+      display:inline-block;
     }
     .name-block .meta{
       margin-top:6px;
@@ -757,6 +767,9 @@
     <div class="nav">
       <a id="backLink" href="/app/battlemat.html">Back to battlemat</a>
       <a id="playerDashLink" href="/app/player.html">Player Dashboard</a>
+      <button id="uploadPortraitBtn" type="button">Upload Portrait</button>
+      <input id="portraitUpload" type="file" accept="image/jpeg" hidden />
+      <button id="downloadBtn" type="button">Download Character</button>
       <button id="printBtn" type="button">Download PDF</button>
     </div>
   </div>
@@ -1026,6 +1039,11 @@
     const elBackLink = document.getElementById('backLink');
     const elPlayerDashLink = document.getElementById('playerDashLink');
     const elPrintBtn = document.getElementById('printBtn');
+    const elDownloadBtn = document.getElementById('downloadBtn');
+    const elUploadBtn = document.getElementById('uploadPortraitBtn');
+    const elPortraitUpload = document.getElementById('portraitUpload');
+    let CURRENT_CHARACTER_ID = null;
+    let CURRENT_CHARACTER = null;
 
     const SAMPLE_CHARACTER = {
       character_id: 'character_aelar',
@@ -1568,6 +1586,7 @@
       const img = document.createElement('img');
       img.src = url;
       img.alt = 'Portrait';
+      img.id = 'portraitImg';
       if (els.portraitSlot && els.portraitSlot.parentElement) {
         els.portraitSlot.parentElement.replaceChild(img, els.portraitSlot);
         els.portraitSlot = img;
@@ -1690,7 +1709,17 @@
       const xp = identity.experience_points || identity.xp || '';
 
       document.title = displayName + ' - Character Sheet';
-      els.name.textContent = displayName;
+      if (els.name) {
+        els.name.textContent = '';
+        els.name.appendChild(document.createTextNode(baseName));
+        if (nickname && nickname !== baseName) {
+          const nickSpan = document.createElement('span');
+          nickSpan.className = 'nickname';
+          nickSpan.textContent = '(' + nickname + ')';
+          els.name.appendChild(document.createTextNode(' '));
+          els.name.appendChild(nickSpan);
+        }
+      }
       els.meta.textContent = '';
       els.meta.style.display = 'none';
 
@@ -1875,12 +1904,129 @@
         elBackLink.href = '/app/battlemat.html?battle_id=' + encodeURIComponent(battleId);
       }
       let detailsState = null;
+
+      function getPassportToken() {
+        try { return localStorage.getItem('passport_token') || ''; } catch { return ''; }
+      }
+
+      function authHeadersFromStorage() {
+        const token = getPassportToken();
+        return token ? { Authorization: 'Bearer ' + token } : {};
+      }
+
+      async function toDataUrl(src) {
+        const res = await fetch(src, { cache: 'no-store' });
+        if (!res.ok) throw new Error('Failed to fetch image');
+        const blob = await res.blob();
+        return await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      async function downloadCharacter() {
+        try {
+          const clone = document.documentElement.cloneNode(true);
+          clone.setAttribute('data-character-snapshot', '1');
+
+          const images = Array.from(document.querySelectorAll('img'));
+          for (const img of images) {
+            const cloneImg = clone.querySelector('#' + (img.id || ''));
+            if (cloneImg && img.src && !img.src.startsWith('data:')) {
+              try {
+                const dataUrl = await toDataUrl(img.src);
+                cloneImg.setAttribute('src', dataUrl);
+              } catch {}
+            }
+          }
+
+          // Inline parchment background for snapshot
+          try {
+            const parchmentUrl = '/assets/sprites/parchment.png';
+            const parchmentData = await toDataUrl(parchmentUrl);
+            clone.querySelectorAll('style').forEach((styleEl) => {
+              if (!styleEl.textContent) return;
+              styleEl.textContent = styleEl.textContent.replace(
+                /url\(['"]?\/assets\/sprites\/parchment\.png['"]?\)/g,
+                "url('" + parchmentData + "')"
+              );
+            });
+          } catch {}
+
+          clone.querySelectorAll('script').forEach((node) => node.remove());
+          const status = clone.querySelector('#status');
+          if (status) status.remove();
+          const topbar = clone.querySelector('.topbar');
+          if (topbar) topbar.remove();
+
+          const html = '<!doctype html>\n' + clone.outerHTML;
+          const blob = new Blob([html], { type: 'text/html' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'character-sheet.html';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (err) {
+          alert('Failed to download character.');
+        }
+      }
+
+      async function uploadPortrait(file) {
+        if (!file || !CURRENT_CHARACTER_ID) return;
+        if (file.type !== 'image/jpeg') {
+          alert('Portrait must be a JPG.');
+          return;
+        }
+        if (file.size > 512 * 1024) {
+          alert('Portrait must be 512kb or smaller.');
+          return;
+        }
+        try {
+          const res = await fetch('/api/characters/' + encodeURIComponent(CURRENT_CHARACTER_ID) + '/portrait', {
+            method: 'PUT',
+            headers: {
+              'content-type': 'image/jpeg',
+              ...authHeadersFromStorage(),
+            },
+            body: file,
+          });
+          if (!res.ok) throw new Error('Upload failed');
+          const data = await res.json().catch(() => null);
+          if (data && data.portrait_url) {
+            if (!CURRENT_CHARACTER) CURRENT_CHARACTER = {};
+            let sheet = parseSheet(CURRENT_CHARACTER.sheet_json);
+            if (!sheet || typeof sheet !== 'object') sheet = {};
+            if (!sheet.appearance || typeof sheet.appearance !== 'object') sheet.appearance = {};
+            sheet.appearance.portrait_url = data.portrait_url;
+            CURRENT_CHARACTER.sheet_json = sheet;
+            renderPortrait(sheet.appearance);
+          }
+        } catch (err) {
+          alert('Portrait upload failed.');
+        } finally {
+          if (elPortraitUpload) elPortraitUpload.value = '';
+        }
+      }
       if (elPrintBtn) {
         elPrintBtn.addEventListener('click', () => {
           const sections = Array.from(document.querySelectorAll('details.section'));
           detailsState = sections.map(section => section.open);
           sections.forEach(section => { section.open = true; });
           window.print();
+        });
+      }
+      if (elDownloadBtn) {
+        elDownloadBtn.addEventListener('click', () => downloadCharacter());
+      }
+      if (elUploadBtn && elPortraitUpload) {
+        elUploadBtn.addEventListener('click', () => elPortraitUpload.click());
+        elPortraitUpload.addEventListener('change', () => {
+          const file = elPortraitUpload.files && elPortraitUpload.files[0];
+          if (file) uploadPortrait(file);
         });
       }
       window.addEventListener('afterprint', () => {
@@ -1914,7 +2060,9 @@
           return;
         }
         const data = await res.json();
-        renderSheet(data || {});
+        CURRENT_CHARACTER_ID = characterId;
+        CURRENT_CHARACTER = data || {};
+        renderSheet(CURRENT_CHARACTER);
         if (elStatus) elStatus.hidden = true;
         if (elSheet) elSheet.hidden = false;
       } catch (e) {

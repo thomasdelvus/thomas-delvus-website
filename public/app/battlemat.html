@@ -185,6 +185,57 @@ Changelog:
 
     canvas{width:100%;height:100%;display:block;background:#0b0d12;}
 
+    .poiOverlay{
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(6,8,12,0.82);
+      z-index:80;
+      padding:24px;
+    }
+    .poiOverlay[hidden]{display:none;}
+    .poiOverlayCard{
+      width:min(1100px, 94vw);
+      background:rgba(15,18,26,0.98);
+      border:1px solid var(--border);
+      border-radius:16px;
+      box-shadow:0 20px 50px rgba(0,0,0,0.55);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      gap:0;
+    }
+    .poiOverlayHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px 14px;
+      background:rgba(255,255,255,0.04);
+      border-bottom:1px solid var(--border2);
+    }
+    .poiOverlayTitle{
+      font-size:13px;
+      color:var(--text);
+      letter-spacing:0.02em;
+    }
+    .poiOverlayClose{
+      border-radius:999px;
+      padding:6px 10px;
+    }
+    .poiOverlayBody{
+      background:#0b0d12;
+    }
+    .poiOverlayBody img{
+      display:block;
+      width:100%;
+      height:auto;
+      max-height:78vh;
+      object-fit:contain;
+      background:#0b0d12;
+    }
+
     #sidebar{
       background:var(--panel2);
       border:1px solid var(--border);
@@ -661,6 +712,18 @@ Changelog:
       </div>
   </div>
 
+  <div id="poiOverlay" class="poiOverlay" hidden aria-hidden="true">
+    <div class="poiOverlayCard" role="dialog" aria-modal="true">
+      <div class="poiOverlayHeader">
+        <div class="poiOverlayTitle" id="poiOverlayTitle">Street View</div>
+        <button class="poiOverlayClose" id="poiOverlayClose" aria-label="Close street view">Close</button>
+      </div>
+      <div class="poiOverlayBody">
+        <img id="poiOverlayImage" alt="POI street view" />
+      </div>
+    </div>
+  </div>
+
   <div id="chatBar">
     <select id="chatSpeaker"></select>
     <button id="chatSend">Send</button>
@@ -753,6 +816,10 @@ Changelog:
     btnZoomIn: getEl('btnZoomIn'),
     btnRedraw: getEl('btnRedraw'),
     btnJump: getEl('btnJump'),
+    poiOverlay: getEl('poiOverlay'),
+    poiOverlayTitle: getEl('poiOverlayTitle'),
+    poiOverlayImage: getEl('poiOverlayImage'),
+    poiOverlayClose: getEl('poiOverlayClose'),
   };
 
   const canvas = els.canvas;
@@ -3755,6 +3822,7 @@ Changelog:
       'keg':         { file: 'keg.png', rotate: 'deg' },
       'barrel':      { file: 'barrel.png', rotate: 'deg' },
       'crate':       { file: 'crate.png', rotate: 'deg' },
+      'poi.view':    { file: 'cross_keys.png', rotate: 'none' },
 
       // Doors (prefer dot-style kinds, but keep aliases for convenience/compat)
       'door':         { file: 'door_wood.png', rotate: 'none' },
@@ -6311,6 +6379,59 @@ const EMBEDDED_WORLD_JSON = `{
     return { w: base, h: base };
   }
 
+  function getPoiViewConfig(o) {
+    if (!o) return null;
+    const direct =
+      o.view_url || o.viewUrl ||
+      o.street_view_url || o.streetViewUrl ||
+      o.image_url || o.imageUrl ||
+      o.image || o.url;
+    if (direct) {
+      return {
+        url: String(direct),
+        title: String(o.view_title || o.viewTitle || o.title || o.name || 'Street View'),
+      };
+    }
+
+    const poiId = o.poi_id || o.poiId || o.poi || null;
+    const meta = CURRENT_CAMPAIGN_META || {};
+    const world = (meta && meta.world && typeof meta.world === 'object') ? meta.world : {};
+    const views = world.poi_views || world.poiViews || meta.poi_views || meta.poiViews || null;
+    if (!poiId || !views) return null;
+
+    const entry = views[poiId];
+    if (!entry) return null;
+    if (typeof entry === 'string') {
+      return { url: entry, title: String(o.view_title || o.viewTitle || o.title || o.name || poiId) };
+    }
+    if (isObject(entry) && entry.url) {
+      return {
+        url: String(entry.url),
+        title: String(entry.title || entry.name || o.view_title || o.viewTitle || o.title || o.name || poiId)
+      };
+    }
+    return null;
+  }
+
+  function openPoiOverlay(config) {
+    if (!config || !config.url) return false;
+    if (els.poiOverlayTitle) els.poiOverlayTitle.textContent = config.title || 'Street View';
+    if (els.poiOverlayImage) els.poiOverlayImage.src = config.url;
+    if (els.poiOverlay) {
+      els.poiOverlay.hidden = false;
+      els.poiOverlay.setAttribute('aria-hidden', 'false');
+    }
+    return true;
+  }
+
+  function closePoiOverlay() {
+    if (els.poiOverlay) {
+      els.poiOverlay.hidden = true;
+      els.poiOverlay.setAttribute('aria-hidden', 'true');
+    }
+    if (els.poiOverlayImage) els.poiOverlayImage.removeAttribute('src');
+  }
+
   function drawObjectGhost(o, roomMetaAll) {
     if (!o) return;
     const ghost = { ...o, __forceVisible: true };
@@ -7758,6 +7879,18 @@ function setActiveFloor(floorId, opts = {}) {
       });
     }
 
+    if (els.poiOverlayClose) {
+      els.poiOverlayClose.onclick = () => closePoiOverlay();
+    }
+    if (els.poiOverlay) {
+      els.poiOverlay.addEventListener('click', (ev) => {
+        if (ev.target === els.poiOverlay) closePoiOverlay();
+      });
+    }
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && els.poiOverlay && !els.poiOverlay.hidden) closePoiOverlay();
+    });
+
     const submitChat = async () => {
       if (!chatInput) return;
       const text = String(chatInput.value || '').trim();
@@ -7908,6 +8041,20 @@ function setActiveFloor(floorId, opts = {}) {
         const ctx = getEditorContext();
         if (!ctx) return;
         const world = eventToWorld(ev);
+
+        if (EDITOR.tool === 'select') {
+          const hitObject = findObjectNear(world, ctx);
+          if (hitObject) {
+            const kind = String(hitObject.kind || '').toLowerCase();
+            if (kind === 'poi.view' || kind === 'poi.marker' || kind === 'poi.sign') {
+              const cfg = getPoiViewConfig(hitObject);
+              if (cfg) {
+                openPoiOverlay(cfg);
+                return;
+              }
+            }
+          }
+        }
 
         if (EDITOR.tool === 'door') {
           const hit = findOpeningNear(world, ctx);

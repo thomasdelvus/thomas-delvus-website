@@ -382,6 +382,15 @@
               "rotDeg": 0,
               "spriteScale": 1.25,
               "floorId": "ground"
+            },
+            {
+              "id": "poi_cross_keys_view",
+              "kind": "poi.view",
+              "hex": "W13",
+              "poi_id": "CrossedKeysInn",
+              "view_url": "/images/the_cross_keys.jpg",
+              "spriteScale": 1.1,
+              "floorId": "ground"
             }
           ]
         }
