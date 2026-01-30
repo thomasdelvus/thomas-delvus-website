@@ -572,32 +572,93 @@
         }
       }
 
+      function roomWallKind(room) {
+        const wall = room && room.wall && typeof room.wall === 'object' ? room.wall : null;
+        const kind = wall && wall.kind != null ? String(wall.kind) : '';
+        const type = wall && wall.type != null ? String(wall.type) : '';
+        return (kind || type || 'brick').toLowerCase();
+      }
+
+      function roomHasWalls(room) {
+        const thickness = Number(room && room.thickness != null ? room.thickness : 0);
+        return thickness > 0 && roomWallKind(room) !== 'none';
+      }
+
+      function roomToWallBox(room) {
+        const corners = Array.isArray(room && room.corners) ? room.corners : [];
+        if (corners.length !== 4) return null;
+        const tl = parseHexLabel(corners[0]);
+        const tr = parseHexLabel(corners[1]);
+        const br = parseHexLabel(corners[2]);
+        const bl = parseHexLabel(corners[3]);
+        if (!tl || !tr || !br || !bl) return null;
+
+        const pTL = hexToWorld(tl.col, tl.row);
+        const pTR = hexToWorld(tr.col, tr.row);
+        const pBR = hexToWorld(br.col, br.row);
+        const pBL = hexToWorld(bl.col, bl.row);
+
+        const xL = (pTL.x + pBL.x) / 2;
+        const xR = (pTR.x + pBR.x) / 2;
+        const yTop = (pTL.y + pTR.y) / 2;
+        const yBot = (pBL.y + pBR.y) / 2;
+
+        const thicknessBase = Number(room && room.thickness != null ? room.thickness : 0);
+        const t = roomHasWalls(room) ? thicknessBase : 0;
+        const half = t / 2;
+
+        const mid = { x1: xL, y1: yTop, x2: xR, y2: yBot };
+        const floor = { x1: xL + half, y1: yTop + half, x2: xR - half, y2: yBot - half };
+
+        return { xL, xR, yTop, yBot, thickness: t, mid, floor };
+      }
+
+      function roomFloorRectWorld(room, box) {
+        if (!box) return null;
+        const src = roomHasWalls(room) ? box.floor : box.mid;
+        return { x1: src.x1, y1: src.y1, x2: src.x2, y2: src.y2 };
+      }
+
+      function roomRectScreen(room) {
+        const box = roomToWallBox(room);
+        if (!box) return null;
+        const rect = roomFloorRectWorld(room, box);
+        if (!rect) return null;
+        const p1 = worldToScreen({ x: rect.x1, y: rect.y1 });
+        const p2 = worldToScreen({ x: rect.x2, y: rect.y2 });
+        return {
+          x1: Math.min(p1.x, p2.x),
+          y1: Math.min(p1.y, p2.y),
+          x2: Math.max(p1.x, p2.x),
+          y2: Math.max(p1.y, p2.y),
+          box
+        };
+      }
+
       function drawRoom(room) {
-        const corners = Array.isArray(room.corners) ? room.corners : [];
-        if (corners.length < 4) return;
-        const points = corners.map(c => {
-          const p = parseHexLabel(c);
-          if (!p) return null;
-          return worldToScreen(hexToWorld(p.col, p.row));
-        }).filter(Boolean);
-        if (!points.length) return;
+        const rectInfo = roomRectScreen(room);
+        if (!rectInfo) return;
+        const { x1, y1, x2, y2, box } = rectInfo;
 
         const fk = room.floor && room.floor.kind ? String(room.floor.kind) : 'default';
         const floorColor = FLOOR_COLORS[fk] || FLOOR_COLORS.default;
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
-        ctx.closePath();
         ctx.fillStyle = floorColor;
         ctx.globalAlpha = 1;
-        ctx.fill();
+        ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
 
-        const wk = room.wall && room.wall.kind ? String(room.wall.kind) : 'default';
+        const wk = roomWallKind(room);
         const wallColor = WALL_COLORS[wk] || WALL_COLORS.default;
         if (wk !== 'none') {
+          const outer = box ? box.mid : { x1, y1, x2, y2 };
+          const o1 = worldToScreen({ x: outer.x1, y: outer.y1 });
+          const o2 = worldToScreen({ x: outer.x2, y: outer.y2 });
+          const ox1 = Math.min(o1.x, o2.x);
+          const oy1 = Math.min(o1.y, o2.y);
+          const ow = Math.abs(o2.x - o1.x);
+          const oh = Math.abs(o2.y - o1.y);
           ctx.strokeStyle = wallColor;
           ctx.lineWidth = 2;
-          ctx.stroke();
+          ctx.strokeRect(ox1, oy1, ow, oh);
         }
       }
 
@@ -909,13 +970,10 @@
         if (opening) return { type: 'opening', item: opening, floorId: floor.id };
 
         for (const room of floor.rooms) {
-          const corners = Array.isArray(room.corners) ? room.corners : [];
-          const poly = corners.map(c => {
-            const p = parseHexLabel(c);
-            if (!p) return null;
-            return worldToScreen(hexToWorld(p.col, p.row));
-          }).filter(Boolean);
-          if (poly.length && pointInPolygon(screenPoint, poly)) {
+          const rectInfo = roomRectScreen(room);
+          if (!rectInfo) continue;
+          if (screenPoint.x >= rectInfo.x1 && screenPoint.x <= rectInfo.x2 &&
+              screenPoint.y >= rectInfo.y1 && screenPoint.y <= rectInfo.y2) {
             return { type: 'room', item: room, floorId: floor.id };
           }
         }
