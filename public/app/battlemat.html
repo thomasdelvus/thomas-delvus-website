@@ -3862,7 +3862,11 @@ Changelog:
     img.decoding = 'async';
     img.addEventListener('load', () => scheduleSpriteRedraw(), { once: true });
     img.addEventListener('error', () => scheduleSpriteRedraw(), { once: true });
-    img.src = SPRITES.basePath + f;
+    if (f.startsWith('/') || f.startsWith('http://') || f.startsWith('https://')) {
+      img.src = f;
+    } else {
+      img.src = SPRITES.basePath + f;
+    }
 
     SPRITES.cache.set(f, img);
     return img;
@@ -3981,6 +3985,10 @@ Changelog:
   }
 
   const PATTERN_CACHE = new Map();
+
+  const FLOOR_IMAGES = {
+    crosskeys: { file: '/images/the_cross_keys.jpg', alpha: 1 },
+  };
 
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const isFiniteNum = (v) => Number.isFinite(Number(v));
@@ -5550,8 +5558,33 @@ const EMBEDDED_WORLD_JSON = `{
         if (w <= 0 || h <= 0) continue;
 
         const fk = (r && r.floor && r.floor.kind) ? String(r.floor.kind).toLowerCase() : 'wood';
-        ctx.fillStyle = getFloorFillStyle(fk, wantTextures, ctx);
-        ctx.fillRect(x1, y1, w, h);
+        const imgDef = (FLOOR_IMAGES && fk in FLOOR_IMAGES) ? FLOOR_IMAGES[fk] : null;
+        if (imgDef && imgDef.file) {
+          const img = loadSprite(imgDef.file);
+          const ok = drawSpriteImage(img, {
+            x: x1 + w / 2,
+            y: y1 + h / 2,
+            w,
+            h,
+            fit: 'stretch',
+            rotRad: 0,
+          });
+          if (ok) {
+            if (Number.isFinite(imgDef.alpha) && imgDef.alpha >= 0 && imgDef.alpha < 1) {
+              ctx.save();
+              ctx.globalAlpha = 1 - imgDef.alpha;
+              ctx.fillStyle = getFloorFillStyle(fk, wantTextures, ctx);
+              ctx.fillRect(x1, y1, w, h);
+              ctx.restore();
+            }
+          } else {
+            ctx.fillStyle = getFloorFillStyle(fk, wantTextures, ctx);
+            ctx.fillRect(x1, y1, w, h);
+          }
+        } else {
+          ctx.fillStyle = getFloorFillStyle(fk, wantTextures, ctx);
+          ctx.fillRect(x1, y1, w, h);
+        }
       }
     }
 
