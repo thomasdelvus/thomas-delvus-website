@@ -5804,6 +5804,8 @@ const EMBEDDED_WORLD_JSON = `{
           const leafLen = len * 0.80;
           const boxW = leafLen;
           const boxH = thickness * 1.25;
+          const defaultCenterOffset = -0.12;
+          const centerOffset = (isFiniteNum(opening.spriteOffsetY) ? Number(opening.spriteOffsetY) : defaultCenterOffset) * thickness;
 
           // Allow door openings to scale their sprite just like objects do.
           // (e.g. { kind:'door.wood', ..., spriteScale: 1.3 })
@@ -5819,6 +5821,7 @@ const EMBEDDED_WORLD_JSON = `{
 
           ctx.save();
           ctx.translate(hingeX, hingeY);
+          if (centerOffset) ctx.translate(0, centerOffset);
           ctx.rotate((hingeRight ? -1 : 1) * swingSign * ang);
 
           const ok = drawSpriteImage(img, {
