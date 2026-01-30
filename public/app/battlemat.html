@@ -3775,7 +3775,11 @@ Changelog:
     const state = getState();
     if (!state || typeof state !== 'object') return null;
 
-    const recordId = (state && state.__activeRecordId) ? String(state.__activeRecordId) : '';
+    const recordId =
+      (state && state.__activeRecordId) ? String(state.__activeRecordId)
+        : (WORLD_STATE && WORLD_STATE.active && WORLD_STATE.active.recordId) ? String(WORLD_STATE.active.recordId)
+          : (CURRENT_RAW_STATE && CURRENT_RAW_STATE.active && CURRENT_RAW_STATE.active.recordId) ? String(CURRENT_RAW_STATE.active.recordId)
+            : '';
     const out = cloneDeepSafe(state);
     applyPendingDeletes(out);
     delete out.__hydratedObjectsFlat;
