@@ -6414,6 +6414,7 @@ const EMBEDDED_WORLD_JSON = `{
   }
 
   let POI_HOVER_ID = null;
+  let POI_HOVER_ANIMATING = false;
 
   function isPoiViewObject(o) {
     const kind = String(o && o.kind ? o.kind : '').toLowerCase();
@@ -6436,7 +6437,22 @@ const EMBEDDED_WORLD_JSON = `{
       POI_HOVER_ID = next;
       canvas.style.cursor = next ? 'pointer' : '';
       safeRedraw();
+      if (POI_HOVER_ID) startPoiHoverAnimation();
     }
+  }
+
+  function startPoiHoverAnimation() {
+    if (POI_HOVER_ANIMATING) return;
+    POI_HOVER_ANIMATING = true;
+    const tick = () => {
+      if (!POI_HOVER_ID) {
+        POI_HOVER_ANIMATING = false;
+        return;
+      }
+      safeRedraw();
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
   }
 
   function openPoiOverlay(config) {
