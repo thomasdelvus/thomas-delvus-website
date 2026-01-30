@@ -2014,66 +2014,6 @@
             }
           ]
         }
-      ],
-      "tokens": [
-        {
-          "id": "character_1",
-          "character_id": "uKHpm1HN6NNvbcQyYvKLkw",
-          "name": "Durin",
-          "side": "PC",
-          "hex": "U16",
-          "label": "D",
-          "init": 14,
-          "hp": 42,
-          "floorId": "upper",
-          "spriteFile": "fighter_male.png"
-        },
-        {
-          "id": "character_2",
-          "character_id": "gzVRo76msnG3tE2MVAHfPQ",
-          "name": "Sera",
-          "side": "PC",
-          "hex": "X16",
-          "label": "S",
-          "init": 12,
-          "hp": 35,
-          "floorId": "ground",
-          "spriteFile": "wizard_female.png"
-        },
-	{
-          "id": "character_3",
-          "character_id": "Dd0Y0tucPXlFY44Nz4YdnQ",
-          "name": "Myrr",
-          "side": "PC",
-          "hex": "S17",
-          "label": "M",
-          "init": 12,
-          "hp": 35,
-          "floorId": "ground",
-          "spriteFile": "dragonkin_red.png"
-        },
-        {
-          "id": "g1",
-          "name": "Goblin 1",
-          "side": "NPC",
-          "hex": "U19",
-          "label": "G1",
-          "init": 10,
-          "hp": 8,
-          "floorId": "upper",
-          "hostility": "hostile"
-        },
-        {
-          "id": "g2",
-          "name": "Goblin 2",
-          "side": "NPC",
-          "hex": "V19",
-          "label": "G2",
-          "init": 10,
-          "hp": 8,
-          "floorId": "upper",
-          "hostility": "hostile"
-        }
       ]
     }
   },
@@ -2083,3 +2023,5 @@
   "openings": [],
   "objects": []
 }
+
+
