@@ -3924,7 +3924,7 @@ Changelog:
         wood_dark:    0.50,
 
         stone:        0.50,
-        stone_cobble: 0.45,
+        stone_cobble: 0.15,
         stone_gravel: 0.55,
 
         brick_gray:   0.15,
@@ -7643,7 +7643,7 @@ function populateFloorSelect(floors) {
       labelsEnabled,
     });
     const editorSig = editorSignatureFor();
-    const shouldRender = (renderSig !== LAST_RENDER_SIGNATURE) || (editorSig !== LAST_EDITOR_SIGNATURE);
+    const shouldRender = (renderSig !== LAST_RENDER_SIGNATURE) || (editorSig !== LAST_EDITOR_SIGNATURE) || !!POI_HOVER_ID;
 
     let roomsToDraw = rooms;
     let openingsToDraw = openings;
