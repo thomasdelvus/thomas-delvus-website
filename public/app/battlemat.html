@@ -6224,10 +6224,39 @@ const EMBEDDED_WORLD_JSON = `{
       const w = baseW + (pad.x || 0);
       const h = baseH + (pad.y || 0);
 
+      const rid = openingPreferredRoomId(o, roomMetaAll);
+      const room = rid ? roomById(rooms, rid) : null;
+      const fk = room ? roomFloorKind(room) : 'wood';
+      const imgDef = (FLOOR_IMAGES && fk in FLOOR_IMAGES) ? FLOOR_IMAGES[fk] : null;
+      const isVisible = !fogEnabled || (RENDER_FOG && rid && RENDER_FOG.visible && RENDER_FOG.visible.has(rid));
+
       ctx.save();
-      ctx.fillStyle = openingKnockoutFill(o, rooms, roomMetaAll, fogEnabled, wantTextures);
       const rr = snappedRectFromCenter(centerS, w, h);
-      ctx.fillRect(rr.x, rr.y, rr.w, rr.h);
+      if (imgDef && imgDef.file && isVisible) {
+        const info = roomMetaAll && roomMetaAll.get ? roomMetaAll.get(String(rid || '')) : null;
+        const floorRect = info && info.floorRect ? info.floorRect : null;
+        if (floorRect) {
+          const p1 = worldToScreen({ x: floorRect.x1, y: floorRect.y1 });
+          const p2 = worldToScreen({ x: floorRect.x2, y: floorRect.y2 });
+          const fx = Math.min(p1.x, p2.x);
+          const fy = Math.min(p1.y, p2.y);
+          const fw = Math.abs(p2.x - p1.x);
+          const fh = Math.abs(p2.y - p1.y);
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(rr.x, rr.y, rr.w, rr.h);
+          ctx.clip();
+          const img = loadSprite(imgDef.file);
+          drawSpriteImage(img, { x: fx + fw / 2, y: fy + fh / 2, w: fw, h: fh, fit: 'stretch', rotRad: 0 });
+          ctx.restore();
+        } else {
+          ctx.fillStyle = openingKnockoutFill(o, rooms, roomMetaAll, fogEnabled, wantTextures);
+          ctx.fillRect(rr.x, rr.y, rr.w, rr.h);
+        }
+      } else {
+        ctx.fillStyle = openingKnockoutFill(o, rooms, roomMetaAll, fogEnabled, wantTextures);
+        ctx.fillRect(rr.x, rr.y, rr.w, rr.h);
+      }
       ctx.restore();
     }
   }
