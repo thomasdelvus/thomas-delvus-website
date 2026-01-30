@@ -883,6 +883,22 @@
         ctx.fillText(label, center.x, center.y);
       }
 
+      function numOr(value, fallback) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : fallback;
+      }
+
+      function sortByZ(list) {
+        if (!Array.isArray(list)) return [];
+        const order = new Map();
+        list.forEach((item, idx) => order.set(item, idx));
+        return list.slice().sort((a, b) => {
+          const za = numOr(a && a.z, order.get(a));
+          const zb = numOr(b && b.z, order.get(b));
+          return za - zb;
+        });
+      }
+
       function render() {
         if (!STATE.battle) return;
         const dpr = window.devicePixelRatio || 1;
@@ -895,9 +911,9 @@
         const floor = pickFloor();
         if (!floor) return;
 
-        const rooms = floor.rooms || [];
-        const openings = floor.openings || [];
-        const objects = floor.objects || [];
+        const rooms = sortByZ(floor.rooms || []);
+        const openings = sortByZ(floor.openings || []);
+        const objects = sortByZ(floor.objects || []);
         const tokens = buildTokens().filter(t => !t.floorId || t.floorId === floor.id);
 
         rooms.forEach(drawRoom);
@@ -1123,6 +1139,12 @@
         list.splice(idx, 1);
         if (direction === 'front') list.push(sel.item);
         else list.unshift(sel.item);
+
+        // Persist order via z so reloads keep the stack.
+        const zVals = list.map((item, i) => numOr(item && item.z, i));
+        const maxZ = Math.max(0, ...zVals);
+        const minZ = Math.min(0, ...zVals);
+        sel.item.z = direction === 'front' ? maxZ + 1 : minZ - 1;
 
         EDITOR.dirty = true;
         render();
