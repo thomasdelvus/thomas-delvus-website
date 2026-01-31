@@ -312,6 +312,7 @@
   <script>
     (() => {
       const canvas = document.getElementById('map');
+      const canvasWrap = document.getElementById('canvasWrap');
       const ctx = canvas.getContext('2d');
 
       const toolButtons = {
@@ -630,6 +631,20 @@
           btn.classList.toggle('active', key === tool);
         });
         EDITOR.roomStart = null;
+      }
+
+      function clampZoom(value) {
+        const min = zoomInput ? Number(zoomInput.min) : 0.25;
+        const max = zoomInput ? Number(zoomInput.max) : 4;
+        if (!Number.isFinite(min) || !Number.isFinite(max)) return value;
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function setZoom(value) {
+        const next = clampZoom(value);
+        VIEW.zoom = next;
+        if (zoomInput) zoomInput.value = String(next);
+        render();
       }
 
       function normalizeState(state) {
@@ -2195,9 +2210,16 @@
           });
         }
         zoomInput.addEventListener('input', () => {
-          VIEW.zoom = Number(zoomInput.value);
-          render();
+          setZoom(Number(zoomInput.value));
         });
+        if (canvasWrap) {
+          canvasWrap.addEventListener('wheel', (ev) => {
+            ev.preventDefault();
+            const step = zoomInput ? Number(zoomInput.step) : 0.05;
+            const delta = ev.deltaY > 0 ? -step : step;
+            setZoom(VIEW.zoom + delta);
+          }, { passive: false });
+        }
         const nudgeStep = 1;
         if (panUp) panUp.addEventListener('click', () => nudgeCamera(0, -rowStep() * nudgeStep));
         if (panDown) panDown.addEventListener('click', () => nudgeCamera(0, rowStep() * nudgeStep));
