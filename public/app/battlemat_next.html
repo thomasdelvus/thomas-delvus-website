@@ -1021,10 +1021,14 @@
         const len = GRID.size * lenUnits * VIEW.zoom;
         const thick = GRID.size * thickUnits * VIEW.zoom;
         const seamKind = opening.seam_kind || opening.seamKind || '';
+        const seamMode = String(opening.seam_mode || opening.seamMode || '').toLowerCase();
         const seamColor = seamKind ? (FLOOR_COLORS[String(seamKind)] || FLOOR_COLORS.default) : null;
         const seamAnchor = seamKind ? seamAnchorWorld(opening, floor, String(seamKind), world) : null;
         const hasCutout = !!openingCutoutRoom(opening, floor);
-        const seamFill = seamKind && !hasCutout ? getFillStyle('floor', String(seamKind), seamColor, seamAnchor) : null;
+        const allowSeamFill = seamMode === 'fill' || seamMode === 'seam';
+        const seamFill = seamKind && !hasCutout && allowSeamFill
+          ? getFillStyle('floor', String(seamKind), seamColor, seamAnchor)
+          : null;
         const seamLen = len * 1.15;
         const seamThick = thick * 1.6;
         if (seamFill) {
@@ -1324,6 +1328,7 @@
           addField('Length', sel.item.len != null ? sel.item.len : '', 'len', { type: 'number', step: '0.05' });
           addField('Thickness', sel.item.thickness != null ? sel.item.thickness : '', 'thickness', { type: 'number', step: '0.05' });
           addField('Seam', sel.item.seam_kind || '', 'seam_kind');
+          addField('Seam Mode', sel.item.seam_mode || '', 'seam_mode');
           addField('Seam Anchor', sel.item.seam_anchor || '', 'seam_anchor');
           addButtonRow([
             { label: 'To Front', onClick: () => reorderSelection('front') },
@@ -1417,6 +1422,7 @@
             else item.thickness = n;
           }
           if (key === 'seam_kind') item.seam_kind = value;
+          if (key === 'seam_mode') item.seam_mode = value;
           if (key === 'seam_anchor') item.seam_anchor = value;
         }
 
