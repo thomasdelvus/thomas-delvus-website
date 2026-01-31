@@ -781,8 +781,7 @@
         const yBot = (pBL.y + pBR.y) / 2;
 
         const thicknessBase = Number(room && room.thickness != null ? room.thickness : 0);
-        // Thickness values are authored in pixel-like units in existing data; normalize to world units.
-        const t = roomHasWalls(room) ? (thicknessBase / GRID.size) : 0;
+        const t = roomHasWalls(room) ? thicknessBase : 0;
         const half = t / 2;
 
         // Treat corners as the wall centerline. Expand outward for wall band.
