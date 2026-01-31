@@ -905,15 +905,48 @@
         // No outline: keep room edges pure for texture matching.
       }
 
-      function seamAnchorWorld(opening, floor) {
-        const anchorId = opening.seam_anchor || opening.seamAnchor || opening.seam_room || opening.seamRoom || '';
-        if (!anchorId || !floor || !Array.isArray(floor.rooms)) return { x: 0, y: 0 };
-        const room = floor.rooms.find(r => r && r.id === anchorId);
-        if (!room) return { x: 0, y: 0 };
+      function roomAnchorWorld(room) {
         const box = roomToWallBox(room);
-        if (!box) return { x: 0, y: 0 };
+        if (!box) return null;
         const src = roomHasWalls(room) ? box.inner : box.center;
         return { x: src.x1, y: src.y1 };
+      }
+
+      function roomCenterWorld(room) {
+        const box = roomToWallBox(room);
+        if (!box) return null;
+        const src = roomHasWalls(room) ? box.inner : box.center;
+        return { x: (src.x1 + src.x2) / 2, y: (src.y1 + src.y2) / 2 };
+      }
+
+      function seamAnchorWorld(opening, floor, seamKind, openingWorld) {
+        const anchorId = opening.seam_anchor || opening.seamAnchor || opening.seam_room || opening.seamRoom || '';
+        if (floor && Array.isArray(floor.rooms) && anchorId) {
+          const room = floor.rooms.find(r => r && r.id === anchorId);
+          const anchor = room ? roomAnchorWorld(room) : null;
+          if (anchor) return anchor;
+        }
+
+        const targetKind = String(seamKind || '').toLowerCase();
+        if (!floor || !Array.isArray(floor.rooms) || !targetKind || !openingWorld) return { x: 0, y: 0 };
+        let bestRoom = null;
+        let bestD2 = Infinity;
+        for (const room of floor.rooms) {
+          const fk = room && room.floor && room.floor.kind ? String(room.floor.kind).toLowerCase() : '';
+          if (!fk) continue;
+          if (fk !== targetKind) continue;
+          const center = roomCenterWorld(room);
+          if (!center) continue;
+          const dx = center.x - openingWorld.x;
+          const dy = center.y - openingWorld.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < bestD2) {
+            bestD2 = d2;
+            bestRoom = room;
+          }
+        }
+        const anchor = bestRoom ? roomAnchorWorld(bestRoom) : null;
+        return anchor || { x: 0, y: 0 };
       }
 
       function openingWorldCenter(opening, floor) {
@@ -945,7 +978,7 @@
         const thick = GRID.size * thickUnits * VIEW.zoom;
         const seamKind = opening.seam_kind || opening.seamKind || '';
         const seamColor = seamKind ? (FLOOR_COLORS[String(seamKind)] || FLOOR_COLORS.default) : null;
-        const seamAnchor = seamKind ? seamAnchorWorld(opening, floor) : null;
+        const seamAnchor = seamKind ? seamAnchorWorld(opening, floor, String(seamKind), world) : null;
         const seamFill = seamKind ? getFillStyle('floor', String(seamKind), seamColor, seamAnchor) : null;
         const seamLen = len * 1.15;
         const seamThick = thick * 1.6;
