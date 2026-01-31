@@ -902,7 +902,7 @@
         if (!box) return;
         const rect = FLOOR_UNDER_WALLS
           ? roomOuterRectWorld(room, box)
-          : roomFloorRectWorld(room, box);
+          : (box.center || roomFloorRectWorld(room, box));
         if (!rect) return;
         const p1 = worldToScreen({ x: rect.x1, y: rect.y1 });
         const p2 = worldToScreen({ x: rect.x2, y: rect.y2 });
