@@ -870,7 +870,41 @@
         };
       }
 
-      function drawRoom(room) {
+      function openingCutoutRoom(opening, floor) {
+        const anchorId = opening.seam_anchor || opening.seamAnchor || opening.seam_room || opening.seamRoom || opening.cutout_room || opening.cutoutRoom || '';
+        if (!anchorId || !floor || !Array.isArray(floor.rooms)) return null;
+        return floor.rooms.find(r => r && r.id === anchorId) || null;
+      }
+
+      function openingCutoutRectsForRoom(room, floor) {
+        if (!room || !floor || !Array.isArray(floor.openings)) return [];
+        const out = [];
+        for (const opening of floor.openings) {
+          const cutRoom = openingCutoutRoom(opening, floor);
+          if (!cutRoom || cutRoom.id !== room.id) continue;
+          const world = openingWorldCenter(opening, floor);
+          if (!world) continue;
+          const orient = opening.orientation === 'v' ? 'v' : 'h';
+          const kindRaw = String(opening.kind || '').toLowerCase();
+          const kind =
+            kindRaw.startsWith('window') ? 'window' :
+            kindRaw.startsWith('portal') ? 'portal' :
+            kindRaw.startsWith('threshold') ? 'threshold' : 'door';
+          const style = OPENING_STYLE[kind] || OPENING_STYLE.door;
+          const lenUnits = Number.isFinite(Number(opening.len ?? opening.length ?? opening.size))
+            ? Number(opening.len ?? opening.length ?? opening.size)
+            : style.len;
+          const thickUnits = Number.isFinite(Number(opening.thick ?? opening.thickness))
+            ? Number(opening.thick ?? opening.thickness)
+            : style.thick;
+          const len = GRID.size * lenUnits * VIEW.zoom;
+          const thick = GRID.size * thickUnits * VIEW.zoom;
+          out.push({ center: worldToScreen(world), orient, len, thick });
+        }
+        return out;
+      }
+
+      function drawRoom(room, floor) {
         const rectInfo = roomRectScreen(room);
         if (!rectInfo) return;
         const { x1, y1, x2, y2, box } = rectInfo;
@@ -896,6 +930,20 @@
           ctx.fillStyle = getFillStyle('wall', wk, wallColor, wallAnchor);
           ctx.globalAlpha = 1;
           ctx.fillRect(ox1, oy1, ow, oh);
+
+          const cutouts = openingCutoutRectsForRoom(room, floor);
+          if (cutouts.length) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'destination-out';
+            for (const cut of cutouts) {
+              ctx.save();
+              ctx.translate(cut.center.x, cut.center.y);
+              if (cut.orient === 'v') ctx.rotate(Math.PI / 2);
+              ctx.fillRect(-cut.len / 2, -cut.thick / 2, cut.len, cut.thick);
+              ctx.restore();
+            }
+            ctx.restore();
+          }
         }
 
         ctx.fillStyle = getFillStyle('floor', fk, floorColor, floorAnchor);
@@ -979,7 +1027,8 @@
         const seamKind = opening.seam_kind || opening.seamKind || '';
         const seamColor = seamKind ? (FLOOR_COLORS[String(seamKind)] || FLOOR_COLORS.default) : null;
         const seamAnchor = seamKind ? seamAnchorWorld(opening, floor, String(seamKind), world) : null;
-        const seamFill = seamKind ? getFillStyle('floor', String(seamKind), seamColor, seamAnchor) : null;
+        const hasCutout = !!openingCutoutRoom(opening, floor);
+        const seamFill = seamKind && !hasCutout ? getFillStyle('floor', String(seamKind), seamColor, seamAnchor) : null;
         const seamLen = len * 1.15;
         const seamThick = thick * 1.6;
         if (seamFill) {
@@ -1191,7 +1240,7 @@
         const objects = sortByZ(floor.objects || []);
         const tokens = buildTokens().filter(t => !t.floorId || t.floorId === floor.id);
 
-        rooms.forEach(drawRoom);
+        rooms.forEach(room => drawRoom(room, floor));
         openings.forEach(o => drawOpening(o, floor));
         objects.forEach((obj, idx) => drawObject(obj, idx));
         tokens.forEach(drawToken);
