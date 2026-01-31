@@ -217,6 +217,14 @@
           <option value="monster">monster</option>
           <option value="creature">creature</option>
         </select>
+        <label class="status">Layer</label>
+        <select id="layerSelect">
+          <option value="all" selected>all</option>
+          <option value="floors">floors</option>
+          <option value="walls">walls</option>
+          <option value="objects">objects</option>
+          <option value="tokens">tokens</option>
+        </select>
         <select id="floorSelect"></select>
         <label class="status">Zoom</label>
         <input id="zoom" type="range" min="0.25" max="4" step="0.05" value="1" />
@@ -259,6 +267,7 @@
       };
 
       const floorSelect = document.getElementById('floorSelect');
+      const layerSelect = document.getElementById('layerSelect');
       const openingKindSelect = document.getElementById('openingKind');
       const openingOrientH = document.getElementById('openingOrientH');
       const openingOrientV = document.getElementById('openingOrientV');
@@ -307,6 +316,9 @@
         'crate', 'barrel', 'keg'
       ];
       const DEFAULT_TOKEN_KINDS = ['pc', 'npc', 'monster', 'creature'];
+
+      // Floors under wall bands can hide cutouts; keep false unless you want that effect.
+      const FLOOR_UNDER_WALLS = false;
 
       const OPENING_STYLE = {
         door: { len: 1.5, thick: 0.25, color: '#9a6b3a' },
@@ -876,12 +888,45 @@
         return floor.rooms.find(r => r && r.id === anchorId) || null;
       }
 
-      function openingCutoutRectsForRoom(room, floor) {
-        if (!room || !floor || !Array.isArray(floor.openings)) return [];
+      function roomOuterRectWorld(room, box) {
+        if (!box) return null;
+        const src = roomHasWalls(room) ? (box.outer || box.center) : box.center;
+        return { x1: src.x1, y1: src.y1, x2: src.x2, y2: src.y2 };
+      }
+
+      function drawFloorRoom(room, gctx) {
+        const box = roomToWallBox(room);
+        if (!box) return;
+        const rect = FLOOR_UNDER_WALLS
+          ? roomOuterRectWorld(room, box)
+          : roomFloorRectWorld(room, box);
+        if (!rect) return;
+        const p1 = worldToScreen({ x: rect.x1, y: rect.y1 });
+        const p2 = worldToScreen({ x: rect.x2, y: rect.y2 });
+        const x1 = Math.min(p1.x, p2.x);
+        const y1 = Math.min(p1.y, p2.y);
+        const x2 = Math.max(p1.x, p2.x);
+        const y2 = Math.max(p1.y, p2.y);
+
+        const fk = room.floor && room.floor.kind ? String(room.floor.kind) : 'default';
+        const floorColor = FLOOR_COLORS[fk] || FLOOR_COLORS.default;
+        const floorAnchor = { x: rect.x1, y: rect.y1 };
+        gctx.fillStyle = getFillStyle(gctx, 'floor', fk, floorColor, floorAnchor);
+        gctx.globalAlpha = 1;
+        gctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+      }
+
+      function drawFloorsLayer(floor, gctx) {
+        const rooms = sortByZ(floor.rooms || []);
+        rooms.forEach(room => drawFloorRoom(room, gctx));
+      }
+
+      function openingCutoutRectsForFloor(floor) {
+        if (!floor || !Array.isArray(floor.openings)) return [];
         const out = [];
         for (const opening of floor.openings) {
           const cutRoom = openingCutoutRoom(opening, floor);
-          if (!cutRoom || cutRoom.id !== room.id) continue;
+          if (!cutRoom) continue;
           const world = openingWorldCenter(opening, floor);
           if (!world) continue;
           const orient = opening.orientation === 'v' ? 'v' : 'h';
@@ -909,46 +954,44 @@
         return out;
       }
 
-      function drawRoom(room, floor) {
-        const rectInfo = roomRectScreen(room);
-        if (!rectInfo) return;
-        const { x1, y1, x2, y2, box } = rectInfo;
-
-        const fk = room.floor && room.floor.kind ? String(room.floor.kind) : 'default';
-        const floorColor = FLOOR_COLORS[fk] || FLOOR_COLORS.default;
-        const wk = roomWallKind(room);
-        const wallColor = WALL_COLORS[wk] || WALL_COLORS.default;
-        const floorRect = box ? roomFloorRectWorld(room, box) : null;
-        const floorAnchor = floorRect ? { x: floorRect.x1, y: floorRect.y1 } : null;
-        const wallOuter = box ? (box.outer || box.center) : null;
-        const wallAnchor = wallOuter ? { x: wallOuter.x1, y: wallOuter.y1 } : null;
-
-        // Fill wall band first (outer rect), then floor (inner rect) so walls aren't black.
-        if (wk !== 'none' && box && box.thickness > 0) {
-          const outer = wallOuter || box.center;
+      function drawWallsLayer(floor, gctx) {
+        const rooms = sortByZ(floor.rooms || []);
+        for (const room of rooms) {
+          const box = roomToWallBox(room);
+          if (!box || !roomHasWalls(room)) continue;
+          const outer = box.outer || box.center;
+          const inner = box.inner || box.center;
           const o1 = worldToScreen({ x: outer.x1, y: outer.y1 });
           const o2 = worldToScreen({ x: outer.x2, y: outer.y2 });
+          const i1 = worldToScreen({ x: inner.x1, y: inner.y1 });
+          const i2 = worldToScreen({ x: inner.x2, y: inner.y2 });
           const ox1 = Math.min(o1.x, o2.x);
           const oy1 = Math.min(o1.y, o2.y);
           const ow = Math.abs(o2.x - o1.x);
           const oh = Math.abs(o2.y - o1.y);
-          ctx.fillStyle = getFillStyle('wall', wk, wallColor, wallAnchor);
-          ctx.globalAlpha = 1;
-          const cutouts = openingCutoutRectsForRoom(room, floor);
-          ctx.beginPath();
-          ctx.rect(ox1, oy1, ow, oh);
-          ctx.rect(x1, y1, x2 - x1, y2 - y1);
-          for (const cut of cutouts) {
-            ctx.rect(cut.center.x - cut.w / 2, cut.center.y - cut.h / 2, cut.w, cut.h);
-          }
-          ctx.fill('evenodd');
+          const ix1 = Math.min(i1.x, i2.x);
+          const iy1 = Math.min(i1.y, i2.y);
+          const iw = Math.abs(i2.x - i1.x);
+          const ih = Math.abs(i2.y - i1.y);
+          const wk = roomWallKind(room);
+          const wallColor = WALL_COLORS[wk] || WALL_COLORS.default;
+          const wallAnchor = { x: outer.x1, y: outer.y1 };
+          gctx.fillStyle = getFillStyle(gctx, 'wall', wk, wallColor, wallAnchor);
+          gctx.beginPath();
+          gctx.rect(ox1, oy1, ow, oh);
+          gctx.rect(ix1, iy1, iw, ih);
+          gctx.fill('evenodd');
         }
 
-        ctx.fillStyle = getFillStyle('floor', fk, floorColor, floorAnchor);
-        ctx.globalAlpha = 1;
-        ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
-
-        // No outline: keep room edges pure for texture matching.
+        const cutouts = openingCutoutRectsForFloor(floor);
+        if (cutouts.length) {
+          gctx.save();
+          gctx.globalCompositeOperation = 'destination-out';
+          for (const cut of cutouts) {
+            gctx.fillRect(cut.center.x - cut.w / 2, cut.center.y - cut.h / 2, cut.w, cut.h);
+          }
+          gctx.restore();
+        }
       }
 
       function roomAnchorWorld(room) {
@@ -1003,7 +1046,7 @@
         return snapWorldToWall(world, floor, orient);
       }
 
-      function drawOpening(opening, floor) {
+      function drawOpening(opening, floor, gctx) {
         const world = openingWorldCenter(opening, floor);
         if (!world) return;
         const center = worldToScreen(world);
@@ -1029,27 +1072,27 @@
         const hasCutout = !!openingCutoutRoom(opening, floor);
         const allowSeamFill = seamMode === 'fill' || seamMode === 'seam';
         const seamFill = seamKind && !hasCutout && allowSeamFill
-          ? getFillStyle('floor', String(seamKind), seamColor, seamAnchor)
+          ? getFillStyle(gctx, 'floor', String(seamKind), seamColor, seamAnchor)
           : null;
         const seamLen = len * 1.15;
         const seamThick = thick * 1.6;
         if (seamFill) {
-          ctx.save();
-          ctx.translate(center.x, center.y);
-          ctx.fillStyle = seamFill;
+          gctx.save();
+          gctx.translate(center.x, center.y);
+          gctx.fillStyle = seamFill;
           if (orient === 'v') {
-            ctx.fillRect(-seamThick / 2, -seamLen / 2, seamThick, seamLen);
+            gctx.fillRect(-seamThick / 2, -seamLen / 2, seamThick, seamLen);
           } else {
-            ctx.fillRect(-seamLen / 2, -seamThick / 2, seamLen, seamThick);
+            gctx.fillRect(-seamLen / 2, -seamThick / 2, seamLen, seamThick);
           }
-          ctx.restore();
+          gctx.restore();
         }
-        ctx.save();
-        ctx.translate(center.x, center.y);
-        if (orient === 'v') ctx.rotate(Math.PI / 2);
-        ctx.fillStyle = style.color;
-        ctx.fillRect(-len / 2, -thick / 2, len, thick);
-        ctx.restore();
+        gctx.save();
+        gctx.translate(center.x, center.y);
+        if (orient === 'v') gctx.rotate(Math.PI / 2);
+        gctx.fillStyle = style.color;
+        gctx.fillRect(-len / 2, -thick / 2, len, thick);
+        gctx.restore();
       }
 
       function objectWorldCenter(obj) {
@@ -1075,7 +1118,31 @@
         return img;
       }
 
-      const PATTERN_CACHE = new Map();
+      const LAYER_CANVASES = new Map();
+      function getLayerContext(name, rect, dpr) {
+        let layer = LAYER_CANVASES.get(name);
+        if (!layer) {
+          const canvas = document.createElement('canvas');
+          const gctx = canvas.getContext('2d');
+          layer = { canvas, ctx: gctx };
+          LAYER_CANVASES.set(name, layer);
+        }
+        layer.canvas.width = rect.width * dpr;
+        layer.canvas.height = rect.height * dpr;
+        layer.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        layer.ctx.clearRect(0, 0, rect.width, rect.height);
+        return layer;
+      }
+
+      const PATTERN_CACHE = new WeakMap();
+
+      function getPatternCache(gctx) {
+        const cache = PATTERN_CACHE.get(gctx);
+        if (cache) return cache;
+        const created = new Map();
+        PATTERN_CACHE.set(gctx, created);
+        return created;
+      }
 
       function resolveTextureDef(category, kind) {
         const cat = String(category || '').toLowerCase();
@@ -1093,10 +1160,11 @@
         return { url: TEXTURE_FILES[key], scale };
       }
 
-      function getTexturePattern(category, kind) {
+      function getTexturePattern(gctx, category, kind) {
         const def = resolveTextureDef(category, kind);
         if (!def) return null;
-        const cached = PATTERN_CACHE.get(def.url);
+        const cache = getPatternCache(gctx);
+        const cached = cache.get(def.url);
         if (cached && cached.pattern) return { pattern: cached.pattern, scale: def.scale };
 
         const img = loadSprite(def.url);
@@ -1105,16 +1173,16 @@
             img.__patternHooked = true;
             img.onload = () => {
               img.__patternHooked = false;
-              PATTERN_CACHE.delete(def.url);
+              cache.delete(def.url);
               render();
             };
           }
           return null;
         }
 
-        const pattern = ctx.createPattern(img, 'repeat');
+        const pattern = gctx.createPattern(img, 'repeat');
         if (!pattern) return null;
-        PATTERN_CACHE.set(def.url, { pattern });
+        cache.set(def.url, { pattern });
         return { pattern, scale: def.scale };
       }
 
@@ -1134,8 +1202,8 @@
         pattern.setTransform(m);
       }
 
-      function getFillStyle(category, kind, fallback, anchorWorld) {
-        const tex = getTexturePattern(category, kind);
+      function getFillStyle(gctx, category, kind, fallback, anchorWorld) {
+        const tex = getTexturePattern(gctx, category, kind);
         if (tex && tex.pattern) {
           applyPatternTransform(tex.pattern, tex.scale, anchorWorld);
           return tex.pattern;
@@ -1143,7 +1211,7 @@
         return fallback;
       }
 
-      function drawObject(obj, zIndex) {
+      function drawObject(obj, zIndex, gctx) {
         const world = objectWorldCenter(obj);
         if (!world) return;
         const center = worldToScreen(world);
@@ -1165,48 +1233,48 @@
               sizeW = base * scaleX * VIEW.zoom;
               sizeH = base * ratio * scaleY * VIEW.zoom;
             }
-            ctx.save();
-            ctx.translate(center.x, center.y);
-            if (rot) ctx.rotate(rot);
-            ctx.drawImage(img, -sizeW / 2, -sizeH / 2, sizeW, sizeH);
-            ctx.restore();
+            gctx.save();
+            gctx.translate(center.x, center.y);
+            if (rot) gctx.rotate(rot);
+            gctx.drawImage(img, -sizeW / 2, -sizeH / 2, sizeW, sizeH);
+            gctx.restore();
             return;
           }
         }
 
-        ctx.save();
-        ctx.translate(center.x, center.y);
-        if (rot) ctx.rotate(rot);
-        ctx.fillStyle = '#2b2f3a';
-        ctx.fillRect(-sizeW / 2, -sizeH / 2, sizeW, sizeH);
-        ctx.strokeStyle = '#4a5568';
-        ctx.strokeRect(-sizeW / 2, -sizeH / 2, sizeW, sizeH);
-        ctx.fillStyle = '#cfd6df';
-        ctx.font = `${10 * VIEW.zoom}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        gctx.save();
+        gctx.translate(center.x, center.y);
+        if (rot) gctx.rotate(rot);
+        gctx.fillStyle = '#2b2f3a';
+        gctx.fillRect(-sizeW / 2, -sizeH / 2, sizeW, sizeH);
+        gctx.strokeStyle = '#4a5568';
+        gctx.strokeRect(-sizeW / 2, -sizeH / 2, sizeW, sizeH);
+        gctx.fillStyle = '#cfd6df';
+        gctx.font = `${10 * VIEW.zoom}px sans-serif`;
+        gctx.textAlign = 'center';
+        gctx.textBaseline = 'middle';
         const baseLabel = obj.name || obj.kind || 'obj';
         const displayZ = obj.z != null ? obj.z : (Number.isFinite(zIndex) ? zIndex : null);
         const label = displayZ != null ? `${baseLabel} (${displayZ})` : baseLabel;
-        ctx.fillText(label, 0, 0);
-        ctx.restore();
+        gctx.fillText(label, 0, 0);
+        gctx.restore();
       }
 
-      function drawToken(token) {
+      function drawToken(token, gctx) {
         const p = parseHexLabel(token.hex);
         if (!p) return;
         const center = worldToScreen(hexToWorld(p.col, p.row));
         const r = GRID.size * 0.35 * VIEW.zoom;
-        ctx.fillStyle = token.side === 'NPC' ? '#c95c5c' : '#5ca9c9';
-        ctx.beginPath();
-        ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#0b0f14';
-        ctx.font = `${11 * VIEW.zoom}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        gctx.fillStyle = token.side === 'NPC' ? '#c95c5c' : '#5ca9c9';
+        gctx.beginPath();
+        gctx.arc(center.x, center.y, r, 0, Math.PI * 2);
+        gctx.fill();
+        gctx.fillStyle = '#0b0f14';
+        gctx.font = `${11 * VIEW.zoom}px sans-serif`;
+        gctx.textAlign = 'center';
+        gctx.textBaseline = 'middle';
         const label = token.name ? token.name[0].toUpperCase() : '?';
-        ctx.fillText(label, center.x, center.y);
+        gctx.fillText(label, center.x, center.y);
       }
 
       function numOr(value, fallback) {
@@ -1237,15 +1305,35 @@
         const floor = pickFloor();
         if (!floor) return;
 
-        const rooms = sortByZ(floor.rooms || []);
+        const layerMode = layerSelect ? layerSelect.value : 'all';
+        const floorLayer = getLayerContext('floors', rect, dpr);
+        const wallLayer = getLayerContext('walls', rect, dpr);
+        const objectLayer = getLayerContext('objects', rect, dpr);
+        const tokenLayer = getLayerContext('tokens', rect, dpr);
+
+        drawFloorsLayer(floor, floorLayer.ctx);
+        drawWallsLayer(floor, wallLayer.ctx);
+
         const openings = sortByZ(floor.openings || []);
         const objects = sortByZ(floor.objects || []);
         const tokens = buildTokens().filter(t => !t.floorId || t.floorId === floor.id);
+        openings.forEach(o => drawOpening(o, floor, objectLayer.ctx));
+        objects.forEach((obj, idx) => drawObject(obj, idx, objectLayer.ctx));
+        tokens.forEach(t => drawToken(t, tokenLayer.ctx));
 
-        rooms.forEach(room => drawRoom(room, floor));
-        openings.forEach(o => drawOpening(o, floor));
-        objects.forEach((obj, idx) => drawObject(obj, idx));
-        tokens.forEach(drawToken);
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        if (layerMode === 'all' || layerMode === 'floors') {
+          ctx.drawImage(floorLayer.canvas, 0, 0, rect.width, rect.height);
+        }
+        if (layerMode === 'all' || layerMode === 'walls') {
+          ctx.drawImage(wallLayer.canvas, 0, 0, rect.width, rect.height);
+        }
+        if (layerMode === 'all' || layerMode === 'objects') {
+          ctx.drawImage(objectLayer.canvas, 0, 0, rect.width, rect.height);
+        }
+        if (layerMode === 'all' || layerMode === 'tokens') {
+          ctx.drawImage(tokenLayer.canvas, 0, 0, rect.width, rect.height);
+        }
       }
 
       function updateInspector() {
@@ -1910,6 +1998,11 @@
           VIEW.floorId = floorSelect.value;
           render();
         });
+        if (layerSelect) {
+          layerSelect.addEventListener('change', () => {
+            render();
+          });
+        }
         zoomInput.addEventListener('input', () => {
           VIEW.zoom = Number(zoomInput.value);
           render();
