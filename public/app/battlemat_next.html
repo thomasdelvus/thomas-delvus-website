@@ -187,7 +187,7 @@
         <button id="toolOpening" class="toolBtn">Opening</button>
         <button id="toolObject" class="toolBtn">Object</button>
         <button id="toolToken" class="toolBtn">Token</button>
-        <button id="toolDelete" class="toolBtn">Delete</button>
+        
         <label class="status">Opening</label>
         <select id="openingKind">
           <option value="door.wood">door.wood</option>
@@ -263,7 +263,6 @@
         opening: document.getElementById('toolOpening'),
         object: document.getElementById('toolObject'),
         token: document.getElementById('toolToken'),
-        delete: document.getElementById('toolDelete'),
       };
 
       const floorSelect = document.getElementById('floorSelect');
@@ -686,7 +685,7 @@
         const poiId = resolvePoiId();
         const entities = Array.isArray(STATE.entities) ? STATE.entities : [];
         return entities
-          .filter(e => e && (!e.poi_id || e.poi_id === poiId))
+          .filter(e => e && !e.deleted && (!e.poi_id || e.poi_id === poiId))
           .map(e => {
             const loc = e.location || e.position || {};
             const hex = e.hex || loc.hex || '';
@@ -741,8 +740,8 @@
         if (!floor) return;
         let target = null;
         if (Array.isArray(floor.rooms) && floor.rooms.length) {
-          const corners = Array.isArray(floor.rooms[0].corners) ? floor.rooms[0].corners : [];
-          const pts = corners.map(parseHexLabel).filter(Boolean);
+          const labels = roomPointLabels(floor.rooms[0]);
+          const pts = labels.map(parseHexLabel).filter(Boolean);
           if (pts.length) {
             const avg = pts.reduce((acc, p) => ({ col: acc.col + p.col, row: acc.row + p.row }), { col: 0, row: 0 });
             target = { col: avg.col / pts.length, row: avg.row / pts.length };
@@ -773,7 +772,42 @@
         return thickness > 0 && roomWallKind(room) !== 'none';
       }
 
+      function roomPointLabels(room) {
+        if (!room || typeof room !== 'object') return [];
+        const points = Array.isArray(room.points) ? room.points
+          : (Array.isArray(room.poly) ? room.poly : (Array.isArray(room.vertices) ? room.vertices : null));
+        if (Array.isArray(points) && points.length >= 3) return points;
+        const corners = Array.isArray(room.corners) ? room.corners : [];
+        return corners.length >= 3 ? corners : [];
+      }
+
+      function isPolyRoom(room) {
+        if (!room || typeof room !== 'object') return false;
+        const points = Array.isArray(room.points) ? room.points
+          : (Array.isArray(room.poly) ? room.poly : (Array.isArray(room.vertices) ? room.vertices : null));
+        return Array.isArray(points) && points.length >= 3;
+      }
+
+      function roomWorldPoints(room) {
+        const labels = roomPointLabels(room);
+        if (!labels.length) return [];
+        const pts = [];
+        for (const label of labels) {
+          const parsed = parseHexLabel(label);
+          if (!parsed) continue;
+          pts.push(hexToWorld(parsed.col, parsed.row));
+        }
+        return pts;
+      }
+
+      function roomPolygonScreen(room) {
+        const pts = roomWorldPoints(room);
+        if (pts.length < 3) return null;
+        return pts.map(worldToScreen);
+      }
+
       function roomToWallBox(room) {
+        if (isPolyRoom(room)) return null;
         const corners = Array.isArray(room && room.corners) ? room.corners : [];
         if (corners.length !== 4) return null;
         const tl = parseHexLabel(corners[0]);
@@ -961,10 +995,10 @@
           const len = GRID.size * lenUnits * VIEW.zoom;
           const thick = GRID.size * thickUnits * VIEW.zoom;
           const wallThickWorld = wallThicknessAtWorld(world, floor);
-          const wallThick = Math.max(wallThickWorld * VIEW.zoom, thick);
+          const baseWallWorld = wallThickWorld > 0 ? wallThickWorld : (GRID.size * thickUnits);
           const center = worldToScreen(world);
           const cutLen = len * 1.1;
-          const cutThick = wallThick * 1.05;
+          const cutThick = baseWallWorld * VIEW.zoom * 1.1;
           const w = orient === 'v' ? cutThick : cutLen;
           const h = orient === 'v' ? cutLen : cutThick;
           out.push({ center, w, h });
@@ -1421,6 +1455,9 @@
             { label: 'To Front', onClick: () => reorderSelection('front') },
             { label: 'To Back', onClick: () => reorderSelection('back') },
           ]);
+          addButtonRow([
+            { label: 'Delete', onClick: () => deleteSelection() },
+          ]);
         }
 
         if (sel.type === 'opening') {
@@ -1441,6 +1478,9 @@
             { label: 'To Front', onClick: () => reorderSelection('front') },
             { label: 'To Back', onClick: () => reorderSelection('back') },
           ]);
+          addButtonRow([
+            { label: 'Delete', onClick: () => deleteSelection() },
+          ]);
         }
 
         if (sel.type === 'object') {
@@ -1460,6 +1500,9 @@
           addButtonRow([
             { label: 'To Front', onClick: () => reorderSelection('front') },
             { label: 'To Back', onClick: () => reorderSelection('back') },
+          ]);
+          addButtonRow([
+            { label: 'Delete', onClick: () => deleteSelection() },
           ]);
         }
 
@@ -1483,6 +1526,9 @@
           addButtonRow([
             { label: 'Set PC', onClick: () => setTokenSide('PC', 'pc') },
             { label: 'Set NPC', onClick: () => setTokenSide('NPC', 'npc') },
+          ]);
+          addButtonRow([
+            { label: 'Delete', onClick: () => deleteSelection() },
           ]);
         }
       }
@@ -1632,6 +1678,32 @@
         updateInspector();
       }
 
+      function deleteSelection() {
+        const sel = EDITOR.selection;
+        if (!sel) return;
+        if (sel.type === 'token') {
+          const entity = sel.item && sel.item.__entity;
+          if (entity) {
+            entity.deleted = true;
+            saveEntityPatch(entity.id || sel.item.id, { deleted: true }, false);
+          }
+          renderStatus();
+          clearSelection();
+          render();
+          return;
+        }
+        const floor = STATE.battle && Array.isArray(STATE.battle.floors)
+          ? STATE.battle.floors.find(f => String(f.id) === String(sel.floorId))
+          : null;
+        if (!floor) return;
+        if (sel.type === 'room') floor.rooms = floor.rooms.filter(r => r !== sel.item);
+        if (sel.type === 'opening') floor.openings = floor.openings.filter(o => o !== sel.item);
+        if (sel.type === 'object') floor.objects = floor.objects.filter(o => o !== sel.item);
+        clearSelection();
+        EDITOR.dirty = true;
+        render();
+      }
+
       function nearestItem(list, point, getPos, maxDist = 20) {
         let best = null;
         let bestD = Infinity;
@@ -1717,18 +1789,6 @@
           const sel = findSelectionAt(world);
           if (sel) selectItem(sel.type, sel.item, sel.floorId);
           else clearSelection();
-          return;
-        }
-
-        if (EDITOR.tool === 'delete') {
-          const sel = findSelectionAt(world);
-          if (!sel) return;
-          if (sel.type === 'room') floor.rooms = floor.rooms.filter(r => r !== sel.item);
-          if (sel.type === 'opening') floor.openings = floor.openings.filter(o => o !== sel.item);
-          if (sel.type === 'object') floor.objects = floor.objects.filter(o => o !== sel.item);
-          clearSelection();
-          EDITOR.dirty = true;
-          render();
           return;
         }
 
@@ -1953,23 +2013,13 @@
         entitySaveTimer = setTimeout(() => saveEntity(token), 400);
       }
 
-      async function saveEntity(token) {
+      async function saveEntityPatch(entityId, patch, createIfMissing) {
         const cid = getCampaignId();
-        if (!cid) return;
-        const stats = {};
-        if (token.hp != null) stats.hp = token.hp;
-        if (token.init != null) stats.init = token.init;
+        if (!cid || !entityId) return;
         const payload = {
-          entity_id: token.id,
-          patch: {
-            name: token.name,
-            kind: token.kind,
-            side: token.side,
-            poi_id: token.poi_id || resolvePoiId(),
-            location: { hex: token.hex, floorId: token.floorId },
-            ...(Object.keys(stats).length ? { stats } : {})
-          },
-          create_if_missing: true
+          entity_id: entityId,
+          patch: patch || {},
+          create_if_missing: !!createIfMissing
         };
         try {
           await fetch(`/api/campaigns/${encodeURIComponent(cid)}/entities`, {
@@ -1978,6 +2028,22 @@
             body: JSON.stringify(payload)
           });
         } catch {}
+      }
+
+      async function saveEntity(token) {
+        if (!token) return;
+        const stats = {};
+        if (token.hp != null) stats.hp = token.hp;
+        if (token.init != null) stats.init = token.init;
+        const patch = {
+          name: token.name,
+          kind: token.kind,
+          side: token.side,
+          poi_id: token.poi_id || resolvePoiId(),
+          location: { hex: token.hex, floorId: token.floorId },
+          ...(Object.keys(stats).length ? { stats } : {})
+        };
+        saveEntityPatch(token.id, patch, true);
       }
 
       function attachEvents() {
@@ -2027,6 +2093,12 @@
         saveButton.addEventListener('click', () => saveState());
         canvas.addEventListener('click', handleCanvasClick);
         attachDragHandlers();
+        window.addEventListener('keydown', (ev) => {
+          if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
+          const el = document.activeElement;
+          if (el && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) return;
+          deleteSelection();
+        });
         window.addEventListener('resize', () => render());
       }
 
