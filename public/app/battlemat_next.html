@@ -815,10 +815,11 @@
         for (const room of (Array.isArray(rooms) ? rooms : [])) {
           const box = roomToWallBox(room);
           if (!box) continue;
-          segs.push({ orientation: 'h', y: box.yTop, x1: box.xL, x2: box.xR });
-          segs.push({ orientation: 'h', y: box.yBot, x1: box.xL, x2: box.xR });
-          segs.push({ orientation: 'v', x: box.xL, y1: box.yTop, y2: box.yBot });
-          segs.push({ orientation: 'v', x: box.xR, y1: box.yTop, y2: box.yBot });
+          const t = Number.isFinite(box.thickness) ? box.thickness : 0;
+          segs.push({ orientation: 'h', y: box.yTop, x1: box.xL, x2: box.xR, thickness: t });
+          segs.push({ orientation: 'h', y: box.yBot, x1: box.xL, x2: box.xR, thickness: t });
+          segs.push({ orientation: 'v', x: box.xL, y1: box.yTop, y2: box.yBot, thickness: t });
+          segs.push({ orientation: 'v', x: box.xR, y1: box.yTop, y2: box.yBot, thickness: t });
         }
         return segs;
       }
@@ -882,10 +883,12 @@
         };
       }
 
-      function openingCutoutRoom(opening, floor) {
-        const anchorId = opening.seam_anchor || opening.seamAnchor || opening.seam_room || opening.seamRoom || opening.cutout_room || opening.cutoutRoom || '';
-        if (!anchorId || !floor || !Array.isArray(floor.rooms)) return null;
-        return floor.rooms.find(r => r && r.id === anchorId) || null;
+      function openingAllowsCutout(opening) {
+        const flag = opening && (opening.cutout ?? opening.cutoutMode ?? opening.cutout_mode);
+        if (flag === false) return false;
+        if (flag == null) return true;
+        const val = String(flag).toLowerCase();
+        return val !== 'none' && val !== 'off' && val !== 'false';
       }
 
       function roomOuterRectWorld(room, box) {
@@ -921,12 +924,25 @@
         rooms.forEach(room => drawFloorRoom(room, gctx));
       }
 
+      function wallThicknessAtWorld(worldPoint, floor) {
+        const segs = buildWallSegments(floor ? floor.rooms : []);
+        let best = null;
+        let bestD2 = Infinity;
+        for (const seg of segs) {
+          const d2 = wallSegDistance2(seg, worldPoint);
+          if (d2 < bestD2) {
+            bestD2 = d2;
+            best = seg;
+          }
+        }
+        return best && Number.isFinite(best.thickness) ? best.thickness : 0;
+      }
+
       function openingCutoutRectsForFloor(floor) {
         if (!floor || !Array.isArray(floor.openings)) return [];
         const out = [];
         for (const opening of floor.openings) {
-          const cutRoom = openingCutoutRoom(opening, floor);
-          if (!cutRoom) continue;
+          if (!openingAllowsCutout(opening)) continue;
           const world = openingWorldCenter(opening, floor);
           if (!world) continue;
           const orient = opening.orientation === 'v' ? 'v' : 'h';
@@ -944,9 +960,11 @@
             : style.thick;
           const len = GRID.size * lenUnits * VIEW.zoom;
           const thick = GRID.size * thickUnits * VIEW.zoom;
+          const wallThickWorld = wallThicknessAtWorld(world, floor);
+          const wallThick = Math.max(wallThickWorld * VIEW.zoom, thick);
           const center = worldToScreen(world);
-          const cutLen = len * 1.15;
-          const cutThick = thick * 1.6;
+          const cutLen = len * 1.1;
+          const cutThick = wallThick * 1.05;
           const w = orient === 'v' ? cutThick : cutLen;
           const h = orient === 'v' ? cutLen : cutThick;
           out.push({ center, w, h });
@@ -1069,9 +1087,8 @@
         const seamMode = String(opening.seam_mode || opening.seamMode || '').toLowerCase();
         const seamColor = seamKind ? (FLOOR_COLORS[String(seamKind)] || FLOOR_COLORS.default) : null;
         const seamAnchor = seamKind ? seamAnchorWorld(opening, floor, String(seamKind), world) : null;
-        const hasCutout = !!openingCutoutRoom(opening, floor);
         const allowSeamFill = seamMode === 'fill' || seamMode === 'seam';
-        const seamFill = seamKind && !hasCutout && allowSeamFill
+        const seamFill = seamKind && allowSeamFill
           ? getFillStyle(gctx, 'floor', String(seamKind), seamColor, seamAnchor)
           : null;
         const seamLen = len * 1.15;
