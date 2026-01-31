@@ -899,7 +899,10 @@
             : style.thick;
           const len = GRID.size * lenUnits * VIEW.zoom;
           const thick = GRID.size * thickUnits * VIEW.zoom;
-          out.push({ center: worldToScreen(world), orient, len, thick });
+          const center = worldToScreen(world);
+          const w = orient === 'v' ? thick : len;
+          const h = orient === 'v' ? len : thick;
+          out.push({ center, w, h });
         }
         return out;
       }
@@ -929,21 +932,14 @@
           const oh = Math.abs(o2.y - o1.y);
           ctx.fillStyle = getFillStyle('wall', wk, wallColor, wallAnchor);
           ctx.globalAlpha = 1;
-          ctx.fillRect(ox1, oy1, ow, oh);
-
           const cutouts = openingCutoutRectsForRoom(room, floor);
-          if (cutouts.length) {
-            ctx.save();
-            ctx.globalCompositeOperation = 'destination-out';
-            for (const cut of cutouts) {
-              ctx.save();
-              ctx.translate(cut.center.x, cut.center.y);
-              if (cut.orient === 'v') ctx.rotate(Math.PI / 2);
-              ctx.fillRect(-cut.len / 2, -cut.thick / 2, cut.len, cut.thick);
-              ctx.restore();
-            }
-            ctx.restore();
+          ctx.beginPath();
+          ctx.rect(ox1, oy1, ow, oh);
+          ctx.rect(x1, y1, x2 - x1, y2 - y1);
+          for (const cut of cutouts) {
+            ctx.rect(cut.center.x - cut.w / 2, cut.center.y - cut.h / 2, cut.w, cut.h);
           }
+          ctx.fill('evenodd');
         }
 
         ctx.fillStyle = getFillStyle('floor', fk, floorColor, floorAnchor);
