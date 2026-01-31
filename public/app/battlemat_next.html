@@ -346,7 +346,7 @@
       const tokenKindList = document.getElementById('tokenKindList');
 
       const GRID = { size: 32 };
-      const VIEW = { camera: { col: 0, row: 0 }, zoom: 1, floorId: '' };
+      const VIEW = { camera: { col: 0, row: 0 }, cameraWorld: { x: 0, y: 0 }, zoom: 1, floorId: '' };
       const STATE = { battle: null, campaign: null, entities: [] };
       const EDITOR = {
         tool: 'select',
@@ -490,8 +490,28 @@
         return { x, y };
       }
 
+      function getCameraWorld() {
+        if (VIEW.cameraWorld && Number.isFinite(VIEW.cameraWorld.x) && Number.isFinite(VIEW.cameraWorld.y)) {
+          return VIEW.cameraWorld;
+        }
+        return hexToWorld(VIEW.camera.col, VIEW.camera.row);
+      }
+
+      function setCameraWorld(p) {
+        if (!p) return;
+        VIEW.cameraWorld = { x: p.x, y: p.y };
+      }
+
+      function setCameraFromHex(p) {
+        if (!p) return;
+        const world = hexToWorld(p.col, p.row);
+        VIEW.camera.col = p.col;
+        VIEW.camera.row = p.row;
+        setCameraWorld(world);
+      }
+
       function worldToScreen(p) {
-        const cam = hexToWorld(VIEW.camera.col, VIEW.camera.row);
+        const cam = getCameraWorld();
         const w = canvas.width / devicePixelRatio;
         const h = canvas.height / devicePixelRatio;
         return {
@@ -501,7 +521,7 @@
       }
 
       function screenToWorld(x, y) {
-        const cam = hexToWorld(VIEW.camera.col, VIEW.camera.row);
+        const cam = getCameraWorld();
         const w = canvas.width / devicePixelRatio;
         const h = canvas.height / devicePixelRatio;
         const wx = (x - w / 2) / VIEW.zoom + cam.x;
@@ -663,10 +683,7 @@
         const camHex = view.camera_hex || view.cameraHex || null;
         if (camHex) {
           const p = parseHexLabel(camHex);
-          if (p) {
-            VIEW.camera.col = p.col;
-            VIEW.camera.row = p.row;
-          }
+          if (p) setCameraFromHex(p);
         }
       }
 
@@ -815,18 +832,13 @@
           const tokens = buildTokens();
           if (tokens.length) target = parseHexLabel(tokens[0].hex);
         }
-        if (target) {
-          VIEW.camera.col = Math.round(target.col);
-          VIEW.camera.row = Math.round(target.row);
-        }
+        if (target) setCameraFromHex({ col: Math.round(target.col), row: Math.round(target.row) });
       }
 
       function nudgeCamera(dxWorld, dyWorld) {
-        const cam = hexToWorld(VIEW.camera.col, VIEW.camera.row);
+        const cam = getCameraWorld();
         const next = { x: cam.x + dxWorld, y: cam.y + dyWorld };
-        const snapped = worldToHex(next);
-        VIEW.camera.col = snapped.col;
-        VIEW.camera.row = snapped.row;
+        setCameraWorld(next);
         render();
       }
 
@@ -1322,7 +1334,7 @@
 
       function applyPatternTransform(pattern, scale, anchorWorld) {
         if (!pattern || typeof pattern.setTransform !== 'function') return;
-        const cam = hexToWorld(VIEW.camera.col, VIEW.camera.row);
+        const cam = getCameraWorld();
         const rect = canvas.getBoundingClientRect();
         const anchor = anchorWorld || { x: 0, y: 0 };
         const originX = rect.width / 2 + (anchor.x - cam.x) * VIEW.zoom;
