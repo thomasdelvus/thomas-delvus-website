@@ -879,22 +879,26 @@
         const floorColor = FLOOR_COLORS[fk] || FLOOR_COLORS.default;
         const wk = roomWallKind(room);
         const wallColor = WALL_COLORS[wk] || WALL_COLORS.default;
+        const floorRect = box ? roomFloorRectWorld(room, box) : null;
+        const floorAnchor = floorRect ? { x: floorRect.x1, y: floorRect.y1 } : null;
+        const wallOuter = box ? (box.outer || box.center) : null;
+        const wallAnchor = wallOuter ? { x: wallOuter.x1, y: wallOuter.y1 } : null;
 
         // Fill wall band first (outer rect), then floor (inner rect) so walls aren't black.
         if (wk !== 'none' && box && box.thickness > 0) {
-          const outer = box.outer || box.center;
+          const outer = wallOuter || box.center;
           const o1 = worldToScreen({ x: outer.x1, y: outer.y1 });
           const o2 = worldToScreen({ x: outer.x2, y: outer.y2 });
           const ox1 = Math.min(o1.x, o2.x);
           const oy1 = Math.min(o1.y, o2.y);
           const ow = Math.abs(o2.x - o1.x);
           const oh = Math.abs(o2.y - o1.y);
-          ctx.fillStyle = getFillStyle('wall', wk, wallColor);
+          ctx.fillStyle = getFillStyle('wall', wk, wallColor, wallAnchor);
           ctx.globalAlpha = 1;
           ctx.fillRect(ox1, oy1, ow, oh);
         }
 
-        ctx.fillStyle = getFillStyle('floor', fk, floorColor);
+        ctx.fillStyle = getFillStyle('floor', fk, floorColor, floorAnchor);
         ctx.globalAlpha = 1;
         ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
 
