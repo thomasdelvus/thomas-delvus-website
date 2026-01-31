@@ -982,13 +982,20 @@
         const seamFill = seamKind ? getFillStyle('floor', String(seamKind), seamColor, seamAnchor) : null;
         const seamLen = len * 1.15;
         const seamThick = thick * 1.6;
+        if (seamFill) {
+          ctx.save();
+          ctx.translate(center.x, center.y);
+          ctx.fillStyle = seamFill;
+          if (orient === 'v') {
+            ctx.fillRect(-seamThick / 2, -seamLen / 2, seamThick, seamLen);
+          } else {
+            ctx.fillRect(-seamLen / 2, -seamThick / 2, seamLen, seamThick);
+          }
+          ctx.restore();
+        }
         ctx.save();
         ctx.translate(center.x, center.y);
         if (orient === 'v') ctx.rotate(Math.PI / 2);
-        if (seamFill) {
-          ctx.fillStyle = seamFill;
-          ctx.fillRect(-seamLen / 2, -seamThick / 2, seamLen, seamThick);
-        }
         ctx.fillStyle = style.color;
         ctx.fillRect(-len / 2, -thick / 2, len, thick);
         ctx.restore();
