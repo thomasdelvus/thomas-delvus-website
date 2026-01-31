@@ -1018,7 +1018,9 @@
         const fk = room.floor && room.floor.kind ? String(room.floor.kind) : 'default';
         const floorColor = FLOOR_COLORS[fk] || FLOOR_COLORS.default;
         const floorAnchor = { x: rect.x1, y: rect.y1 };
-        gctx.fillStyle = getFillStyle(gctx, 'floor', fk, floorColor, floorAnchor);
+        const fill = getFillStyle(gctx, 'floor', fk, floorColor, floorAnchor, { allowFallback: false });
+        if (!fill) return;
+        gctx.fillStyle = fill;
         gctx.globalAlpha = 1;
         gctx.fillRect(x1, y1, x2 - x1, y2 - y1);
       }
@@ -1098,7 +1100,9 @@
           const wk = roomWallKind(room);
           const wallColor = WALL_COLORS[wk] || WALL_COLORS.default;
           const wallAnchor = { x: outer.x1, y: outer.y1 };
-          gctx.fillStyle = getFillStyle(gctx, 'wall', wk, wallColor, wallAnchor);
+          const fill = getFillStyle(gctx, 'wall', wk, wallColor, wallAnchor, { allowFallback: false });
+          if (!fill) continue;
+          gctx.fillStyle = fill;
           gctx.beginPath();
           gctx.rect(ox1, oy1, ow, oh);
           gctx.rect(ix1, iy1, iw, ih);
@@ -1332,11 +1336,15 @@
         pattern.setTransform(m);
       }
 
-      function getFillStyle(gctx, category, kind, fallback, anchorWorld) {
-        const tex = getTexturePattern(gctx, category, kind);
-        if (tex && tex.pattern) {
-          applyPatternTransform(tex.pattern, tex.scale, anchorWorld);
-          return tex.pattern;
+      function getFillStyle(gctx, category, kind, fallback, anchorWorld, opts = {}) {
+        const def = resolveTextureDef(category, kind);
+        if (def) {
+          const tex = getTexturePattern(gctx, category, kind);
+          if (tex && tex.pattern) {
+            applyPatternTransform(tex.pattern, tex.scale, anchorWorld);
+            return tex.pattern;
+          }
+          if (opts.allowFallback === false) return null;
         }
         return fallback;
       }
