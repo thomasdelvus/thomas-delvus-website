@@ -846,7 +846,7 @@
 
       function buildWallSegments(rooms) {
         const segs = [];
-        for (const room of (Array.isArray(rooms) ? rooms : [])) {
+        for (const room of filterAlive(rooms)) {
           const box = roomToWallBox(room);
           if (!box) continue;
           const t = Number.isFinite(box.thickness) ? box.thickness : 0;
@@ -954,7 +954,7 @@
       }
 
       function drawFloorsLayer(floor, gctx) {
-        const rooms = sortByZ(floor.rooms || []);
+        const rooms = sortByZ(filterAlive(floor.rooms || []));
         rooms.forEach(room => drawFloorRoom(room, gctx));
       }
 
@@ -975,7 +975,7 @@
       function openingCutoutRectsForFloor(floor) {
         if (!floor || !Array.isArray(floor.openings)) return [];
         const out = [];
-        for (const opening of floor.openings) {
+        for (const opening of filterAlive(floor.openings)) {
           if (!openingAllowsCutout(opening)) continue;
           const world = openingWorldCenter(opening, floor);
           if (!world) continue;
@@ -1007,7 +1007,7 @@
       }
 
       function drawWallsLayer(floor, gctx) {
-        const rooms = sortByZ(floor.rooms || []);
+        const rooms = sortByZ(filterAlive(floor.rooms || []));
         for (const room of rooms) {
           const box = roomToWallBox(room);
           if (!box || !roomHasWalls(room)) continue;
@@ -1344,6 +1344,14 @@
         });
       }
 
+      function isDeleted(item) {
+        return !!(item && item.deleted);
+      }
+
+      function filterAlive(list) {
+        return Array.isArray(list) ? list.filter(item => item && !item.deleted) : [];
+      }
+
       function render() {
         if (!STATE.battle) return;
         const dpr = window.devicePixelRatio || 1;
@@ -1365,8 +1373,8 @@
         drawFloorsLayer(floor, floorLayer.ctx);
         drawWallsLayer(floor, wallLayer.ctx);
 
-        const openings = sortByZ(floor.openings || []);
-        const objects = sortByZ(floor.objects || []);
+        const openings = sortByZ(filterAlive(floor.openings || []));
+        const objects = sortByZ(filterAlive(floor.objects || []));
         const tokens = buildTokens().filter(t => !t.floorId || t.floorId === floor.id);
         openings.forEach(o => drawOpening(o, floor, objectLayer.ctx));
         objects.forEach((obj, idx) => drawObject(obj, idx, objectLayer.ctx));
@@ -1696,9 +1704,9 @@
           ? STATE.battle.floors.find(f => String(f.id) === String(sel.floorId))
           : null;
         if (!floor) return;
-        if (sel.type === 'room') floor.rooms = floor.rooms.filter(r => r !== sel.item);
-        if (sel.type === 'opening') floor.openings = floor.openings.filter(o => o !== sel.item);
-        if (sel.type === 'object') floor.objects = floor.objects.filter(o => o !== sel.item);
+        if (sel.type === 'room') sel.item.deleted = true;
+        if (sel.type === 'opening') sel.item.deleted = true;
+        if (sel.type === 'object') sel.item.deleted = true;
         clearSelection();
         EDITOR.dirty = true;
         render();
@@ -1733,21 +1741,21 @@
         }, 18);
         if (token) return { type: 'token', item: token, floorId: floor.id };
 
-        const objects = floor.objects || [];
+        const objects = filterAlive(floor.objects || []);
         const object = nearestItem(objects, screenPoint, o => {
           const world = objectWorldCenter(o);
           return world ? worldToScreen(world) : null;
         }, 18);
         if (object) return { type: 'object', item: object, floorId: floor.id };
 
-        const openings = floor.openings || [];
+        const openings = filterAlive(floor.openings || []);
         const opening = nearestItem(openings, screenPoint, o => {
           const world = openingWorldCenter(o, floor);
           return world ? worldToScreen(world) : null;
         }, 14);
         if (opening) return { type: 'opening', item: opening, floorId: floor.id };
 
-        for (const room of floor.rooms) {
+        for (const room of filterAlive(floor.rooms || [])) {
           const rectInfo = roomRectScreen(room);
           if (!rectInfo) continue;
           if (screenPoint.x >= rectInfo.x1 && screenPoint.x <= rectInfo.x2 &&
