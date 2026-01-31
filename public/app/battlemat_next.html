@@ -898,19 +898,18 @@
         ctx.globalAlpha = 1;
         ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
 
-        // Subtle outline to keep edges crisp.
-        if (wk !== 'none') {
-          const outer = box ? (box.outer || box.center) : { x1, y1, x2, y2 };
-          const o1 = worldToScreen({ x: outer.x1, y: outer.y1 });
-          const o2 = worldToScreen({ x: outer.x2, y: outer.y2 });
-          const ox1 = Math.min(o1.x, o2.x);
-          const oy1 = Math.min(o1.y, o2.y);
-          const ow = Math.abs(o2.x - o1.x);
-          const oh = Math.abs(o2.y - o1.y);
-          ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(ox1, oy1, ow, oh);
-        }
+        // No outline: keep room edges pure for texture matching.
+      }
+
+      function seamAnchorWorld(opening, floor) {
+        const anchorId = opening.seam_anchor || opening.seamAnchor || opening.seam_room || opening.seamRoom || '';
+        if (!anchorId || !floor || !Array.isArray(floor.rooms)) return { x: 0, y: 0 };
+        const room = floor.rooms.find(r => r && r.id === anchorId);
+        if (!room) return { x: 0, y: 0 };
+        const box = roomToWallBox(room);
+        if (!box) return { x: 0, y: 0 };
+        const src = roomHasWalls(room) ? box.inner : box.center;
+        return { x: src.x1, y: src.y1 };
       }
 
       function openingWorldCenter(opening, floor) {
@@ -942,7 +941,8 @@
         const thick = GRID.size * thickUnits * VIEW.zoom;
         const seamKind = opening.seam_kind || opening.seamKind || '';
         const seamColor = seamKind ? (FLOOR_COLORS[String(seamKind)] || FLOOR_COLORS.default) : null;
-        const seamFill = seamKind ? getFillStyle('floor', String(seamKind), seamColor) : null;
+        const seamAnchor = seamKind ? seamAnchorWorld(opening, floor) : null;
+        const seamFill = seamKind ? getFillStyle('floor', String(seamKind), seamColor, seamAnchor) : null;
         const seamLen = len * 1.15;
         const seamThick = thick * 1.6;
         ctx.save();
@@ -1023,12 +1023,13 @@
         return { pattern, scale: def.scale };
       }
 
-      function applyPatternTransform(pattern, scale) {
+      function applyPatternTransform(pattern, scale, anchorWorld) {
         if (!pattern || typeof pattern.setTransform !== 'function') return;
         const cam = hexToWorld(VIEW.camera.col, VIEW.camera.row);
         const rect = canvas.getBoundingClientRect();
-        const originX = rect.width / 2 - cam.x * VIEW.zoom;
-        const originY = rect.height / 2 - cam.y * VIEW.zoom;
+        const anchor = anchorWorld || { x: 0, y: 0 };
+        const originX = rect.width / 2 + (anchor.x - cam.x) * VIEW.zoom;
+        const originY = rect.height / 2 + (anchor.y - cam.y) * VIEW.zoom;
         const s = (Number(scale) || 1) * VIEW.zoom;
         const m = new DOMMatrix();
         m.a = s;
@@ -1038,10 +1039,10 @@
         pattern.setTransform(m);
       }
 
-      function getFillStyle(category, kind, fallback) {
+      function getFillStyle(category, kind, fallback, anchorWorld) {
         const tex = getTexturePattern(category, kind);
         if (tex && tex.pattern) {
-          applyPatternTransform(tex.pattern, tex.scale);
+          applyPatternTransform(tex.pattern, tex.scale, anchorWorld);
           return tex.pattern;
         }
         return fallback;
@@ -1055,14 +1056,20 @@
         const scale = Number.isFinite(Number(obj.spriteScale)) ? Number(obj.spriteScale) : 1;
         const scaleX = Number.isFinite(Number(obj.spriteScaleX)) ? Number(obj.spriteScaleX) : scale;
         const scaleY = Number.isFinite(Number(obj.spriteScaleY)) ? Number(obj.spriteScaleY) : scale;
-        const sizeW = GRID.size * 1.15 * scaleX * VIEW.zoom;
-        const sizeH = GRID.size * 1.15 * scaleY * VIEW.zoom;
+        const base = GRID.size * 1.15;
+        let sizeW = base * scaleX * VIEW.zoom;
+        let sizeH = base * scaleY * VIEW.zoom;
         const rotDeg = Number.isFinite(Number(obj.rotDeg)) ? Number(obj.rotDeg) : 0;
         const rot = rotDeg * Math.PI / 180;
 
         if (url) {
           const img = loadSprite(url);
           if (img && img.complete) {
+            if (img.naturalWidth && img.naturalHeight) {
+              const ratio = img.naturalHeight / img.naturalWidth;
+              sizeW = base * scaleX * VIEW.zoom;
+              sizeH = base * ratio * scaleY * VIEW.zoom;
+            }
             ctx.save();
             ctx.translate(center.x, center.y);
             if (rot) ctx.rotate(rot);
@@ -1228,6 +1235,7 @@
           addField('Length', sel.item.len != null ? sel.item.len : '', 'len', { type: 'number', step: '0.05' });
           addField('Thickness', sel.item.thickness != null ? sel.item.thickness : '', 'thickness', { type: 'number', step: '0.05' });
           addField('Seam', sel.item.seam_kind || '', 'seam_kind');
+          addField('Seam Anchor', sel.item.seam_anchor || '', 'seam_anchor');
           addButtonRow([
             { label: 'To Front', onClick: () => reorderSelection('front') },
             { label: 'To Back', onClick: () => reorderSelection('back') },
@@ -1320,6 +1328,7 @@
             else item.thickness = n;
           }
           if (key === 'seam_kind') item.seam_kind = value;
+          if (key === 'seam_anchor') item.seam_anchor = value;
         }
 
         if (sel.type === 'object') {
