@@ -85,6 +85,50 @@
       color: var(--muted);
     }
 
+    #navBar {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      background: rgba(15,20,28,0.85);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      backdrop-filter: blur(8px);
+      z-index: 10;
+    }
+
+    #navBar button, #navBar input {
+      background: #0f141c;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    #navBar .status {
+      padding: 0 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .panPad {
+      display: grid;
+      grid-template-columns: repeat(3, 28px);
+      grid-template-rows: repeat(3, 28px);
+      gap: 4px;
+    }
+
+    .panPad button {
+      cursor: pointer;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      line-height: 1;
+    }
+
     #sidebar {
       background: var(--panel);
       border-left: 1px solid rgba(255,255,255,0.08);
@@ -226,10 +270,23 @@
           <option value="tokens">tokens</option>
         </select>
         <select id="floorSelect"></select>
-        <label class="status">Zoom</label>
-        <input id="zoom" type="range" min="0.25" max="4" step="0.05" value="1" />
         <button id="btnSave">Save</button>
         <span id="saveStatus" class="status">DB: idle</span>
+      </div>
+      <div id="navBar">
+        <div class="panPad">
+          <div></div>
+          <button id="panUp" title="Pan up">↑</button>
+          <div></div>
+          <button id="panLeft" title="Pan left">←</button>
+          <div></div>
+          <button id="panRight" title="Pan right">→</button>
+          <div></div>
+          <button id="panDown" title="Pan down">↓</button>
+          <div></div>
+        </div>
+        <label class="status">Zoom</label>
+        <input id="zoom" type="range" min="0.25" max="4" step="0.05" value="1" />
       </div>
     </div>
 
@@ -273,6 +330,10 @@
       const objectKindSelect = document.getElementById('objectKind');
       const tokenKindSelect = document.getElementById('tokenKind');
       const zoomInput = document.getElementById('zoom');
+      const panUp = document.getElementById('panUp');
+      const panDown = document.getElementById('panDown');
+      const panLeft = document.getElementById('panLeft');
+      const panRight = document.getElementById('panRight');
       const saveButton = document.getElementById('btnSave');
       const saveStatus = document.getElementById('saveStatus');
       const statusList = document.getElementById('statusList');
@@ -758,6 +819,15 @@
           VIEW.camera.col = Math.round(target.col);
           VIEW.camera.row = Math.round(target.row);
         }
+      }
+
+      function nudgeCamera(dxWorld, dyWorld) {
+        const cam = hexToWorld(VIEW.camera.col, VIEW.camera.row);
+        const next = { x: cam.x + dxWorld, y: cam.y + dyWorld };
+        const snapped = worldToHex(next);
+        VIEW.camera.col = snapped.col;
+        VIEW.camera.row = snapped.row;
+        render();
       }
 
       function roomWallKind(room) {
@@ -2108,6 +2178,11 @@
           VIEW.zoom = Number(zoomInput.value);
           render();
         });
+        const nudgeStep = 1;
+        if (panUp) panUp.addEventListener('click', () => nudgeCamera(0, -rowStep() * nudgeStep));
+        if (panDown) panDown.addEventListener('click', () => nudgeCamera(0, rowStep() * nudgeStep));
+        if (panLeft) panLeft.addEventListener('click', () => nudgeCamera(-colStep() * nudgeStep, 0));
+        if (panRight) panRight.addEventListener('click', () => nudgeCamera(colStep() * nudgeStep, 0));
         saveButton.addEventListener('click', () => saveState());
         canvas.addEventListener('click', handleCanvasClick);
         attachDragHandlers();
