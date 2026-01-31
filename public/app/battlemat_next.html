@@ -1123,6 +1123,25 @@
         return { x1: src.x1, y1: src.y1, x2: src.x2, y2: src.y2 };
       }
 
+      function formatRoomPoints(room) {
+        const labels = roomPointLabels(room);
+        return labels.map(l => String(l).trim()).filter(Boolean).join(', ');
+      }
+
+      function parsePointList(text) {
+        const raw = String(text || '')
+          .split(',')
+          .map(t => t.trim())
+          .filter(Boolean);
+        const out = [];
+        for (const entry of raw) {
+          const parsed = parseHexLabel(entry);
+          if (!parsed) continue;
+          out.push(entry.toUpperCase());
+        }
+        return out;
+      }
+
       function buildWallSegments(rooms) {
         const segs = [];
         for (const room of filterAlive(rooms)) {
@@ -1211,6 +1230,25 @@
       }
 
       function drawFloorRoom(room, gctx) {
+        if (isPolyRoom(room)) {
+          const pts = roomWorldPoints(room);
+          if (pts.length < 3) return;
+          const screenPts = pts.map(worldToScreen);
+          const fk = room.floor && room.floor.kind ? String(room.floor.kind) : 'default';
+          const floorColor = FLOOR_COLORS[fk] || FLOOR_COLORS.default;
+          const floorAnchor = pts[0];
+          const fill = getFillStyle(gctx, 'floor', fk, floorColor, floorAnchor, { allowFallback: false });
+          if (!fill) return;
+          gctx.save();
+          gctx.fillStyle = fill;
+          gctx.beginPath();
+          gctx.moveTo(screenPts[0].x, screenPts[0].y);
+          for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
+          gctx.closePath();
+          gctx.fill();
+          gctx.restore();
+          return;
+        }
         const box = roomToWallBox(room);
         if (!box) return;
         const rect = FLOOR_UNDER_WALLS
@@ -1290,6 +1328,30 @@
       function drawWallsLayer(floor, gctx) {
         const rooms = sortByZ(filterAlive(floor.rooms || []));
         for (const room of rooms) {
+          if (isPolyRoom(room)) {
+            if (!roomHasWalls(room)) continue;
+            const pts = roomWorldPoints(room);
+            if (pts.length < 3) continue;
+            const screenPts = pts.map(worldToScreen);
+            const wk = roomWallKind(room);
+            const wallColor = WALL_COLORS[wk] || WALL_COLORS.default;
+            const wallAnchor = pts[0];
+            const fill = getFillStyle(gctx, 'wall', wk, wallColor, wallAnchor, { allowFallback: false });
+            if (!fill) continue;
+            const thickness = Number(room.thickness || 0);
+            const lineW = Math.max(1, thickness * VIEW.zoom);
+            gctx.save();
+            gctx.strokeStyle = fill;
+            gctx.lineWidth = lineW;
+            gctx.lineJoin = 'miter';
+            gctx.beginPath();
+            gctx.moveTo(screenPts[0].x, screenPts[0].y);
+            for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
+            gctx.closePath();
+            gctx.stroke();
+            gctx.restore();
+            continue;
+          }
           const box = roomToWallBox(room);
           if (!box || !roomHasWalls(room)) continue;
           const outer = box.outer || box.center;
@@ -1761,8 +1823,7 @@
           addField('ID', sel.item.id, 'id', { readonly: true });
           addField('Name', sel.item.name || '', 'name');
           addField('Floor', sel.floorId, 'floorId');
-          addField('Corner TL', sel.item.corners ? sel.item.corners[0] : '', 'cornerTL');
-          addField('Corner BR', sel.item.corners ? sel.item.corners[2] : '', 'cornerBR');
+          addField('Points', formatRoomPoints(sel.item), 'points');
           addField('Thickness', sel.item.thickness != null ? sel.item.thickness : '', 'thickness', { type: 'number', step: '1' });
           addField('Floor Kind', sel.item.floor && sel.item.floor.kind ? sel.item.floor.kind : '', 'floor.kind', { list: 'floorKindList' });
           addField('Wall Kind', sel.item.wall && sel.item.wall.kind ? sel.item.wall.kind : '', 'wall.kind', { list: 'wallKindList' });
@@ -1860,7 +1921,14 @@
         if (sel.type === 'room') {
           if (key === 'name') item.name = value;
           if (key === 'floorId') moveRoomToFloor(item, value);
-          if (key === 'cornerTL' || key === 'cornerBR') updateRoomCorners(item, key, value);
+          if (key === 'points') {
+            const points = parsePointList(value);
+            if (points.length >= 3) {
+              item.points = points;
+            } else {
+              delete item.points;
+            }
+          }
           if (key === 'thickness') item.thickness = num(value, 0);
           if (key === 'floor.kind') {
             item.floor = item.floor || {};
@@ -2063,6 +2131,14 @@
         if (opening) return { type: 'opening', item: opening, floorId: floor.id };
 
         for (const room of filterAlive(floor.rooms || [])) {
+          if (isPolyRoom(room)) {
+            const poly = roomPolygonScreen(room);
+            if (!poly || poly.length < 3) continue;
+            if (pointInPolygon(screenPoint, poly)) {
+              return { type: 'room', item: room, floorId: floor.id };
+            }
+            continue;
+          }
           const rectInfo = roomRectScreen(room);
           if (!rectInfo) continue;
           if (screenPoint.x >= rectInfo.x1 && screenPoint.x <= rectInfo.x2 &&
