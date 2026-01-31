@@ -85,6 +85,12 @@
       color: var(--muted);
     }
 
+    .toolGroup {
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+
     #navBar {
       position: absolute;
       left: 12px;
@@ -245,36 +251,6 @@
         <button id="toolOpening" class="toolBtn">Opening</button>
         <button id="toolObject" class="toolBtn">Object</button>
         <button id="toolToken" class="toolBtn">Token</button>
-        
-        <label class="status">Opening</label>
-        <select id="openingKind">
-          <option value="door.wood">door.wood</option>
-          <option value="door">door</option>
-          <option value="window">window</option>
-          <option value="threshold">threshold</option>
-          <option value="portal">portal</option>
-        </select>
-        <button id="openingOrientH" class="toolBtn">H</button>
-        <button id="openingOrientV" class="toolBtn">V</button>
-        <label class="status">Object</label>
-        <select id="objectKind">
-          <option value="object">object</option>
-          <option value="poi.view">poi.view</option>
-          <option value="table.round">table.round</option>
-          <option value="table.rect">table.rect</option>
-          <option value="chair">chair</option>
-          <option value="crate">crate</option>
-          <option value="barrel">barrel</option>
-          <option value="stairs">stairs</option>
-          <option value="bed">bed</option>
-        </select>
-        <label class="status">Token</label>
-        <select id="tokenKind">
-          <option value="pc">pc</option>
-          <option value="npc" selected>npc</option>
-          <option value="monster">monster</option>
-          <option value="creature">creature</option>
-        </select>
         <label class="status">Layer</label>
         <select id="layerSelect">
           <option value="all" selected>all</option>
@@ -286,6 +262,41 @@
         <select id="floorSelect"></select>
         <button id="btnSave">Save</button>
         <span id="saveStatus" class="status">DB: idle</span>
+        <div id="openingGroup" class="toolGroup">
+          <label class="status">Opening</label>
+          <select id="openingKind">
+            <option value="door.wood">door.wood</option>
+            <option value="door">door</option>
+            <option value="window">window</option>
+            <option value="threshold">threshold</option>
+            <option value="portal">portal</option>
+          </select>
+          <button id="openingOrientH" class="toolBtn">H</button>
+          <button id="openingOrientV" class="toolBtn">V</button>
+        </div>
+        <div id="objectGroup" class="toolGroup">
+          <label class="status">Object</label>
+          <select id="objectKind">
+            <option value="object">object</option>
+            <option value="poi.view">poi.view</option>
+            <option value="table.round">table.round</option>
+            <option value="table.rect">table.rect</option>
+            <option value="chair">chair</option>
+            <option value="crate">crate</option>
+            <option value="barrel">barrel</option>
+            <option value="stairs">stairs</option>
+            <option value="bed">bed</option>
+          </select>
+        </div>
+        <div id="tokenGroup" class="toolGroup">
+          <label class="status">Token</label>
+          <select id="tokenKind">
+            <option value="pc">pc</option>
+            <option value="npc" selected>npc</option>
+            <option value="monster">monster</option>
+            <option value="creature">creature</option>
+          </select>
+        </div>
       </div>
       <div id="navBar">
         <div class="panPad">
@@ -346,6 +357,9 @@
       const openingOrientV = document.getElementById('openingOrientV');
       const objectKindSelect = document.getElementById('objectKind');
       const tokenKindSelect = document.getElementById('tokenKind');
+      const openingGroup = document.getElementById('openingGroup');
+      const objectGroup = document.getElementById('objectGroup');
+      const tokenGroup = document.getElementById('tokenGroup');
       const zoomInput = document.getElementById('zoom');
       const panUp = document.getElementById('panUp');
       const panDown = document.getElementById('panDown');
@@ -674,6 +688,9 @@
           btn.classList.toggle('active', key === tool);
         });
         EDITOR.roomStart = null;
+        if (openingGroup) openingGroup.style.display = tool === 'opening' ? 'flex' : 'none';
+        if (objectGroup) objectGroup.style.display = tool === 'object' ? 'flex' : 'none';
+        if (tokenGroup) tokenGroup.style.display = tool === 'token' ? 'flex' : 'none';
       }
 
       function drawHexOutline(gctx, center, size) {
@@ -2368,6 +2385,7 @@
           deleteSelection();
         });
         window.addEventListener('resize', () => render());
+        setTool(EDITOR.tool);
       }
 
       function populateKindLists() {
