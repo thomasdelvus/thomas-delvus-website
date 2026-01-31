@@ -900,8 +900,10 @@
           const len = GRID.size * lenUnits * VIEW.zoom;
           const thick = GRID.size * thickUnits * VIEW.zoom;
           const center = worldToScreen(world);
-          const w = orient === 'v' ? thick : len;
-          const h = orient === 'v' ? len : thick;
+          const cutLen = len * 1.15;
+          const cutThick = thick * 1.6;
+          const w = orient === 'v' ? cutThick : cutLen;
+          const h = orient === 'v' ? cutLen : cutThick;
           out.push({ center, w, h });
         }
         return out;
