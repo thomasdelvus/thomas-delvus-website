@@ -85,6 +85,20 @@
       color: var(--muted);
     }
 
+    #toolbar .mini {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    #toolbar .mini input {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--accent);
+    }
+
     .toolGroup {
       display: none;
       align-items: center;
@@ -259,6 +273,7 @@
           <option value="objects">objects</option>
           <option value="tokens">tokens</option>
         </select>
+        <label class="mini"><input type="checkbox" id="handlesToggle" /> Handles</label>
         <select id="floorSelect"></select>
         <button id="btnSave">Save</button>
         <span id="saveStatus" class="status">DB: idle</span>
@@ -367,6 +382,7 @@
       const panRight = document.getElementById('panRight');
       const hexGridToggle = document.getElementById('hexGridToggle');
       const labelBoldToggle = document.getElementById('labelBoldToggle');
+      const handlesToggle = document.getElementById('handlesToggle');
       const saveButton = document.getElementById('btnSave');
       const saveStatus = document.getElementById('saveStatus');
       const statusList = document.getElementById('statusList');
@@ -387,7 +403,7 @@
       };
       const VIEW = { camera: { col: 0, row: 0 }, cameraWorld: { x: 0, y: 0 }, zoom: 1, floorId: '' };
       const STATE = { battle: null, campaign: null, entities: [] };
-      const UI = { hexGrid: true, brightLabels: false };
+      const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false };
       const EDITOR = {
         tool: 'select',
         selection: null,
@@ -667,17 +683,21 @@
         try {
           const grid = localStorage.getItem('bm_hexgrid');
           const bright = localStorage.getItem('bm_bright_labels');
+          const handles = localStorage.getItem('bm_handles');
           if (grid != null) UI.hexGrid = grid === '1';
           if (bright != null) UI.brightLabels = bright === '1';
+          if (handles != null) UI.showHandles = handles === '1';
         } catch {}
         if (hexGridToggle) hexGridToggle.checked = UI.hexGrid;
         if (labelBoldToggle) labelBoldToggle.checked = UI.brightLabels;
+        if (handlesToggle) handlesToggle.checked = UI.showHandles;
       }
 
       function savePrefs() {
         try {
           localStorage.setItem('bm_hexgrid', UI.hexGrid ? '1' : '0');
           localStorage.setItem('bm_bright_labels', UI.brightLabels ? '1' : '0');
+          localStorage.setItem('bm_handles', UI.showHandles ? '1' : '0');
         } catch {}
       }
 
@@ -761,6 +781,37 @@
           }
         }
 
+        gctx.restore();
+      }
+
+      function drawHandle(gctx, center, size) {
+        const r = size;
+        gctx.beginPath();
+        gctx.arc(center.x, center.y, r, 0, Math.PI * 2);
+        gctx.stroke();
+        gctx.beginPath();
+        gctx.moveTo(center.x - r * 1.6, center.y);
+        gctx.lineTo(center.x + r * 1.6, center.y);
+        gctx.moveTo(center.x, center.y - r * 1.6);
+        gctx.lineTo(center.x, center.y + r * 1.6);
+        gctx.stroke();
+      }
+
+      function drawHandlesLayer(floor, gctx) {
+        const show = UI.showHandles || UI.handleHot;
+        if (!show || !floor) return;
+        const objects = filterAlive(floor.objects || []);
+        if (!objects.length) return;
+        gctx.save();
+        gctx.strokeStyle = 'rgba(255,145,0,0.9)';
+        gctx.lineWidth = 1.5;
+        const size = Math.max(4, Math.min(10, 6 * VIEW.zoom));
+        for (const obj of objects) {
+          const world = objectWorldCenter(obj);
+          if (!world) continue;
+          const center = worldToScreen(world);
+          drawHandle(gctx, center, size);
+        }
         gctx.restore();
       }
 
@@ -1615,11 +1666,13 @@
         const wallLayer = getLayerContext('walls', rect, dpr);
         const objectLayer = getLayerContext('objects', rect, dpr);
         const gridLayer = getLayerContext('grid', rect, dpr);
+        const handleLayer = getLayerContext('handles', rect, dpr);
         const tokenLayer = getLayerContext('tokens', rect, dpr);
 
         drawFloorsLayer(floor, floorLayer.ctx);
         drawWallsLayer(floor, wallLayer.ctx);
         drawGridLayer(gridLayer.ctx);
+        drawHandlesLayer(floor, handleLayer.ctx);
 
         const openings = sortByZ(filterAlive(floor.openings || []));
         const objects = sortByZ(filterAlive(floor.objects || []));
@@ -1640,6 +1693,9 @@
         }
         if (layerMode === 'all' && UI.hexGrid) {
           ctx.drawImage(gridLayer.canvas, 0, 0, rect.width, rect.height);
+        }
+        if (layerMode === 'all' && (UI.showHandles || UI.handleHot)) {
+          ctx.drawImage(handleLayer.canvas, 0, 0, rect.width, rect.height);
         }
         if (layerMode === 'all' || layerMode === 'tokens') {
           ctx.drawImage(tokenLayer.canvas, 0, 0, rect.width, rect.height);
@@ -2350,6 +2406,13 @@
             render();
           });
         }
+        if (handlesToggle) {
+          handlesToggle.addEventListener('change', () => {
+            UI.showHandles = !!handlesToggle.checked;
+            savePrefs();
+            render();
+          });
+        }
         floorSelect.addEventListener('change', () => {
           VIEW.floorId = floorSelect.value;
           render();
@@ -2383,6 +2446,18 @@
           const el = document.activeElement;
           if (el && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) return;
           deleteSelection();
+        });
+        window.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Control') {
+            UI.handleHot = true;
+            render();
+          }
+        });
+        window.addEventListener('keyup', (ev) => {
+          if (ev.key === 'Control') {
+            UI.handleHot = false;
+            render();
+          }
         });
         window.addEventListener('resize', () => render());
         setTool(EDITOR.tool);
