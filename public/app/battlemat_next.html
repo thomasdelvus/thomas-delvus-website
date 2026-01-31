@@ -1164,7 +1164,16 @@
         if (!url) return null;
         if (spriteCache.has(url)) return spriteCache.get(url);
         const img = new Image();
+        img.__bmStatus = 'loading';
         img.src = url;
+        img.onload = () => {
+          img.__bmStatus = 'ready';
+          render();
+        };
+        img.onerror = () => {
+          img.__bmStatus = 'error';
+          render();
+        };
         spriteCache.set(url, img);
         return img;
       }
@@ -1278,17 +1287,18 @@
 
         if (url) {
           const img = loadSprite(url);
-          if (img && img.complete) {
-            if (img.naturalWidth && img.naturalHeight) {
-              const ratio = img.naturalHeight / img.naturalWidth;
-              sizeW = base * scaleX * VIEW.zoom;
-              sizeH = base * ratio * scaleY * VIEW.zoom;
-            }
+          if (img && img.complete && img.naturalWidth && img.naturalHeight) {
+            const ratio = img.naturalHeight / img.naturalWidth;
+            sizeW = base * scaleX * VIEW.zoom;
+            sizeH = base * ratio * scaleY * VIEW.zoom;
             gctx.save();
             gctx.translate(center.x, center.y);
             if (rot) gctx.rotate(rot);
             gctx.drawImage(img, -sizeW / 2, -sizeH / 2, sizeW, sizeH);
             gctx.restore();
+            return;
+          }
+          if (img && img.__bmStatus !== 'error') {
             return;
           }
         }
