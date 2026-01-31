@@ -114,6 +114,20 @@
       color: var(--muted);
     }
 
+    #navBar .mini {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    #navBar .mini input {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--accent);
+    }
+
     .panPad {
       display: grid;
       grid-template-columns: repeat(3, 28px);
@@ -287,6 +301,8 @@
         </div>
         <label class="status">Zoom</label>
         <input id="zoom" type="range" min="0.25" max="4" step="0.05" value="1" />
+        <label class="mini"><input type="checkbox" id="hexGridToggle" checked /> Hexgrid</label>
+        <label class="mini"><input type="checkbox" id="labelBoldToggle" /> Bright Labels</label>
       </div>
     </div>
 
@@ -335,6 +351,8 @@
       const panDown = document.getElementById('panDown');
       const panLeft = document.getElementById('panLeft');
       const panRight = document.getElementById('panRight');
+      const hexGridToggle = document.getElementById('hexGridToggle');
+      const labelBoldToggle = document.getElementById('labelBoldToggle');
       const saveButton = document.getElementById('btnSave');
       const saveStatus = document.getElementById('saveStatus');
       const statusList = document.getElementById('statusList');
@@ -346,9 +364,16 @@
       const objectKindList = document.getElementById('objectKindList');
       const tokenKindList = document.getElementById('tokenKindList');
 
-      const GRID = { size: 32 };
+      const GRID = {
+        size: 32,
+        lineAlpha: 0.08,
+        lineWidth: 1,
+        labelAlpha: 0.22,
+        labelFont: '600 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif'
+      };
       const VIEW = { camera: { col: 0, row: 0 }, cameraWorld: { x: 0, y: 0 }, zoom: 1, floorId: '' };
       const STATE = { battle: null, campaign: null, entities: [] };
+      const UI = { hexGrid: true, brightLabels: false };
       const EDITOR = {
         tool: 'select',
         selection: null,
@@ -624,6 +649,24 @@
         return { Authorization: 'Bearer ' + token };
       }
 
+      function loadPrefs() {
+        try {
+          const grid = localStorage.getItem('bm_hexgrid');
+          const bright = localStorage.getItem('bm_bright_labels');
+          if (grid != null) UI.hexGrid = grid === '1';
+          if (bright != null) UI.brightLabels = bright === '1';
+        } catch {}
+        if (hexGridToggle) hexGridToggle.checked = UI.hexGrid;
+        if (labelBoldToggle) labelBoldToggle.checked = UI.brightLabels;
+      }
+
+      function savePrefs() {
+        try {
+          localStorage.setItem('bm_hexgrid', UI.hexGrid ? '1' : '0');
+          localStorage.setItem('bm_bright_labels', UI.brightLabels ? '1' : '0');
+        } catch {}
+      }
+
       function setTool(tool) {
         EDITOR.tool = tool;
         Object.entries(toolButtons).forEach(([key, btn]) => {
@@ -631,6 +674,76 @@
           btn.classList.toggle('active', key === tool);
         });
         EDITOR.roomStart = null;
+      }
+
+      function drawHexOutline(gctx, center, size) {
+        const pts = [];
+        for (let i = 0; i < 6; i++) {
+          const a = (Math.PI / 180) * (60 * i);
+          pts.push({ x: center.x + size * Math.cos(a), y: center.y + size * Math.sin(a) });
+        }
+        gctx.beginPath();
+        gctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) gctx.lineTo(pts[i].x, pts[i].y);
+        gctx.closePath();
+        gctx.stroke();
+      }
+
+      function drawGridLayer(gctx) {
+        if (!UI.hexGrid) return;
+        const rect = canvas.getBoundingClientRect();
+        const w = Math.max(1, rect.width);
+        const h = Math.max(1, rect.height);
+        const camHex = worldToHex(getCameraWorld());
+        const colsR = Math.ceil((w / 2) / colStep()) + 4;
+        const rowsR = Math.ceil((h / 2) / rowStep()) + 4;
+
+        gctx.save();
+        gctx.strokeStyle = `rgba(255,255,255,${GRID.lineAlpha})`;
+        gctx.lineWidth = GRID.lineWidth;
+        const size = GRID.size * VIEW.zoom;
+
+        for (let dc = -colsR; dc <= colsR; dc++) {
+          for (let dr = -rowsR; dr <= rowsR; dr++) {
+            const col = camHex.col + dc;
+            const row = camHex.row + dr;
+            const p = worldToScreen(hexToWorld(col, row));
+            if (p.x < -100 || p.x > w + 100 || p.y < -100 || p.y > h + 100) continue;
+            drawHexOutline(gctx, p, size);
+          }
+        }
+
+        const bright = !!UI.brightLabels;
+        gctx.globalAlpha = bright ? 1 : GRID.labelAlpha;
+        gctx.fillStyle = bright ? 'rgba(233,238,247,0.96)' : 'rgba(233,238,247,0.65)';
+        const fontSize = Math.max(8, Math.min(24, (bright ? 14 : 12) * VIEW.zoom));
+        gctx.font = bright
+          ? `900 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif`
+          : `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif`;
+        gctx.textAlign = 'center';
+        gctx.textBaseline = 'middle';
+
+        if (bright) {
+          gctx.lineWidth = 3;
+          gctx.strokeStyle = 'rgba(0,0,0,0.70)';
+          gctx.lineJoin = 'round';
+        }
+
+        for (let dc = -colsR; dc <= colsR; dc++) {
+          for (let dr = -rowsR; dr <= rowsR; dr++) {
+            const col = camHex.col + dc;
+            const row = camHex.row + dr;
+            const p = worldToScreen(hexToWorld(col, row));
+            if (p.x < -100 || p.x > w + 100 || p.y < -100 || p.y > h + 100) continue;
+            const label = toHexLabel(col, row);
+            const lx = p.x;
+            const ly = p.y + 2;
+            if (bright) gctx.strokeText(label, lx, ly);
+            gctx.fillText(label, lx, ly);
+          }
+        }
+
+        gctx.restore();
       }
 
       function clampZoom(value) {
@@ -1483,10 +1596,12 @@
         const floorLayer = getLayerContext('floors', rect, dpr);
         const wallLayer = getLayerContext('walls', rect, dpr);
         const objectLayer = getLayerContext('objects', rect, dpr);
+        const gridLayer = getLayerContext('grid', rect, dpr);
         const tokenLayer = getLayerContext('tokens', rect, dpr);
 
         drawFloorsLayer(floor, floorLayer.ctx);
         drawWallsLayer(floor, wallLayer.ctx);
+        drawGridLayer(gridLayer.ctx);
 
         const openings = sortByZ(filterAlive(floor.openings || []));
         const objects = sortByZ(filterAlive(floor.objects || []));
@@ -1504,6 +1619,9 @@
         }
         if (layerMode === 'all' || layerMode === 'objects') {
           ctx.drawImage(objectLayer.canvas, 0, 0, rect.width, rect.height);
+        }
+        if (layerMode === 'all' && UI.hexGrid) {
+          ctx.drawImage(gridLayer.canvas, 0, 0, rect.width, rect.height);
         }
         if (layerMode === 'all' || layerMode === 'tokens') {
           ctx.drawImage(tokenLayer.canvas, 0, 0, rect.width, rect.height);
@@ -2200,6 +2318,20 @@
           });
           tokenKindSelect.value = EDITOR.tokenKind;
         }
+        if (hexGridToggle) {
+          hexGridToggle.addEventListener('change', () => {
+            UI.hexGrid = !!hexGridToggle.checked;
+            savePrefs();
+            render();
+          });
+        }
+        if (labelBoldToggle) {
+          labelBoldToggle.addEventListener('change', () => {
+            UI.brightLabels = !!labelBoldToggle.checked;
+            savePrefs();
+            render();
+          });
+        }
         floorSelect.addEventListener('change', () => {
           VIEW.floorId = floorSelect.value;
           render();
@@ -2282,6 +2414,7 @@
       async function init() {
         await loadBattle();
         await loadCampaign();
+        loadPrefs();
         setFloorOptions();
         populateKindLists();
         VIEW.zoom = Number(zoomInput.value);
