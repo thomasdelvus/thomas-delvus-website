@@ -1585,35 +1585,6 @@
         return { x: (src.x1 + src.x2) / 2, y: (src.y1 + src.y2) / 2 };
       }
 
-      function seamAnchorWorld(opening, floor, seamKind, openingWorld) {
-        const anchorId = opening.seam_anchor || opening.seamAnchor || opening.seam_room || opening.seamRoom || '';
-        if (floor && Array.isArray(floor.rooms) && anchorId) {
-          const room = floor.rooms.find(r => r && r.id === anchorId);
-          const anchor = room ? roomAnchorWorld(room) : null;
-          if (anchor) return anchor;
-        }
-
-        const targetKind = String(seamKind || '').toLowerCase();
-        if (!floor || !Array.isArray(floor.rooms) || !targetKind || !openingWorld) return { x: 0, y: 0 };
-        let bestRoom = null;
-        let bestD2 = Infinity;
-        for (const room of floor.rooms) {
-          const fk = room && room.floor && room.floor.kind ? String(room.floor.kind).toLowerCase() : '';
-          if (!fk) continue;
-          if (fk !== targetKind) continue;
-          const center = roomCenterWorld(room);
-          if (!center) continue;
-          const dx = center.x - openingWorld.x;
-          const dy = center.y - openingWorld.y;
-          const d2 = dx * dx + dy * dy;
-          if (d2 < bestD2) {
-            bestD2 = d2;
-            bestRoom = room;
-          }
-        }
-        const anchor = bestRoom ? roomAnchorWorld(bestRoom) : null;
-        return anchor || { x: 0, y: 0 };
-      }
 
       function openingWorldCenter(opening, floor) {
         const p = parseHexLabel(opening.hex);
@@ -1671,28 +1642,6 @@
           : style.thick;
         const len = GRID.size * lenUnits * VIEW.zoom;
         const thick = GRID.size * thickUnits * VIEW.zoom;
-        const seamKind = opening.seam_kind || opening.seamKind || '';
-        const seamMode = String(opening.seam_mode || opening.seamMode || '').toLowerCase();
-        const seamColor = seamKind ? (FLOOR_COLORS[String(seamKind)] || FLOOR_COLORS.default) : null;
-        const seamAnchor = seamKind ? seamAnchorWorld(opening, floor, String(seamKind), world) : null;
-        const allowSeamFill = seamMode === 'fill' || seamMode === 'seam';
-        const seamFill = seamKind && allowSeamFill
-          ? getFillStyle(gctx, 'floor', String(seamKind), seamColor, seamAnchor)
-          : null;
-        const seamLen = len * 1.15;
-        const seamThick = thick * 1.6;
-        if (seamFill) {
-          gctx.save();
-          if (fogState === 'explored') gctx.globalAlpha *= 0.6;
-          gctx.translate(center.x, center.y);
-          gctx.fillStyle = seamFill;
-          if (orient === 'v') {
-            gctx.fillRect(-seamThick / 2, -seamLen / 2, seamThick, seamLen);
-          } else {
-            gctx.fillRect(-seamLen / 2, -seamThick / 2, seamLen, seamThick);
-          }
-          gctx.restore();
-        }
         if (spriteUrl) {
           const img = loadSprite(spriteUrl);
           if (img && img.complete && img.naturalWidth && img.naturalHeight) {
@@ -2300,9 +2249,6 @@
           addField('Open %', sel.item.openPct != null ? sel.item.openPct : 0, 'openPct', { type: 'number', step: '0.05' });
           addField('Length', sel.item.len != null ? sel.item.len : '', 'len', { type: 'number', step: '0.05' });
           addField('Thickness', sel.item.thickness != null ? sel.item.thickness : '', 'thickness', { type: 'number', step: '0.05' });
-          addField('Seam', sel.item.seam_kind || '', 'seam_kind');
-          addField('Seam Mode', sel.item.seam_mode || '', 'seam_mode');
-          addField('Seam Anchor', sel.item.seam_anchor || '', 'seam_anchor');
           addField('Z', sel.item.z != null ? sel.item.z : '', 'z', { type: 'number', step: '1' });
           addButtonRow([
             { label: 'To Front', onClick: () => reorderSelection('front') },
@@ -2435,9 +2381,6 @@
             if (n == null) delete item.thickness;
             else item.thickness = n;
           }
-          if (key === 'seam_kind') item.seam_kind = value;
-          if (key === 'seam_mode') item.seam_mode = value;
-          if (key === 'seam_anchor') item.seam_anchor = value;
           if (key === 'z') item.z = num(value, null);
         }
 
@@ -3085,7 +3028,6 @@
             if (Array.isArray(floor.openings)) {
               for (const o of floor.openings) {
                 if (o && o.kind) openingKinds.add(String(o.kind));
-                if (o && o.seam_kind) floorKinds.add(String(o.seam_kind));
               }
             }
             if (Array.isArray(floor.objects)) {
