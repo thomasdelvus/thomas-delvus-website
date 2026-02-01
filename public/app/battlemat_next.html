@@ -1735,26 +1735,25 @@
         const thick = GRID.size * thickUnits * VIEW.zoom;
         const hingeRaw = (opening.hinge || 'left').toLowerCase();
         const hinge = orient === 'v'
-          ? (hingeRaw === 'bottom' ? 'bottom' : 'top')
+          ? (hingeRaw === 'bottom' ? 'right' : 'left')
           : (hingeRaw === 'right' ? 'right' : 'left');
         let swingDir = Number.isFinite(Number(opening.swing)) ? Number(opening.swing) : 1;
         if (swingDir === 0) swingDir = -1;
         const openPct = Math.max(0, Math.min(1, Number(opening.openPct ?? opening.open ?? 0)));
         const swingAngle = openPct * (Math.PI / 2) * (swingDir === 0 ? 1 : swingDir);
         const baseRot = orient === 'v' ? Math.PI / 2 : 0;
-        const hingeOffset = {
-          x: orient === 'h' ? (hinge === 'right' ? len / 2 : -len / 2) : 0,
-          y: orient === 'v' ? (hinge === 'bottom' ? len / 2 : -len / 2) : 0
-        };
-        const pivot = { x: center.x + hingeOffset.x, y: center.y + hingeOffset.y };
+        const pivotX = hinge === 'right' ? len / 2 : -len / 2;
         if (spriteUrl) {
           const img = loadSprite(spriteUrl);
           if (img && img.complete && img.naturalWidth && img.naturalHeight) {
             gctx.save();
             if (fogState === 'explored') gctx.globalAlpha *= 0.6;
-            gctx.translate(pivot.x, pivot.y);
-            gctx.rotate(baseRot + swingAngle);
-            gctx.drawImage(img, -len / 2 - hingeOffset.x, -thick / 2 - hingeOffset.y, len, thick);
+            gctx.translate(center.x, center.y);
+            if (baseRot) gctx.rotate(baseRot);
+            gctx.translate(pivotX, 0);
+            if (swingAngle) gctx.rotate(swingAngle);
+            gctx.translate(-pivotX, 0);
+            gctx.drawImage(img, -len / 2, -thick / 2, len, thick);
             gctx.restore();
             return;
           }
@@ -1762,10 +1761,13 @@
         }
         gctx.save();
         if (fogState === 'explored') gctx.globalAlpha *= 0.6;
-        gctx.translate(pivot.x, pivot.y);
-        gctx.rotate(baseRot + swingAngle);
+        gctx.translate(center.x, center.y);
+        if (baseRot) gctx.rotate(baseRot);
+        gctx.translate(pivotX, 0);
+        if (swingAngle) gctx.rotate(swingAngle);
+        gctx.translate(-pivotX, 0);
         gctx.fillStyle = style.color;
-        gctx.fillRect(-len / 2 - hingeOffset.x, -thick / 2 - hingeOffset.y, len, thick);
+        gctx.fillRect(-len / 2, -thick / 2, len, thick);
         gctx.restore();
       }
 
