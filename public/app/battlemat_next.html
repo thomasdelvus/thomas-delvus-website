@@ -108,7 +108,7 @@
     #navBar {
       position: absolute;
       left: 12px;
-      bottom: 12px;
+      top: 58px;
       display: flex;
       align-items: center;
       gap: 10px;
@@ -2219,12 +2219,15 @@
         const objects = sortByZ(filterAlive(floor.objects || [])).filter(o => {
           return itemFogState(o, floor, allRooms, fogSets, objectWorldCenter) !== 'hidden';
         });
+        const poiObjects = objects.filter(o => String(o.kind || '').toLowerCase() === 'poi.view');
+        const normalObjects = objects.filter(o => String(o.kind || '').toLowerCase() !== 'poi.view');
         const tokens = buildTokens()
           .filter(t => !t.floorId || t.floorId === floor.id)
           .filter(t => itemFogState(t, floor, allRooms, fogSets, tokenWorldCenter) !== 'hidden');
         openings.forEach(entry => drawOpening(entry.opening, floor, objectLayer.ctx, entry.fogState));
-        objects.forEach((obj, idx) => drawObject(obj, idx, objectLayer.ctx));
+        normalObjects.forEach((obj, idx) => drawObject(obj, idx, objectLayer.ctx));
         tokens.forEach(t => drawToken(t, tokenLayer.ctx));
+        poiObjects.forEach((obj, idx) => drawObject(obj, idx, tokenLayer.ctx));
         drawFogOverlay(fogRooms.explored, fogLayer.ctx);
 
         ctx.clearRect(0, 0, rect.width, rect.height);
