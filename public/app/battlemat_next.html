@@ -540,8 +540,49 @@
         'stairs.down': '/assets/sprites/stairs_down.png',
         'crate': '/assets/sprites/crate.png',
         'barrel': '/assets/sprites/barrel.png',
-        'keg': '/assets/sprites/keg.png'
+        'keg': '/assets/sprites/keg.png',
+        'token.pc': '/assets/sprites/token_pc.png',
+        'token.npc': '/assets/sprites/token_npc.png'
       };
+
+      const SPRITE_ALIASES = {
+        'table.rect': 'table_rectangle',
+        'table.sqr': 'table_square',
+        'table.round': 'table_round',
+        'table.hot': 'table_hot',
+        'table.cold': 'table_cold',
+        'table.prep': 'table_prep',
+        'table.plate': 'table_plate',
+        'bed.double': 'bed_double',
+        'stairs.up': 'stairs_up',
+        'stairs.down': 'stairs_down',
+        'cooking.hearth': 'cooking_hearth',
+        'door.wood': 'door_wood',
+        'door': 'door_wood',
+        'window.open': 'window_open',
+        'window': 'window',
+        'pc': 'token_pc',
+        'npc': 'token_npc'
+      };
+
+      function resolveSpriteUrl(kind) {
+        const raw = String(kind || '').trim().toLowerCase();
+        if (!raw) return null;
+        if (SPRITE_MAP[raw]) return SPRITE_MAP[raw];
+        const alias = SPRITE_ALIASES[raw] || raw.replace(/[^a-z0-9]+/g, '_');
+        return `/assets/sprites/${alias}.png`;
+      }
+
+      function resolveOpeningSprite(kindRaw, openPct) {
+        const k = String(kindRaw || '').toLowerCase();
+        if (k.startsWith('window')) {
+          return resolveSpriteUrl(openPct > 0 ? 'window.open' : 'window');
+        }
+        if (k.startsWith('door')) {
+          return resolveSpriteUrl(k);
+        }
+        return null;
+      }
 
       function colStep() { return 1.5 * GRID.size; }
       function rowStep() { return Math.sqrt(3) * GRID.size; }
@@ -1621,6 +1662,7 @@
           kindRaw.startsWith('threshold') ? 'threshold' : 'door';
         if (UI.fogEnabled && kind === 'threshold') return;
         const style = OPENING_STYLE[kind] || OPENING_STYLE.door;
+        const spriteUrl = resolveOpeningSprite(kindRaw, opening.openPct || 0);
         const lenUnits = Number.isFinite(Number(opening.len ?? opening.length ?? opening.size))
           ? Number(opening.len ?? opening.length ?? opening.size)
           : style.len;
@@ -1650,6 +1692,19 @@
             gctx.fillRect(-seamLen / 2, -seamThick / 2, seamLen, seamThick);
           }
           gctx.restore();
+        }
+        if (spriteUrl) {
+          const img = loadSprite(spriteUrl);
+          if (img && img.complete && img.naturalWidth && img.naturalHeight) {
+            gctx.save();
+            if (fogState === 'explored') gctx.globalAlpha *= 0.6;
+            gctx.translate(center.x, center.y);
+            if (orient === 'v') gctx.rotate(Math.PI / 2);
+            gctx.drawImage(img, -len / 2, -thick / 2, len, thick);
+            gctx.restore();
+            return;
+          }
+          if (img && img.__bmStatus !== 'error') return;
         }
         gctx.save();
         if (fogState === 'explored') gctx.globalAlpha *= 0.6;
@@ -1794,7 +1849,7 @@
         const world = objectWorldCenter(obj);
         if (!world) return;
         const center = worldToScreen(world);
-        const url = obj.sprite || obj.spriteFile || SPRITE_MAP[obj.kind];
+        const url = obj.sprite || obj.spriteFile || resolveSpriteUrl(obj.kind);
         const scale = Number.isFinite(Number(obj.spriteScale)) ? Number(obj.spriteScale) : 1;
         const scaleX = Number.isFinite(Number(obj.spriteScaleX)) ? Number(obj.spriteScaleX) : scale;
         const scaleY = Number.isFinite(Number(obj.spriteScaleY)) ? Number(obj.spriteScaleY) : scale;
@@ -1844,6 +1899,20 @@
         const p = parseHexLabel(token.hex);
         if (!p) return;
         const center = worldToScreen(hexToWorld(p.col, p.row));
+        const url = token.sprite || token.spriteFile || resolveSpriteUrl(token.kind) ||
+          resolveSpriteUrl(token.side === 'NPC' ? 'token.npc' : 'token.pc');
+        const base = GRID.size * 0.9;
+        if (url) {
+          const img = loadSprite(url);
+          if (img && img.complete && img.naturalWidth && img.naturalHeight) {
+            const ratio = img.naturalHeight / img.naturalWidth;
+            const sizeW = base * VIEW.zoom;
+            const sizeH = base * ratio * VIEW.zoom;
+            gctx.drawImage(img, center.x - sizeW / 2, center.y - sizeH / 2, sizeW, sizeH);
+            return;
+          }
+          if (img && img.__bmStatus !== 'error') return;
+        }
         const r = GRID.size * 0.35 * VIEW.zoom;
         gctx.fillStyle = token.side === 'NPC' ? '#c95c5c' : '#5ca9c9';
         gctx.beginPath();
