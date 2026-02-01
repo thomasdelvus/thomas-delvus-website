@@ -1547,7 +1547,34 @@
         return snapWorldToWall(world, floor, orient);
       }
 
-      function drawOpening(opening, floor, gctx) {
+      function openingFogState(opening, floor, rooms, roomSets) {
+        if (!UI.fogEnabled) return 'visible';
+        const world = openingWorldCenter(opening, floor);
+        if (!world) return 'visible';
+        const orient = opening && opening.orientation === 'v' ? 'v' : 'h';
+        const offset = GRID.size * 0.35;
+        const dx = orient === 'v' ? offset : 0;
+        const dy = orient === 'v' ? 0 : offset;
+        const a = { x: world.x + dx, y: world.y + dy };
+        const b = { x: world.x - dx, y: world.y - dy };
+        const roomA = findRoomForWorldPoint(rooms, a);
+        const roomB = findRoomForWorldPoint(rooms, b);
+        const stateForRoom = (room) => {
+          if (!room || room.id == null) return 'visible';
+          const id = String(room.id);
+          if (roomSets.visible && roomSets.visible.has(id)) return 'visible';
+          if (roomSets.explored && roomSets.explored.has(id)) return 'explored';
+          if (roomSets.hidden && roomSets.hidden.has(id)) return 'hidden';
+          return 'visible';
+        };
+        const sA = stateForRoom(roomA);
+        const sB = stateForRoom(roomB);
+        if (sA === 'visible' || sB === 'visible') return 'visible';
+        if (sA === 'explored' || sB === 'explored') return 'explored';
+        return 'hidden';
+      }
+
+      function drawOpening(opening, floor, gctx, fogState) {
         const world = openingWorldCenter(opening, floor);
         if (!world) return;
         const center = worldToScreen(world);
@@ -1578,6 +1605,7 @@
         const seamThick = thick * 1.6;
         if (seamFill) {
           gctx.save();
+          if (fogState === 'explored') gctx.globalAlpha *= 0.6;
           gctx.translate(center.x, center.y);
           gctx.fillStyle = seamFill;
           if (orient === 'v') {
@@ -1588,6 +1616,7 @@
           gctx.restore();
         }
         gctx.save();
+        if (fogState === 'explored') gctx.globalAlpha *= 0.6;
         gctx.translate(center.x, center.y);
         if (orient === 'v') gctx.rotate(Math.PI / 2);
         gctx.fillStyle = style.color;
@@ -2011,16 +2040,17 @@
         drawGridLayer(gridLayer.ctx);
         drawHandlesLayer(floor, handleLayer.ctx);
 
-        const openings = sortByZ(filterAlive(floor.openings || [])).filter(o => {
-          return itemFogState(o, floor, allRooms, fogSets, openingWorldCenter) !== 'hidden';
-        });
+        const openings = sortByZ(filterAlive(floor.openings || [])).map(o => {
+          const fogState = openingFogState(o, floor, allRooms, fogSets);
+          return { opening: o, fogState };
+        }).filter(entry => entry.fogState !== 'hidden');
         const objects = sortByZ(filterAlive(floor.objects || [])).filter(o => {
           return itemFogState(o, floor, allRooms, fogSets, objectWorldCenter) !== 'hidden';
         });
         const tokens = buildTokens()
           .filter(t => !t.floorId || t.floorId === floor.id)
           .filter(t => itemFogState(t, floor, allRooms, fogSets, tokenWorldCenter) !== 'hidden');
-        openings.forEach(o => drawOpening(o, floor, objectLayer.ctx));
+        openings.forEach(entry => drawOpening(entry.opening, floor, objectLayer.ctx, entry.fogState));
         objects.forEach((obj, idx) => drawObject(obj, idx, objectLayer.ctx));
         tokens.forEach(t => drawToken(t, tokenLayer.ctx));
         drawFogOverlay(fogRooms.explored, fogLayer.ctx);
