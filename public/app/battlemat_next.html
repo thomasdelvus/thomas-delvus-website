@@ -276,6 +276,7 @@
         <label class="mini"><input type="checkbox" id="handlesToggle" /> Handles</label>
         <select id="floorSelect"></select>
         <button id="btnUndo">Undo</button>
+        <label class="mini"><input type="checkbox" id="fogToggle" checked /> Fog</label>
         <button id="btnSave">Save</button>
         <span id="saveStatus" class="status">DB: idle</span>
         <div id="openingGroup" class="toolGroup">
@@ -384,6 +385,7 @@
       const hexGridToggle = document.getElementById('hexGridToggle');
       const labelBoldToggle = document.getElementById('labelBoldToggle');
       const handlesToggle = document.getElementById('handlesToggle');
+      const fogToggle = document.getElementById('fogToggle');
       const saveButton = document.getElementById('btnSave');
       const undoButton = document.getElementById('btnUndo');
       const saveStatus = document.getElementById('saveStatus');
@@ -405,7 +407,7 @@
       };
       const VIEW = { camera: { col: 0, row: 0 }, cameraWorld: { x: 0, y: 0 }, zoom: 1, floorId: '' };
       const STATE = { battle: null, campaign: null, entities: [] };
-      const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false };
+      const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true };
       const EDITOR = {
         tool: 'select',
         selection: null,
@@ -702,13 +704,16 @@
           const grid = localStorage.getItem('bm_hexgrid');
           const bright = localStorage.getItem('bm_bright_labels');
           const handles = localStorage.getItem('bm_handles');
+          const fog = localStorage.getItem('bm_fog');
           if (grid != null) UI.hexGrid = grid === '1';
           if (bright != null) UI.brightLabels = bright === '1';
           if (handles != null) UI.showHandles = handles === '1';
+          if (fog != null) UI.fogEnabled = fog === '1';
         } catch {}
         if (hexGridToggle) hexGridToggle.checked = UI.hexGrid;
         if (labelBoldToggle) labelBoldToggle.checked = UI.brightLabels;
         if (handlesToggle) handlesToggle.checked = UI.showHandles;
+        if (fogToggle) fogToggle.checked = UI.fogEnabled;
       }
 
       function savePrefs() {
@@ -716,6 +721,7 @@
           localStorage.setItem('bm_hexgrid', UI.hexGrid ? '1' : '0');
           localStorage.setItem('bm_bright_labels', UI.brightLabels ? '1' : '0');
           localStorage.setItem('bm_handles', UI.showHandles ? '1' : '0');
+          localStorage.setItem('bm_fog', UI.fogEnabled ? '1' : '0');
         } catch {}
       }
 
@@ -773,7 +779,7 @@
         gctx.globalAlpha = bright ? 1 : GRID.labelAlpha;
         gctx.fillStyle = bright ? 'rgba(233,238,247,0.96)' : 'rgba(233,238,247,0.65)';
         const fontScale = Math.min(1.6, VIEW.zoom);
-        const fontSize = Math.max(7, Math.min(18, (bright ? 13 : 11) * fontScale));
+        const fontSize = Math.min(18, (bright ? 13 : 11) * fontScale);
         gctx.font = bright
           ? `900 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif`
           : `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif`;
@@ -1366,9 +1372,9 @@
         gctx.fillRect(x1, y1, x2 - x1, y2 - y1);
       }
 
-      function drawFloorsLayer(floor, gctx) {
-        const rooms = sortByZ(filterAlive(floor.rooms || []));
-        rooms.forEach(room => drawFloorRoom(room, gctx));
+      function drawFloorsLayer(floor, gctx, rooms) {
+        const list = sortByZ(rooms || filterAlive(floor.rooms || []));
+        list.forEach(room => drawFloorRoom(room, gctx));
       }
 
       function wallThicknessAtWorld(worldPoint, floor) {
@@ -1385,11 +1391,15 @@
         return best && Number.isFinite(best.thickness) ? best.thickness : 0;
       }
 
-      function openingCutoutRectsForFloor(floor) {
+      function openingCutoutRectsForFloor(floor, rooms, roomSets) {
         if (!floor || !Array.isArray(floor.openings)) return [];
         const out = [];
         for (const opening of filterAlive(floor.openings)) {
           if (!openingAllowsCutout(opening)) continue;
+          if (roomSets && rooms) {
+            const state = itemFogState(opening, floor, rooms, roomSets, openingWorldCenter);
+            if (state === 'hidden') continue;
+          }
           const world = openingWorldCenter(opening, floor);
           if (!world) continue;
           const orient = opening.orientation === 'v' ? 'v' : 'h';
@@ -1419,9 +1429,9 @@
         return out;
       }
 
-      function drawWallsLayer(floor, gctx) {
-        const rooms = sortByZ(filterAlive(floor.rooms || []));
-        for (const room of rooms) {
+      function drawWallsLayer(floor, gctx, rooms, roomSets) {
+        const list = sortByZ(rooms || filterAlive(floor.rooms || []));
+        for (const room of list) {
           if (isPolyRoom(room)) {
             if (!roomHasWalls(room)) continue;
             const pts = roomWorldPoints(room);
@@ -1474,7 +1484,7 @@
           gctx.fill('evenodd');
         }
 
-        const cutouts = openingCutoutRectsForFloor(floor);
+        const cutouts = openingCutoutRectsForFloor(floor, rooms || filterAlive(floor.rooms || []), roomSets);
         if (cutouts.length) {
           gctx.save();
           gctx.globalCompositeOperation = 'destination-out';
@@ -1805,6 +1815,153 @@
         return Array.isArray(list) ? list.filter(item => item && !item.deleted) : [];
       }
 
+      function roomAlwaysVisible(room) {
+        if (!room || typeof room !== 'object') return false;
+        const mode = String(room.fog_mode || room.fogMode || '').toLowerCase();
+        if (mode === 'always' || mode === 'visible') return true;
+        if (room.always_visible === true || room.alwaysVisible === true) return true;
+        return false;
+      }
+
+      function getFogState() {
+        const fog = STATE.battle && STATE.battle.fog ? STATE.battle.fog : null;
+        if (!fog || fog.enabled === false) return null;
+        return fog;
+      }
+
+      function getFogSets(floorId) {
+        const fog = getFogState();
+        if (!fog) return null;
+        const visible = fog.visibleRoomIdsByFloor && fog.visibleRoomIdsByFloor[floorId]
+          ? fog.visibleRoomIdsByFloor[floorId] : [];
+        const explored = fog.exploredRoomIdsByFloor && fog.exploredRoomIdsByFloor[floorId]
+          ? fog.exploredRoomIdsByFloor[floorId] : [];
+        return {
+          visible: new Set(visible.map(String)),
+          explored: new Set(explored.map(String))
+        };
+      }
+
+      function roomContainsWorld(room, worldPoint) {
+        if (!room || !worldPoint) return false;
+        if (isPolyRoom(room)) {
+          const pts = roomWorldPoints(room);
+          if (pts.length < 3) return false;
+          return pointInPolygon(worldPoint, pts);
+        }
+        const box = roomToWallBox(room);
+        if (!box) return false;
+        const rect = roomFloorRectWorld(room, box) || box.center;
+        if (!rect) return false;
+        return worldPoint.x >= Math.min(rect.x1, rect.x2) &&
+          worldPoint.x <= Math.max(rect.x1, rect.x2) &&
+          worldPoint.y >= Math.min(rect.y1, rect.y2) &&
+          worldPoint.y <= Math.max(rect.y1, rect.y2);
+      }
+
+      function findRoomForWorldPoint(rooms, worldPoint) {
+        if (!Array.isArray(rooms) || !worldPoint) return null;
+        for (const room of rooms) {
+          if (!room || room.deleted) continue;
+          if (roomContainsWorld(room, worldPoint)) return room;
+        }
+        return null;
+      }
+
+      function classifyRoomsForFog(floor) {
+        const rooms = filterAlive(floor && floor.rooms ? floor.rooms : []);
+        if (!UI.fogEnabled) return { visible: rooms, explored: [], hidden: [] };
+        const sets = getFogSets(floor.id);
+        if (!sets) return { visible: rooms, explored: [], hidden: [] };
+
+        const visible = [];
+        const explored = [];
+        const hidden = [];
+        for (const room of rooms) {
+          if (roomAlwaysVisible(room)) {
+            visible.push(room);
+            continue;
+          }
+          const id = String(room.id || '');
+          if (sets.visible.has(id)) {
+            visible.push(room);
+            continue;
+          }
+          if (sets.explored.has(id)) {
+            explored.push(room);
+            continue;
+          }
+          hidden.push(room);
+        }
+        return { visible, explored, hidden };
+      }
+
+      function buildFogRoomSets(groups) {
+        const visible = new Set();
+        const explored = new Set();
+        const hidden = new Set();
+        if (!groups) return { visible, explored, hidden };
+        (groups.visible || []).forEach(r => { if (r && r.id != null) visible.add(String(r.id)); });
+        (groups.explored || []).forEach(r => { if (r && r.id != null) explored.add(String(r.id)); });
+        (groups.hidden || []).forEach(r => { if (r && r.id != null) hidden.add(String(r.id)); });
+        return { visible, explored, hidden };
+      }
+
+      function tokenWorldCenter(token) {
+        if (!token) return null;
+        const p = parseHexLabel(token.hex);
+        if (!p) return null;
+        return hexToWorld(p.col, p.row);
+      }
+
+      function itemFogState(item, floor, rooms, roomSets, getWorld) {
+        if (!UI.fogEnabled) return 'visible';
+        const world = getWorld ? getWorld(item, floor) : null;
+        if (!world) return 'visible';
+        const room = findRoomForWorldPoint(rooms, world);
+        if (!room || room.id == null) return 'visible';
+        const id = String(room.id);
+        if (roomSets.hidden && roomSets.hidden.has(id)) return 'hidden';
+        if (roomSets.explored && roomSets.explored.has(id)) return 'explored';
+        return 'visible';
+      }
+
+      function drawFogOverlay(rooms, gctx) {
+        if (!UI.fogEnabled || !rooms || !rooms.length) return;
+        const fog = getFogState();
+        if (!fog) return;
+        const alpha = Number.isFinite(Number(fog.exploredAlpha)) ? Number(fog.exploredAlpha) : 0.55;
+        const color = FLOOR_COLORS.fog || '#0e1117';
+        gctx.save();
+        gctx.fillStyle = color;
+        gctx.globalAlpha = alpha;
+        for (const room of rooms) {
+          if (!room || room.deleted) continue;
+          if (isPolyRoom(room)) {
+            const pts = roomWorldPoints(room);
+            if (pts.length < 3) continue;
+            const screenPts = pts.map(worldToScreen);
+            gctx.beginPath();
+            gctx.moveTo(screenPts[0].x, screenPts[0].y);
+            for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
+            gctx.closePath();
+            gctx.fill();
+            continue;
+          }
+          const box = roomToWallBox(room);
+          if (!box) continue;
+          const rect = roomHasWalls(room) ? box.inner : box.center;
+          const p1 = worldToScreen({ x: rect.x1, y: rect.y1 });
+          const p2 = worldToScreen({ x: rect.x2, y: rect.y2 });
+          const x1 = Math.min(p1.x, p2.x);
+          const y1 = Math.min(p1.y, p2.y);
+          const x2 = Math.max(p1.x, p2.x);
+          const y2 = Math.max(p1.y, p2.y);
+          gctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+        }
+        gctx.restore();
+      }
+
       function render() {
         if (!STATE.battle) return;
         const dpr = window.devicePixelRatio || 1;
@@ -1821,21 +1978,34 @@
         const floorLayer = getLayerContext('floors', rect, dpr);
         const wallLayer = getLayerContext('walls', rect, dpr);
         const objectLayer = getLayerContext('objects', rect, dpr);
+        const fogLayer = getLayerContext('fog', rect, dpr);
         const gridLayer = getLayerContext('grid', rect, dpr);
         const handleLayer = getLayerContext('handles', rect, dpr);
         const tokenLayer = getLayerContext('tokens', rect, dpr);
 
-        drawFloorsLayer(floor, floorLayer.ctx);
-        drawWallsLayer(floor, wallLayer.ctx);
+        const allRooms = filterAlive(floor.rooms || []);
+        const fogRooms = classifyRoomsForFog(floor);
+        const fogSets = buildFogRoomSets(fogRooms);
+        const roomsToDraw = UI.fogEnabled ? fogRooms.visible.concat(fogRooms.explored) : allRooms;
+
+        drawFloorsLayer(floor, floorLayer.ctx, roomsToDraw);
+        drawWallsLayer(floor, wallLayer.ctx, roomsToDraw, fogSets);
         drawGridLayer(gridLayer.ctx);
         drawHandlesLayer(floor, handleLayer.ctx);
 
-        const openings = sortByZ(filterAlive(floor.openings || []));
-        const objects = sortByZ(filterAlive(floor.objects || []));
-        const tokens = buildTokens().filter(t => !t.floorId || t.floorId === floor.id);
+        const openings = sortByZ(filterAlive(floor.openings || [])).filter(o => {
+          return itemFogState(o, floor, allRooms, fogSets, openingWorldCenter) !== 'hidden';
+        });
+        const objects = sortByZ(filterAlive(floor.objects || [])).filter(o => {
+          return itemFogState(o, floor, allRooms, fogSets, objectWorldCenter) !== 'hidden';
+        });
+        const tokens = buildTokens()
+          .filter(t => !t.floorId || t.floorId === floor.id)
+          .filter(t => itemFogState(t, floor, allRooms, fogSets, tokenWorldCenter) !== 'hidden');
         openings.forEach(o => drawOpening(o, floor, objectLayer.ctx));
         objects.forEach((obj, idx) => drawObject(obj, idx, objectLayer.ctx));
         tokens.forEach(t => drawToken(t, tokenLayer.ctx));
+        drawFogOverlay(fogRooms.explored, fogLayer.ctx);
 
         ctx.clearRect(0, 0, rect.width, rect.height);
         if (layerMode === 'all' || layerMode === 'floors') {
@@ -1847,14 +2017,17 @@
         if (layerMode === 'all' || layerMode === 'objects') {
           ctx.drawImage(objectLayer.canvas, 0, 0, rect.width, rect.height);
         }
+        if (layerMode === 'all' || layerMode === 'tokens') {
+          ctx.drawImage(tokenLayer.canvas, 0, 0, rect.width, rect.height);
+        }
+        if (layerMode === 'all') {
+          ctx.drawImage(fogLayer.canvas, 0, 0, rect.width, rect.height);
+        }
         if (layerMode === 'all' && UI.hexGrid) {
           ctx.drawImage(gridLayer.canvas, 0, 0, rect.width, rect.height);
         }
         if (layerMode === 'all' && (UI.showHandles || UI.handleHot)) {
           ctx.drawImage(handleLayer.canvas, 0, 0, rect.width, rect.height);
-        }
-        if (layerMode === 'all' || layerMode === 'tokens') {
-          ctx.drawImage(tokenLayer.canvas, 0, 0, rect.width, rect.height);
         }
         if (layerMode === 'all') {
           drawRoomPreview(ctx);
@@ -2605,6 +2778,13 @@
         if (handlesToggle) {
           handlesToggle.addEventListener('change', () => {
             UI.showHandles = !!handlesToggle.checked;
+            savePrefs();
+            render();
+          });
+        }
+        if (fogToggle) {
+          fogToggle.addEventListener('change', () => {
+            UI.fogEnabled = !!fogToggle.checked;
             savePrefs();
             render();
           });
