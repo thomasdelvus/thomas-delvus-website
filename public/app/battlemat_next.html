@@ -275,6 +275,7 @@
         </select>
         <label class="mini"><input type="checkbox" id="handlesToggle" /> Handles</label>
         <select id="floorSelect"></select>
+        <button id="btnUndo">Undo</button>
         <button id="btnSave">Save</button>
         <span id="saveStatus" class="status">DB: idle</span>
         <div id="openingGroup" class="toolGroup">
@@ -384,6 +385,7 @@
       const labelBoldToggle = document.getElementById('labelBoldToggle');
       const handlesToggle = document.getElementById('handlesToggle');
       const saveButton = document.getElementById('btnSave');
+      const undoButton = document.getElementById('btnUndo');
       const saveStatus = document.getElementById('saveStatus');
       const statusList = document.getElementById('statusList');
       const inspectorEmpty = document.getElementById('inspectorEmpty');
@@ -417,6 +419,7 @@
         objectKind: 'object',
         tokenKind: 'npc'
       };
+      const HISTORY = { stack: [], index: -1, limit: 5 };
 
       const DEFAULT_FLOOR_KINDS = [
         'wood_oak', 'wood', 'stone', 'cobble', 'brick', 'brick_dark', 'gravel', 'fog'
@@ -1153,6 +1156,56 @@
       function formatRoomPoints(room) {
         const labels = roomPointLabels(room);
         return labels.map(l => String(l).trim()).filter(Boolean).join(', ');
+      }
+
+      function cloneValue(value) {
+        if (typeof structuredClone === 'function') return structuredClone(value);
+        return JSON.parse(JSON.stringify(value));
+      }
+
+      function snapshotState() {
+        return {
+          battle: cloneValue(STATE.battle),
+          entities: cloneValue(STATE.entities)
+        };
+      }
+
+      function restoreState(snapshot) {
+        if (!snapshot) return;
+        STATE.battle = snapshot.battle ? cloneValue(snapshot.battle) : STATE.battle;
+        STATE.entities = snapshot.entities ? cloneValue(snapshot.entities) : STATE.entities;
+        setFloorOptions();
+        renderStatus();
+        render();
+      }
+
+      function pushHistory() {
+        const snap = snapshotState();
+        if (HISTORY.index < HISTORY.stack.length - 1) {
+          HISTORY.stack = HISTORY.stack.slice(0, HISTORY.index + 1);
+        }
+        HISTORY.stack.push(snap);
+        if (HISTORY.stack.length > HISTORY.limit) {
+          HISTORY.stack.shift();
+        }
+        HISTORY.index = HISTORY.stack.length - 1;
+        updateUndoButton();
+      }
+
+      function canUndo() {
+        return HISTORY.index > 0;
+      }
+
+      function undo() {
+        if (!canUndo()) return;
+        HISTORY.index -= 1;
+        restoreState(HISTORY.stack[HISTORY.index]);
+        if (saveStatus) saveStatus.textContent = 'DB: idle';
+        updateUndoButton();
+      }
+
+      function updateUndoButton() {
+        if (undoButton) undoButton.disabled = !canUndo();
       }
 
       function parsePointList(text) {
@@ -1941,6 +1994,7 @@
       function applyFieldChange(key, value) {
         const sel = EDITOR.selection;
         if (!sel) return;
+        pushHistory();
         const item = sel.item;
         const num = (val, fallback = null) => {
           if (val == null || String(val).trim() === '') return fallback;
@@ -2058,6 +2112,7 @@
         if (!sel || !STATE.battle) return;
         const floor = STATE.battle.floors.find(f => String(f.id) === String(sel.floorId));
         if (!floor) return;
+        pushHistory();
 
         let list = null;
         if (sel.type === 'room') list = floor.rooms;
@@ -2094,6 +2149,7 @@
       function deleteSelection() {
         const sel = EDITOR.selection;
         if (!sel) return;
+        pushHistory();
         if (sel.type === 'token') {
           const entity = sel.item && sel.item.__entity;
           if (entity) {
@@ -2218,6 +2274,7 @@
             EDITOR.roomStart = hex;
             return;
           }
+          pushHistory();
           const start = EDITOR.roomStart;
           EDITOR.roomStart = null;
           const minCol = Math.min(start.col, hex.col);
@@ -2247,6 +2304,7 @@
           const snapped = snapWorldToWall(world, floor, EDITOR.openingOrientation || 'h');
           const openHex = openingHexFromWorld(snapped);
           const openLabel = openingHexLabelFromCoords(openHex.col, openHex.row) || hexLabel;
+          pushHistory();
           const opening = {
             id: 'opening_' + Date.now().toString(36),
             kind: EDITOR.openingKind || 'door.wood',
@@ -2262,6 +2320,7 @@
         }
 
         if (EDITOR.tool === 'object') {
+          pushHistory();
           const obj = {
             id: 'object_' + Date.now().toString(36),
             kind: EDITOR.objectKind || 'object',
@@ -2276,6 +2335,7 @@
         }
 
         if (EDITOR.tool === 'token') {
+          pushHistory();
           const poiId = resolvePoiId();
           const entityId = `entity_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
           const tokenKind = (EDITOR.tokenKind || 'npc').toLowerCase();
@@ -2371,11 +2431,16 @@
           selectItem(sel.type, sel.item, sel.floorId);
           EDITOR.drag = sel;
           EDITOR.drag.didMove = false;
+          EDITOR.drag.pushed = false;
         });
 
         canvas.addEventListener('mousemove', (ev) => {
           if (!EDITOR.drag) return;
           EDITOR.drag.didMove = true;
+          if (!EDITOR.drag.pushed) {
+            pushHistory();
+            EDITOR.drag.pushed = true;
+          }
           const rect = canvas.getBoundingClientRect();
           const x = ev.clientX - rect.left;
           const y = ev.clientY - rect.top;
@@ -2555,10 +2620,16 @@
         if (panDown) panDown.addEventListener('click', () => nudgeCamera(0, rowStep() * nudgeStep));
         if (panLeft) panLeft.addEventListener('click', () => nudgeCamera(-colStep() * nudgeStep, 0));
         if (panRight) panRight.addEventListener('click', () => nudgeCamera(colStep() * nudgeStep, 0));
+        if (undoButton) undoButton.addEventListener('click', () => undo());
         saveButton.addEventListener('click', () => saveState());
         canvas.addEventListener('click', handleCanvasClick);
         attachDragHandlers();
         window.addEventListener('keydown', (ev) => {
+          if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') {
+            ev.preventDefault();
+            undo();
+            return;
+          }
           if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
           const el = document.activeElement;
           if (el && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) return;
@@ -2586,6 +2657,7 @@
         });
         window.addEventListener('resize', () => render());
         setTool(EDITOR.tool);
+        updateUndoButton();
       }
 
       function populateKindLists() {
@@ -2638,6 +2710,7 @@
         populateKindLists();
         VIEW.zoom = Number(zoomInput.value);
         autoCenterCamera();
+        pushHistory();
         renderStatus();
         attachEvents();
         render();
