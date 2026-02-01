@@ -1346,7 +1346,8 @@
           const fk = room.floor && room.floor.kind ? String(room.floor.kind) : 'default';
           const floorColor = FLOOR_COLORS[fk] || FLOOR_COLORS.default;
           const floorAnchor = pts[0];
-          const fill = getFillStyle(gctx, 'floor', fk, floorColor, floorAnchor, { allowFallback: false });
+          const floorRot = room.floor && (room.floor.rot ?? room.floor.rotDeg);
+          const fill = getFillStyle(gctx, 'floor', fk, floorColor, floorAnchor, { allowFallback: false, rotDeg: floorRot });
           if (!fill) return;
           gctx.save();
           gctx.fillStyle = fill;
@@ -1374,7 +1375,8 @@
         const fk = room.floor && room.floor.kind ? String(room.floor.kind) : 'default';
         const floorColor = FLOOR_COLORS[fk] || FLOOR_COLORS.default;
         const floorAnchor = { x: rect.x1, y: rect.y1 };
-        const fill = getFillStyle(gctx, 'floor', fk, floorColor, floorAnchor, { allowFallback: false });
+        const floorRot = room.floor && (room.floor.rot ?? room.floor.rotDeg);
+        const fill = getFillStyle(gctx, 'floor', fk, floorColor, floorAnchor, { allowFallback: false, rotDeg: floorRot });
         if (!fill) return;
         gctx.fillStyle = fill;
         gctx.globalAlpha = 1;
@@ -1617,6 +1619,7 @@
           kindRaw.startsWith('window') ? 'window' :
           kindRaw.startsWith('portal') ? 'portal' :
           kindRaw.startsWith('threshold') ? 'threshold' : 'door';
+        if (UI.fogEnabled && kind === 'threshold') return;
         const style = OPENING_STYLE[kind] || OPENING_STYLE.door;
         const lenUnits = Number.isFinite(Number(opening.len ?? opening.length ?? opening.size))
           ? Number(opening.len ?? opening.length ?? opening.size)
@@ -1757,7 +1760,7 @@
         return { pattern, scale: def.scale };
       }
 
-      function applyPatternTransform(pattern, scale, anchorWorld) {
+      function applyPatternTransform(pattern, scale, anchorWorld, rotDeg) {
         if (!pattern || typeof pattern.setTransform !== 'function') return;
         const cam = getCameraWorld();
         const rect = canvas.getBoundingClientRect();
@@ -1766,10 +1769,11 @@
         const originY = rect.height / 2 + (anchor.y - cam.y) * VIEW.zoom;
         const s = (Number(scale) || 1) * VIEW.zoom;
         const m = new DOMMatrix();
-        m.a = s;
-        m.d = s;
-        m.e = originX;
-        m.f = originY;
+        m.translateSelf(originX, originY);
+        if (Number.isFinite(Number(rotDeg)) && Number(rotDeg) !== 0) {
+          m.rotateSelf(Number(rotDeg));
+        }
+        m.scaleSelf(s, s);
         pattern.setTransform(m);
       }
 
@@ -1778,7 +1782,7 @@
         if (def) {
           const tex = getTexturePattern(gctx, category, kind);
           if (tex && tex.pattern) {
-            applyPatternTransform(tex.pattern, tex.scale, anchorWorld);
+            applyPatternTransform(tex.pattern, tex.scale, anchorWorld, opts.rotDeg);
             return tex.pattern;
           }
           if (opts.allowFallback === false) return null;
@@ -2197,6 +2201,7 @@
           addField('Points', formatRoomPoints(sel.item), 'points');
           addField('Thickness', sel.item.thickness != null ? sel.item.thickness : '', 'thickness', { type: 'number', step: '1' });
           addField('Floor Kind', sel.item.floor && sel.item.floor.kind ? sel.item.floor.kind : '', 'floor.kind', { list: 'floorKindList' });
+          addField('Floor Rot', sel.item.floor && (sel.item.floor.rot ?? sel.item.floor.rotDeg) ? (sel.item.floor.rot ?? sel.item.floor.rotDeg) : '', 'floor.rot', { type: 'number', step: '1' });
           addField('Wall Kind', sel.item.wall && sel.item.wall.kind ? sel.item.wall.kind : '', 'wall.kind', { list: 'wallKindList' });
           addField('Erase', sel.item.wall_erase || sel.item.wallErase || sel.item.erase || '', 'wall_erase');
           addSelectField('Fog', sel.item.fog_mode || sel.item.fogMode || '', 'fog_mode', [
@@ -2321,6 +2326,12 @@
           if (key === 'floor.kind') {
             item.floor = item.floor || {};
             item.floor.kind = value;
+          }
+          if (key === 'floor.rot') {
+            item.floor = item.floor || {};
+            const n = num(value, null);
+            if (n == null) delete item.floor.rot;
+            else item.floor.rot = n;
           }
           if (key === 'wall.kind') {
             item.wall = item.wall || {};
