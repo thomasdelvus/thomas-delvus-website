@@ -408,6 +408,7 @@
         tool: 'select',
         selection: null,
         roomStart: null,
+        roomHover: null,
         dirty: false,
         drag: null,
         ignoreClick: false,
@@ -711,6 +712,7 @@
         if (openingGroup) openingGroup.style.display = tool === 'opening' ? 'flex' : 'none';
         if (objectGroup) objectGroup.style.display = tool === 'object' ? 'flex' : 'none';
         if (tokenGroup) tokenGroup.style.display = tool === 'token' ? 'flex' : 'none';
+        if (canvasWrap) canvasWrap.style.cursor = tool === 'room' ? 'crosshair' : 'default';
       }
 
       function drawHexOutline(gctx, center, size) {
@@ -812,6 +814,31 @@
           const center = worldToScreen(world);
           drawHandle(gctx, center, size);
         }
+        gctx.restore();
+      }
+
+      function drawRoomPreview(gctx) {
+        if (EDITOR.tool !== 'room' || !EDITOR.roomStart || !EDITOR.roomHover) return;
+        const start = EDITOR.roomStart;
+        const end = EDITOR.roomHover;
+        const minCol = Math.min(start.col, end.col);
+        const maxCol = Math.max(start.col, end.col);
+        const minRow = Math.min(start.row, end.row);
+        const maxRow = Math.max(start.row, end.row);
+        const tl = hexToWorld(minCol, maxRow);
+        const br = hexToWorld(maxCol, minRow);
+        const p1 = worldToScreen(tl);
+        const p2 = worldToScreen(br);
+        const x1 = Math.min(p1.x, p2.x);
+        const y1 = Math.min(p1.y, p2.y);
+        const x2 = Math.max(p1.x, p2.x);
+        const y2 = Math.max(p1.y, p2.y);
+
+        gctx.save();
+        gctx.strokeStyle = 'rgba(88, 220, 120, 0.9)';
+        gctx.lineWidth = 2;
+        gctx.setLineDash([6, 6]);
+        gctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
         gctx.restore();
       }
 
@@ -1762,6 +1789,9 @@
         if (layerMode === 'all' || layerMode === 'tokens') {
           ctx.drawImage(tokenLayer.canvas, 0, 0, rect.width, rect.height);
         }
+        if (layerMode === 'all') {
+          drawRoomPreview(ctx);
+        }
       }
 
       function updateInspector() {
@@ -2353,6 +2383,17 @@
           onDragMove(world);
         });
 
+        canvas.addEventListener('mousemove', (ev) => {
+          if (EDITOR.drag) return;
+          if (EDITOR.tool !== 'room') return;
+          const rect = canvas.getBoundingClientRect();
+          const x = ev.clientX - rect.left;
+          const y = ev.clientY - rect.top;
+          const world = screenToWorld(x, y);
+          EDITOR.roomHover = worldToHex(world);
+          render();
+        });
+
         window.addEventListener('mouseup', () => {
           if (!EDITOR.drag) return;
           const dragged = EDITOR.drag;
@@ -2522,6 +2563,14 @@
           const el = document.activeElement;
           if (el && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) return;
           deleteSelection();
+        });
+        window.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Escape') {
+            if (EDITOR.roomStart) {
+              EDITOR.roomStart = null;
+              render();
+            }
+          }
         });
         window.addEventListener('keydown', (ev) => {
           if (ev.key === 'Control') {
