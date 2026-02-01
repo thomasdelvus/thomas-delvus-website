@@ -616,6 +616,20 @@
         return { col, row };
       }
 
+      function roundHalf(v) {
+        return Math.round(v * 2) / 2;
+      }
+
+      function worldToHexHalf(p) {
+        const size = GRID.size || 1;
+        const qf = (2 / 3) * (p.x / size);
+        const rf = ((-p.y) / size) / Math.sqrt(3) - (qf / 2);
+        const col = Math.round(qf);
+        const rowf = rf + (col - (col & 1)) / 2;
+        const row = roundHalf(rowf);
+        return { col, row };
+      }
+
       function roundQuarter(v) {
         return Math.round(v * 4) / 4;
       }
@@ -2257,7 +2271,7 @@
         const x = ev.clientX - rect.left;
         const y = ev.clientY - rect.top;
         const world = screenToWorld(x, y);
-        const hex = worldToHex(world);
+        const hex = (EDITOR.tool === 'room') ? worldToHexHalf(world) : worldToHex(world);
         const hexLabel = toHexLabel(hex.col, hex.row);
         const floor = pickFloor();
         if (!floor) return;
@@ -2455,7 +2469,7 @@
           const x = ev.clientX - rect.left;
           const y = ev.clientY - rect.top;
           const world = screenToWorld(x, y);
-          EDITOR.roomHover = worldToHex(world);
+          EDITOR.roomHover = worldToHexHalf(world);
           render();
         });
 
