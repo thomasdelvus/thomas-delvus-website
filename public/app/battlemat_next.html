@@ -1744,7 +1744,8 @@
         const thick = GRID.size * thickUnits * VIEW.zoom;
         const hingeRaw = opening.hinge || '';
         const hinge = normalizeHinge(hingeRaw, orient);
-        const swingDir = Number.isFinite(Number(opening.swing)) ? Number(opening.swing) : 1;
+        let swingDir = Number.isFinite(Number(opening.swing)) ? Number(opening.swing) : 1;
+        if (swingDir === 0) swingDir = -1;
         const openPct = Math.max(0, Math.min(1, Number(opening.openPct ?? opening.open ?? 0)));
         const swingAngle = openPct * (Math.PI / 2) * (swingDir === 0 ? 1 : swingDir);
         if (spriteUrl) {
