@@ -2059,17 +2059,17 @@
         if (layerMode === 'all' || layerMode === 'floors') {
           ctx.drawImage(floorLayer.canvas, 0, 0, rect.width, rect.height);
         }
-        if (layerMode === 'all' || layerMode === 'walls') {
-          ctx.drawImage(wallLayer.canvas, 0, 0, rect.width, rect.height);
-        }
         if (layerMode === 'all' || layerMode === 'objects') {
           ctx.drawImage(objectLayer.canvas, 0, 0, rect.width, rect.height);
         }
-        if (layerMode === 'all' || layerMode === 'tokens') {
-          ctx.drawImage(tokenLayer.canvas, 0, 0, rect.width, rect.height);
-        }
         if (layerMode === 'all') {
           ctx.drawImage(fogLayer.canvas, 0, 0, rect.width, rect.height);
+        }
+        if (layerMode === 'all' || layerMode === 'walls') {
+          ctx.drawImage(wallLayer.canvas, 0, 0, rect.width, rect.height);
+        }
+        if (layerMode === 'all' || layerMode === 'tokens') {
+          ctx.drawImage(tokenLayer.canvas, 0, 0, rect.width, rect.height);
         }
         if (layerMode === 'all' && UI.hexGrid) {
           ctx.drawImage(gridLayer.canvas, 0, 0, rect.width, rect.height);
