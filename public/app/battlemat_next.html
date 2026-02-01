@@ -2273,6 +2273,7 @@
           addField('Floor Rot', sel.item.floor && (sel.item.floor.rot ?? sel.item.floor.rotDeg) ? (sel.item.floor.rot ?? sel.item.floor.rotDeg) : '', 'floor.rot', { type: 'number', step: '1' });
           addField('Wall Kind', sel.item.wall && sel.item.wall.kind ? sel.item.wall.kind : '', 'wall.kind', { list: 'wallKindList' });
           addField('Erase', sel.item.wall_erase || sel.item.wallErase || sel.item.erase || '', 'wall_erase');
+          addField('Z', sel.item.z != null ? sel.item.z : '', 'z', { type: 'number', step: '1' });
           addSelectField('Fog', sel.item.fog_mode || sel.item.fogMode || '', 'fog_mode', [
             { value: '', label: 'Default' },
             { value: 'visible', label: 'Always Visible' },
@@ -2302,6 +2303,7 @@
           addField('Seam', sel.item.seam_kind || '', 'seam_kind');
           addField('Seam Mode', sel.item.seam_mode || '', 'seam_mode');
           addField('Seam Anchor', sel.item.seam_anchor || '', 'seam_anchor');
+          addField('Z', sel.item.z != null ? sel.item.z : '', 'z', { type: 'number', step: '1' });
           addButtonRow([
             { label: 'To Front', onClick: () => reorderSelection('front') },
             { label: 'To Back', onClick: () => reorderSelection('back') },
@@ -2325,6 +2327,7 @@
           addField('Rot Deg', sel.item.rotDeg != null ? sel.item.rotDeg : '', 'rotDeg', { type: 'number', step: '1' });
           addField('Offset X', sel.item.ox != null ? sel.item.ox : '', 'ox', { type: 'number', step: '0.05' });
           addField('Offset Y', sel.item.oy != null ? sel.item.oy : '', 'oy', { type: 'number', step: '0.05' });
+          addField('Z', sel.item.z != null ? sel.item.z : '', 'z', { type: 'number', step: '1' });
           addButtonRow([
             { label: 'To Front', onClick: () => reorderSelection('front') },
             { label: 'To Back', onClick: () => reorderSelection('back') },
@@ -2345,6 +2348,7 @@
           addField('Side', sel.item.side || '', 'side');
           addField('HP', sel.item.hp != null ? sel.item.hp : '', 'hp', { type: 'number', step: '1' });
           addField('Init', sel.item.init != null ? sel.item.init : '', 'init', { type: 'number', step: '1' });
+          addField('Z', sel.item.z != null ? sel.item.z : '', 'z', { type: 'number', step: '1' });
           addButtonRow([
             { label: 'HP -1', onClick: () => bumpToken('hp', -1) },
             { label: 'HP +1', onClick: () => bumpToken('hp', 1) },
@@ -2411,6 +2415,7 @@
             if (!cleaned) delete item.wall_erase;
             else item.wall_erase = cleaned;
           }
+          if (key === 'z') item.z = num(value, null);
         }
 
         if (sel.type === 'opening') {
@@ -2433,6 +2438,7 @@
           if (key === 'seam_kind') item.seam_kind = value;
           if (key === 'seam_mode') item.seam_mode = value;
           if (key === 'seam_anchor') item.seam_anchor = value;
+          if (key === 'z') item.z = num(value, null);
         }
 
         if (sel.type === 'object') {
@@ -2447,6 +2453,7 @@
           if (key === 'rotDeg') item.rotDeg = num(value, 0);
           if (key === 'ox') item.ox = num(value, 0);
           if (key === 'oy') item.oy = num(value, 0);
+          if (key === 'z') item.z = num(value, null);
         }
 
         if (sel.type === 'token') {
@@ -2458,6 +2465,7 @@
           if (key === 'side') item.side = value;
           if (key === 'hp') item.hp = num(value, null);
           if (key === 'init') item.init = num(value, null);
+          if (key === 'z') item.z = num(value, null);
           syncEntityFromToken(item);
           queueEntitySave(item);
           renderStatus();
