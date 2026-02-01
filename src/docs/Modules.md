@@ -60,7 +60,6 @@ The Temple and Castle Ruins are at the top of the hill, which then levels off as
 - The Rows: is situated south of King Street, running west to east between but not as far as High Street and Common Hill. 
 
 ## Points of Interest
-- Coordinates: Map is labeled from A-AW (X axis) and 1-28 (Y-Axis) starting from upper level corner in Excel format.
 | No. | Shop Locations      | Reference "Items.txt"    |  Map  | Location                          | Shape        | Orientation               | To the Left         | To the Right        | Keywords for generating image illustration                                                                                                                                                                                |
 |-----|---------------------|--------------------------|-------|-----------------------------------|--------------|---------------------------|---------------------|---------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 1   | Cross Keys Inn      | Food, Drink and Lodging  |  S-27 | Corner of King and High Street    | Rectangular  | Long side, South facing   | High Street         | Shops               | Medieval fantasy, English timber-framed, dark wooden beams, whitewashed walls, bay windows, thatched roof, crossed golden keys sign, cobblestone, daytime, bustling townsfolk                                   |
@@ -203,4 +202,5 @@ The Temple and Castle Ruins are at the top of the hill, which then levels off as
 | River Orwell  | Near Ipswich   | Flowing eastward       | North Sea     | Bustling with merchant ships, it's watched over by the Great Lighthouse |
 | River Colne   | Near Halstead  | Through Colchester     | North Sea     | Known for the reflective quality of its water, mirroring the sky perfectly |
 | River Lea     | Near Luton     | Flowing southward      | The Channel   | Whispers speak of a hidden underwater passage leading to a lost city |
+
 
