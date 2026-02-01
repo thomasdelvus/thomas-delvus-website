@@ -2200,6 +2200,16 @@
 
       function itemFogState(item, floor, rooms, roomSets, getWorld) {
         if (!UI.fogEnabled) return 'visible';
+        const parentId = item && (item.parent_room || item.parentRoom || item.room_id || item.roomId);
+        if (parentId) {
+          const room = Array.isArray(rooms) ? rooms.find(r => r && String(r.id) === String(parentId)) : null;
+          if (room && room.id != null) {
+            const id = String(room.id);
+            if (roomSets.hidden && roomSets.hidden.has(id)) return 'hidden';
+            if (roomSets.explored && roomSets.explored.has(id)) return 'explored';
+            if (roomSets.visible && roomSets.visible.has(id)) return 'visible';
+          }
+        }
         const world = getWorld ? getWorld(item, floor) : null;
         if (!world) return 'visible';
         const room = findRoomForWorldPoint(rooms, world);
@@ -2465,6 +2475,7 @@
           addField('Kind', sel.item.kind || '', 'kind', { list: 'objectKindList' });
           addField('Hex', sel.item.hex || '', 'hex');
           addField('Floor', sel.item.floorId || '', 'floorId');
+          addField('Parent Room', sel.item.parent_room || sel.item.parentRoom || sel.item.room_id || sel.item.roomId || '', 'parent_room');
           addField('Sprite', sel.item.sprite || sel.item.spriteFile || '', 'sprite');
           addField('Scale', sel.item.spriteScale != null ? sel.item.spriteScale : '', 'spriteScale', { type: 'number', step: '0.05' });
           addField('Scale X', sel.item.spriteScaleX != null ? sel.item.spriteScaleX : '', 'spriteScaleX', { type: 'number', step: '0.05' });
@@ -2591,6 +2602,16 @@
           if (key === 'kind') item.kind = value;
           if (key === 'hex') item.hex = value;
           if (key === 'floorId') item.floorId = value;
+          if (key === 'parent_room') {
+            if (!value) {
+              delete item.parent_room;
+              delete item.parentRoom;
+              delete item.room_id;
+              delete item.roomId;
+            } else {
+              item.parent_room = value;
+            }
+          }
           if (key === 'sprite') item.sprite = value;
           if (key === 'spriteScale') item.spriteScale = num(value, 1);
           if (key === 'spriteScaleX') item.spriteScaleX = num(value, null);
