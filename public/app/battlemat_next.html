@@ -1101,6 +1101,15 @@
         return thickness > 0 && roomWallKind(room) !== 'none';
       }
 
+      function parseEraseSides(room) {
+        const raw = String(room && (room.wall_erase || room.wallErase || room.erase || '') || '');
+        const out = new Set();
+        for (const ch of raw.toUpperCase()) {
+          if ('NSEW'.includes(ch)) out.add(ch);
+        }
+        return out;
+      }
+
       function roomPointLabels(room) {
         if (!room || typeof room !== 'object') return [];
         const points = Array.isArray(room.points) ? room.points
@@ -1482,6 +1491,29 @@
           gctx.rect(ox1, oy1, ow, oh);
           gctx.rect(ix1, iy1, iw, ih);
           gctx.fill('evenodd');
+
+          const erase = parseEraseSides(room);
+          if (erase.size) {
+            gctx.save();
+            gctx.globalCompositeOperation = 'destination-out';
+            const topH = Math.max(0, iy1 - oy1);
+            const botH = Math.max(0, (oy1 + oh) - (iy1 + ih));
+            const leftW = Math.max(0, ix1 - ox1);
+            const rightW = Math.max(0, (ox1 + ow) - (ix1 + iw));
+            if (erase.has('N') && topH > 0) {
+              gctx.fillRect(ox1, oy1, ow, topH);
+            }
+            if (erase.has('S') && botH > 0) {
+              gctx.fillRect(ox1, iy1 + ih, ow, botH);
+            }
+            if (erase.has('W') && leftW > 0) {
+              gctx.fillRect(ox1, oy1, leftW, oh);
+            }
+            if (erase.has('E') && rightW > 0) {
+              gctx.fillRect(ix1 + iw, oy1, rightW, oh);
+            }
+            gctx.restore();
+          }
         }
 
         const cutouts = openingCutoutRectsForFloor(floor, rooms || filterAlive(floor.rooms || []), roomSets);
@@ -2165,6 +2197,7 @@
           addField('Thickness', sel.item.thickness != null ? sel.item.thickness : '', 'thickness', { type: 'number', step: '1' });
           addField('Floor Kind', sel.item.floor && sel.item.floor.kind ? sel.item.floor.kind : '', 'floor.kind', { list: 'floorKindList' });
           addField('Wall Kind', sel.item.wall && sel.item.wall.kind ? sel.item.wall.kind : '', 'wall.kind', { list: 'wallKindList' });
+          addField('Erase', sel.item.wall_erase || sel.item.wallErase || sel.item.erase || '', 'wall_erase');
           addSelectField('Fog', sel.item.fog_mode || sel.item.fogMode || '', 'fog_mode', [
             { value: '', label: 'Default' },
             { value: 'visible', label: 'Always Visible' },
@@ -2291,6 +2324,11 @@
           if (key === 'wall.kind') {
             item.wall = item.wall || {};
             item.wall.kind = value;
+          }
+          if (key === 'wall_erase') {
+            const cleaned = String(value || '').toUpperCase().replace(/[^NSEW]/g, '');
+            if (!cleaned) delete item.wall_erase;
+            else item.wall_erase = cleaned;
           }
         }
 
