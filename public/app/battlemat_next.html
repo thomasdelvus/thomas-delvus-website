@@ -1496,21 +1496,22 @@
           if (erase.size) {
             gctx.save();
             gctx.globalCompositeOperation = 'destination-out';
+            const bleed = 2 * VIEW.zoom;
             const topH = Math.max(0, iy1 - oy1);
             const botH = Math.max(0, (oy1 + oh) - (iy1 + ih));
             const leftW = Math.max(0, ix1 - ox1);
             const rightW = Math.max(0, (ox1 + ow) - (ix1 + iw));
             if (erase.has('N') && topH > 0) {
-              gctx.fillRect(ox1, oy1, ow, topH);
+              gctx.fillRect(ox1 - bleed, oy1 - bleed, ow + bleed * 2, topH + bleed * 2);
             }
             if (erase.has('S') && botH > 0) {
-              gctx.fillRect(ox1, iy1 + ih, ow, botH);
+              gctx.fillRect(ox1 - bleed, iy1 + ih - bleed, ow + bleed * 2, botH + bleed * 2);
             }
             if (erase.has('W') && leftW > 0) {
-              gctx.fillRect(ox1, oy1, leftW, oh);
+              gctx.fillRect(ox1 - bleed, oy1 + topH, leftW + bleed, oh - topH - botH);
             }
             if (erase.has('E') && rightW > 0) {
-              gctx.fillRect(ix1 + iw, oy1, rightW, oh);
+              gctx.fillRect(ix1 + iw - bleed, oy1 + topH, rightW + bleed, oh - topH - botH);
             }
             gctx.restore();
           }
