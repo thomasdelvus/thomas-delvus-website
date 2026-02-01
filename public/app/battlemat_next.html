@@ -1657,6 +1657,15 @@
         return 'hidden';
       }
 
+      function normalizeHinge(hinge, orient) {
+        const h = String(hinge || '').toLowerCase();
+        if (orient === 'v') {
+          if (h === 'top') return 'left';
+          if (h === 'bottom') return 'right';
+        }
+        return h || 'left';
+      }
+
       function drawOpening(opening, floor, gctx, fogState) {
         const world = openingWorldCenter(opening, floor);
         if (!world) return;
@@ -1678,13 +1687,23 @@
           : style.thick;
         const len = GRID.size * lenUnits * VIEW.zoom;
         const thick = GRID.size * thickUnits * VIEW.zoom;
+        const hingeRaw = opening.hinge || '';
+        const hinge = normalizeHinge(hingeRaw, orient);
+        const swingDir = Number.isFinite(Number(opening.swing)) ? Number(opening.swing) : 1;
+        const openPct = Math.max(0, Math.min(1, Number(opening.openPct ?? opening.open ?? 0)));
+        const swingAngle = openPct * (Math.PI / 2) * (swingDir === 0 ? 1 : swingDir);
         if (spriteUrl) {
           const img = loadSprite(spriteUrl);
           if (img && img.complete && img.naturalWidth && img.naturalHeight) {
             gctx.save();
             if (fogState === 'explored') gctx.globalAlpha *= 0.6;
             gctx.translate(center.x, center.y);
-            if (orient === 'v') gctx.rotate(Math.PI / 2);
+            const baseRot = orient === 'v' ? Math.PI / 2 : 0;
+            if (baseRot) gctx.rotate(baseRot);
+            const pivotX = hinge === 'right' ? len / 2 : -len / 2;
+            gctx.translate(pivotX, 0);
+            if (swingAngle) gctx.rotate(swingAngle);
+            gctx.translate(-pivotX, 0);
             gctx.drawImage(img, -len / 2, -thick / 2, len, thick);
             gctx.restore();
             return;
@@ -1694,7 +1713,12 @@
         gctx.save();
         if (fogState === 'explored') gctx.globalAlpha *= 0.6;
         gctx.translate(center.x, center.y);
-        if (orient === 'v') gctx.rotate(Math.PI / 2);
+        const baseRot = orient === 'v' ? Math.PI / 2 : 0;
+        if (baseRot) gctx.rotate(baseRot);
+        const pivotX = hinge === 'right' ? len / 2 : -len / 2;
+        gctx.translate(pivotX, 0);
+        if (swingAngle) gctx.rotate(swingAngle);
+        gctx.translate(-pivotX, 0);
         gctx.fillStyle = style.color;
         gctx.fillRect(-len / 2, -thick / 2, len, thick);
         gctx.restore();
@@ -2282,6 +2306,8 @@
           addField('Hex', sel.item.hex || '', 'hex');
           addField('Floor', sel.floorId || '', 'floorId');
           addField('Orientation', sel.item.orientation || 'h', 'orientation');
+          addField('Hinge', sel.item.hinge || '', 'hinge');
+          addField('Swing', sel.item.swing != null ? sel.item.swing : '', 'swing', { type: 'number', step: '1' });
           addField('Open %', sel.item.openPct != null ? sel.item.openPct : 0, 'openPct', { type: 'number', step: '0.05' });
           addField('Length', sel.item.len != null ? sel.item.len : '', 'len', { type: 'number', step: '0.05' });
           addField('Thickness', sel.item.thickness != null ? sel.item.thickness : '', 'thickness', { type: 'number', step: '0.05' });
@@ -2406,6 +2432,8 @@
           if (key === 'hex') item.hex = value;
           if (key === 'floorId') moveOpeningToFloor(item, value);
           if (key === 'orientation') item.orientation = value;
+          if (key === 'hinge') item.hinge = value;
+          if (key === 'swing') item.swing = num(value, 1);
           if (key === 'openPct') item.openPct = Math.max(0, Math.min(1, num(value, 0)));
           if (key === 'len') {
             const n = num(value, null);
