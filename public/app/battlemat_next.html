@@ -2488,6 +2488,7 @@
           addField('Hex', sel.item.hex || '', 'hex');
           addField('Floor', sel.item.floorId || '', 'floorId');
           addField('POI', sel.item.poi_id || '', 'poi_id');
+          addSelectField('Sprite', sel.item.sprite || '', 'sprite', TOKEN_SPRITE_OPTIONS);
           addField('Side', sel.item.side || '', 'side');
           addField('HP', sel.item.hp != null ? sel.item.hp : '', 'hp', { type: 'number', step: '1' });
           addField('Init', sel.item.init != null ? sel.item.init : '', 'init', { type: 'number', step: '1' });
@@ -2604,6 +2605,10 @@
           if (key === 'hex') item.hex = value;
           if (key === 'floorId') item.floorId = value;
           if (key === 'poi_id') item.poi_id = value;
+          if (key === 'sprite') {
+            if (!value) delete item.sprite;
+            else item.sprite = value;
+          }
           if (key === 'side') item.side = value;
           if (key === 'hp') item.hp = num(value, null);
           if (key === 'init') item.init = num(value, null);
