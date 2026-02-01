@@ -108,7 +108,7 @@
     #navBar {
       position: absolute;
       right: 12px;
-      top: 58px;
+      top: 12px;
       display: flex;
       align-items: center;
       gap: 10px;
@@ -157,10 +157,19 @@
 
     .panPad {
       display: grid;
-      grid-template-columns: repeat(3, 28px);
-      grid-template-rows: 24px 28px 24px;
+      grid-template-columns: 28px 28px 28px;
+      grid-template-rows: 22px 28px 22px;
+      grid-template-areas:
+        ". up ."
+        "left down right"
+        ". . .";
       gap: 4px;
     }
+
+    #panUp { grid-area: up; }
+    #panDown { grid-area: down; }
+    #panLeft { grid-area: left; }
+    #panRight { grid-area: right; }
 
     .panPad button {
       cursor: pointer;
