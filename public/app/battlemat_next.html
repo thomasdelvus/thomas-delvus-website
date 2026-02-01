@@ -1832,10 +1832,25 @@
       function getFogSets(floorId) {
         const fog = getFogState();
         if (!fog) return null;
-        const visible = fog.visibleRoomIdsByFloor && fog.visibleRoomIdsByFloor[floorId]
-          ? fog.visibleRoomIdsByFloor[floorId] : [];
-        const explored = fog.exploredRoomIdsByFloor && fog.exploredRoomIdsByFloor[floorId]
-          ? fog.exploredRoomIdsByFloor[floorId] : [];
+        const key = String(floorId || '');
+        const visibleMap = fog.visibleRoomIdsByFloor || {};
+        const exploredMap = fog.exploredRoomIdsByFloor || {};
+        let visible = visibleMap[key];
+        let explored = exploredMap[key];
+        if (!Array.isArray(visible) || !Array.isArray(explored)) {
+          const lowerKey = key.toLowerCase();
+          const findCase = (map) => {
+            if (!map || typeof map !== 'object') return null;
+            for (const k of Object.keys(map)) {
+              if (String(k).toLowerCase() === lowerKey) return map[k];
+            }
+            return null;
+          };
+          if (!Array.isArray(visible)) visible = findCase(visibleMap);
+          if (!Array.isArray(explored)) explored = findCase(exploredMap);
+        }
+        if (!Array.isArray(visible)) visible = [];
+        if (!Array.isArray(explored)) explored = [];
         return {
           visible: new Set(visible.map(String)),
           explored: new Set(explored.map(String))
