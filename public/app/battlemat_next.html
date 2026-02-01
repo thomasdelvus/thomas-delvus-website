@@ -881,6 +881,25 @@
         gctx.restore();
       }
 
+      function drawRoomPointHandles(gctx) {
+        const sel = EDITOR.selection;
+        if (!sel || sel.type !== 'room' || !sel.item) return;
+        const labels = roomPointLabels(sel.item);
+        if (!labels.length) return;
+        gctx.save();
+        gctx.strokeStyle = 'rgba(255,145,0,0.95)';
+        gctx.lineWidth = 1.8;
+        const size = Math.max(5, Math.min(12, 7 * VIEW.zoom));
+        for (const label of labels) {
+          const parsed = parseHexLabel(label);
+          if (!parsed) continue;
+          const world = hexToWorld(parsed.col, parsed.row);
+          const center = worldToScreen(world);
+          drawHandle(gctx, center, size);
+        }
+        gctx.restore();
+      }
+
       function drawRoomPreview(gctx) {
         if (EDITOR.tool !== 'room' || !EDITOR.roomStart || !EDITOR.roomHover) return;
         const start = EDITOR.roomStart;
@@ -904,6 +923,42 @@
         gctx.setLineDash([6, 6]);
         gctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
         gctx.restore();
+      }
+
+      function getRoomPointHit(room, screenPoint) {
+        const labels = roomPointLabels(room);
+        if (!labels.length) return -1;
+        const hitR = Math.max(8, Math.min(14, 9 * VIEW.zoom));
+        const hitR2 = hitR * hitR;
+        for (let i = 0; i < labels.length; i++) {
+          const parsed = parseHexLabel(labels[i]);
+          if (!parsed) continue;
+          const world = hexToWorld(parsed.col, parsed.row);
+          const p = worldToScreen(world);
+          const dx = p.x - screenPoint.x;
+          const dy = p.y - screenPoint.y;
+          if (dx * dx + dy * dy <= hitR2) return i;
+        }
+        return -1;
+      }
+
+      function setRoomPointLabel(room, index, label) {
+        if (!room || index < 0) return;
+        if (Array.isArray(room.points)) {
+          const next = room.points.slice();
+          if (index >= next.length) return;
+          next[index] = label;
+          room.points = next;
+          return;
+        }
+        if (Array.isArray(room.corners)) {
+          const next = room.corners.slice();
+          if (index >= next.length) return;
+          next[index] = label;
+          room.corners = next;
+          return;
+        }
+        room.points = [label];
       }
 
       function clampZoom(value) {
@@ -2154,6 +2209,7 @@
         drawWallsLayer(floor, wallLayer.ctx, roomsToDraw, fogSets);
         drawGridLayer(gridLayer.ctx);
         drawHandlesLayer(floor, handleLayer.ctx);
+        drawRoomPointHandles(handleLayer.ctx);
 
         const openings = sortByZ(filterAlive(floor.openings || [])).map(o => {
           const fogState = openingFogState(o, floor, allRooms, fogSets);
@@ -2817,6 +2873,10 @@
           drag.item.hex = hexLabel;
           drag.item.ox = Math.round(ox * 100) / 100;
           drag.item.oy = Math.round(oy * 100) / 100;
+        } else if (drag.type === 'room-point') {
+          const hexHalf = worldToHexHalf(worldPoint);
+          const label = toHexLabel(hexHalf.col, hexHalf.row);
+          setRoomPointLabel(drag.item, drag.pointIndex, label);
         }
         EDITOR.dirty = true;
         render();
@@ -2830,8 +2890,16 @@
           const y = ev.clientY - rect.top;
           const world = screenToWorld(x, y);
           const sel = findSelectionAt(world);
+          const screenPoint = { x, y };
+          if (sel && sel.type === 'room') {
+            selectItem(sel.type, sel.item, sel.floorId);
+            const idx = getRoomPointHit(sel.item, screenPoint);
+            if (idx !== -1) {
+              EDITOR.drag = { type: 'room-point', item: sel.item, floorId: sel.floorId, pointIndex: idx, didMove: false, pushed: false };
+            }
+            return;
+          }
           if (!sel) return;
-          if (sel.type === 'room') return;
           selectItem(sel.type, sel.item, sel.floorId);
           EDITOR.drag = sel;
           EDITOR.drag.didMove = false;
