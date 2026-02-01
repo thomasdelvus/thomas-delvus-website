@@ -2893,8 +2893,19 @@
           const x = ev.clientX - rect.left;
           const y = ev.clientY - rect.top;
           const world = screenToWorld(x, y);
-          const sel = findSelectionAt(world);
           const screenPoint = { x, y };
+          const floor = pickFloor();
+          if (floor && Array.isArray(floor.rooms)) {
+            for (const room of filterAlive(floor.rooms)) {
+              const idx = getRoomPointHit(room, screenPoint);
+              if (idx !== -1) {
+                selectItem('room', room, floor.id);
+                EDITOR.drag = { type: 'room-point', item: room, floorId: floor.id, pointIndex: idx, didMove: false, pushed: false };
+                return;
+              }
+            }
+          }
+          const sel = findSelectionAt(world);
           if (sel && sel.type === 'room') {
             selectItem(sel.type, sel.item, sel.floorId);
             const idx = getRoomPointHit(sel.item, screenPoint);
