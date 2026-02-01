@@ -1878,7 +1878,10 @@
         const explored = [];
         const hidden = [];
         for (const room of rooms) {
-          if (roomAlwaysVisible(room)) {
+          const mode = String(room.fog_mode || room.fogMode || '').toLowerCase();
+          if (mode === 'hidden') { hidden.push(room); continue; }
+          if (mode === 'explored') { explored.push(room); continue; }
+          if (roomAlwaysVisible(room) || mode === 'visible') {
             visible.push(room);
             continue;
           }
@@ -2065,6 +2068,26 @@
           row.appendChild(input);
           inspectorFields.appendChild(row);
         };
+        const addSelectField = (label, value, key, options = []) => {
+          const row = document.createElement('div');
+          row.className = 'row';
+          const lab = document.createElement('label');
+          lab.textContent = label;
+          const select = document.createElement('select');
+          for (const opt of options) {
+            const o = document.createElement('option');
+            o.value = opt.value;
+            o.textContent = opt.label;
+            select.appendChild(o);
+          }
+          select.value = value == null ? '' : String(value);
+          select.addEventListener('change', () => {
+            applyFieldChange(key, select.value);
+          });
+          row.appendChild(lab);
+          row.appendChild(select);
+          inspectorFields.appendChild(row);
+        };
         const addButtonRow = (buttons) => {
           const row = document.createElement('div');
           row.className = 'btnRow';
@@ -2097,6 +2120,12 @@
           addField('Thickness', sel.item.thickness != null ? sel.item.thickness : '', 'thickness', { type: 'number', step: '1' });
           addField('Floor Kind', sel.item.floor && sel.item.floor.kind ? sel.item.floor.kind : '', 'floor.kind', { list: 'floorKindList' });
           addField('Wall Kind', sel.item.wall && sel.item.wall.kind ? sel.item.wall.kind : '', 'wall.kind', { list: 'wallKindList' });
+          addSelectField('Fog', sel.item.fog_mode || sel.item.fogMode || '', 'fog_mode', [
+            { value: '', label: 'Default' },
+            { value: 'visible', label: 'Always Visible' },
+            { value: 'explored', label: 'Always Explored' },
+            { value: 'hidden', label: 'Always Hidden' }
+          ]);
           addButtonRow([
             { label: 'To Front', onClick: () => reorderSelection('front') },
             { label: 'To Back', onClick: () => reorderSelection('back') },
@@ -2198,6 +2227,15 @@
               item.points = points;
             } else {
               delete item.points;
+            }
+          }
+          if (key === 'fog_mode') {
+            const v = String(value || '').trim().toLowerCase();
+            if (!v) {
+              delete item.fog_mode;
+              delete item.fogMode;
+            } else {
+              item.fog_mode = v;
             }
           }
           if (key === 'thickness') item.thickness = num(value, 0);
