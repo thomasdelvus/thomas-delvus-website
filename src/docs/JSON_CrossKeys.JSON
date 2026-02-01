@@ -1992,7 +1992,7 @@
   "fog": {
     "autoCompute": true,
     "autoExplore": true,
-    "enabled": false,
+    "enabled": true,
     "exploredAlpha": 0.55,
     "exploredRoomIdsByFloor": {
       "basement": [],
@@ -2706,10 +2706,11 @@
               "hex": "M21",
               "ox": -0.5,
               "oy": 0.55,
-              "spriteScale": 2.3,
+              "spriteScale": 1.15,
               "floorId": "upper",
               "rotDeg": 0,
-              "z": 1
+              "z": 1,
+              "spriteScaleX": 1.3
             },
             {
               "id": "room1_bed2",
@@ -2717,10 +2718,11 @@
               "hex": "N20",
               "ox": 0,
               "oy": -0.30000000000000004,
-              "spriteScale": 2.3,
+              "spriteScale": 1.15,
               "floorId": "upper",
               "rotDeg": 0,
-              "z": 2
+              "z": 2,
+              "spriteScaleX": 1.3
             },
             {
               "id": "room1_bed3",
@@ -2728,21 +2730,23 @@
               "hex": "O21",
               "ox": 0.5,
               "oy": 0.55,
-              "spriteScale": 2.3,
+              "spriteScale": 1.15,
               "floorId": "upper",
               "rotDeg": 0,
-              "z": 3
+              "z": 3,
+              "spriteScaleX": 1.3
             },
             {
               "id": "room2_bed1",
               "kind": "bed",
               "hex": "M18",
               "rotDeg": 270,
-              "spriteScale": 2.3,
+              "spriteScale": 1.15,
               "floorId": "upper",
-              "ox": -0.1,
-              "oy": 0,
-              "z": 4
+              "ox": 0.2,
+              "oy": 0.07,
+              "z": 4,
+              "spriteScaleX": 1.3
             },
             {
               "id": "room2_bed2",
@@ -2797,7 +2801,7 @@
               "kind": "bed.double",
               "hex": "S14",
               "rotDeg": 270,
-              "spriteScale": 3.3,
+              "spriteScale": 2.3,
               "floorId": "upper",
               "ox": 0.45,
               "oy": 0,
@@ -2841,7 +2845,7 @@
               "kind": "chest",
               "hex": "S15",
               "ox": 0,
-              "oy": -0.25,
+              "oy": -0.2,
               "spriteScale": 1,
               "floorId": "upper",
               "rotDeg": 0,
@@ -2885,7 +2889,7 @@
               "kind": "bed.double",
               "hex": "S20",
               "rotDeg": 270,
-              "spriteScale": 3.3,
+              "spriteScale": 2.3,
               "floorId": "upper",
               "ox": 0.45,
               "oy": 0,
@@ -2950,7 +2954,7 @@
               "hex": "S18",
               "rotDeg": 180,
               "ox": 0,
-              "oy": 0.25,
+              "oy": 0.2,
               "spriteScale": 1,
               "floorId": "upper",
               "z": 22
@@ -3006,7 +3010,7 @@
               "rotDeg": 90,
               "ox": -0.4,
               "oy": 0,
-              "spriteScale": 3.3,
+              "spriteScale": 2.3,
               "floorId": "upper",
               "z": 27
             },
@@ -3058,7 +3062,7 @@
               "hex": "AC15",
               "rotDeg": 0,
               "ox": 0,
-              "oy": -0.25,
+              "oy": -0.2,
               "spriteScale": 1,
               "floorId": "upper",
               "z": 32
@@ -3102,21 +3106,23 @@
               "hex": "AG15",
               "ox": -0.5,
               "oy": 0.55,
-              "spriteScale": 2.3,
+              "spriteScale": 1.15,
               "floorId": "upper",
               "rotDeg": 0,
-              "z": 36
+              "z": 36,
+              "spriteScaleX": 1.3
             },
             {
               "id": "room8_bed2",
               "kind": "bed",
               "hex": "AH14",
               "ox": 0,
-              "oy": -0.30000000000000004,
-              "spriteScale": 2.3,
+              "oy": -0.3,
+              "spriteScale": 1.15,
               "floorId": "upper",
               "rotDeg": 0,
-              "z": 37
+              "z": 37,
+              "spriteScaleX": 1.3
             },
             {
               "id": "room8_bed3",
@@ -3124,65 +3130,71 @@
               "hex": "AI15",
               "ox": 0.5,
               "oy": 0.55,
-              "spriteScale": 2.3,
+              "spriteScale": 1.15,
               "floorId": "upper",
               "rotDeg": 0,
-              "z": 38
+              "z": 38,
+              "spriteScaleX": 1.3
             },
             {
               "id": "room9_bed1",
               "kind": "bed",
               "hex": "AI19",
               "rotDeg": 90,
-              "spriteScale": 2.3,
+              "spriteScale": 1.15,
               "floorId": "upper",
               "ox": 0.1,
               "oy": 0,
-              "z": 39
+              "z": 39,
+              "spriteScaleX": 1.3
             },
             {
               "id": "room9_bed2",
               "kind": "bed",
               "hex": "AI18",
               "rotDeg": 90,
-              "spriteScale": 2.3,
+              "spriteScale": 1.15,
               "floorId": "upper",
               "ox": 0.1,
               "oy": 0,
-              "z": 40
+              "z": 40,
+              "spriteScaleX": 1.3
             },
             {
               "id": "room9_bed3",
               "kind": "bed",
               "hex": "AI17",
               "rotDeg": 90,
-              "spriteScale": 2.3,
+              "spriteScale": 1.15,
               "floorId": "upper",
               "ox": 0.1,
               "oy": 0,
-              "z": 41
+              "z": 41,
+              "spriteScaleX": 1.3
             },
             {
               "id": "room9_bed4",
               "kind": "bed",
               "hex": "AI16",
               "rotDeg": 90,
-              "spriteScale": 2.3,
+              "spriteScale": 1.15,
               "floorId": "upper",
               "ox": 0.1,
               "oy": 0,
-              "z": 42
+              "z": 42,
+              "spriteScaleX": 1.3
             },
             {
               "id": "room10_bed1",
               "kind": "bed",
               "hex": "AI21",
               "rotDeg": 90,
-              "spriteScale": 2.3,
+              "spriteScale": 1.15,
               "floorId": "upper",
-              "ox": 0.1,
-              "oy": 0,
-              "z": 43
+              "ox": -0.02,
+              "oy": 0.1,
+              "z": 43,
+              "spriteScaleX": 1.3
             },
             {
               "id": "stairs_down_to_ground",
@@ -3191,8 +3203,8 @@
               "rotDeg": 270,
               "ox": -1,
               "oy": 0.43,
-              "spriteScaleX": 1.95,
-              "spriteScaleY": 3.1,
+              "spriteScaleX": 1.85,
+              "spriteScaleY": 2,
               "floorId": "upper",
               "z": 44
             },
@@ -3744,7 +3756,7 @@
               "rotDeg": 270,
               "ox": 1,
               "oy": 0.43,
-              "spriteScaleX": 1.95,
+              "spriteScaleX": 1.85,
               "spriteScaleY": 2,
               "floorId": "ground",
               "z": 24
@@ -3756,7 +3768,7 @@
               "rotDeg": 270,
               "ox": -1,
               "oy": 0.43,
-              "spriteScaleX": 1.95,
+              "spriteScaleX": 1.85,
               "spriteScaleY": 2,
               "floorId": "ground",
               "z": 25
@@ -3917,8 +3929,8 @@
               "id": "object_mkmjqyyl_2wc",
               "kind": "keg",
               "hex": "AI14",
-              "ox": 0.15000000000000002,
-              "oy": 0.15000000000000002,
+              "ox": 0.15,
+              "oy": 0.15,
               "rotDeg": 0,
               "spriteScale": 2,
               "floorId": "ground",
@@ -4076,7 +4088,7 @@
               "ox": 1,
               "oy": 0,
               "rotDeg": 270,
-              "spriteScale": 1.95,
+              "spriteScale": 1.85,
               "floorId": "basement",
               "z": 0,
               "spriteScaleX": 2
