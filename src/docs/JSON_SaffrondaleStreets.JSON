@@ -9,7 +9,7 @@
     "floorId": "ground"
   },
   "fog": {
-    "enabled": false,
+    "enabled": true,
     "mode": "room",
     "visibleRoomIdsByFloor": {
       "ground": [
@@ -81,7 +81,13 @@
           },
           "wall": {
             "kind": "brick"
-          }
+          },
+          "points": [
+            "BN26",
+            "BR26",
+            "BR22.5",
+            "BN22.5"
+          ]
         },
         {
           "id": "room_mkli3rr4_jt",
@@ -145,7 +151,13 @@
           },
           "wall": {
             "kind": "brick"
-          }
+          },
+          "points": [
+            "BB22.5",
+            "BN22.5",
+            "BN12.5",
+            "BB12.5"
+          ]
         },
         {
           "id": "room_mkmu2yeb_433",
@@ -155,29 +167,19 @@
             "AP8",
             "M8"
           ],
-          "thickness": 0,
+          "thickness": 15,
           "floor": {
             "kind": "cobble"
           },
           "wall": {
             "kind": "brick"
-          }
-        },
-        {
-          "id": "room_mkmu0w6i_ye",
-          "corners": [
-            "F24",
-            "M24",
-            "M8",
-            "F8"
-          ],
-          "thickness": 0,
-          "floor": {
-            "kind": "cobble"
           },
-          "wall": {
-            "kind": "brick"
-          }
+          "points": [
+            "M13",
+            "CE13",
+            "CE8",
+            "M8"
+          ]
         },
         {
           "id": "room_mkmuw9iz_53a",
@@ -187,7 +189,7 @@
             "BB12.5",
             "AZ12.5"
           ],
-          "thickness": 1,
+          "thickness": 15,
           "floor": {
             "kind": "cobble"
           },
@@ -221,7 +223,99 @@
           ],
           "thickness": 15,
           "floor": {
-            "kind": "crosskeys"
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml37qbe9",
+          "corners": [
+            "BF31",
+            "BN31",
+            "BN26",
+            "BF26"
+          ],
+          "thickness": 12,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "points": [
+            "BC31.5",
+            "BN31",
+            "BN26",
+            "BC26.5"
+          ]
+        },
+        {
+          "id": "room_ml38bydm",
+          "corners": [
+            "BN22.5",
+            "BR22.5",
+            "BR12.5",
+            "BN12.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml38djoh",
+          "corners": [
+            "BV22",
+            "CB22",
+            "CB12.5",
+            "BV12.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml38fkoh",
+          "corners": [
+            "F17.5",
+            "M17.5",
+            "M13",
+            "F13"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "cobble"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "points": [
+            "G17.5",
+            "M17.5",
+            "M8",
+            "G8"
+          ]
+        },
+        {
+          "id": "room_ml38njjk",
+          "corners": [
+            "BR23",
+            "BV23",
+            "BV12.5",
+            "BR12.5"
+          ],
+          "thickness": 12,
+          "floor": {
+            "kind": "cobble"
           },
           "wall": {
             "kind": "brick"
@@ -261,13 +355,6 @@
           "id": "door_mkli4hxt_1gj",
           "kind": "door.wood",
           "hex": "AX12.5",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "door_mkli57wg_3i6",
-          "kind": "door.wood",
-          "hex": "BH12.5",
           "orientation": "h",
           "openPct": 0
         },
@@ -366,12 +453,6 @@
           "ox": -0.7,
           "oy": 0.1,
           "spriteScale": 2,
-          "floorId": "ground"
-        },
-        {
-          "id": "object_ml153brl",
-          "kind": "object",
-          "hex": "R23",
           "floorId": "ground"
         }
       ]
