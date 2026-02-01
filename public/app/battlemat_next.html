@@ -2285,8 +2285,14 @@
         const objects = sortByZ(filterAlive(floor.objects || [])).filter(o => {
           return itemFogState(o, floor, allRooms, fogSets, objectWorldCenter) !== 'hidden';
         });
-        const poiObjects = objects.filter(o => String(o.kind || '').toLowerCase() === 'poi.view');
-        const normalObjects = objects.filter(o => String(o.kind || '').toLowerCase() !== 'poi.view');
+        const poiObjects = objects.filter(o => {
+          const kind = String(o.kind || '').toLowerCase();
+          return kind.startsWith('the.') || kind === 'poi.view';
+        });
+        const normalObjects = objects.filter(o => {
+          const kind = String(o.kind || '').toLowerCase();
+          return !(kind.startsWith('the.') || kind === 'poi.view');
+        });
         const tokens = buildTokens()
           .filter(t => !t.floorId || t.floorId === floor.id)
           .filter(t => itemFogState(t, floor, allRooms, fogSets, tokenWorldCenter) !== 'hidden');
