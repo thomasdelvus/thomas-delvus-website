@@ -1160,11 +1160,29 @@
         return corners.length >= 3 ? corners : [];
       }
 
+      function getRectPointStats(points) {
+        if (!Array.isArray(points) || points.length < 4) return null;
+        const parsed = points.map(parseHexLabel).filter(Boolean);
+        if (parsed.length < 4) return null;
+        const cols = Array.from(new Set(parsed.map(p => p.col)));
+        const rows = Array.from(new Set(parsed.map(p => p.row)));
+        if (cols.length !== 2 || rows.length !== 2) return null;
+        return {
+          cols: cols.sort((a, b) => a - b),
+          rows: rows.sort((a, b) => a - b),
+        };
+      }
+
+      function isRectPointList(points) {
+        return !!getRectPointStats(points);
+      }
+
       function isPolyRoom(room) {
         if (!room || typeof room !== 'object') return false;
         const points = Array.isArray(room.points) ? room.points
           : (Array.isArray(room.poly) ? room.poly : (Array.isArray(room.vertices) ? room.vertices : null));
-        return Array.isArray(points) && points.length >= 3;
+        if (!Array.isArray(points) || points.length < 3) return false;
+        return !isRectPointList(points);
       }
 
       function roomWorldPoints(room) {
@@ -1187,8 +1205,24 @@
 
       function roomToWallBox(room) {
         if (isPolyRoom(room)) return null;
-        const corners = Array.isArray(room && room.corners) ? room.corners : [];
-        if (corners.length !== 4) return null;
+        let corners = Array.isArray(room && room.corners) ? room.corners : [];
+        if (corners.length !== 4) {
+          const points = roomPointLabels(room);
+          const stats = getRectPointStats(points);
+          if (!stats) return null;
+          const [c0, c1] = stats.cols;
+          const [r0, r1] = stats.rows;
+          const minRow = Math.min(r0, r1);
+          const maxRow = Math.max(r0, r1);
+          const minCol = Math.min(c0, c1);
+          const maxCol = Math.max(c0, c1);
+          corners = [
+            toHexLabel(minCol, maxRow),
+            toHexLabel(maxCol, maxRow),
+            toHexLabel(maxCol, minRow),
+            toHexLabel(minCol, minRow),
+          ];
+        }
         const tl = parseHexLabel(corners[0]);
         const tr = parseHexLabel(corners[1]);
         const br = parseHexLabel(corners[2]);
@@ -1544,11 +1578,13 @@
             const botH = Math.max(0, (oy1 + oh) - (iy1 + ih));
             const leftW = Math.max(0, ix1 - ox1);
             const rightW = Math.max(0, (ox1 + ow) - (ix1 + iw));
+            const innerX = ox1 + leftW;
+            const innerW = ow - leftW - rightW;
             if (erase.has('N') && topH > 0) {
-              gctx.fillRect(ox1 - bleed, oy1 - bleed, ow + bleed * 2, topH + bleed * 2);
+              gctx.fillRect(innerX - bleed, oy1 - bleed, innerW + bleed * 2, topH + bleed * 2);
             }
             if (erase.has('S') && botH > 0) {
-              gctx.fillRect(ox1 - bleed, iy1 + ih - bleed, ow + bleed * 2, botH + bleed * 2);
+              gctx.fillRect(innerX - bleed, iy1 + ih - bleed, innerW + bleed * 2, botH + bleed * 2);
             }
             if (erase.has('W') && leftW > 0) {
               gctx.fillRect(ox1 - bleed, oy1 + topH, leftW + bleed, oh - topH - botH);
