@@ -956,6 +956,32 @@
         gctx.restore();
       }
 
+      function drawRoomEdgeHandles(floor, gctx) {
+        const show = UI.showHandles || UI.handleHot;
+        if (!show || !floor) return;
+        const rooms = filterAlive(floor.rooms || []);
+        if (!rooms.length) return;
+        gctx.save();
+        gctx.strokeStyle = 'rgba(255,145,0,0.95)';
+        gctx.lineWidth = 1.6;
+        const size = Math.max(5, Math.min(12, 7 * VIEW.zoom));
+        for (const room of rooms) {
+          if (!room || room.deleted) continue;
+          if (isPolyRoom(room)) continue;
+          const box = roomToWallBox(room);
+          if (!box) continue;
+          const midTop = worldToScreen({ x: (box.center.x1 + box.center.x2) / 2, y: box.center.y1 });
+          const midBot = worldToScreen({ x: (box.center.x1 + box.center.x2) / 2, y: box.center.y2 });
+          const midLeft = worldToScreen({ x: box.center.x1, y: (box.center.y1 + box.center.y2) / 2 });
+          const midRight = worldToScreen({ x: box.center.x2, y: (box.center.y1 + box.center.y2) / 2 });
+          drawHandle(gctx, midTop, size);
+          drawHandle(gctx, midBot, size);
+          drawHandle(gctx, midLeft, size);
+          drawHandle(gctx, midRight, size);
+        }
+        gctx.restore();
+      }
+
 
       function drawRoomPreview(gctx) {
         if (EDITOR.tool !== 'room' || !EDITOR.roomStart || !EDITOR.roomHover) return;
@@ -2250,6 +2276,7 @@
         drawWallsLayer(floor, wallLayer.ctx, roomsToDraw, fogSets);
         drawGridLayer(gridLayer.ctx);
         drawHandlesLayer(floor, handleLayer.ctx);
+        drawRoomEdgeHandles(floor, handleLayer.ctx);
 
         const openingsAll = sortByZ(filterAlive(floor.openings || [])).map(o => {
           const fogState = openingFogState(o, floor, allRooms, fogSets);
