@@ -748,6 +748,12 @@
         return { col, row };
       }
 
+      function rowFromWorldYForCol(yWorld, col) {
+        const size = GRID.size || 1;
+        const rowf = (-yWorld / (Math.sqrt(3) * size)) - (col & 1) * 0.5;
+        return roundHalf(rowf);
+      }
+
       function roundQuarter(v) {
         return Math.round(v * 4) / 4;
       }
@@ -971,6 +977,25 @@
           center: { x: cx, y: cy },
           rect: { x1: box.center.x1, y1: box.center.y1, x2: box.center.x2, y2: box.center.y2 }
         };
+      }
+
+      function getRectCornerData(room) {
+        const labels = roomPointLabels(room);
+        if (!labels || labels.length < 4) return null;
+        const parsed = labels.map(l => ({ label: l, ...parseHexLabel(l) })).filter(p => Number.isFinite(p.col) && Number.isFinite(p.row));
+        if (parsed.length < 4) return null;
+        const cols = Array.from(new Set(parsed.map(p => p.col)));
+        if (cols.length !== 2) return null;
+        const leftCol = Math.min(...cols);
+        const rightCol = Math.max(...cols);
+        const leftPts = parsed.filter(p => p.col === leftCol);
+        const rightPts = parsed.filter(p => p.col === rightCol);
+        if (leftPts.length < 2 || rightPts.length < 2) return null;
+        const topLeft = leftPts.reduce((a, b) => (a.row > b.row ? a : b));
+        const botLeft = leftPts.reduce((a, b) => (a.row < b.row ? a : b));
+        const topRight = rightPts.reduce((a, b) => (a.row > b.row ? a : b));
+        const botRight = rightPts.reduce((a, b) => (a.row < b.row ? a : b));
+        return { leftCol, rightCol, topLeft, botLeft, topRight, botRight };
       }
 
       function drawRoomEdgeHandles(floor, gctx) {
@@ -3033,29 +3058,58 @@
             );
             setRoomRectCorners(drag.item, corners);
           } else {
-            const points = roomPointLabels(drag.item);
-            const stats = getRectPointStats(points);
-            if (!stats) return;
-            let minCol = stats.cols[0];
-            let maxCol = stats.cols[1];
-            let minRow = stats.rows[0];
-            let maxRow = stats.rows[1];
+            const data = getRectCornerData(drag.item);
+            if (!data) return;
+            const { leftCol, rightCol, topLeft, botLeft, topRight, botRight } = data;
             if (drag.side === 'n') {
-              maxRow = snapHex.row;
+              const yTop = hexToWorld(snapHex.col, snapHex.row).y;
+              const tlRow = rowFromWorldYForCol(yTop, leftCol);
+              const trRow = rowFromWorldYForCol(yTop, rightCol);
+              const corners = [
+                toHexLabel(leftCol, tlRow),
+                toHexLabel(rightCol, trRow),
+                toHexLabel(rightCol, botRight.row),
+                toHexLabel(leftCol, botLeft.row)
+              ];
+              setRoomRectCorners(drag.item, corners);
             } else if (drag.side === 's') {
-              minRow = snapHex.row;
+              const yBot = hexToWorld(snapHex.col, snapHex.row).y;
+              const blRow = rowFromWorldYForCol(yBot, leftCol);
+              const brRow = rowFromWorldYForCol(yBot, rightCol);
+              const corners = [
+                toHexLabel(leftCol, topLeft.row),
+                toHexLabel(rightCol, topRight.row),
+                toHexLabel(rightCol, brRow),
+                toHexLabel(leftCol, blRow)
+              ];
+              setRoomRectCorners(drag.item, corners);
             } else if (drag.side === 'w') {
-              minCol = snapHex.col;
+              const newCol = snapHex.col;
+              const yTop = hexToWorld(rightCol, topRight.row).y;
+              const yBot = hexToWorld(rightCol, botRight.row).y;
+              const tlRow = rowFromWorldYForCol(yTop, newCol);
+              const blRow = rowFromWorldYForCol(yBot, newCol);
+              const corners = [
+                toHexLabel(newCol, tlRow),
+                toHexLabel(rightCol, topRight.row),
+                toHexLabel(rightCol, botRight.row),
+                toHexLabel(newCol, blRow)
+              ];
+              setRoomRectCorners(drag.item, corners);
             } else if (drag.side === 'e') {
-              maxCol = snapHex.col;
+              const newCol = snapHex.col;
+              const yTop = hexToWorld(leftCol, topLeft.row).y;
+              const yBot = hexToWorld(leftCol, botLeft.row).y;
+              const trRow = rowFromWorldYForCol(yTop, newCol);
+              const brRow = rowFromWorldYForCol(yBot, newCol);
+              const corners = [
+                toHexLabel(leftCol, topLeft.row),
+                toHexLabel(newCol, trRow),
+                toHexLabel(newCol, brRow),
+                toHexLabel(leftCol, botLeft.row)
+              ];
+              setRoomRectCorners(drag.item, corners);
             }
-            const corners = [
-              toHexLabel(minCol, maxRow),
-              toHexLabel(maxCol, maxRow),
-              toHexLabel(maxCol, minRow),
-              toHexLabel(minCol, minRow)
-            ];
-            setRoomRectCorners(drag.item, corners);
           }
         }
         EDITOR.dirty = true;
