@@ -956,29 +956,45 @@
         gctx.restore();
       }
 
+      function roomEdgeHandleWorlds(room) {
+        if (!room || room.deleted) return null;
+        if (isPolyRoom(room)) return null;
+        const box = roomToWallBox(room);
+        if (!box) return null;
+        const cx = (box.center.x1 + box.center.x2) / 2;
+        const cy = (box.center.y1 + box.center.y2) / 2;
+        return {
+          top: { x: cx, y: box.center.y1 },
+          bottom: { x: cx, y: box.center.y2 },
+          left: { x: box.center.x1, y: cy },
+          right: { x: box.center.x2, y: cy },
+          center: { x: cx, y: cy },
+          rect: { x1: box.center.x1, y1: box.center.y1, x2: box.center.x2, y2: box.center.y2 }
+        };
+      }
+
       function drawRoomEdgeHandles(floor, gctx) {
         const show = UI.showHandles || UI.handleHot;
         if (!show || !floor) return;
-        const rooms = filterAlive(floor.rooms || []);
-        if (!rooms.length) return;
+        const sel = EDITOR.selection;
+        if (!sel || sel.type !== 'room' || !sel.item) return;
+        if (String(sel.floorId) !== String(floor.id)) return;
+        const handles = roomEdgeHandleWorlds(sel.item);
+        if (!handles) return;
         gctx.save();
         gctx.strokeStyle = 'rgba(255,145,0,0.95)';
         gctx.lineWidth = 1.6;
         const size = Math.max(5, Math.min(12, 7 * VIEW.zoom));
-        for (const room of rooms) {
-          if (!room || room.deleted) continue;
-          if (isPolyRoom(room)) continue;
-          const box = roomToWallBox(room);
-          if (!box) continue;
-          const midTop = worldToScreen({ x: (box.center.x1 + box.center.x2) / 2, y: box.center.y1 });
-          const midBot = worldToScreen({ x: (box.center.x1 + box.center.x2) / 2, y: box.center.y2 });
-          const midLeft = worldToScreen({ x: box.center.x1, y: (box.center.y1 + box.center.y2) / 2 });
-          const midRight = worldToScreen({ x: box.center.x2, y: (box.center.y1 + box.center.y2) / 2 });
-          drawHandle(gctx, midTop, size);
-          drawHandle(gctx, midBot, size);
-          drawHandle(gctx, midLeft, size);
-          drawHandle(gctx, midRight, size);
-        }
+        const midTop = worldToScreen(handles.top);
+        const midBot = worldToScreen(handles.bottom);
+        const midLeft = worldToScreen(handles.left);
+        const midRight = worldToScreen(handles.right);
+        const midCenter = worldToScreen(handles.center);
+        drawHandle(gctx, midTop, size);
+        drawHandle(gctx, midBot, size);
+        drawHandle(gctx, midLeft, size);
+        drawHandle(gctx, midRight, size);
+        drawHandle(gctx, midCenter, size);
         gctx.restore();
       }
 
@@ -1022,6 +1038,19 @@
           const hex = worldToHexHalf(p);
           return toHexLabel(hex.col, hex.row);
         });
+      }
+
+      function setRoomRectCorners(room, corners) {
+        if (!room || !Array.isArray(corners) || corners.length !== 4) return;
+        if (Array.isArray(room.points) && isRectPointList(room.points)) {
+          room.points = corners.slice();
+          return;
+        }
+        if (Array.isArray(room.corners)) {
+          room.corners = corners.slice();
+          return;
+        }
+        room.corners = corners.slice();
       }
 
 
@@ -2968,6 +2997,34 @@
           drag.item.hex = hexLabel;
           drag.item.ox = Math.round(ox * 100) / 100;
           drag.item.oy = Math.round(oy * 100) / 100;
+        } else if (drag.type === 'room-edge' || drag.type === 'room-move') {
+          const handles = roomEdgeHandleWorlds(drag.item);
+          if (!handles) return;
+          const baseRect = drag.rect || handles.rect;
+          const startWorld = drag.startWorld || worldPoint;
+          const snapHex = worldToHexHalf(worldPoint);
+          const snapWorld = hexToWorld(snapHex.col, snapHex.row);
+          let x1 = baseRect.x1;
+          let x2 = baseRect.x2;
+          let y1 = baseRect.y1;
+          let y2 = baseRect.y2;
+
+          if (drag.type === 'room-move') {
+            const dx = worldPoint.x - startWorld.x;
+            const dy = worldPoint.y - startWorld.y;
+            x1 += dx; x2 += dx; y1 += dy; y2 += dy;
+          } else if (drag.side === 'n') {
+            y1 = snapWorld.y;
+          } else if (drag.side === 's') {
+            y2 = snapWorld.y;
+          } else if (drag.side === 'w') {
+            x1 = snapWorld.x;
+          } else if (drag.side === 'e') {
+            x2 = snapWorld.x;
+          }
+
+          const corners = roomCornersFromWorld({ x: x1, y: y2 }, { x: x2, y: y1 });
+          setRoomRectCorners(drag.item, corners);
         }
         EDITOR.dirty = true;
         render();
@@ -2985,6 +3042,32 @@
           const sel = findSelectionAt(world);
           if (sel && sel.type === 'room') {
             selectItem(sel.type, sel.item, sel.floorId);
+            const showHandles = UI.showHandles || UI.handleHot;
+            if (showHandles) {
+              const handles = roomEdgeHandleWorlds(sel.item);
+              if (handles) {
+                const hitR = Math.max(8, Math.min(14, 9 * VIEW.zoom));
+                const hitR2 = hitR * hitR;
+                const hit = (p) => {
+                  const sp = worldToScreen(p);
+                  const dx = sp.x - screenPoint.x;
+                  const dy = sp.y - screenPoint.y;
+                  return dx * dx + dy * dy <= hitR2;
+                };
+                if (hit(handles.center)) {
+                  EDITOR.drag = { type: 'room-move', item: sel.item, floorId: sel.floorId, startWorld: world, rect: handles.rect, didMove: false, pushed: false };
+                } else if (hit(handles.top)) {
+                  EDITOR.drag = { type: 'room-edge', side: 'n', item: sel.item, floorId: sel.floorId, startWorld: world, rect: handles.rect, didMove: false, pushed: false };
+                } else if (hit(handles.bottom)) {
+                  EDITOR.drag = { type: 'room-edge', side: 's', item: sel.item, floorId: sel.floorId, startWorld: world, rect: handles.rect, didMove: false, pushed: false };
+                } else if (hit(handles.left)) {
+                  EDITOR.drag = { type: 'room-edge', side: 'w', item: sel.item, floorId: sel.floorId, startWorld: world, rect: handles.rect, didMove: false, pushed: false };
+                } else if (hit(handles.right)) {
+                  EDITOR.drag = { type: 'room-edge', side: 'e', item: sel.item, floorId: sel.floorId, startWorld: world, rect: handles.rect, didMove: false, pushed: false };
+                }
+                if (EDITOR.drag) return;
+              }
+            }
             return;
           }
           if (!sel) return;
