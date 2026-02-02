@@ -1029,10 +1029,10 @@
         const y1 = Math.min(start.y, end.y);
         const y2 = Math.max(start.y, end.y);
         const cornersWorld = [
-          { x: x1, y: y2 },
-          { x: x2, y: y2 },
+          { x: x1, y: y1 },
           { x: x2, y: y1 },
-          { x: x1, y: y1 }
+          { x: x2, y: y2 },
+          { x: x1, y: y2 }
         ];
         return cornersWorld.map((p) => {
           const hex = worldToHexHalf(p);
