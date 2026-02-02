@@ -734,6 +734,20 @@
         return { col, row };
       }
 
+      function worldToCol(p) {
+        const size = GRID.size || 1;
+        const qf = (2 / 3) * (p.x / size);
+        return Math.round(qf);
+      }
+
+      function worldToRowForCol(p, col) {
+        const size = GRID.size || 1;
+        const qf = (2 / 3) * (p.x / size);
+        const rf = ((-p.y) / size) / Math.sqrt(3) - (qf / 2);
+        const rowf = rf + (col - (col & 1)) / 2;
+        return roundHalf(rowf);
+      }
+
       function roundHalf(v) {
         return Math.round(v * 2) / 2;
       }
@@ -1383,10 +1397,12 @@
         const pBR = hexToWorld(br.col, br.row);
         const pBL = hexToWorld(bl.col, bl.row);
 
-        const xL = (pTL.x + pBL.x) / 2;
-        const xR = (pTR.x + pBR.x) / 2;
-        const yTop = (pTL.y + pTR.y) / 2;
-        const yBot = (pBL.y + pBR.y) / 2;
+        const xs = [pTL.x, pTR.x, pBR.x, pBL.x];
+        const ys = [pTL.y, pTR.y, pBR.y, pBL.y];
+        const xL = Math.min(...xs);
+        const xR = Math.max(...xs);
+        const yTop = Math.max(...ys);
+        const yBot = Math.min(...ys);
 
         const thicknessBase = Number(room && room.thickness != null ? room.thickness : 0);
         const t = roomHasWalls(room) ? thicknessBase : 0;
@@ -3022,13 +3038,15 @@
             let minRow = stats.rows[0];
             let maxRow = stats.rows[1];
             if (drag.side === 'n') {
-              maxRow = snapHex.row;
+              const fixedCol = minCol;
+              maxRow = worldToRowForCol(worldPoint, fixedCol);
             } else if (drag.side === 's') {
-              minRow = snapHex.row;
+              const fixedCol = minCol;
+              minRow = worldToRowForCol(worldPoint, fixedCol);
             } else if (drag.side === 'w') {
-              minCol = snapHex.col;
+              minCol = worldToCol(worldPoint);
             } else if (drag.side === 'e') {
-              maxCol = snapHex.col;
+              maxCol = worldToCol(worldPoint);
             }
             const corners = [
               toHexLabel(minCol, maxRow),
