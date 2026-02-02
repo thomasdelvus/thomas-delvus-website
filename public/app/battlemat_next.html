@@ -2700,6 +2700,7 @@
         sel.item.z = direction === 'front' ? maxZ + 1 : minZ - 1;
 
         EDITOR.dirty = true;
+        updateInspector();
         render();
       }
 
