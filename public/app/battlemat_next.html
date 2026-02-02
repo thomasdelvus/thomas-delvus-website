@@ -1712,29 +1712,36 @@
           const wallAnchor = { x: outer.x1, y: outer.y1 };
           const fill = getFillStyle(gctx, 'wall', wk, wallColor, wallAnchor, { allowFallback: false });
           if (!fill) continue;
-          const erase = parseEraseSides(room);
           gctx.fillStyle = fill;
-          const bleed = 2 * VIEW.zoom;
-          const topH = Math.max(0, iy1 - oy1);
-          const botH = Math.max(0, (oy1 + oh) - (iy1 + ih));
-          const leftW = Math.max(0, ix1 - ox1);
-          const rightW = Math.max(0, (ox1 + ow) - (ix1 + iw));
-          const innerX = ox1 + leftW;
-          const innerW = ow - leftW - rightW;
-          const innerY = oy1 + topH;
-          const innerH = oh - topH - botH;
+          gctx.beginPath();
+          gctx.rect(ox1, oy1, ow, oh);
+          gctx.rect(ix1, iy1, iw, ih);
+          gctx.fill('evenodd');
 
-          if (!erase.has('N') && topH > 0) {
-            gctx.fillRect(innerX - bleed, oy1 - bleed, innerW + bleed * 2, topH + bleed * 2);
-          }
-          if (!erase.has('S') && botH > 0) {
-            gctx.fillRect(innerX - bleed, iy1 + ih - bleed, innerW + bleed * 2, botH + bleed * 2);
-          }
-          if (!erase.has('W') && leftW > 0) {
-            gctx.fillRect(ox1 - bleed, innerY, leftW + bleed, innerH);
-          }
-          if (!erase.has('E') && rightW > 0) {
-            gctx.fillRect(ix1 + iw - bleed, innerY, rightW + bleed, innerH);
+          const erase = parseEraseSides(room);
+          if (erase.size) {
+            gctx.save();
+            gctx.globalCompositeOperation = 'destination-out';
+            const bleed = 2 * VIEW.zoom;
+            const topH = Math.max(0, iy1 - oy1);
+            const botH = Math.max(0, (oy1 + oh) - (iy1 + ih));
+            const leftW = Math.max(0, ix1 - ox1);
+            const rightW = Math.max(0, (ox1 + ow) - (ix1 + iw));
+            const innerX = ox1 + leftW;
+            const innerW = ow - leftW - rightW;
+            if (erase.has('N') && topH > 0) {
+              gctx.fillRect(innerX - bleed, oy1 - bleed, innerW + bleed * 2, topH + bleed * 2);
+            }
+            if (erase.has('S') && botH > 0) {
+              gctx.fillRect(innerX - bleed, iy1 + ih - bleed, innerW + bleed * 2, botH + bleed * 2);
+            }
+            if (erase.has('W') && leftW > 0) {
+              gctx.fillRect(ox1 - bleed, oy1 + topH, leftW + bleed, oh - topH - botH);
+            }
+            if (erase.has('E') && rightW > 0) {
+              gctx.fillRect(ix1 + iw - bleed, oy1 + topH, rightW + bleed, oh - topH - botH);
+            }
+            gctx.restore();
           }
         }
 
