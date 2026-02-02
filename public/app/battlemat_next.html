@@ -959,27 +959,43 @@
 
       function drawRoomPreview(gctx) {
         if (EDITOR.tool !== 'room' || !EDITOR.roomStart || !EDITOR.roomHover) return;
-        const start = EDITOR.roomStart;
-        const end = EDITOR.roomHover;
-        const minCol = Math.min(start.col, end.col);
-        const maxCol = Math.max(start.col, end.col);
-        const minRow = Math.min(start.row, end.row);
-        const maxRow = Math.max(start.row, end.row);
-        const tl = hexToWorld(minCol, maxRow);
-        const br = hexToWorld(maxCol, minRow);
-        const p1 = worldToScreen(tl);
-        const p2 = worldToScreen(br);
-        const x1 = Math.min(p1.x, p2.x);
-        const y1 = Math.min(p1.y, p2.y);
-        const x2 = Math.max(p1.x, p2.x);
-        const y2 = Math.max(p1.y, p2.y);
+        const start = EDITOR.roomStart.world ? EDITOR.roomStart.world : null;
+        const end = EDITOR.roomHover.world ? EDITOR.roomHover.world : null;
+        if (!start || !end) return;
+        const wx1 = Math.min(start.x, end.x);
+        const wx2 = Math.max(start.x, end.x);
+        const wy1 = Math.min(start.y, end.y);
+        const wy2 = Math.max(start.y, end.y);
+        const p1 = worldToScreen({ x: wx1, y: wy1 });
+        const p2 = worldToScreen({ x: wx2, y: wy2 });
+        const sx1 = Math.min(p1.x, p2.x);
+        const sy1 = Math.min(p1.y, p2.y);
+        const sx2 = Math.max(p1.x, p2.x);
+        const sy2 = Math.max(p1.y, p2.y);
 
         gctx.save();
         gctx.strokeStyle = 'rgba(88, 220, 120, 0.9)';
         gctx.lineWidth = 2;
         gctx.setLineDash([6, 6]);
-        gctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+        gctx.strokeRect(sx1, sy1, sx2 - sx1, sy2 - sy1);
         gctx.restore();
+      }
+
+      function roomCornersFromWorld(start, end) {
+        const x1 = Math.min(start.x, end.x);
+        const x2 = Math.max(start.x, end.x);
+        const y1 = Math.min(start.y, end.y);
+        const y2 = Math.max(start.y, end.y);
+        const cornersWorld = [
+          { x: x1, y: y2 },
+          { x: x2, y: y2 },
+          { x: x2, y: y1 },
+          { x: x1, y: y1 }
+        ];
+        return cornersWorld.map((p) => {
+          const hex = worldToHexHalf(p);
+          return toHexLabel(hex.col, hex.row);
+        });
       }
 
 
@@ -2774,6 +2790,7 @@
         const world = screenToWorld(x, y);
         const hex = (EDITOR.tool === 'room') ? worldToHexHalf(world) : worldToHex(world);
         const hexLabel = toHexLabel(hex.col, hex.row);
+        const hexWorld = hexToWorld(hex.col, hex.row);
         const floor = pickFloor();
         if (!floor) return;
 
@@ -2786,24 +2803,18 @@
 
         if (EDITOR.tool === 'room') {
           if (!EDITOR.roomStart) {
-            EDITOR.roomStart = hex;
+            EDITOR.roomStart = { hex, world: hexWorld };
             return;
           }
           pushHistory();
           const start = EDITOR.roomStart;
           EDITOR.roomStart = null;
-          const minCol = Math.min(start.col, hex.col);
-          const maxCol = Math.max(start.col, hex.col);
-          const minRow = Math.min(start.row, hex.row);
-          const maxRow = Math.max(start.row, hex.row);
+          const startWorld = start.world ? start.world : hexToWorld(start.hex.col, start.hex.row);
+          const endWorld = hexWorld;
+          const corners = roomCornersFromWorld(startWorld, endWorld);
           const room = {
             id: 'room_' + Date.now().toString(36),
-            corners: [
-              toHexLabel(minCol, maxRow),
-              toHexLabel(maxCol, maxRow),
-              toHexLabel(maxCol, minRow),
-              toHexLabel(minCol, minRow)
-            ],
+            corners,
             thickness: 12,
             floor: { kind: 'wood_oak' },
             wall: { kind: 'brick' }
@@ -2977,7 +2988,8 @@
           const x = ev.clientX - rect.left;
           const y = ev.clientY - rect.top;
           const world = screenToWorld(x, y);
-          EDITOR.roomHover = worldToHexHalf(world);
+          const hex = worldToHexHalf(world);
+          EDITOR.roomHover = { hex, world: hexToWorld(hex.col, hex.row) };
           render();
         });
 
