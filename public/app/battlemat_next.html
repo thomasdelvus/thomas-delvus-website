@@ -1336,24 +1336,21 @@
 
       function roomToWallBox(room) {
         if (isPolyRoom(room)) return null;
-        let corners = Array.isArray(room && room.corners) ? room.corners : [];
-        if (corners.length !== 4) {
-          const points = roomPointLabels(room);
-          const stats = getRectPointStats(points);
-          if (!stats) return null;
-          const [c0, c1] = stats.cols;
-          const [r0, r1] = stats.rows;
-          const minRow = Math.min(r0, r1);
-          const maxRow = Math.max(r0, r1);
-          const minCol = Math.min(c0, c1);
-          const maxCol = Math.max(c0, c1);
-          corners = [
-            toHexLabel(minCol, maxRow),
-            toHexLabel(maxCol, maxRow),
-            toHexLabel(maxCol, minRow),
-            toHexLabel(minCol, minRow),
-          ];
-        }
+        const points = roomPointLabels(room);
+        const stats = getRectPointStats(points);
+        if (!stats) return null;
+        const [c0, c1] = stats.cols;
+        const [r0, r1] = stats.rows;
+        const minRow = Math.min(r0, r1);
+        const maxRow = Math.max(r0, r1);
+        const minCol = Math.min(c0, c1);
+        const maxCol = Math.max(c0, c1);
+        const corners = [
+          toHexLabel(minCol, maxRow),
+          toHexLabel(maxCol, maxRow),
+          toHexLabel(maxCol, minRow),
+          toHexLabel(minCol, minRow),
+        ];
         const tl = parseHexLabel(corners[0]);
         const tr = parseHexLabel(corners[1]);
         const br = parseHexLabel(corners[2]);
@@ -2540,6 +2537,7 @@
             const points = parsePointList(value);
             if (points.length >= 3) {
               item.points = points;
+              delete item.corners;
             } else {
               delete item.points;
             }
