@@ -998,6 +998,25 @@
         gctx.restore();
       }
 
+      function getRoomHandleHit(room, screenPoint) {
+        const handles = roomEdgeHandleWorlds(room);
+        if (!handles) return null;
+        const hitR = Math.max(8, Math.min(14, 9 * VIEW.zoom));
+        const hitR2 = hitR * hitR;
+        const hit = (p) => {
+          const sp = worldToScreen(p);
+          const dx = sp.x - screenPoint.x;
+          const dy = sp.y - screenPoint.y;
+          return dx * dx + dy * dy <= hitR2;
+        };
+        if (hit(handles.center)) return { type: 'room-move' };
+        if (hit(handles.top)) return { type: 'room-edge', side: 'n' };
+        if (hit(handles.bottom)) return { type: 'room-edge', side: 's' };
+        if (hit(handles.left)) return { type: 'room-edge', side: 'w' };
+        if (hit(handles.right)) return { type: 'room-edge', side: 'e' };
+        return null;
+      }
+
 
       function drawRoomPreview(gctx) {
         if (EDITOR.tool !== 'room' || !EDITOR.roomStart || !EDITOR.roomHover) return;
@@ -3052,33 +3071,42 @@
           const world = screenToWorld(x, y);
           const screenPoint = { x, y };
           const floor = pickFloor();
+          if (floor && EDITOR.selection && EDITOR.selection.type === 'room') {
+            const hit = (UI.showHandles || UI.handleHot)
+              ? getRoomHandleHit(EDITOR.selection.item, screenPoint)
+              : null;
+            if (hit) {
+              EDITOR.drag = {
+                type: hit.type,
+                side: hit.side,
+                item: EDITOR.selection.item,
+                floorId: EDITOR.selection.floorId,
+                startWorld: world,
+                rect: roomEdgeHandleWorlds(EDITOR.selection.item).rect,
+                didMove: false,
+                pushed: false
+              };
+              return;
+            }
+          }
           const sel = findSelectionAt(world);
           if (sel && sel.type === 'room') {
             selectItem(sel.type, sel.item, sel.floorId);
             const showHandles = UI.showHandles || UI.handleHot;
             if (showHandles) {
-              const handles = roomEdgeHandleWorlds(sel.item);
-              if (handles) {
-                const hitR = Math.max(8, Math.min(14, 9 * VIEW.zoom));
-                const hitR2 = hitR * hitR;
-                const hit = (p) => {
-                  const sp = worldToScreen(p);
-                  const dx = sp.x - screenPoint.x;
-                  const dy = sp.y - screenPoint.y;
-                  return dx * dx + dy * dy <= hitR2;
+              const hit = getRoomHandleHit(sel.item, screenPoint);
+              if (hit) {
+                EDITOR.drag = {
+                  type: hit.type,
+                  side: hit.side,
+                  item: sel.item,
+                  floorId: sel.floorId,
+                  startWorld: world,
+                  rect: roomEdgeHandleWorlds(sel.item).rect,
+                  didMove: false,
+                  pushed: false
                 };
-                if (hit(handles.center)) {
-                  EDITOR.drag = { type: 'room-move', item: sel.item, floorId: sel.floorId, startWorld: world, rect: handles.rect, didMove: false, pushed: false };
-                } else if (hit(handles.top)) {
-                  EDITOR.drag = { type: 'room-edge', side: 'n', item: sel.item, floorId: sel.floorId, startWorld: world, rect: handles.rect, didMove: false, pushed: false };
-                } else if (hit(handles.bottom)) {
-                  EDITOR.drag = { type: 'room-edge', side: 's', item: sel.item, floorId: sel.floorId, startWorld: world, rect: handles.rect, didMove: false, pushed: false };
-                } else if (hit(handles.left)) {
-                  EDITOR.drag = { type: 'room-edge', side: 'w', item: sel.item, floorId: sel.floorId, startWorld: world, rect: handles.rect, didMove: false, pushed: false };
-                } else if (hit(handles.right)) {
-                  EDITOR.drag = { type: 'room-edge', side: 'e', item: sel.item, floorId: sel.floorId, startWorld: world, rect: handles.rect, didMove: false, pushed: false };
-                }
-                if (EDITOR.drag) return;
+                return;
               }
             }
             return;
