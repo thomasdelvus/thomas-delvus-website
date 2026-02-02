@@ -1192,6 +1192,7 @@
               hex,
               floorId,
               kind: e.kind || 'pc',
+              sprite: e.sprite || (e.appearance && e.appearance.sprite) || '',
               hp: e.hp || (e.stats && e.stats.hp) || null,
               init: e.init || (e.stats && e.stats.init) || null,
               side: e.side || (e.kind === 'npc' ? 'NPC' : 'PC'),
@@ -2942,6 +2943,8 @@
         if (!entity) return;
         entity.name = token.name;
         if (token.kind) entity.kind = token.kind;
+        if (token.sprite) entity.sprite = token.sprite;
+        if (!token.sprite && entity.sprite) delete entity.sprite;
         if (!entity.location || typeof entity.location !== 'object') entity.location = {};
         if (token.hex) entity.location.hex = token.hex;
         if (token.floorId) entity.location.floorId = token.floorId;
@@ -3131,6 +3134,8 @@
           location: { hex: token.hex, floorId: token.floorId },
           ...(Object.keys(stats).length ? { stats } : {})
         };
+        if (token.sprite) patch.sprite = token.sprite;
+        else if (token.__entity && token.__entity.sprite) patch.sprite = null;
         saveEntityPatch(token.id, patch, true);
       }
 
