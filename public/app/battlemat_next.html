@@ -525,11 +525,6 @@
             <option value="tokens">tokens</option>
           </select>
           <label class="mini"><input type="checkbox" id="handlesToggle" /> Handles</label>
-          <div class="toolbar-col">
-            <select id="floorSelect"></select>
-            <div class="mapLabel">Map</div>
-            <select id="mapSelect"></select>
-          </div>
           <button id="btnUndo">Undo</button>
           <label class="mini"><input type="checkbox" id="fogToggle" checked /> Fog</label>
           <button id="btnSave">Save</button>
@@ -576,6 +571,14 @@
           <label class="mini">Y <input id="mapOffsetY" class="mapInput" type="number" step="0.5" value="1.5" /></label>
           <label class="mini">Scale % <input id="mapScale" class="mapInput" type="number" step="1" value="370" /></label>
           <label class="mini">Rot° <input id="mapRot" class="mapInput" type="number" step="1" value="19" /></label>
+          <div class="toolbar-col">
+            <div class="mapLabel">Map</div>
+            <select id="mapSelect"></select>
+          </div>
+          <div class="toolbar-col">
+            <div class="mapLabel">Floor</div>
+            <select id="floorSelect"></select>
+          </div>
         </div>
       </div>
       <div id="navBar">
