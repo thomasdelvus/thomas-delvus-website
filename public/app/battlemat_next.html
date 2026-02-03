@@ -362,6 +362,7 @@
               <option value="low">Low</option>
               <option value="medium" selected>Medium</option>
               <option value="high">High</option>
+              <option value="ultra">Ultra</option>
             </select>
           </label>
         </div>
@@ -443,7 +444,7 @@
       const VIEW = { camera: { col: 0, row: 0 }, cameraWorld: { x: 0, y: 0 }, zoom: 1, floorId: '' };
       const STATE = { battle: null, campaign: null, entities: [] };
       const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true, video: 'medium' };
-      const VIDEO_SCALE = { low: 1, medium: 1.5, high: 2 };
+      const VIDEO_SCALE = { low: 1, medium: 1.5, high: 2, ultra: 3 };
       let renderDpr = window.devicePixelRatio || 1;
       const EDITOR = {
         tool: 'select',
@@ -851,7 +852,7 @@
           if (bright != null) UI.brightLabels = bright === '1';
           if (handles != null) UI.showHandles = handles === '1';
           if (fog != null) UI.fogEnabled = fog === '1';
-          if (video === 'low' || video === 'medium' || video === 'high') UI.video = video;
+          if (video === 'low' || video === 'medium' || video === 'high' || video === 'ultra') UI.video = video;
         } catch {}
         if (hexGridToggle) hexGridToggle.checked = UI.hexGrid;
         if (labelBoldToggle) labelBoldToggle.checked = UI.brightLabels;
@@ -3372,7 +3373,7 @@
         if (videoSelect) {
           videoSelect.addEventListener('change', () => {
             const next = videoSelect.value;
-            if (next === 'low' || next === 'medium' || next === 'high') {
+            if (next === 'low' || next === 'medium' || next === 'high' || next === 'ultra') {
               UI.video = next;
               savePrefs();
               render();
