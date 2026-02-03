@@ -447,6 +447,7 @@
       <div id="toolbar">
         <button id="toolSelect" class="toolBtn active">Select</button>
         <button id="toolRoom" class="toolBtn">Room</button>
+        <button id="toolPoly" class="toolBtn">Poly</button>
         <button id="toolOpening" class="toolBtn">Opening</button>
         <button id="toolObject" class="toolBtn">Object</button>
         <button id="toolToken" class="toolBtn">Token</button>
@@ -579,6 +580,7 @@
       const toolButtons = {
         select: document.getElementById('toolSelect'),
         room: document.getElementById('toolRoom'),
+        poly: document.getElementById('toolPoly'),
         opening: document.getElementById('toolOpening'),
         object: document.getElementById('toolObject'),
         token: document.getElementById('toolToken'),
@@ -639,6 +641,8 @@
         selection: null,
         roomStart: null,
         roomHover: null,
+        polyPoints: [],
+        polyHover: null,
         dirty: false,
         drag: null,
         ignoreClick: false,
@@ -1078,10 +1082,12 @@
           btn.classList.toggle('active', key === tool);
         });
         EDITOR.roomStart = null;
+        EDITOR.polyPoints = [];
+        EDITOR.polyHover = null;
         if (openingGroup) openingGroup.style.display = tool === 'opening' ? 'flex' : 'none';
         if (objectGroup) objectGroup.style.display = tool === 'object' ? 'flex' : 'none';
         if (tokenGroup) tokenGroup.style.display = tool === 'token' ? 'flex' : 'none';
-        if (canvasWrap) canvasWrap.style.cursor = tool === 'room' ? 'crosshair' : 'default';
+        if (canvasWrap) canvasWrap.style.cursor = (tool === 'room' || tool === 'poly') ? 'crosshair' : 'default';
       }
 
       function drawHexOutline(gctx, center, size) {
@@ -1228,6 +1234,22 @@
         const sel = EDITOR.selection;
         if (!sel || sel.type !== 'room' || !sel.item) return;
         if (String(sel.floorId) !== String(floor.id)) return;
+        if (isPolyRoom(sel.item)) {
+          const labels = roomPointLabels(sel.item);
+          if (!Array.isArray(labels) || labels.length < 3) return;
+          const pts = labels.map(parseHexLabel).filter(Boolean).map(hexToWorld);
+          if (!pts.length) return;
+          gctx.save();
+          gctx.strokeStyle = 'rgba(255,145,0,0.95)';
+          gctx.lineWidth = 1.6;
+          const size = Math.max(5, Math.min(12, 7 * VIEW.zoom));
+          for (const p of pts) {
+            const sp = worldToScreen(p);
+            drawHandle(gctx, sp, size);
+          }
+          gctx.restore();
+          return;
+        }
         const handles = roomEdgeHandleWorlds(sel.item);
         if (!handles) return;
         gctx.save();
@@ -1266,6 +1288,25 @@
         return null;
       }
 
+      function getPolyHandleHit(room, screenPoint) {
+        if (!room || !isPolyRoom(room)) return null;
+        const labels = roomPointLabels(room);
+        if (!Array.isArray(labels) || labels.length < 3) return null;
+        const pts = labels.map(parseHexLabel).filter(Boolean).map(hexToWorld);
+        if (!pts.length) return null;
+        const hitR = Math.max(8, Math.min(14, 9 * VIEW.zoom));
+        const hitR2 = hitR * hitR;
+        for (let i = 0; i < pts.length; i++) {
+          const sp = worldToScreen(pts[i]);
+          const dx = sp.x - screenPoint.x;
+          const dy = sp.y - screenPoint.y;
+          if (dx * dx + dy * dy <= hitR2) {
+            return { type: 'poly-point', index: i };
+          }
+        }
+        return null;
+      }
+
 
       function drawRoomPreview(gctx) {
         if (EDITOR.tool !== 'room' || !EDITOR.roomStart || !EDITOR.roomHover) return;
@@ -1291,6 +1332,30 @@
         gctx.restore();
       }
 
+      function drawPolyPreview(gctx) {
+        if (EDITOR.tool !== 'poly' || !Array.isArray(EDITOR.polyPoints) || !EDITOR.polyPoints.length) return;
+        const pts = EDITOR.polyPoints.map(p => p.world).filter(Boolean);
+        if (!pts.length) return;
+        const hover = EDITOR.polyHover && EDITOR.polyHover.world ? EDITOR.polyHover.world : null;
+        gctx.save();
+        gctx.strokeStyle = 'rgba(88, 220, 120, 0.9)';
+        gctx.lineWidth = 2;
+        gctx.setLineDash([6, 6]);
+        gctx.beginPath();
+        const first = worldToScreen(pts[0]);
+        gctx.moveTo(first.x, first.y);
+        for (let i = 1; i < pts.length; i++) {
+          const p = worldToScreen(pts[i]);
+          gctx.lineTo(p.x, p.y);
+        }
+        if (hover) {
+          const ph = worldToScreen(hover);
+          gctx.lineTo(ph.x, ph.y);
+        }
+        gctx.stroke();
+        gctx.restore();
+      }
+
       function roomCornersFromWorld(start, end) {
         const x1 = Math.min(start.x, end.x);
         const x2 = Math.max(start.x, end.x);
@@ -1306,6 +1371,18 @@
           const hex = worldToHexHalf(p);
           return toHexLabel(hex.col, hex.row);
         });
+      }
+
+      function setPolyPoint(room, index, label) {
+        if (!room) return;
+        const points = Array.isArray(room.points) ? room.points
+          : (Array.isArray(room.poly) ? room.poly : (Array.isArray(room.vertices) ? room.vertices : null));
+        if (!Array.isArray(points) || index < 0 || index >= points.length) return;
+        points[index] = label;
+        if (Array.isArray(room.points)) room.points = points.slice();
+        else if (Array.isArray(room.poly)) room.poly = points.slice();
+        else if (Array.isArray(room.vertices)) room.vertices = points.slice();
+        else room.points = points.slice();
       }
 
       function setRoomRectCorners(room, corners) {
@@ -2804,6 +2881,7 @@
         }
         if (layerMode === 'all') {
           drawRoomPreview(ctx);
+          drawPolyPreview(ctx);
         }
       }
 
@@ -3288,7 +3366,7 @@
         const x = ev.clientX - rect.left;
         const y = ev.clientY - rect.top;
         const world = screenToWorld(x, y);
-        const hex = (EDITOR.tool === 'room') ? worldToHexHalf(world) : worldToHex(world);
+        const hex = (EDITOR.tool === 'room' || EDITOR.tool === 'poly') ? worldToHexHalf(world) : worldToHex(world);
         const hexLabel = toHexLabel(hex.col, hex.row);
         const hexWorld = hexToWorld(hex.col, hex.row);
         const floor = pickFloor();
@@ -3322,6 +3400,43 @@
           floor.rooms.push(room);
           selectItem('room', room, floor.id);
           EDITOR.dirty = true;
+          render();
+          return;
+        }
+
+        if (EDITOR.tool === 'poly') {
+          const snap = worldToHexHalf(world);
+          const snapWorld = hexToWorld(snap.col, snap.row);
+          const label = toHexLabel(snap.col, snap.row);
+          const points = Array.isArray(EDITOR.polyPoints) ? EDITOR.polyPoints : [];
+          if (!points.length) {
+            EDITOR.polyPoints = [{ hex: snap, world: snapWorld, label }];
+            return;
+          }
+          const first = points[0].world;
+          const firstScreen = worldToScreen(first);
+          const curScreen = worldToScreen(snapWorld);
+          const dx = firstScreen.x - curScreen.x;
+          const dy = firstScreen.y - curScreen.y;
+          const closeEnough = (dx * dx + dy * dy) <= 144; // 12px radius
+          if (closeEnough && points.length >= 3) {
+            pushHistory();
+            const room = {
+              id: 'room_' + Date.now().toString(36),
+              points: points.map(p => p.label),
+              thickness: 15,
+              floor: { kind: 'wood_oak' },
+              wall: { kind: 'brick' }
+            };
+            floor.rooms.push(room);
+            selectItem('room', room, floor.id);
+            EDITOR.polyPoints = [];
+            EDITOR.polyHover = null;
+            EDITOR.dirty = true;
+            render();
+            return;
+          }
+          EDITOR.polyPoints = points.concat({ hex: snap, world: snapWorld, label });
           render();
           return;
         }
@@ -3441,6 +3556,10 @@
           drag.item.hex = hexLabel;
           drag.item.ox = Math.round(ox * 100) / 100;
           drag.item.oy = Math.round(oy * 100) / 100;
+        } else if (drag.type === 'poly-point') {
+          const snap = worldToHexHalf(worldPoint);
+          const label = toHexLabel(snap.col, snap.row);
+          setPolyPoint(drag.item, drag.index, label);
         } else if (drag.type === 'room-edge' || drag.type === 'room-move') {
           const handles = roomEdgeHandleWorlds(drag.item);
           if (!handles) return;
@@ -3525,46 +3644,53 @@
           const world = screenToWorld(x, y);
           const screenPoint = { x, y };
           const floor = pickFloor();
-          if (floor && EDITOR.selection && EDITOR.selection.type === 'room') {
-            const hit = (UI.showHandles || UI.handleHot)
-              ? getRoomHandleHit(EDITOR.selection.item, screenPoint)
-              : null;
+        if (floor && EDITOR.selection && EDITOR.selection.type === 'room') {
+          let hit = null;
+          if (UI.showHandles || UI.handleHot) {
+            hit = isPolyRoom(EDITOR.selection.item)
+              ? getPolyHandleHit(EDITOR.selection.item, screenPoint)
+              : getRoomHandleHit(EDITOR.selection.item, screenPoint);
+          }
+          if (hit) {
+            EDITOR.drag = {
+              type: hit.type,
+              side: hit.side,
+              index: hit.index,
+              item: EDITOR.selection.item,
+              floorId: EDITOR.selection.floorId,
+              startWorld: world,
+              rect: roomEdgeHandleWorlds(EDITOR.selection.item).rect,
+              didMove: false,
+              pushed: false
+            };
+            return;
+          }
+        }
+        const sel = findSelectionAt(world);
+        if (sel && sel.type === 'room') {
+          selectItem(sel.type, sel.item, sel.floorId);
+          const showHandles = UI.showHandles || UI.handleHot;
+          if (showHandles) {
+            const hit = isPolyRoom(sel.item)
+              ? getPolyHandleHit(sel.item, screenPoint)
+              : getRoomHandleHit(sel.item, screenPoint);
             if (hit) {
               EDITOR.drag = {
                 type: hit.type,
                 side: hit.side,
-                item: EDITOR.selection.item,
-                floorId: EDITOR.selection.floorId,
+                index: hit.index,
+                item: sel.item,
+                floorId: sel.floorId,
                 startWorld: world,
-                rect: roomEdgeHandleWorlds(EDITOR.selection.item).rect,
+                rect: roomEdgeHandleWorlds(sel.item).rect,
                 didMove: false,
                 pushed: false
               };
               return;
             }
           }
-          const sel = findSelectionAt(world);
-          if (sel && sel.type === 'room') {
-            selectItem(sel.type, sel.item, sel.floorId);
-            const showHandles = UI.showHandles || UI.handleHot;
-            if (showHandles) {
-              const hit = getRoomHandleHit(sel.item, screenPoint);
-              if (hit) {
-                EDITOR.drag = {
-                  type: hit.type,
-                  side: hit.side,
-                  item: sel.item,
-                  floorId: sel.floorId,
-                  startWorld: world,
-                  rect: roomEdgeHandleWorlds(sel.item).rect,
-                  didMove: false,
-                  pushed: false
-                };
-                return;
-              }
-            }
-            return;
-          }
+          return;
+        }
           if (!sel) return;
           selectItem(sel.type, sel.item, sel.floorId);
           EDITOR.drag = sel;
@@ -3588,13 +3714,18 @@
 
         canvas.addEventListener('mousemove', (ev) => {
           if (EDITOR.drag) return;
-          if (EDITOR.tool !== 'room') return;
+          if (EDITOR.tool !== 'room' && EDITOR.tool !== 'poly') return;
           const rect = canvas.getBoundingClientRect();
           const x = ev.clientX - rect.left;
           const y = ev.clientY - rect.top;
           const world = screenToWorld(x, y);
           const hex = worldToHexHalf(world);
-          EDITOR.roomHover = { hex, world: hexToWorld(hex.col, hex.row) };
+          const snapWorld = hexToWorld(hex.col, hex.row);
+          if (EDITOR.tool === 'room') {
+            EDITOR.roomHover = { hex, world: snapWorld };
+          } else {
+            EDITOR.polyHover = { hex, world: snapWorld };
+          }
           render();
         });
 
@@ -3806,6 +3937,11 @@
           if (ev.key === 'Escape') {
             if (EDITOR.roomStart) {
               EDITOR.roomStart = null;
+              render();
+            }
+            if (Array.isArray(EDITOR.polyPoints) && EDITOR.polyPoints.length) {
+              EDITOR.polyPoints = [];
+              EDITOR.polyHover = null;
               render();
             }
           }
