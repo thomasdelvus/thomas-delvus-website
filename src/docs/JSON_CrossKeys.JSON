@@ -6,7 +6,7 @@
       "objects": [
         {
           "floorId": "upper",
-          "hex": "M21",
+          "hex": "DO105",
           "id": "room1_bed1",
           "kind": "bed",
           "ox": -0.5,
@@ -17,7 +17,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "N20",
+          "hex": "DP104",
           "id": "room1_bed2",
           "kind": "bed",
           "ox": 0,
@@ -28,7 +28,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "O21",
+          "hex": "DQ105",
           "id": "room1_bed3",
           "kind": "bed",
           "ox": 0.5,
@@ -39,7 +39,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "M18",
+          "hex": "DO102",
           "id": "room2_bed1",
           "kind": "bed",
           "ox": -0.1,
@@ -50,7 +50,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "M16",
+          "hex": "DO100",
           "id": "room2_bed2",
           "kind": "bed",
           "ox": -0.15000000000000002,
@@ -61,7 +61,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "M15",
+          "hex": "DO99",
           "id": "room3_bed1",
           "kind": "bed",
           "ox": -0.5,
@@ -72,7 +72,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "N14",
+          "hex": "DP98",
           "id": "room3_bed2",
           "kind": "bed",
           "ox": 0,
@@ -83,7 +83,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "O15",
+          "hex": "DQ99",
           "id": "room3_bed3",
           "kind": "bed",
           "ox": 0.5,
@@ -94,7 +94,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "S14",
+          "hex": "DU98",
           "id": "room4_bed",
           "kind": "bed.double",
           "ox": 0.2,
@@ -105,7 +105,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "W14",
+          "hex": "DY98",
           "id": "room4_chair1",
           "kind": "chair",
           "ox": -0.69,
@@ -116,7 +116,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "W13",
+          "hex": "DY97",
           "id": "room4_chair2",
           "kind": "chair",
           "ox": -0.63,
@@ -127,7 +127,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "U13",
+          "hex": "DW97",
           "id": "room4_chair3",
           "kind": "chair",
           "ox": 0.59,
@@ -138,7 +138,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "S15",
+          "hex": "DU99",
           "id": "room4_chest",
           "kind": "chest",
           "ox": 0,
@@ -149,7 +149,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "X14",
+          "hex": "DZ98",
           "id": "room4_hearth",
           "kind": "hearth",
           "ox": -0.85,
@@ -160,7 +160,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "R12",
+          "hex": "DT96",
           "id": "room4_side1",
           "kind": "table.sqr",
           "ox": 0.62,
@@ -171,7 +171,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "R14",
+          "hex": "DT98",
           "id": "room4_side2",
           "kind": "table.sqr",
           "ox": 0.64,
@@ -182,7 +182,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "S20",
+          "hex": "DU104",
           "id": "room5_bed",
           "kind": "bed.double",
           "ox": 0.2,
@@ -193,7 +193,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "V20",
+          "hex": "DX104",
           "id": "room5_chair1",
           "kind": "chair",
           "ox": 0.75,
@@ -204,7 +204,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "W20",
+          "hex": "DY104",
           "id": "room5_chair2",
           "kind": "chair",
           "ox": -0.69,
@@ -215,7 +215,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "U20",
+          "hex": "DW104",
           "id": "room5_chair3",
           "kind": "chair",
           "ox": 0.7,
@@ -226,7 +226,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "U21",
+          "hex": "DW105",
           "id": "room5_chair4",
           "kind": "chair",
           "ox": 0.68,
@@ -237,7 +237,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "V20",
+          "hex": "DX104",
           "id": "room5_table",
           "kind": "table.round",
           "rotDeg": 0,
@@ -246,7 +246,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "S18",
+          "hex": "DU102",
           "id": "room5_chest",
           "kind": "chest",
           "ox": 0,
@@ -257,7 +257,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "X18",
+          "hex": "DZ102",
           "id": "room5_hearth",
           "kind": "hearth",
           "ox": -0.85,
@@ -268,7 +268,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "R20",
+          "hex": "DT104",
           "id": "room5_side1",
           "kind": "table.sqr",
           "ox": 0.6,
@@ -279,7 +279,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "R18",
+          "hex": "DT102",
           "id": "room5_side2",
           "kind": "table.sqr",
           "ox": 0.64,
@@ -290,7 +290,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "Z18",
+          "hex": "EB102",
           "id": "room6_hearth",
           "kind": "hearth",
           "ox": -0.43,
@@ -301,7 +301,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "AC14",
+          "hex": "EE98",
           "id": "room7_bed",
           "kind": "bed.double",
           "ox": -0.2,
@@ -312,7 +312,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "AA14",
+          "hex": "EC98",
           "id": "room7_chair1",
           "kind": "chair",
           "ox": -0.62,
@@ -323,7 +323,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "Y13",
+          "hex": "EA97",
           "id": "room7_chair3",
           "kind": "chair",
           "ox": 0.66,
@@ -334,7 +334,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "Y13",
+          "hex": "EA97",
           "id": "room7_chair4",
           "kind": "chair",
           "ox": 0.74,
@@ -345,7 +345,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "Z13",
+          "hex": "EB97",
           "id": "room7_table",
           "kind": "table.round",
           "rotDeg": 0,
@@ -354,7 +354,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "AC15",
+          "hex": "EE99",
           "id": "room7_chest",
           "kind": "chest",
           "ox": 0,
@@ -365,7 +365,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "X14",
+          "hex": "DZ98",
           "id": "room7_hearth",
           "kind": "hearth",
           "ox": 0.85,
@@ -376,7 +376,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "AD13",
+          "hex": "EF97",
           "id": "room7_side1",
           "kind": "table.sqr",
           "ox": -0.63,
@@ -387,7 +387,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "AD15",
+          "hex": "EF99",
           "id": "room7_side2",
           "kind": "table.sqr",
           "ox": -0.67,
@@ -398,7 +398,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "AG15",
+          "hex": "EI99",
           "id": "room8_bed1",
           "kind": "bed",
           "ox": -0.5,
@@ -409,7 +409,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "AH14",
+          "hex": "EJ98",
           "id": "room8_bed2",
           "kind": "bed",
           "ox": 0,
@@ -420,7 +420,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "AI15",
+          "hex": "EK99",
           "id": "room8_bed3",
           "kind": "bed",
           "ox": 0.5,
@@ -431,7 +431,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "AI19",
+          "hex": "EK103",
           "id": "room9_bed1",
           "kind": "bed",
           "ox": 0.1,
@@ -442,7 +442,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "AI18",
+          "hex": "EK102",
           "id": "room9_bed2",
           "kind": "bed",
           "ox": 0.1,
@@ -453,7 +453,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "AI17",
+          "hex": "EK101",
           "id": "room9_bed3",
           "kind": "bed",
           "ox": 0.1,
@@ -464,7 +464,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "AI16",
+          "hex": "EK100",
           "id": "room9_bed4",
           "kind": "bed",
           "ox": 0.1,
@@ -475,7 +475,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "AI21",
+          "hex": "EK105",
           "id": "room10_bed1",
           "kind": "bed",
           "ox": 0.1,
@@ -486,7 +486,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "AC21",
+          "hex": "EE105",
           "id": "stairs_down_to_ground",
           "kind": "stairs",
           "ox": -1,
@@ -498,7 +498,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "U14",
+          "hex": "DW98",
           "id": "object_mkmhglmh_7kd",
           "kind": "chair",
           "ox": 0.68,
@@ -509,7 +509,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "V13",
+          "hex": "DX97",
           "id": "object_mkmir791_ua",
           "kind": "table.round",
           "ox": 0,
@@ -520,7 +520,7 @@
         },
         {
           "floorId": "upper",
-          "hex": "AC19",
+          "hex": "EE103",
           "id": "object_mkmiuqy7_2wt",
           "kind": "bath",
           "ox": -0.75,
@@ -532,7 +532,7 @@
         {
           "id": "object_ml40qtbj",
           "kind": "the.crown",
-          "hex": "W17",
+          "hex": "DY101",
           "floorId": "upper",
           "z": 52,
           "spriteScale": 0.65,
@@ -543,7 +543,7 @@
         {
           "id": "object_ml4mtkvv",
           "kind": "the.dolphin",
-          "hex": "P20",
+          "hex": "DR104",
           "floorId": "upper",
           "parent_room": "Hallway3",
           "ox": 0.25,
@@ -553,7 +553,7 @@
         {
           "id": "object_ml4mxyp5",
           "kind": "the.star",
-          "hex": "P17",
+          "hex": "DR101",
           "floorId": "upper",
           "spriteScale": 0.65,
           "ox": 0.15,
@@ -563,7 +563,7 @@
         {
           "id": "object_ml4neill",
           "kind": "the.bell",
-          "hex": "P14",
+          "hex": "DR98",
           "floorId": "upper",
           "name": "",
           "parent_room": "Hallway3",
@@ -574,7 +574,7 @@
         {
           "id": "object_ml4nh6a1",
           "kind": "the.dragon",
-          "hex": "V15",
+          "hex": "DX99",
           "floorId": "upper",
           "spriteScale": 0.6,
           "oy": 0,
@@ -584,7 +584,7 @@
         {
           "id": "object_ml4nisrt",
           "kind": "the.swan",
-          "hex": "Z15",
+          "hex": "EB99",
           "floorId": "upper",
           "oy": 0,
           "sprite": "",
@@ -594,7 +594,7 @@
         {
           "id": "object_ml4nlh35",
           "kind": "the.bull",
-          "hex": "AF14",
+          "hex": "EH98",
           "floorId": "upper",
           "parent_room": "Hallway1",
           "spriteScale": 0.65,
@@ -604,7 +604,7 @@
         {
           "id": "object_ml4nln0a",
           "kind": "the.phoenix",
-          "hex": "AF16",
+          "hex": "EH100",
           "floorId": "upper",
           "ox": -0.15,
           "oy": -0.35,
@@ -614,7 +614,7 @@
         {
           "id": "object_ml4o1xf6",
           "kind": "the.bath",
-          "hex": "AA17",
+          "hex": "EC101",
           "floorId": "upper",
           "parent_room": "Hallway2",
           "spriteScale": 0.65,
@@ -623,7 +623,7 @@
       ],
       "openings": [
         {
-          "hex": "P19",
+          "hex": "DR103",
           "hinge": "top",
           "id": "door_room1",
           "kind": "door.wood",
@@ -632,7 +632,7 @@
           "swing": 1
         },
         {
-          "hex": "P16",
+          "hex": "DR100",
           "hinge": "top",
           "id": "door_room2",
           "kind": "door.wood",
@@ -641,7 +641,7 @@
           "swing": 1
         },
         {
-          "hex": "P13",
+          "hex": "DR97",
           "hinge": "top",
           "id": "door_room3",
           "kind": "door.wood",
@@ -650,7 +650,7 @@
           "swing": 1
         },
         {
-          "hex": "U15.5",
+          "hex": "DW99.5",
           "hinge": "left",
           "id": "door_room4",
           "kind": "door.wood",
@@ -659,7 +659,7 @@
           "swing": 1
         },
         {
-          "hex": "V17",
+          "hex": "DX101",
           "id": "door_room5",
           "kind": "door.wood",
           "openPct": 0,
@@ -668,7 +668,7 @@
           "swing": 0
         },
         {
-          "hex": "X20.25",
+          "hex": "DZ104.25",
           "id": "door_to_closet",
           "kind": "door.wood",
           "openPct": 0,
@@ -676,7 +676,7 @@
           "swing": 1
         },
         {
-          "hex": "AB17",
+          "hex": "ED101",
           "id": "door_room6",
           "kind": "door.wood",
           "openPct": 0,
@@ -685,7 +685,7 @@
           "swing": 1
         },
         {
-          "hex": "Z19.5",
+          "hex": "EB103.5",
           "id": "door_room6_closet",
           "kind": "door.wood",
           "openPct": 0,
@@ -694,7 +694,7 @@
           "hinge": "left"
         },
         {
-          "hex": "AA15.5",
+          "hex": "EC99.5",
           "hinge": "right",
           "id": "door_room7",
           "kind": "door.wood",
@@ -703,7 +703,7 @@
           "swing": 0
         },
         {
-          "hex": "AF13",
+          "hex": "EH97",
           "hinge": "bottom",
           "id": "door_room8",
           "kind": "door.wood",
@@ -712,7 +712,7 @@
           "swing": 1
         },
         {
-          "hex": "AF17",
+          "hex": "EH101",
           "id": "door_room9",
           "kind": "door.wood",
           "openPct": 0,
@@ -721,7 +721,7 @@
           "hinge": "top"
         },
         {
-          "hex": "AF20",
+          "hex": "EH104",
           "id": "door_room10",
           "kind": "door.wood",
           "openPct": 0,
@@ -730,112 +730,112 @@
           "hinge": "top"
         },
         {
-          "hex": "L20",
+          "hex": "DN104",
           "id": "bedroom1_window1",
           "kind": "window",
           "openPct": 0,
           "orientation": "v"
         },
         {
-          "hex": "L19",
+          "hex": "DN103",
           "id": "bedroom1_window2",
           "kind": "window",
           "openPct": 0,
           "orientation": "v"
         },
         {
-          "hex": "L17",
+          "hex": "DN101",
           "id": "bedroom2_window1",
           "kind": "window",
           "openPct": 0,
           "orientation": "v"
         },
         {
-          "hex": "L16",
+          "hex": "DN100",
           "id": "bedroom2_window2",
           "kind": "window",
           "openPct": 0,
           "orientation": "v"
         },
         {
-          "hex": "L14",
+          "hex": "DN98",
           "id": "bedroom3_window1",
           "kind": "window",
           "openPct": 0,
           "orientation": "v"
         },
         {
-          "hex": "L13",
+          "hex": "DN97",
           "id": "bedroom3_window2",
           "kind": "window",
           "openPct": 0,
           "orientation": "v"
         },
         {
-          "hex": "M12.5",
+          "hex": "DO96.5",
           "id": "bedroom3_window3",
           "kind": "window",
           "openPct": 0,
           "orientation": "h"
         },
         {
-          "hex": "N12",
+          "hex": "DP96",
           "id": "bedroom3_window4",
           "kind": "window",
           "openPct": 0,
           "orientation": "h"
         },
         {
-          "hex": "Q12.5",
+          "hex": "DS96.5",
           "id": "hallway3_window1",
           "kind": "window",
           "openPct": 0,
           "orientation": "h"
         },
         {
-          "hex": "U12.5",
+          "hex": "DW96.5",
           "id": "bedroom4_window1",
           "kind": "window",
           "openPct": 0,
           "orientation": "h"
         },
         {
-          "hex": "V12",
+          "hex": "DX96",
           "id": "bedroom4_window2",
           "kind": "window",
           "openPct": 0,
           "orientation": "h"
         },
         {
-          "hex": "Z12",
+          "hex": "EB96",
           "id": "bedroom5_window1",
           "kind": "window",
           "openPct": 0,
           "orientation": "h"
         },
         {
-          "hex": "AA12.5",
+          "hex": "EC96.5",
           "id": "bedroom5_window2",
           "kind": "window",
           "openPct": 0,
           "orientation": "h"
         },
         {
-          "hex": "AE12.5",
+          "hex": "EG96.5",
           "id": "hallway1_window1",
           "kind": "window",
           "openPct": 0,
           "orientation": "h"
         },
         {
-          "hex": "AH12",
+          "hex": "EJ96",
           "id": "bedroom8_window1",
           "kind": "window",
           "openPct": 0,
           "orientation": "h"
         },
         {
-          "hex": "R16",
+          "hex": "DT100",
           "id": "thresh_R16",
           "kind": "threshold",
           "openPct": 0,
@@ -843,7 +843,7 @@
           "parent": "Hallway2"
         },
         {
-          "hex": "AD16",
+          "hex": "EF100",
           "id": "thresh_AD16",
           "kind": "threshold",
           "openPct": 0,
@@ -851,7 +851,7 @@
           "parent": "Hallway2"
         },
         {
-          "hex": "AD20.25",
+          "hex": "EF104.25",
           "id": "thresh_AD20",
           "kind": "threshold",
           "openPct": 0,
@@ -862,10 +862,10 @@
       "rooms": [
         {
           "corners": [
-            "L12",
-            "AP12",
-            "AP8",
-            "L8"
+            "DN96",
+            "ER96",
+            "ER92",
+            "DN92"
           ],
           "floor": {
             "kind": "cobble",
@@ -880,10 +880,10 @@
         },
         {
           "corners": [
-            "F24",
-            "L24",
-            "L8",
-            "F8"
+            "DH108",
+            "DN108",
+            "DN92",
+            "DH92"
           ],
           "floor": {
             "kind": "cobble"
@@ -898,10 +898,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "AD21",
-            "AF21",
-            "AF12",
-            "AD12"
+            "EF105",
+            "EH105",
+            "EH96",
+            "EF96"
           ],
           "floor": {
             "kind": "wood_oak",
@@ -917,10 +917,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "R17",
-            "AD17",
-            "AD15",
-            "R15"
+            "DT101",
+            "EF101",
+            "EF99",
+            "DT99"
           ],
           "floor": {
             "kind": "wood_oak"
@@ -936,10 +936,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "P21",
-            "R21",
-            "R12",
-            "P12"
+            "DR105",
+            "DT105",
+            "DT96",
+            "DR96"
           ],
           "floor": {
             "kind": "wood_oak",
@@ -955,10 +955,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "AA21.5",
-            "AD21",
-            "AD19.5",
-            "AA20"
+            "EC105.5",
+            "EF105",
+            "EF103.5",
+            "EC104"
           ],
           "floor": {
             "kind": "wood_oak",
@@ -974,10 +974,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "L21",
-            "P21",
-            "P18",
-            "L18"
+            "DN105",
+            "DR105",
+            "DR102",
+            "DN102"
           ],
           "floor": {
             "kind": "wood_oak"
@@ -992,10 +992,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "L18",
-            "P18",
-            "P15",
-            "L15"
+            "DN102",
+            "DR102",
+            "DR99",
+            "DN99"
           ],
           "floor": {
             "kind": "wood_oak"
@@ -1010,10 +1010,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "L15",
-            "P15",
-            "P12",
-            "L12"
+            "DN99",
+            "DR99",
+            "DR96",
+            "DN96"
           ],
           "floor": {
             "kind": "wood_oak"
@@ -1028,10 +1028,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "R15",
-            "X15",
-            "X12",
-            "R12"
+            "DT99",
+            "DZ99",
+            "DZ96",
+            "DT96"
           ],
           "floor": {
             "kind": "wood_oak"
@@ -1046,10 +1046,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "R21",
-            "X21",
-            "X17",
-            "R17"
+            "DT105",
+            "DZ105",
+            "DZ101",
+            "DT101"
           ],
           "floor": {
             "kind": "wood_oak"
@@ -1064,10 +1064,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "X21",
-            "Y21.5",
-            "Y20",
-            "X19.5"
+            "DZ105",
+            "EA105.5",
+            "EA104",
+            "DZ103.5"
           ],
           "floor": {
             "kind": "wood_oak",
@@ -1083,10 +1083,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "Y21.5",
-            "AA21.5",
-            "AA20",
-            "Y20"
+            "EA105.5",
+            "EC105.5",
+            "EC104",
+            "EA104"
           ],
           "floor": {
             "kind": "wood_oak"
@@ -1101,10 +1101,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "X15",
-            "AD15",
-            "AD12",
-            "X12"
+            "DZ99",
+            "EF99",
+            "EF96",
+            "DZ96"
           ],
           "floor": {
             "kind": "wood_oak"
@@ -1119,10 +1119,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "AF15",
-            "AJ15",
-            "AJ12",
-            "AF12"
+            "EH99",
+            "EL99",
+            "EL96",
+            "EH96"
           ],
           "floor": {
             "kind": "wood_oak"
@@ -1137,10 +1137,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "AF19",
-            "AJ19",
-            "AJ15",
-            "AF15"
+            "EH103",
+            "EL103",
+            "EL99",
+            "EH99"
           ],
           "floor": {
             "kind": "wood_oak"
@@ -1155,10 +1155,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "AF21",
-            "AJ21",
-            "AJ19",
-            "AF19"
+            "EH105",
+            "EL105",
+            "EL103",
+            "EH103"
           ],
           "floor": {
             "kind": "wood_oak"
@@ -1173,10 +1173,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "Y20",
-            "AD19.5",
-            "AD17",
-            "Y17.5"
+            "EA104",
+            "EF103.5",
+            "EF101",
+            "EA101.5"
           ],
           "floor": {
             "kind": "wood_oak"
@@ -1190,10 +1190,10 @@
         },
         {
           "corners": [
-            "L21",
-            "AJ21",
-            "AJ12",
-            "L12"
+            "DN105",
+            "EL105",
+            "EL96",
+            "DN96"
           ],
           "floor": {
             "kind": "fog"
@@ -1213,7 +1213,7 @@
       "objects": [
         {
           "floorId": "ground",
-          "hex": "P20",
+          "hex": "DR104",
           "id": "pub_table1_c1",
           "kind": "chair",
           "ox": -0.47,
@@ -1224,7 +1224,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "P19",
+          "hex": "DR103",
           "id": "pub_table1_c2",
           "kind": "chair",
           "ox": -0.49,
@@ -1235,7 +1235,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "N20",
+          "hex": "DP104",
           "id": "pub_table1_c3",
           "kind": "chair",
           "ox": 0.49,
@@ -1246,7 +1246,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "N19",
+          "hex": "DP103",
           "id": "pub_table1_c4",
           "kind": "chair",
           "ox": 0.51,
@@ -1257,7 +1257,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "O16",
+          "hex": "DQ100",
           "id": "pub_table2_c1",
           "kind": "chair",
           "ox": -0.22,
@@ -1268,7 +1268,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "P15",
+          "hex": "DR99",
           "id": "pub_table2_c2",
           "kind": "chair",
           "ox": -0.21,
@@ -1279,7 +1279,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "O14",
+          "hex": "DQ98",
           "id": "pub_table2_c3",
           "kind": "chair",
           "ox": 0.18,
@@ -1290,7 +1290,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "N14",
+          "hex": "DP98",
           "id": "pub_table2_c4",
           "kind": "chair",
           "ox": 0.21,
@@ -1301,7 +1301,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "T19",
+          "hex": "DV103",
           "id": "pub_table3_c1",
           "kind": "chair",
           "ox": -0.22,
@@ -1312,7 +1312,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "S19",
+          "hex": "DU103",
           "id": "pub_table3_c2",
           "kind": "chair",
           "ox": -0.2,
@@ -1323,7 +1323,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "R20",
+          "hex": "DT104",
           "id": "pub_table3_c3",
           "kind": "chair",
           "ox": 0.26,
@@ -1334,7 +1334,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "S21",
+          "hex": "DU105",
           "id": "pub_table3_c4",
           "kind": "chair",
           "ox": 0.19,
@@ -1345,7 +1345,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "Q19",
+          "hex": "DS103",
           "id": "pub_table4_c1",
           "kind": "chair",
           "ox": -0.02,
@@ -1356,7 +1356,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "P17",
+          "hex": "DR101",
           "id": "pub_table4_c2",
           "kind": "chair",
           "ox": 0.41,
@@ -1367,7 +1367,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "R17",
+          "hex": "DT101",
           "id": "pub_table4_c3",
           "kind": "chair",
           "ox": -0.33,
@@ -1378,7 +1378,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "T15",
+          "hex": "DV99",
           "id": "pub_table5_c1",
           "kind": "chair",
           "ox": -0.3,
@@ -1389,7 +1389,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "S14",
+          "hex": "DU98",
           "id": "pub_table5_c2",
           "kind": "chair",
           "ox": -0.01,
@@ -1400,7 +1400,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "R15",
+          "hex": "DT99",
           "id": "pub_table5_c3",
           "kind": "chair",
           "ox": 0.32,
@@ -1411,7 +1411,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "V18",
+          "hex": "DX102",
           "id": "pub_table6_c1",
           "kind": "chair",
           "ox": -0.02,
@@ -1422,7 +1422,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "U17",
+          "hex": "DW101",
           "id": "pub_table6_c2",
           "kind": "chair",
           "ox": 0.37,
@@ -1433,7 +1433,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "W17",
+          "hex": "DY101",
           "id": "pub_table6_c3",
           "kind": "chair",
           "ox": -0.39,
@@ -1444,7 +1444,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "U18",
+          "hex": "DW102",
           "id": "pub_table6_c4",
           "kind": "chair",
           "ox": 0.37,
@@ -1455,7 +1455,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "V16",
+          "hex": "DX100",
           "id": "pub_table6_c5",
           "kind": "chair",
           "ox": 0,
@@ -1466,7 +1466,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "X18",
+          "hex": "DZ102",
           "id": "pub_hearth",
           "kind": "hearth",
           "ox": -0.9500000000000001,
@@ -1477,7 +1477,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "Y21",
+          "hex": "EA105",
           "id": "stairs_up_to_upper",
           "kind": "stairs",
           "ox": 1,
@@ -1489,7 +1489,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "AC21",
+          "hex": "EE105",
           "id": "stairs_down_to_basement",
           "kind": "stairs",
           "ox": -1,
@@ -1502,7 +1502,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "X18",
+          "hex": "DZ102",
           "id": "kitchen_hearth",
           "kind": "cooking.hearth",
           "ox": 1.35,
@@ -1513,7 +1513,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "AC18",
+          "hex": "EE102",
           "id": "kitchen_sort_table",
           "kind": "table.rect",
           "ox": 0,
@@ -1524,7 +1524,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "AF16.5",
+          "hex": "EH100.5",
           "id": "kitchen_misc_table",
           "kind": "table.hot",
           "ox": 0,
@@ -1535,7 +1535,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "AC15.5",
+          "hex": "EE99.5",
           "id": "kitchen_plate_table",
           "kind": "table.cold",
           "ox": 0,
@@ -1546,7 +1546,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "AA15",
+          "hex": "EC99",
           "id": "kitchen_chop_block",
           "kind": "table.sqr",
           "ox": 0.25,
@@ -1557,7 +1557,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "AI19",
+          "hex": "EK103",
           "id": "kitchen_crate1",
           "kind": "crate",
           "ox": 0.30000000000000004,
@@ -1568,7 +1568,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "AI18",
+          "hex": "EK102",
           "id": "kitchen_crate2",
           "kind": "crate",
           "ox": 0.30000000000000004,
@@ -1579,7 +1579,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "AH19",
+          "hex": "EJ103",
           "id": "kitchen_barrel1",
           "kind": "barrel",
           "rotDeg": 0,
@@ -1590,7 +1590,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "V17",
+          "hex": "DX101",
           "id": "object_mkmj4v2v_2gu",
           "kind": "table.round",
           "ox": 0,
@@ -1601,7 +1601,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "Q18",
+          "hex": "DS102",
           "id": "object_mkmj85nz_1k0",
           "kind": "table.round",
           "ox": 0,
@@ -1612,7 +1612,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "S15",
+          "hex": "DU99",
           "id": "object_mkmj8jdq_6qd",
           "kind": "table.round",
           "ox": 0,
@@ -1623,7 +1623,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "S20",
+          "hex": "DU104",
           "id": "object_mkmjk1rq_1nc",
           "kind": "table.rect",
           "ox": 0,
@@ -1634,7 +1634,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "O20",
+          "hex": "DQ104",
           "id": "object_mkmjk7di_7la",
           "kind": "table.rect",
           "ox": 0,
@@ -1645,7 +1645,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "O15",
+          "hex": "DQ99",
           "id": "object_mkmjkfnh_16n",
           "kind": "table.rect",
           "ox": 0,
@@ -1656,7 +1656,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "AI14",
+          "hex": "EK98",
           "id": "object_mkmjqyyl_2wc",
           "kind": "keg",
           "ox": 0.15000000000000002,
@@ -1667,7 +1667,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "AI15",
+          "hex": "EK99",
           "id": "object_mkmjqzt1_612",
           "kind": "keg",
           "ox": 0.15000000000000002,
@@ -1678,7 +1678,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "AH18",
+          "hex": "EJ102",
           "id": "object_mkmjrmj0_34b",
           "kind": "barrel",
           "ox": 0,
@@ -1689,7 +1689,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "AI17",
+          "hex": "EK101",
           "id": "object_mkmjrpoe_2xl",
           "kind": "barrel",
           "ox": 0,
@@ -1700,7 +1700,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "Z15.5",
+          "hex": "EB99.5",
           "id": "object_mkmmh4z4_6h4",
           "kind": "table.prep",
           "ox": 0,
@@ -1711,7 +1711,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "AI21",
+          "hex": "EK105",
           "id": "object_mkmni5v4_2vt",
           "kind": "barrel",
           "ox": 0.46,
@@ -1722,7 +1722,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "AH20",
+          "hex": "EJ104",
           "id": "object_mkmnivcj_2of",
           "kind": "barrel",
           "ox": 0.69,
@@ -1733,7 +1733,7 @@
         },
         {
           "floorId": "ground",
-          "hex": "AH21",
+          "hex": "EJ105",
           "id": "object_mkmnj037_22l",
           "kind": "barrel",
           "ox": -0.56,
@@ -1745,7 +1745,7 @@
         {
           "id": "object_ml3piyun",
           "kind": "table.rect",
-          "hex": "AI14.5",
+          "hex": "EK98.5",
           "floorId": "ground",
           "rotDeg": 90,
           "spriteScale": 3.8,
@@ -1756,70 +1756,70 @@
       ],
       "openings": [
         {
-          "hex": "M20",
+          "hex": "DO104",
           "id": "pub_window1",
           "kind": "window",
           "openPct": 0,
           "orientation": "v"
         },
         {
-          "hex": "M19",
+          "hex": "DO103",
           "id": "pub_window2",
           "kind": "window",
           "openPct": 0,
           "orientation": "v"
         },
         {
-          "hex": "M15",
+          "hex": "DO99",
           "id": "pub_window3",
           "kind": "window",
           "openPct": 0,
           "orientation": "v"
         },
         {
-          "hex": "M14",
+          "hex": "DO98",
           "id": "pub_window4",
           "kind": "window",
           "openPct": 0,
           "orientation": "v"
         },
         {
-          "hex": "N12.5",
+          "hex": "DP96.5",
           "id": "pub_window5",
           "kind": "window",
           "openPct": 0,
           "orientation": "h"
         },
         {
-          "hex": "P12.5",
+          "hex": "DR96.5",
           "id": "pub_window7",
           "kind": "window",
           "openPct": 0,
           "orientation": "h"
         },
         {
-          "hex": "Z12.5",
+          "hex": "EB96.5",
           "id": "pub_window8",
           "kind": "window",
           "openPct": 0,
           "orientation": "h"
         },
         {
-          "hex": "AB12.5",
+          "hex": "ED96.5",
           "id": "pub_window9",
           "kind": "window",
           "openPct": 0,
           "orientation": "h"
         },
         {
-          "hex": "X14",
+          "hex": "DZ98",
           "id": "kitchen_door",
           "kind": "door",
           "openPct": 0,
           "orientation": "v"
         },
         {
-          "hex": "X20.25",
+          "hex": "DZ104.25",
           "id": "door_to_upstairs",
           "kind": "door",
           "openPct": 0,
@@ -1827,14 +1827,14 @@
           "swing": 1
         },
         {
-          "hex": "M17",
+          "hex": "DO101",
           "id": "door_out1",
           "kind": "door",
           "openPct": 0,
           "orientation": "v"
         },
         {
-          "hex": "U13",
+          "hex": "DW97",
           "id": "door_out2",
           "kind": "door",
           "openPct": 0,
@@ -1842,7 +1842,7 @@
           "seam_kind": "cobble"
         },
         {
-          "hex": "AE20",
+          "hex": "EG104",
           "id": "door_pantry",
           "kind": "door.wood",
           "openPct": 0,
@@ -1850,7 +1850,7 @@
           "swing": 1
         },
         {
-          "hex": "AE13",
+          "hex": "EG97",
           "id": "door_mklhxj0l_6ks",
           "kind": "door.wood",
           "openPct": 0,
@@ -1859,7 +1859,7 @@
         {
           "id": "opening_ml4oxy87",
           "kind": "door.wood",
-          "hex": "AF21",
+          "hex": "EH105",
           "orientation": "h",
           "openPct": 0
         }
@@ -1868,10 +1868,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "M21.5",
-            "X21",
-            "X12.5",
-            "M13"
+            "DO105.5",
+            "DZ105",
+            "DZ96.5",
+            "DO97"
           ],
           "floor": {
             "kind": "wood_oak"
@@ -1885,10 +1885,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "X19.5",
-            "AJ19.5",
-            "AJ12.5",
-            "X12.5"
+            "DZ103.5",
+            "EL103.5",
+            "EL96.5",
+            "DZ96.5"
           ],
           "floor": {
             "kind": "wood_oak",
@@ -1903,10 +1903,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "X21",
-            "AA21.5",
-            "AA20",
-            "X19.5"
+            "DZ105",
+            "EC105.5",
+            "EC104",
+            "DZ103.5"
           ],
           "floor": {
             "kind": "wood_oak",
@@ -1921,10 +1921,10 @@
         {
           "buildingId": "CrossKeysInn",
           "corners": [
-            "AA21.5",
-            "AJ21",
-            "AJ19.5",
-            "AA20"
+            "EC105.5",
+            "EL105",
+            "EL103.5",
+            "EC104"
           ],
           "floor": {
             "kind": "wood_oak",
@@ -1940,8 +1940,8 @@
           "id": "room_ml3qglmw",
           "corners": [
             "20",
-            "C20",
-            "C13",
+            "DE104",
+            "DE97",
             "13"
           ],
           "thickness": 12,
@@ -1955,10 +1955,10 @@
         {
           "id": "room_ml5d73sm",
           "corners": [
-            "M13",
-            "AL12.5",
-            "AL6.5",
-            "M7"
+            "DO97",
+            "EN96.5",
+            "EN90.5",
+            "DO91"
           ],
           "thickness": 15,
           "floor": {
@@ -1973,10 +1973,10 @@
         {
           "id": "room_ml5d88bi",
           "corners": [
-            "G23",
-            "M23",
-            "M5.5",
-            "G5.5"
+            "DI107",
+            "DO107",
+            "DO89.5",
+            "DI89.5"
           ],
           "thickness": 12,
           "floor": {
@@ -1995,7 +1995,7 @@
       "objects": [
         {
           "floorId": "basement",
-          "hex": "Y20.75",
+          "hex": "EA104.75",
           "id": "object_mkwjn39k_12l",
           "kind": "stairs",
           "ox": 1,
@@ -2009,7 +2009,7 @@
       ],
       "openings": [
         {
-          "hex": "X20.25",
+          "hex": "DZ104.25",
           "id": "door_mkwjmyr4_3zg",
           "kind": "door.wood",
           "openPct": 0,
@@ -2019,10 +2019,10 @@
       "rooms": [
         {
           "corners": [
-            "X21",
-            "AD21",
-            "AD14",
-            "X14"
+            "DZ105",
+            "EF105",
+            "EF98",
+            "DZ98"
           ],
           "floor": {
             "kind": "stone"
@@ -2036,10 +2036,10 @@
         },
         {
           "corners": [
-            "P21",
-            "X21",
-            "X14",
-            "P14"
+            "DR105",
+            "DZ105",
+            "DZ98",
+            "DR98"
           ],
           "floor": {
             "kind": "stone"
@@ -2053,10 +2053,10 @@
         },
         {
           "corners": [
-            "X21",
-            "AD21",
-            "AD19.5",
-            "X19.5"
+            "DZ105",
+            "EF105",
+            "EF103.5",
+            "DZ103.5"
           ],
           "floor": {
             "kind": "stone"
@@ -2121,7 +2121,7 @@
     "round": 1
   },
   "view": {
-    "camera_hex": "U16",
+    "camera_hex": "DW100",
     "floorId": "ground"
   }
 }

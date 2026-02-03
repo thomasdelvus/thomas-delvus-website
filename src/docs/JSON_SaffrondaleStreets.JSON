@@ -5,7 +5,7 @@
     "round": 1
   },
   "view": {
-    "camera_hex": "U16",
+    "camera_hex": "DW100",
     "floorId": "ground"
   },
   "fog": {
@@ -38,10 +38,10 @@
         {
           "id": "room_mkle3qxf_5rr",
           "corners": [
-            "AP25",
-            "AV25",
-            "AV20",
-            "AP20"
+            "ER109",
+            "EX109",
+            "EX104",
+            "ER104"
           ],
           "thickness": 15,
           "floor": {
@@ -54,10 +54,10 @@
         {
           "id": "room_mkle45ne_g",
           "corners": [
-            "AP30",
-            "AV30",
-            "AV25",
-            "AP25"
+            "ER114",
+            "EX114",
+            "EX109",
+            "ER109"
           ],
           "thickness": 15,
           "floor": {
@@ -70,10 +70,10 @@
         {
           "id": "room_mklecjhm_2h3",
           "corners": [
-            "BN26",
-            "BR26",
-            "BR22",
-            "BN22"
+            "FP110",
+            "FT110",
+            "FT106",
+            "FP106"
           ],
           "thickness": 15,
           "floor": {
@@ -83,19 +83,19 @@
             "kind": "brick"
           },
           "points": [
-            "BN26",
-            "BR26",
-            "BR22.5",
-            "BN22.5"
+            "FP110",
+            "FT110",
+            "FT106.5",
+            "FP106.5"
           ]
         },
         {
           "id": "room_mkli3rr4_jt",
           "corners": [
-            "AJ21",
-            "AP21",
-            "AP12.5",
-            "AJ12.5"
+            "EL105",
+            "ER105",
+            "ER96.5",
+            "EL96.5"
           ],
           "thickness": 15,
           "floor": {
@@ -108,10 +108,10 @@
         {
           "id": "room_mkli46vt_7fu",
           "corners": [
-            "AP20",
-            "AV20",
-            "AV12.5",
-            "AP12.5"
+            "ER104",
+            "EX104",
+            "EX96.5",
+            "ER96.5"
           ],
           "thickness": 15,
           "floor": {
@@ -124,10 +124,10 @@
         {
           "id": "room_mkli4dl5_1zn",
           "corners": [
-            "AV20",
-            "AZ20",
-            "AZ12.5",
-            "AV12.5"
+            "EX104",
+            "FB104",
+            "FB96.5",
+            "EX96.5"
           ],
           "thickness": 15,
           "floor": {
@@ -140,10 +140,10 @@
         {
           "id": "room_mkli550f_2na",
           "corners": [
-            "BB22",
-            "BN22",
-            "BN12.5",
-            "BB12.5"
+            "FD106",
+            "FP106",
+            "FP96.5",
+            "FD96.5"
           ],
           "thickness": 15,
           "floor": {
@@ -153,19 +153,19 @@
             "kind": "brick"
           },
           "points": [
-            "BB22.5",
-            "BN22.5",
-            "BN12.5",
-            "BB12.5"
+            "FD106.5",
+            "FP106.5",
+            "FP96.5",
+            "FD96.5"
           ]
         },
         {
           "id": "room_mkmu2yeb_433",
           "corners": [
-            "M12.75",
-            "AP12.75",
-            "AP8",
-            "M8"
+            "DO96.75",
+            "ER96.75",
+            "ER92",
+            "DO92"
           ],
           "thickness": 15,
           "floor": {
@@ -175,10 +175,10 @@
             "kind": "brick"
           },
           "points": [
-            "M13",
-            "CB12.5",
-            "CB7.5",
-            "M8"
+            "DO97",
+            "GD96.5",
+            "GD91.5",
+            "DO92"
           ],
           "fog_mode": "visible",
           "wall_erase": "EW",
@@ -187,10 +187,10 @@
         {
           "id": "room_mkmuw9iz_53a",
           "corners": [
-            "AZ20",
-            "BB20",
-            "BB12.5",
-            "AZ12.5"
+            "FB104",
+            "FD104",
+            "FD96.5",
+            "FB96.5"
           ],
           "thickness": 15,
           "floor": {
@@ -204,10 +204,10 @@
         {
           "id": "room_mkli3g41_z",
           "corners": [
-            "M26.5",
-            "W26.5",
-            "W21.5",
-            "M21.5"
+            "DO110.5",
+            "DY110.5",
+            "DY105.5",
+            "DO105.5"
           ],
           "thickness": 15,
           "floor": {
@@ -220,10 +220,10 @@
         {
           "id": "room_mkli30iq_2yw",
           "corners": [
-            "M21.25",
-            "AJ21.25",
-            "AJ12.75",
-            "M12.75"
+            "DO105.25",
+            "EL105.25",
+            "EL96.75",
+            "DO96.75"
           ],
           "thickness": 15,
           "floor": {
@@ -236,10 +236,10 @@
         {
           "id": "room_ml37qbe9",
           "corners": [
-            "BF31",
-            "BN31",
-            "BN26",
-            "BF26"
+            "FH115",
+            "FP115",
+            "FP110",
+            "FH110"
           ],
           "thickness": 12,
           "floor": {
@@ -249,19 +249,19 @@
             "kind": "brick"
           },
           "points": [
-            "BC31.5",
-            "BN31",
-            "BN26",
-            "BC26.5"
+            "FE115.5",
+            "FP115",
+            "FP110",
+            "FE110.5"
           ]
         },
         {
           "id": "room_ml38djoh",
           "corners": [
-            "BV22",
-            "CB22",
-            "CB12.5",
-            "BV12.5"
+            "FX106",
+            "GD106",
+            "GD96.5",
+            "FX96.5"
           ],
           "thickness": 15,
           "floor": {
@@ -274,10 +274,10 @@
         {
           "id": "room_ml38fkoh",
           "corners": [
-            "F17.5",
-            "M17.5",
-            "M13",
-            "F13"
+            "DH101.5",
+            "DO101.5",
+            "DO97",
+            "DH97"
           ],
           "thickness": 15,
           "floor": {
@@ -287,10 +287,10 @@
             "kind": "brick"
           },
           "points": [
-            "F33.5",
-            "M34",
-            "M2.5",
-            "F2"
+            "DH117.5",
+            "DO118",
+            "DO86.5",
+            "DH86"
           ],
           "fog_mode": "visible",
           "wall_erase": "NS",
@@ -299,10 +299,10 @@
         {
           "id": "room_ml38njjk",
           "corners": [
-            "BR26",
-            "BV26",
-            "BV12.5",
-            "BR12.5"
+            "FT110",
+            "FX110",
+            "FX96.5",
+            "FT96.5"
           ],
           "thickness": 12,
           "floor": {
@@ -317,10 +317,10 @@
         {
           "id": "room_ml4m235k",
           "corners": [
-            "BN22",
-            "BR22",
-            "BR12.5",
-            "BN12.5"
+            "FP106",
+            "FT106",
+            "FT96.5",
+            "FP96.5"
           ],
           "thickness": 12,
           "floor": {
@@ -335,105 +335,105 @@
         {
           "id": "door_mkli3uew_254",
           "kind": "door.wood",
-          "hex": "AM13",
+          "hex": "EO97",
           "orientation": "h",
           "openPct": 0
         },
         {
           "id": "door_mkli4h1y_1zp",
           "kind": "door.wood",
-          "hex": "AS13",
+          "hex": "EU97",
           "orientation": "h",
           "openPct": 0
         },
         {
           "id": "door_mkli4hxt_1gj",
           "kind": "door.wood",
-          "hex": "AX12.5",
+          "hex": "EZ96.5",
           "orientation": "h",
           "openPct": 0
         },
         {
           "id": "door_mkmuwwle_14p",
           "kind": "door.wood",
-          "hex": "BA13",
+          "hex": "FC97",
           "orientation": "h",
           "openPct": 0
         },
         {
           "id": "door_mkmuy3fz_5jn",
           "kind": "door.wood",
-          "hex": "U13",
+          "hex": "DW97",
           "orientation": "h",
           "openPct": 0
         },
         {
           "id": "door_mkmuy4y7_4d3",
           "kind": "door.wood",
-          "hex": "AE13.25",
+          "hex": "EG97.25",
           "orientation": "h",
           "openPct": 0
         },
         {
           "id": "window_mkmuzbm3_3s9",
           "kind": "window",
-          "hex": "N12.5",
+          "hex": "DP96.5",
           "orientation": "h",
           "openPct": 0
         },
         {
           "id": "window_mkmuzcah_6fd",
           "kind": "window",
-          "hex": "P12.5",
+          "hex": "DR96.5",
           "orientation": "h",
           "openPct": 0
         },
         {
           "id": "window_mkmuzz1q_3h7",
           "kind": "window",
-          "hex": "M14.25",
+          "hex": "DO98.25",
           "orientation": "v",
           "openPct": 0
         },
         {
           "id": "window_mkmuzzmx_6qu",
           "kind": "window",
-          "hex": "M15",
+          "hex": "DO99",
           "orientation": "v",
           "openPct": 0
         },
         {
           "id": "window_mkmv00jm_3p1",
           "kind": "window",
-          "hex": "M19",
+          "hex": "DO103",
           "orientation": "v",
           "openPct": 0
         },
         {
           "id": "window_mkmv012r_1um",
           "kind": "window",
-          "hex": "M20",
+          "hex": "DO104",
           "orientation": "v",
           "openPct": 0
         },
         {
           "id": "window_mkmv01uh_63z",
           "kind": "window",
-          "hex": "N12.5",
+          "hex": "DP96.5",
           "orientation": "h",
           "openPct": 0
         },
         {
           "id": "window_mkmv02ia_1pe",
           "kind": "window",
-          "hex": "P12.5",
+          "hex": "DR96.5",
           "orientation": "h",
           "openPct": 0
         },
         {
           "id": "door_ml0toqa9_644",
           "kind": "door.wood",
-          "hex": "M17",
+          "hex": "DO101",
           "orientation": "v",
           "openPct": 0
         }
@@ -442,7 +442,7 @@
         {
           "id": "poi_cross_keys_view",
           "kind": "the.cross.keys",
-          "hex": "L17",
+          "hex": "DN101",
           "poi_id": "CrossedKeysInn",
           "view_url": "/images/the_cross_keys.jpg",
           "ox": 0.65,
