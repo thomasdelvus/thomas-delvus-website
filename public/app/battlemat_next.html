@@ -113,11 +113,23 @@
     }
 
     #toolbar .mapInput {
-      width: 110px;
-      min-width: 110px;
-      height: 30px;
-      padding: 4px 14px 4px 8px;
-      font-size: 14px;
+      width: 60px;
+      min-width: 60px;
+      height: 22px;
+      padding: 2px 12px 2px 6px;
+      font-size: 12px;
+    }
+
+    .toolbar-col {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-start;
+    }
+
+    .mapLabel {
+      font-size: 11px;
+      color: var(--muted);
     }
 
     .toolGroup {
@@ -509,7 +521,10 @@
             <option value="tokens">tokens</option>
           </select>
           <label class="mini"><input type="checkbox" id="handlesToggle" /> Handles</label>
-          <select id="floorSelect"></select>
+          <div class="toolbar-col">
+            <select id="floorSelect"></select>
+            <div class="mapLabel">Map: <span id="mapLabel">—</span></div>
+          </div>
           <button id="btnUndo">Undo</button>
           <label class="mini"><input type="checkbox" id="fogToggle" checked /> Fog</label>
           <button id="btnSave">Save</button>
@@ -656,6 +671,7 @@
       const openingOrientV = document.getElementById('openingOrientV');
       const objectKindSelect = document.getElementById('objectKind');
       const tokenKindSelect = document.getElementById('tokenKind');
+      const mapLabel = document.getElementById('mapLabel');
       const mapOffsetXInput = document.getElementById('mapOffsetX');
       const mapOffsetYInput = document.getElementById('mapOffsetY');
       const mapScaleInput = document.getElementById('mapScale');
@@ -1621,6 +1637,8 @@
           STATE.recordId = extracted.recordId;
           STATE.battle = normalizeState(extracted.scene);
           applyViewFromState(STATE.battle);
+          STATE.battle._battle_id = battleId;
+          if (mapLabel) mapLabel.textContent = STATE.battle._battle_id || battleId;
           return;
         }
 
@@ -1637,6 +1655,7 @@
         applyViewFromState(STATE.battle);
         STATE.battle._battle_id = data.battle_id || battleId;
         STATE.battle._campaign_id = data.campaign_id || data.campaignId || null;
+        if (mapLabel) mapLabel.textContent = STATE.battle._battle_id || battleId;
       }
 
       function getCampaignId() {
