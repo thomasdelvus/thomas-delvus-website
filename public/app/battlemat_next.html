@@ -1238,6 +1238,7 @@
         if (polyLabels) {
           const pts = labelsToWorldPoints(polyLabels);
           if (!pts.length) return;
+          const center = polyCenterWorld(pts);
           gctx.save();
           gctx.strokeStyle = 'rgba(255,145,0,0.95)';
           gctx.lineWidth = 1.6;
@@ -1245,6 +1246,10 @@
           for (const p of pts) {
             const sp = worldToScreen(p);
             drawHandle(gctx, sp, size);
+          }
+          if (center) {
+            const sc = worldToScreen(center);
+            drawHandle(gctx, sc, Math.max(6, size));
           }
           gctx.restore();
           return;
@@ -1300,6 +1305,15 @@
           const dy = sp.y - screenPoint.y;
           if (dx * dx + dy * dy <= hitR2) {
             return { type: 'poly-point', index: i };
+          }
+        }
+        const center = polyCenterWorld(pts);
+        if (center) {
+          const sc = worldToScreen(center);
+          const dx = sc.x - screenPoint.x;
+          const dy = sc.y - screenPoint.y;
+          if (dx * dx + dy * dy <= hitR2) {
+            return { type: 'poly-move' };
           }
         }
         return null;
@@ -1381,6 +1395,14 @@
         else if (Array.isArray(room.poly)) room.poly = points.slice();
         else if (Array.isArray(room.vertices)) room.vertices = points.slice();
         else room.points = points.slice();
+      }
+
+      function setPolyPoints(room, labels) {
+        if (!room || !Array.isArray(labels) || labels.length < 3) return;
+        if (Array.isArray(room.points)) room.points = labels.slice();
+        else if (Array.isArray(room.poly)) room.poly = labels.slice();
+        else if (Array.isArray(room.vertices)) room.vertices = labels.slice();
+        else room.points = labels.slice();
       }
 
       function setRoomRectCorners(room, corners) {
@@ -1845,6 +1867,17 @@
 
       function labelsToScreenPoints(labels) {
         return labelsToWorldPoints(labels).map(worldToScreen);
+      }
+
+      function polyCenterWorld(pointsWorld) {
+        if (!Array.isArray(pointsWorld) || !pointsWorld.length) return null;
+        let sx = 0;
+        let sy = 0;
+        for (const p of pointsWorld) {
+          sx += p.x;
+          sy += p.y;
+        }
+        return { x: sx / pointsWorld.length, y: sy / pointsWorld.length };
       }
 
       function getRectPointStats(points) {
@@ -3587,6 +3620,15 @@
           const snap = worldToHexHalf(worldPoint);
           const label = toHexLabel(snap.col, snap.row);
           setPolyPoint(drag.item, drag.index, label);
+        } else if (drag.type === 'poly-move') {
+          const startHex = drag.startHex || worldToHexHalf(drag.startWorld || worldPoint);
+          const curHex = worldToHexHalf(worldPoint);
+          const dCol = curHex.col - startHex.col;
+          const dRow = curHex.row - startHex.row;
+          const base = Array.isArray(drag.pointsBase) ? drag.pointsBase : null;
+          if (!base || !base.length) return;
+          const labels = base.map(p => toHexLabel(p.col + dCol, p.row + dRow));
+          setPolyPoints(drag.item, labels);
         } else if (drag.type === 'room-edge' || drag.type === 'room-move') {
           const handles = roomEdgeHandleWorlds(drag.item);
           if (!handles) return;
@@ -3679,6 +3721,12 @@
               : getRoomHandleHit(EDITOR.selection.item, screenPoint);
           }
           if (hit) {
+            const rectHandles = roomEdgeHandleWorlds(EDITOR.selection.item);
+            const rect = rectHandles ? rectHandles.rect : null;
+            const polyLabels = hit.type === 'poly-move' ? getPolyPointLabels(EDITOR.selection.item) : null;
+            const pointsBase = polyLabels
+              ? polyLabels.map(parseHexLabel).filter(p => p && Number.isFinite(p.col) && Number.isFinite(p.row))
+              : null;
             EDITOR.drag = {
               type: hit.type,
               side: hit.side,
@@ -3686,7 +3734,9 @@
               item: EDITOR.selection.item,
               floorId: EDITOR.selection.floorId,
               startWorld: world,
-              rect: roomEdgeHandleWorlds(EDITOR.selection.item).rect,
+              startHex: worldToHexHalf(world),
+              rect,
+              pointsBase,
               didMove: false,
               pushed: false
             };
@@ -3702,6 +3752,12 @@
               ? getPolyHandleHit(sel.item, screenPoint)
               : getRoomHandleHit(sel.item, screenPoint);
               if (hit) {
+                const rectHandles = roomEdgeHandleWorlds(sel.item);
+                const rect = rectHandles ? rectHandles.rect : null;
+                const polyLabels = hit.type === 'poly-move' ? getPolyPointLabels(sel.item) : null;
+                const pointsBase = polyLabels
+                  ? polyLabels.map(parseHexLabel).filter(p => p && Number.isFinite(p.col) && Number.isFinite(p.row))
+                  : null;
                 EDITOR.drag = {
                   type: hit.type,
                   side: hit.side,
@@ -3709,7 +3765,9 @@
                   item: sel.item,
                   floorId: sel.floorId,
                 startWorld: world,
-                rect: roomEdgeHandleWorlds(sel.item).rect,
+                startHex: worldToHexHalf(world),
+                rect,
+                pointsBase,
                 didMove: false,
                 pushed: false
               };
