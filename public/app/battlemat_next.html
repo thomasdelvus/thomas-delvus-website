@@ -2114,56 +2114,91 @@
       function buildWallSegments(rooms) {
         const segs = [];
         for (const room of filterAlive(rooms)) {
+          if (isPolyRoom(room)) {
+            const pts = roomWorldPoints(room);
+            if (pts.length < 2) continue;
+            const t = Number.isFinite(Number(room.thickness)) ? Number(room.thickness) : 0;
+            for (let i = 0; i < pts.length; i++) {
+              const a = pts[i];
+              const b = pts[(i + 1) % pts.length];
+              segs.push({ orientation: 'a', a, b, thickness: t });
+            }
+            continue;
+          }
           const box = roomToWallBox(room);
           if (!box) continue;
           const t = Number.isFinite(box.thickness) ? box.thickness : 0;
-          segs.push({ orientation: 'h', y: box.yTop, x1: box.xL, x2: box.xR, thickness: t });
-          segs.push({ orientation: 'h', y: box.yBot, x1: box.xL, x2: box.xR, thickness: t });
-          segs.push({ orientation: 'v', x: box.xL, y1: box.yTop, y2: box.yBot, thickness: t });
-          segs.push({ orientation: 'v', x: box.xR, y1: box.yTop, y2: box.yBot, thickness: t });
+          const yTop = box.yTop;
+          const yBot = box.yBot;
+          const xL = box.xL;
+          const xR = box.xR;
+          segs.push({ orientation: 'h', a: { x: xL, y: yTop }, b: { x: xR, y: yTop }, thickness: t });
+          segs.push({ orientation: 'h', a: { x: xL, y: yBot }, b: { x: xR, y: yBot }, thickness: t });
+          segs.push({ orientation: 'v', a: { x: xL, y: yTop }, b: { x: xL, y: yBot }, thickness: t });
+          segs.push({ orientation: 'v', a: { x: xR, y: yTop }, b: { x: xR, y: yBot }, thickness: t });
         }
         return segs;
       }
 
+      function segmentClosestPoint(p, a, b) {
+        const abx = b.x - a.x;
+        const aby = b.y - a.y;
+        const apx = p.x - a.x;
+        const apy = p.y - a.y;
+        const abLen2 = abx * abx + aby * aby;
+        if (abLen2 <= 0.000001) return { x: a.x, y: a.y, t: 0 };
+        let t = (apx * abx + apy * aby) / abLen2;
+        t = Math.max(0, Math.min(1, t));
+        return { x: a.x + abx * t, y: a.y + aby * t, t };
+      }
+
       function wallSegDistance2(seg, p) {
         if (!seg || !p) return Infinity;
-        if (seg.orientation === 'h') {
-          const dy = Math.abs(p.y - seg.y);
-          let dx = 0;
-          if (p.x < seg.x1) dx = seg.x1 - p.x;
-          else if (p.x > seg.x2) dx = p.x - seg.x2;
-          return dx * dx + dy * dy;
-        }
-        const dx = Math.abs(p.x - seg.x);
-        let dy = 0;
-        if (p.y < seg.y1) dy = seg.y1 - p.y;
-        else if (p.y > seg.y2) dy = p.y - seg.y2;
+        const a = seg.a;
+        const b = seg.b;
+        if (!a || !b) return Infinity;
+        const closest = segmentClosestPoint(p, a, b);
+        const dx = p.x - closest.x;
+        const dy = p.y - closest.y;
         return dx * dx + dy * dy;
       }
 
       function projectToWall(seg, p) {
         if (!seg || !p) return null;
-        if (seg.orientation === 'h') {
-          const x = Math.min(seg.x2, Math.max(seg.x1, p.x));
-          return { x, y: seg.y };
+        const a = seg.a;
+        const b = seg.b;
+        if (!a || !b) return null;
+        const closest = segmentClosestPoint(p, a, b);
+        return { x: closest.x, y: closest.y };
+      }
+
+      function findNearestWallSegment(worldPoint, floor, orientation) {
+        const segs = buildWallSegments(floor ? floor.rooms : []);
+        if (!segs.length) return null;
+        const want = orientation === 'v' || orientation === 'h' ? orientation : null;
+        let bestAll = null;
+        let bestAllD2 = Infinity;
+        let bestMatch = null;
+        let bestMatchD2 = Infinity;
+        for (const seg of segs) {
+          const d2 = wallSegDistance2(seg, worldPoint);
+          if (d2 < bestAllD2) {
+            bestAllD2 = d2;
+            bestAll = seg;
+          }
+          if (want && seg.orientation === want && d2 < bestMatchD2) {
+            bestMatchD2 = d2;
+            bestMatch = seg;
+          }
         }
-        const y = Math.min(seg.y2, Math.max(seg.y1, p.y));
-        return { x: seg.x, y };
+        if (bestMatch && bestAll) {
+          if (bestMatchD2 <= bestAllD2 * 1.5 || bestAll.orientation === want) return bestMatch;
+        }
+        return bestAll || bestMatch;
       }
 
       function snapWorldToWall(worldPoint, floor, orientation) {
-        const want = orientation === 'v' ? 'v' : 'h';
-        const segs = buildWallSegments(floor ? floor.rooms : []);
-        let best = null;
-        let bestD2 = Infinity;
-        for (const seg of segs) {
-          if (!seg || seg.orientation !== want) continue;
-          const d2 = wallSegDistance2(seg, worldPoint);
-          if (d2 < bestD2) {
-            bestD2 = d2;
-            best = seg;
-          }
-        }
+        const best = findNearestWallSegment(worldPoint, floor, orientation);
         if (!best) return worldPoint;
         return projectToWall(best, worldPoint) || worldPoint;
       }
@@ -2299,9 +2334,8 @@
             const state = itemFogState(opening, floor, rooms, roomSets, openingWorldCenter);
             if (state === 'hidden') continue;
           }
-          const world = openingWorldCenter(opening, floor);
-          if (!world) continue;
-          const orient = opening.orientation === 'v' ? 'v' : 'h';
+          const info = openingPlacement(opening, floor);
+          if (!info || !info.world) continue;
           const kindRaw = String(opening.kind || '').toLowerCase();
           const kind =
             kindRaw.startsWith('window') ? 'window' :
@@ -2316,14 +2350,12 @@
             : style.thick;
           const len = GRID.size * lenUnits * VIEW.zoom;
           const thick = GRID.size * thickUnits * VIEW.zoom;
-          const wallThickWorld = wallThicknessAtWorld(world, floor);
+          const wallThickWorld = wallThicknessAtWorld(info.world, floor);
           const baseWallWorld = wallThickWorld > 0 ? wallThickWorld : (GRID.size * thickUnits);
-          const center = worldToScreen(world);
+          const center = worldToScreen(info.world);
           const cutLen = len * 1.1;
           const cutThick = baseWallWorld * VIEW.zoom * 1.1;
-          const w = orient === 'v' ? cutThick : cutLen;
-          const h = orient === 'v' ? cutLen : cutThick;
-          out.push({ center, w, h });
+          out.push({ center, w: cutLen, h: cutThick, angle: info.angle || 0 });
         }
         return out;
       }
@@ -2414,7 +2446,16 @@
           gctx.save();
           gctx.globalCompositeOperation = 'destination-out';
           for (const cut of cutouts) {
-            gctx.fillRect(cut.center.x - cut.w / 2, cut.center.y - cut.h / 2, cut.w, cut.h);
+            const angle = Number(cut.angle) || 0;
+            if (Math.abs(angle) > 0.0001) {
+              gctx.save();
+              gctx.translate(cut.center.x, cut.center.y);
+              gctx.rotate(angle);
+              gctx.fillRect(-cut.w / 2, -cut.h / 2, cut.w, cut.h);
+              gctx.restore();
+            } else {
+              gctx.fillRect(cut.center.x - cut.w / 2, cut.center.y - cut.h / 2, cut.w, cut.h);
+            }
           }
           gctx.restore();
         }
@@ -2436,23 +2477,40 @@
 
 
       function openingWorldCenter(opening, floor) {
+        const info = openingPlacement(opening, floor);
+        return info ? info.world : null;
+      }
+
+      function openingPlacement(opening, floor) {
         const p = parseHexLabel(opening.hex);
         if (!p) return null;
         const world = hexToWorld(p.col, p.row);
-        const orient = opening && opening.orientation === 'v' ? 'v' : 'h';
-        return snapWorldToWall(world, floor, orient);
+        const orientRaw = opening && opening.orientation === 'v' ? 'v' : (opening && opening.orientation === 'h' ? 'h' : '');
+        const seg = findNearestWallSegment(world, floor, orientRaw);
+        const snapped = seg ? projectToWall(seg, world) : world;
+        let angle = 0;
+        if (seg && seg.a && seg.b) {
+          angle = Math.atan2(seg.b.y - seg.a.y, seg.b.x - seg.a.x);
+        } else if (orientRaw === 'v') {
+          angle = Math.PI / 2;
+        }
+        const normal = { x: -Math.sin(angle), y: Math.cos(angle) };
+        return { world: snapped, angle, normal, seg };
       }
 
       function openingFogState(opening, floor, rooms, roomSets) {
         if (!UI.fogEnabled) return 'visible';
-        const world = openingWorldCenter(opening, floor);
-        if (!world) return 'visible';
-        const orient = opening && opening.orientation === 'v' ? 'v' : 'h';
+        const info = openingPlacement(opening, floor);
+        if (!info || !info.world) return 'visible';
         const offset = GRID.size * 0.35;
-        const dx = orient === 'v' ? offset : 0;
-        const dy = orient === 'v' ? 0 : offset;
-        const a = { x: world.x + dx, y: world.y + dy };
-        const b = { x: world.x - dx, y: world.y - dy };
+        const a = {
+          x: info.world.x + info.normal.x * offset,
+          y: info.world.y + info.normal.y * offset
+        };
+        const b = {
+          x: info.world.x - info.normal.x * offset,
+          y: info.world.y - info.normal.y * offset
+        };
         const roomA = findRoomForWorldPoint(rooms, a);
         const roomB = findRoomForWorldPoint(rooms, b);
         const stateForRoom = (room) => {
@@ -2471,10 +2529,17 @@
       }
 
       function drawOpening(opening, floor, gctx, fogState) {
-        const world = openingWorldCenter(opening, floor);
-        if (!world) return;
-        const center = worldToScreen(world);
-        const orient = opening.orientation === 'v' ? 'v' : 'h';
+        const info = openingPlacement(opening, floor);
+        if (!info || !info.world) return;
+        const center = worldToScreen(info.world);
+        const angle = Number(info.angle) || 0;
+        const orient = (info.seg && info.seg.orientation === 'a')
+          ? (Math.abs(Math.sin(angle)) > Math.abs(Math.cos(angle)) ? 'v' : 'h')
+          : (opening.orientation === 'v'
+            ? 'v'
+            : (opening.orientation === 'h'
+              ? 'h'
+              : (Math.abs(Math.sin(angle)) > Math.abs(Math.cos(angle)) ? 'v' : 'h')));
         const kindRaw = String(opening.kind || '').toLowerCase();
         const kind =
           kindRaw.startsWith('window') ? 'window' :
@@ -2499,7 +2564,7 @@
         if (swingDir === 0) swingDir = -1;
         const openPct = Math.max(0, Math.min(1, Number(opening.openPct ?? opening.open ?? 0)));
         const swingAngle = openPct * (Math.PI / 2) * (swingDir === 0 ? 1 : swingDir);
-        const baseRot = orient === 'v' ? Math.PI / 2 : 0;
+        const baseRot = angle;
         const pivotX = hinge === 'right' ? len / 2 : -len / 2;
         if (spriteUrl) {
           const img = loadSprite(spriteUrl);
