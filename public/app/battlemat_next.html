@@ -253,6 +253,86 @@
 
     .statusItem .meta { color: var(--muted); font-size: 12px; }
 
+    #statusMeta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .statusPill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--text);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .statusWrap {
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(15,20,28,0.6);
+      overflow: hidden;
+    }
+
+    #statusTable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    #statusTable thead th {
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      background: rgba(255,255,255,0.03);
+      padding: 6px 8px;
+    }
+
+    #statusTable thead th:first-child { padding-left: 12px; }
+    #statusTable tbody td {
+      padding: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    #statusTable tbody tr:last-child td { border-bottom: none; }
+
+    .statusNameCell { display: flex; align-items: center; gap: 6px; }
+    .statusTurnMarker {
+      width: 0; height: 0;
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+      border-left: 8px solid rgba(79,208,127,0.95);
+    }
+    .statusTurnMarker.inactive { border-left-color: transparent; }
+    .statusName { font-weight: 600; }
+    .status-friendly { color: #7fd3ff; }
+    .status-neutral { color: var(--muted); }
+    .status-hostile { color: rgba(255,140,110,0.95); }
+    .statusRow.active { background: rgba(67,209,122,0.10); }
+    .statusNum { text-align: center; font-variant-numeric: tabular-nums; }
+    .statusCond { display: flex; align-items: center; gap: 6px; }
+    .statusIntent {
+      width: 14px; height: 14px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.06);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: #8fe8b2;
+    }
+    .statusIntent.on {
+      border-color: rgba(79,208,127,0.9);
+      background: rgba(79,208,127,0.2);
+    }
+
     #inspectorEmpty {
       color: var(--muted);
       font-size: 13px;
@@ -372,7 +452,20 @@
     <aside id="sidebar">
       <section>
         <h3>Status</h3>
-        <div id="statusList"></div>
+        <div id="statusMeta"></div>
+        <div class="statusWrap">
+          <table id="statusTable">
+            <thead>
+              <tr>
+                <th>Actor</th>
+                <th class="statusNum">Init</th>
+                <th class="statusNum">HP</th>
+                <th>Cond</th>
+              </tr>
+            </thead>
+            <tbody id="statusBody"></tbody>
+          </table>
+        </div>
       </section>
 
       <section>
@@ -425,7 +518,8 @@
       const saveButton = document.getElementById('btnSave');
       const undoButton = document.getElementById('btnUndo');
       const saveStatus = document.getElementById('saveStatus');
-      const statusList = document.getElementById('statusList');
+      const statusMeta = document.getElementById('statusMeta');
+      const statusBody = document.getElementById('statusBody');
       const inspectorEmpty = document.getElementById('inspectorEmpty');
       const inspectorFields = document.getElementById('inspectorFields');
       const floorKindList = document.getElementById('floorKindList');
@@ -1273,27 +1367,72 @@
             const floorId = e.floorId || loc.floorId || loc.floor_id || e.floor_id || '';
             return {
               id: String(e.id || e.character_id || ''),
+              characterId: e.character_id || e.characterId || '',
               name: e.name || e.label || e.title || e.id,
               hex,
               floorId,
               kind: e.kind || 'pc',
               sprite: e.sprite || (e.appearance && e.appearance.sprite) || '',
               hp: e.hp || (e.stats && e.stats.hp) || null,
+              hp_max: e.hp_max || (e.stats && e.stats.hp_max) || null,
               init: e.init || (e.stats && e.stats.init) || null,
               side: e.side || (e.kind === 'npc' ? 'NPC' : 'PC'),
+              hostility: e.hostility || (e.stats && e.stats.hostility) || '',
+              conditions: e.conditions || (e.stats && e.stats.conditions) || null,
               __entity: e
             };
           });
       }
       function renderStatus() {
-        statusList.innerHTML = '';
+        if (!statusBody || !statusMeta) return;
         const tokens = buildTokens();
-        for (const t of tokens) {
-          const div = document.createElement('div');
-          div.className = 'statusItem';
-          div.innerHTML = `<div><strong>${t.name || t.id}</strong><div class="meta">${t.floorId || ''}</div></div><div class="meta">${t.hp != null ? t.hp : '-'} / ${t.init != null ? t.init : '-'}</div>`;
-          statusList.appendChild(div);
-        }
+        const turn = (STATE.battle && (STATE.battle.turn || STATE.battle.meta && STATE.battle.meta.turn)) || {};
+        const round = turn.round ?? (STATE.battle && STATE.battle.meta && STATE.battle.meta.round);
+        const activeId = turn.activeTokenId || turn.active_token_id || turn.activeToken || turn.active_token || '';
+        const activeToken = tokens.find(t => String(t.id) === String(activeId) || String(t.characterId || '') === String(activeId));
+        const activeName = activeToken ? activeToken.name : (turn.activeName || turn.active_name || '');
+
+        statusMeta.innerHTML = [
+          `<div class="statusPill">Round <strong>${round != null ? round : '–'}</strong></div>`,
+          `<div class="statusPill">Active <strong>${activeName || '–'}</strong></div>`
+        ].join('');
+
+        const sorted = tokens.slice().sort((a, b) => {
+          const ai = Number.isFinite(Number(a.init)) ? Number(a.init) : -9999;
+          const bi = Number.isFinite(Number(b.init)) ? Number(b.init) : -9999;
+          if (ai !== bi) return bi - ai;
+          return String(a.name || a.id).localeCompare(String(b.name || b.id));
+        });
+
+        statusBody.innerHTML = sorted.map(t => {
+          const isActive = activeId && (String(t.id) === String(activeId) || String(t.characterId || '') === String(activeId));
+          const hostilityRaw = String((t.__entity && t.__entity.hostility) || t.hostility || '').toLowerCase();
+          const isFriendly = String(t.kind || '').toLowerCase() === 'pc' || String(t.side || '').toUpperCase() === 'PC';
+          const isHostile = hostilityRaw === 'hostile' || String(t.kind || '').toLowerCase() === 'monster';
+          const hostility = isHostile ? 'hostile' : (isFriendly ? 'friendly' : 'neutral');
+          const nameClass = `statusName status-${hostility}`;
+          const markerClass = `statusTurnMarker${isActive ? '' : ' inactive'}`;
+          const initText = Number.isFinite(Number(t.init)) ? String(t.init) : '–';
+          const hpCur = Number.isFinite(Number(t.hp)) ? Number(t.hp) : null;
+          const hpMax = Number.isFinite(Number(t.hp_max)) ? Number(t.hp_max) : null;
+          const hpText = hpCur != null ? (hpMax != null ? `${hpCur}/${hpMax}` : String(hpCur)) : '–';
+          const conditions = Array.isArray(t.conditions) ? t.conditions : (t.cond ? [t.cond] : []);
+          const hasIntent = !!(t.__entity && (t.__entity.intent || t.__entity.intent_text || t.__entity.intentText));
+          const intentClass = `statusIntent${hasIntent ? ' on' : ''}`;
+          const condHtml = conditions.length ? conditions.map(c => `<span>${String(c)}</span>`).join(' ') : '';
+          const intentHtml = `<span class="${intentClass}" title="Intent">${hasIntent ? '✓' : ''}</span>`;
+          return `
+            <tr class="statusRow${isActive ? ' active' : ''}">
+              <td class="statusNameCell">
+                <span class="${markerClass}" aria-hidden="true"></span>
+                <span class="${nameClass}">${t.name || t.id}</span>
+              </td>
+              <td class="statusNum">${initText}</td>
+              <td class="statusNum">${hpText}</td>
+              <td><div class="statusCond">${condHtml}${intentHtml}</div></td>
+            </tr>
+          `;
+        }).join('');
       }
 
       function setFloorOptions() {
