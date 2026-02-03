@@ -527,9 +527,9 @@
         <div class="toolbar-row">
           <label class="status">Map</label>
           <label class="mini">X <input id="mapOffsetX" class="mapInput" type="number" step="0.5" value="0" /></label>
-          <label class="mini">Y <input id="mapOffsetY" class="mapInput" type="number" step="0.5" value="0" /></label>
-          <label class="mini">Scale % <input id="mapScale" class="mapInput" type="number" step="1" value="100" /></label>
-          <label class="mini">Rot° <input id="mapRot" class="mapInput" type="number" step="1" value="0" /></label>
+          <label class="mini">Y <input id="mapOffsetY" class="mapInput" type="number" step="0.5" value="1.5" /></label>
+          <label class="mini">Scale % <input id="mapScale" class="mapInput" type="number" step="1" value="370" /></label>
+          <label class="mini">Rot° <input id="mapRot" class="mapInput" type="number" step="1" value="19" /></label>
         </div>
       </div>
       <div id="navBar">
@@ -697,9 +697,9 @@
         anchorHex: { col: 0, row: 0 },
         anchorHexLabel: 'DO97',
         anchorPixel: { x: 1229, yFromBottom: 1842 },
-        offsetHex: { x: 0, y: 0 },
-        scale: 1,
-        rotDeg: 0
+        offsetHex: { x: 0, y: 1.5 },
+        scale: 3.7,
+        rotDeg: 19
       };
 
       BACKDROP.img = new Image();
@@ -1108,19 +1108,11 @@
           const handles = localStorage.getItem('bm_handles');
           const fog = localStorage.getItem('bm_fog');
           const video = localStorage.getItem('bm_video');
-          const mapX = localStorage.getItem('bm_map_x');
-          const mapY = localStorage.getItem('bm_map_y');
-          const mapScale = localStorage.getItem('bm_map_scale');
-          const mapRot = localStorage.getItem('bm_map_rot');
           if (grid != null) UI.hexGrid = grid === '1';
           if (bright != null) UI.brightLabels = bright === '1';
           if (handles != null) UI.showHandles = handles === '1';
           if (fog != null) UI.fogEnabled = fog === '1';
           if (video === 'low' || video === 'medium' || video === 'high' || video === 'ultra') UI.video = video;
-          if (mapX != null && Number.isFinite(Number(mapX))) BACKDROP.offsetHex.x = Number(mapX);
-          if (mapY != null && Number.isFinite(Number(mapY))) BACKDROP.offsetHex.y = Number(mapY);
-          if (mapScale != null && Number.isFinite(Number(mapScale))) BACKDROP.scale = Math.max(0.05, Number(mapScale));
-          if (mapRot != null && Number.isFinite(Number(mapRot))) BACKDROP.rotDeg = Number(mapRot);
         } catch {}
         if (hexGridToggle) hexGridToggle.checked = UI.hexGrid;
         if (labelBoldToggle) labelBoldToggle.checked = UI.brightLabels;
@@ -1140,10 +1132,6 @@
           localStorage.setItem('bm_handles', UI.showHandles ? '1' : '0');
           localStorage.setItem('bm_fog', UI.fogEnabled ? '1' : '0');
           localStorage.setItem('bm_video', UI.video);
-          localStorage.setItem('bm_map_x', String(BACKDROP.offsetHex.x || 0));
-          localStorage.setItem('bm_map_y', String(BACKDROP.offsetHex.y || 0));
-          localStorage.setItem('bm_map_scale', String(BACKDROP.scale || 1));
-          localStorage.setItem('bm_map_rot', String(BACKDROP.rotDeg || 0));
         } catch {}
       }
 
@@ -4089,7 +4077,6 @@
           BACKDROP.scale = Number.isFinite(val) && val > 0 ? (val / 100) : 1;
         }
         if (mapRotInput) BACKDROP.rotDeg = Number(mapRotInput.value) || 0;
-        savePrefs();
         render();
       };
 
