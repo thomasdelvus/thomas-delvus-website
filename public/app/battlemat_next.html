@@ -158,16 +158,16 @@
     .panPad {
       display: grid;
       grid-template-columns: 28px 28px 28px;
-      grid-template-rows: 22px 28px 22px;
+      grid-template-rows: 20px 28px 20px;
       grid-template-areas:
         ". up ."
         "left down right"
         ". . .";
-      gap: 4px;
+      gap: 2px;
     }
 
-    #panUp { grid-area: up; }
-    #panDown { grid-area: down; }
+    #panUp { grid-area: up; align-self: end; }
+    #panDown { grid-area: down; align-self: start; }
     #panLeft { grid-area: left; }
     #panRight { grid-area: right; }
 
