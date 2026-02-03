@@ -132,6 +132,10 @@
       color: var(--muted);
     }
 
+    #mapSelect {
+      min-width: 160px;
+    }
+
     .toolGroup {
       display: none;
       align-items: center;
@@ -523,7 +527,8 @@
           <label class="mini"><input type="checkbox" id="handlesToggle" /> Handles</label>
           <div class="toolbar-col">
             <select id="floorSelect"></select>
-            <div class="mapLabel">Map: <span id="mapLabel">—</span></div>
+            <div class="mapLabel">Map</div>
+            <select id="mapSelect"></select>
           </div>
           <button id="btnUndo">Undo</button>
           <label class="mini"><input type="checkbox" id="fogToggle" checked /> Fog</label>
@@ -671,7 +676,7 @@
       const openingOrientV = document.getElementById('openingOrientV');
       const objectKindSelect = document.getElementById('objectKind');
       const tokenKindSelect = document.getElementById('tokenKind');
-      const mapLabel = document.getElementById('mapLabel');
+      const mapSelect = document.getElementById('mapSelect');
       const mapOffsetXInput = document.getElementById('mapOffsetX');
       const mapOffsetYInput = document.getElementById('mapOffsetY');
       const mapScaleInput = document.getElementById('mapScale');
@@ -1635,12 +1640,11 @@
           const extracted = extractScene(raw);
           STATE.wrapper = extracted.wrapper;
           STATE.recordId = extracted.recordId;
-          STATE.battle = normalizeState(extracted.scene);
-          applyViewFromState(STATE.battle);
-          STATE.battle._battle_id = battleId;
-          if (mapLabel) mapLabel.textContent = STATE.battle._battle_id || battleId;
-          return;
-        }
+        STATE.battle = normalizeState(extracted.scene);
+        applyViewFromState(STATE.battle);
+        STATE.battle._battle_id = battleId;
+        return;
+      }
 
         const res = await fetch(`/api/battles/${encodeURIComponent(battleId)}`, {
           headers: { 'accept': 'application/json', ...getAuthHeaders() }
@@ -1655,7 +1659,6 @@
         applyViewFromState(STATE.battle);
         STATE.battle._battle_id = data.battle_id || battleId;
         STATE.battle._campaign_id = data.campaign_id || data.campaignId || null;
-        if (mapLabel) mapLabel.textContent = STATE.battle._battle_id || battleId;
       }
 
       function getCampaignId() {
@@ -1678,6 +1681,70 @@
         STATE.entities = (STATE.campaign.world && Array.isArray(STATE.campaign.world.entities))
           ? STATE.campaign.world.entities
           : [];
+      }
+
+      function buildMapOptionsFromMeta(meta) {
+        if (!meta) return [];
+        const world = meta.world || meta;
+        const map =
+          (world && (world.poi_index || world.poiIndex || world.poi_to_battle || world.poiToBattle || world.pois)) ||
+          (meta.poi_index || meta.poiIndex);
+        if (!map || typeof map !== 'object') return [];
+        const out = [];
+        for (const [poiId, entry] of Object.entries(map)) {
+          if (!entry) continue;
+          if (typeof entry === 'string') {
+            out.push({ id: entry, label: poiId });
+            continue;
+          }
+          if (typeof entry === 'object') {
+            const id = entry.battle_id || entry.battleId || entry.id || entry.value;
+            if (!id) continue;
+            const label = entry.title || entry.name || entry.label || entry.poi_name || entry.poiName || poiId;
+            out.push({ id, label });
+          }
+        }
+        return out;
+      }
+
+      async function loadMapOptions() {
+        if (!mapSelect) return;
+        const battleId = STATE.battle && STATE.battle._battle_id;
+        let options = [];
+        const cid = getCampaignId();
+        if (cid) {
+          try {
+            const res = await fetch(`/api/battles?campaign_id=${encodeURIComponent(cid)}`, {
+              headers: { 'accept': 'application/json', ...getAuthHeaders() }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const rows = Array.isArray(data.rows) ? data.rows : [];
+              options = rows.map(row => ({
+                id: row.battle_id || row.battleId || row.id,
+                label: row.name || row.title || row.battle_id || row.battleId || row.id
+              })).filter(opt => opt.id);
+            }
+          } catch {}
+        }
+        if (!options.length) {
+          options = buildMapOptionsFromMeta(STATE.campaign || {});
+        }
+        mapSelect.innerHTML = '';
+        if (!options.length) {
+          const opt = document.createElement('option');
+          opt.value = battleId || '';
+          opt.textContent = battleId || 'No maps';
+          mapSelect.appendChild(opt);
+          return;
+        }
+        for (const optData of options) {
+          const opt = document.createElement('option');
+          opt.value = optData.id;
+          opt.textContent = optData.label || optData.id;
+          if (battleId && String(optData.id) === String(battleId)) opt.selected = true;
+          mapSelect.appendChild(opt);
+        }
       }
 
       function resolvePoiId() {
@@ -4265,11 +4332,20 @@
           VIEW.floorId = floorSelect.value;
           render();
         });
-      if (layerSelect) {
-        layerSelect.addEventListener('change', () => {
-          render();
-        });
-      }
+        if (mapSelect) {
+          mapSelect.addEventListener('change', () => {
+            const next = mapSelect.value;
+            if (!next) return;
+            const url = new URL(window.location.href);
+            url.searchParams.set('battle_id', next);
+            window.location.href = url.toString();
+          });
+        }
+        if (layerSelect) {
+          layerSelect.addEventListener('change', () => {
+            render();
+          });
+        }
       zoomInput.addEventListener('input', () => {
         setZoom(Number(zoomInput.value));
       });
@@ -4403,6 +4479,7 @@
         initSectionCollapse();
         setFloorOptions();
         populateKindLists();
+        await loadMapOptions();
         VIEW.zoom = Number(zoomInput.value);
         autoCenterCamera();
         pushHistory();
