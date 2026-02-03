@@ -3701,13 +3701,13 @@
             const hit = isPolyRoom(sel.item)
               ? getPolyHandleHit(sel.item, screenPoint)
               : getRoomHandleHit(sel.item, screenPoint);
-            if (hit) {
-              EDITOR.drag = {
-                type: hit.type,
-                side: hit.side,
-                index: hit.index,
-                item: sel.item,
-                floorId: sel.floorId,
+              if (hit) {
+                EDITOR.drag = {
+                  type: hit.type,
+                  side: hit.side,
+                  index: hit.index,
+                  item: sel.item,
+                  floorId: sel.floorId,
                 startWorld: world,
                 rect: roomEdgeHandleWorlds(sel.item).rect,
                 didMove: false,
