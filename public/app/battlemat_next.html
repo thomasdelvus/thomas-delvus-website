@@ -2118,24 +2118,26 @@
             const pts = roomWorldPoints(room);
             if (pts.length < 2) continue;
             const t = Number.isFinite(Number(room.thickness)) ? Number(room.thickness) : 0;
+            const roomId = room && room.id != null ? String(room.id) : '';
             for (let i = 0; i < pts.length; i++) {
               const a = pts[i];
               const b = pts[(i + 1) % pts.length];
-              segs.push({ orientation: 'a', a, b, thickness: t });
+              segs.push({ orientation: 'a', a, b, thickness: t, roomId, room });
             }
             continue;
           }
           const box = roomToWallBox(room);
           if (!box) continue;
           const t = Number.isFinite(box.thickness) ? box.thickness : 0;
+          const roomId = room && room.id != null ? String(room.id) : '';
           const yTop = box.yTop;
           const yBot = box.yBot;
           const xL = box.xL;
           const xR = box.xR;
-          segs.push({ orientation: 'h', a: { x: xL, y: yTop }, b: { x: xR, y: yTop }, thickness: t });
-          segs.push({ orientation: 'h', a: { x: xL, y: yBot }, b: { x: xR, y: yBot }, thickness: t });
-          segs.push({ orientation: 'v', a: { x: xL, y: yTop }, b: { x: xL, y: yBot }, thickness: t });
-          segs.push({ orientation: 'v', a: { x: xR, y: yTop }, b: { x: xR, y: yBot }, thickness: t });
+          segs.push({ orientation: 'h', a: { x: xL, y: yTop }, b: { x: xR, y: yTop }, thickness: t, roomId, room });
+          segs.push({ orientation: 'h', a: { x: xL, y: yBot }, b: { x: xR, y: yBot }, thickness: t, roomId, room });
+          segs.push({ orientation: 'v', a: { x: xL, y: yTop }, b: { x: xL, y: yBot }, thickness: t, roomId, room });
+          segs.push({ orientation: 'v', a: { x: xR, y: yTop }, b: { x: xR, y: yBot }, thickness: t, roomId, room });
         }
         return segs;
       }
@@ -2496,6 +2498,30 @@
         }
         const normal = { x: -Math.sin(angle), y: Math.cos(angle) };
         return { world: snapped, angle, normal, seg };
+      }
+
+      function openingParentRoomId(opening) {
+        const raw = opening && (opening.parent ?? opening.room_id ?? opening.roomId ?? opening.room);
+        if (raw == null) return '';
+        return String(raw);
+      }
+
+      function openingsForRoomMove(room, floor) {
+        if (!room || !floor || !Array.isArray(floor.openings)) return [];
+        const rid = room.id != null ? String(room.id) : '';
+        const out = [];
+        for (const opening of filterAlive(floor.openings)) {
+          const parentId = openingParentRoomId(opening);
+          const info = openingPlacement(opening, floor);
+          if (!info || !info.world) continue;
+          const segRoomId = info.seg && info.seg.roomId != null ? String(info.seg.roomId) : '';
+          if (parentId && parentId === rid) {
+            out.push({ opening, world: info.world });
+          } else if (!parentId && segRoomId && segRoomId === rid) {
+            out.push({ opening, world: info.world });
+          }
+        }
+        return out;
       }
 
       function openingFogState(opening, floor, rooms, roomSets) {
@@ -3752,6 +3778,9 @@
         const hex = worldToHex(worldPoint);
         const hexLabel = toHexLabel(hex.col, hex.row);
 
+        const moveDx = worldPoint.x - (drag.startWorld ? drag.startWorld.x : worldPoint.x);
+        const moveDy = worldPoint.y - (drag.startWorld ? drag.startWorld.y : worldPoint.y);
+
         if (drag.type === 'token') {
           drag.item.hex = hexLabel;
           drag.item.floorId = VIEW.floorId || drag.floorId || drag.item.floorId;
@@ -3853,6 +3882,19 @@
             }
           }
         }
+        if (drag.type === 'room-move' || drag.type === 'poly-move') {
+          const openings = Array.isArray(drag.openingsBase) ? drag.openingsBase : null;
+          if (openings && openings.length) {
+            for (const entry of openings) {
+              const baseWorld = entry.world;
+              if (!baseWorld || !entry.opening) continue;
+              const newWorld = { x: baseWorld.x + moveDx, y: baseWorld.y + moveDy };
+              const oHex = openingHexFromWorld(newWorld);
+              const openLabel = openingHexLabelFromCoords(oHex.col, oHex.row) || toHexLabel(oHex.col, oHex.row);
+              entry.opening.hex = openLabel;
+            }
+          }
+        }
         EDITOR.dirty = true;
         render();
       }
@@ -3880,6 +3922,9 @@
             const pointsBase = polyLabels
               ? polyLabels.map(parseHexLabel).filter(p => p && Number.isFinite(p.col) && Number.isFinite(p.row))
               : null;
+            const openingsBase = (hit.type === 'room-move' || hit.type === 'poly-move')
+              ? openingsForRoomMove(EDITOR.selection.item, floor)
+              : null;
             EDITOR.drag = {
               type: hit.type,
               side: hit.side,
@@ -3890,6 +3935,7 @@
               startHex: worldToHexHalf(world),
               rect,
               pointsBase,
+              openingsBase,
               didMove: false,
               pushed: false
             };
@@ -3911,6 +3957,9 @@
                 const pointsBase = polyLabels
                   ? polyLabels.map(parseHexLabel).filter(p => p && Number.isFinite(p.col) && Number.isFinite(p.row))
                   : null;
+                const openingsBase = (hit.type === 'room-move' || hit.type === 'poly-move')
+                  ? openingsForRoomMove(sel.item, floor)
+                  : null;
                 EDITOR.drag = {
                   type: hit.type,
                   side: hit.side,
@@ -3921,6 +3970,7 @@
                 startHex: worldToHexHalf(world),
                 rect,
                 pointsBase,
+                openingsBase,
                 didMove: false,
                 pushed: false
               };
