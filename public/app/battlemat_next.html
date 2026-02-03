@@ -2524,6 +2524,20 @@
         return out;
       }
 
+      function normalizeRoomOpeningsHexes(room, floor) {
+        if (!room || !floor || !Array.isArray(floor.openings)) return;
+        const rid = room.id != null ? String(room.id) : '';
+        const openings = openingsForRoomMove(room, floor);
+        if (!openings.length) return;
+        for (const entry of openings) {
+          const info = openingPlacement(entry.opening, floor);
+          if (!info || !info.world) continue;
+          const oHex = openingHexFromWorld(info.world);
+          const openLabel = openingHexLabelFromCoords(oHex.col, oHex.row) || toHexLabel(oHex.col, oHex.row);
+          entry.opening.hex = openLabel;
+        }
+      }
+
       function openingFogState(opening, floor, rooms, roomSets) {
         if (!UI.fogEnabled) return 'visible';
         const info = openingPlacement(opening, floor);
@@ -4024,6 +4038,10 @@
           if (dragged.didMove) {
             EDITOR.ignoreClick = true;
             updateInspector();
+            if (dragged.type === 'poly-point' && dragged.item) {
+              const floor = pickFloor();
+              if (floor) normalizeRoomOpeningsHexes(dragged.item, floor);
+            }
             if (dragged.type === 'token') {
               syncEntityFromToken(dragged.item);
               queueEntitySave(dragged.item);
