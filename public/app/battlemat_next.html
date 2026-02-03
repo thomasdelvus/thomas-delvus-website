@@ -1234,10 +1234,9 @@
         const sel = EDITOR.selection;
         if (!sel || sel.type !== 'room' || !sel.item) return;
         if (String(sel.floorId) !== String(floor.id)) return;
-        if (isPolyRoom(sel.item)) {
-          const labels = roomPointLabels(sel.item);
-          if (!Array.isArray(labels) || labels.length < 3) return;
-          const pts = labels.map(parseHexLabel).filter(Boolean).map(hexToWorld);
+        const polyLabels = getPolyPointLabels(sel.item);
+        if (polyLabels) {
+          const pts = labelsToWorldPoints(polyLabels);
           if (!pts.length) return;
           gctx.save();
           gctx.strokeStyle = 'rgba(255,145,0,0.95)';
@@ -1289,10 +1288,9 @@
       }
 
       function getPolyHandleHit(room, screenPoint) {
-        if (!room || !isPolyRoom(room)) return null;
-        const labels = roomPointLabels(room);
-        if (!Array.isArray(labels) || labels.length < 3) return null;
-        const pts = labels.map(parseHexLabel).filter(Boolean).map(hexToWorld);
+        const labels = getPolyPointLabels(room);
+        if (!labels) return null;
+        const pts = labelsToWorldPoints(labels);
         if (!pts.length) return null;
         const hitR = Math.max(8, Math.min(14, 9 * VIEW.zoom));
         const hitR2 = hitR * hitR;
@@ -1825,6 +1823,28 @@
         if (Array.isArray(points) && points.length >= 3) return points;
         const corners = Array.isArray(room.corners) ? room.corners : [];
         return corners.length >= 3 ? corners : [];
+      }
+
+      function getPolyPointLabels(room) {
+        if (!room || typeof room !== 'object') return null;
+        const points = Array.isArray(room.points) ? room.points
+          : (Array.isArray(room.poly) ? room.poly : (Array.isArray(room.vertices) ? room.vertices : null));
+        return (Array.isArray(points) && points.length >= 3) ? points : null;
+      }
+
+      function labelsToWorldPoints(labels) {
+        if (!Array.isArray(labels)) return [];
+        const out = [];
+        for (const label of labels) {
+          const parsed = parseHexLabel(label);
+          if (!parsed) continue;
+          out.push(hexToWorld(parsed.col, parsed.row));
+        }
+        return out;
+      }
+
+      function labelsToScreenPoints(labels) {
+        return labelsToWorldPoints(labels).map(worldToScreen);
       }
 
       function getRectPointStats(points) {
@@ -3331,8 +3351,9 @@
         if (opening) return { type: 'opening', item: opening, floorId: floor.id };
 
         for (const room of filterAlive(floor.rooms || [])) {
-          if (isPolyRoom(room)) {
-            const poly = roomPolygonScreen(room);
+          const polyLabels = getPolyPointLabels(room);
+          if (polyLabels) {
+            const poly = labelsToScreenPoints(polyLabels);
             if (!poly || poly.length < 3) continue;
             if (pointInPolygon(screenPoint, poly)) {
               return { type: 'room', item: room, floorId: floor.id };
