@@ -1374,6 +1374,7 @@
         if (polyLabels) {
           const pts = labelsToWorldPoints(polyLabels);
           if (!pts.length) return;
+          const hidden = getPolyEdgeHiddenSet(sel.item);
           const center = polyCenterWorld(pts);
           gctx.save();
           gctx.strokeStyle = 'rgba(255,145,0,0.95)';
@@ -1382,6 +1383,15 @@
           for (const p of pts) {
             const sp = worldToScreen(p);
             drawHandle(gctx, sp, size);
+          }
+          const edgeSize = Math.max(5, Math.min(11, 6 * VIEW.zoom));
+          for (let i = 0; i < pts.length; i++) {
+            const a = pts[i];
+            const b = pts[(i + 1) % pts.length];
+            const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+            const sp = worldToScreen(mid);
+            gctx.strokeStyle = hidden.has(i) ? 'rgba(255,80,80,0.35)' : 'rgba(255,80,80,0.95)';
+            drawHandle(gctx, sp, edgeSize);
           }
           if (center) {
             const sc = worldToScreen(center);
@@ -1441,6 +1451,17 @@
           const dy = sp.y - screenPoint.y;
           if (dx * dx + dy * dy <= hitR2) {
             return { type: 'poly-point', index: i };
+          }
+        }
+        for (let i = 0; i < pts.length; i++) {
+          const a = pts[i];
+          const b = pts[(i + 1) % pts.length];
+          const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+          const sp = worldToScreen(mid);
+          const dx = sp.x - screenPoint.x;
+          const dy = sp.y - screenPoint.y;
+          if (dx * dx + dy * dy <= hitR2) {
+            return { type: 'poly-edge', index: i };
           }
         }
         const center = polyCenterWorld(pts);
@@ -2055,6 +2076,44 @@
         return (Array.isArray(points) && points.length >= 3) ? points : null;
       }
 
+      function getPolyEdgeHiddenArray(room) {
+        if (!room || typeof room !== 'object') return [];
+        const raw = room.edge_hidden ?? room.edgeHidden ?? room.hidden_edges ?? room.hiddenEdges;
+        if (Array.isArray(raw)) return raw.map(Number).filter(n => Number.isFinite(n) && n >= 0);
+        if (typeof raw === 'string') {
+          return raw.split(/[,\s]+/).map(Number).filter(n => Number.isFinite(n) && n >= 0);
+        }
+        return [];
+      }
+
+      function getPolyEdgeHiddenSet(room) {
+        return new Set(getPolyEdgeHiddenArray(room));
+      }
+
+      function setPolyEdgeHiddenArray(room, arr) {
+        if (!room || typeof room !== 'object') return;
+        const cleaned = Array.isArray(arr)
+          ? arr.map(Number).filter(n => Number.isFinite(n) && n >= 0)
+          : [];
+        if (!cleaned.length) {
+          delete room.edge_hidden;
+          delete room.edgeHidden;
+          return;
+        }
+        room.edge_hidden = Array.from(new Set(cleaned)).sort((a, b) => a - b);
+      }
+
+      function togglePolyEdgeHidden(room, index, count) {
+        if (!room || !Number.isFinite(index)) return;
+        const len = Number.isFinite(count) ? count : 0;
+        if (len && (index < 0 || index >= len)) return;
+        const arr = getPolyEdgeHiddenArray(room);
+        const idx = arr.indexOf(index);
+        if (idx === -1) arr.push(index);
+        else arr.splice(idx, 1);
+        setPolyEdgeHiddenArray(room, arr);
+      }
+
       function labelsToWorldPoints(labels) {
         if (!Array.isArray(labels)) return [];
         const out = [];
@@ -2518,15 +2577,20 @@
             if (!fill) continue;
             const thickness = Number(room.thickness || 0);
             const lineW = Math.max(1, thickness * VIEW.zoom);
+            const hidden = getPolyEdgeHiddenSet(room);
             gctx.save();
             gctx.strokeStyle = fill;
             gctx.lineWidth = lineW;
             gctx.lineJoin = 'miter';
-            gctx.beginPath();
-            gctx.moveTo(screenPts[0].x, screenPts[0].y);
-            for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
-            gctx.closePath();
-            gctx.stroke();
+            for (let i = 0; i < screenPts.length; i++) {
+              if (hidden.has(i)) continue;
+              const a = screenPts[i];
+              const b = screenPts[(i + 1) % screenPts.length];
+              gctx.beginPath();
+              gctx.moveTo(a.x, a.y);
+              gctx.lineTo(b.x, b.y);
+              gctx.stroke();
+            }
             gctx.restore();
             continue;
           }
@@ -3362,6 +3426,10 @@
           addField('Floor Rot', sel.item.floor && (sel.item.floor.rot ?? sel.item.floor.rotDeg) ? (sel.item.floor.rot ?? sel.item.floor.rotDeg) : '', 'floor.rot', { type: 'number', step: '1' });
           addField('Wall Kind', sel.item.wall && sel.item.wall.kind ? sel.item.wall.kind : '', 'wall.kind', { list: 'wallKindList' });
           addField('Erase', sel.item.wall_erase || sel.item.wallErase || sel.item.erase || '', 'wall_erase');
+          if (isPolyRoom(sel.item)) {
+            const edgeHidden = getPolyEdgeHiddenArray(sel.item).join(',');
+            addField('Edge Hidden', edgeHidden, 'edge_hidden');
+          }
           addField('Z', sel.item.z != null ? sel.item.z : '', 'z', { type: 'number', step: '1' });
           addSelectField('Fog', sel.item.fog_mode || sel.item.fogMode || '', 'fog_mode', [
             { value: '', label: 'Default' },
@@ -3504,6 +3572,16 @@
             const cleaned = String(value || '').toUpperCase().replace(/[^NSEW]/g, '');
             if (!cleaned) delete item.wall_erase;
             else item.wall_erase = cleaned;
+          }
+          if (key === 'edge_hidden') {
+            const raw = String(value || '').trim();
+            if (!raw) {
+              delete item.edge_hidden;
+              delete item.edgeHidden;
+            } else {
+              const arr = raw.split(/[,\s]+/).map(Number).filter(n => Number.isFinite(n) && n >= 0);
+              setPolyEdgeHiddenArray(item, arr);
+            }
           }
           if (key === 'z') item.z = num(value, null);
         }
@@ -4071,6 +4149,15 @@
               : getRoomHandleHit(EDITOR.selection.item, screenPoint);
           }
           if (hit) {
+            if (hit.type === 'poly-edge') {
+              pushHistory();
+              const labels = getPolyPointLabels(EDITOR.selection.item);
+              const count = labels ? labels.length : 0;
+              togglePolyEdgeHidden(EDITOR.selection.item, hit.index, count);
+              updateInspector();
+              render();
+              return;
+            }
             const rectHandles = roomEdgeHandleWorlds(EDITOR.selection.item);
             const rect = rectHandles ? rectHandles.rect : null;
             const polyLabels = hit.type === 'poly-move' ? getPolyPointLabels(EDITOR.selection.item) : null;
@@ -4106,6 +4193,15 @@
               ? getPolyHandleHit(sel.item, screenPoint)
               : getRoomHandleHit(sel.item, screenPoint);
               if (hit) {
+                if (hit.type === 'poly-edge') {
+                  pushHistory();
+                  const labels = getPolyPointLabels(sel.item);
+                  const count = labels ? labels.length : 0;
+                  togglePolyEdgeHidden(sel.item, hit.index, count);
+                  updateInspector();
+                  render();
+                  return;
+                }
                 const rectHandles = roomEdgeHandleWorlds(sel.item);
                 const rect = rectHandles ? rectHandles.rect : null;
                 const polyLabels = hit.type === 'poly-move' ? getPolyPointLabels(sel.item) : null;
