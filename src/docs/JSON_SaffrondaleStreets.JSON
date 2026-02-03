@@ -176,10 +176,13 @@
           },
           "points": [
             "M13",
-            "CE13",
-            "CE8",
+            "CB12.5",
+            "CB7.5",
             "M8"
-          ]
+          ],
+          "fog_mode": "visible",
+          "wall_erase": "EW",
+          "z": 4
         },
         {
           "id": "room_mkmuw9iz_53a",
@@ -195,7 +198,8 @@
           },
           "wall": {
             "kind": "brick"
-          }
+          },
+          "wall_erase": "N"
         },
         {
           "id": "room_mkli3g41_z",
@@ -252,22 +256,6 @@
           ]
         },
         {
-          "id": "room_ml38bydm",
-          "corners": [
-            "BN22.5",
-            "BR22.5",
-            "BR12.5",
-            "BN12.5"
-          ],
-          "thickness": 15,
-          "floor": {
-            "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
           "id": "room_ml38djoh",
           "corners": [
             "BV22",
@@ -299,17 +287,20 @@
             "kind": "brick"
           },
           "points": [
-            "G17.5",
-            "M17.5",
-            "M8",
-            "G8"
-          ]
+            "F33.5",
+            "M34",
+            "M2.5",
+            "F2"
+          ],
+          "fog_mode": "visible",
+          "wall_erase": "NS",
+          "z": 2
         },
         {
           "id": "room_ml38njjk",
           "corners": [
-            "BR23",
-            "BV23",
+            "BR26",
+            "BV26",
             "BV12.5",
             "BR12.5"
           ],
@@ -319,24 +310,28 @@
           },
           "wall": {
             "kind": "brick"
+          },
+          "wall_erase": "NS",
+          "z": 15
+        },
+        {
+          "id": "room_ml4m235k",
+          "corners": [
+            "BN22",
+            "BR22",
+            "BR12.5",
+            "BN12.5"
+          ],
+          "thickness": 12,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
           }
         }
       ],
       "openings": [
-        {
-          "id": "door_mklhw1tx_78q",
-          "kind": "door.wood",
-          "hex": "AV28",
-          "orientation": "v",
-          "openPct": 0
-        },
-        {
-          "id": "door_mklhw3r1_24w",
-          "kind": "door.wood",
-          "hex": "AV23",
-          "orientation": "v",
-          "openPct": 0
-        },
         {
           "id": "door_mkli3uew_254",
           "kind": "door.wood",
@@ -446,14 +441,16 @@
       "objects": [
         {
           "id": "poi_cross_keys_view",
-          "kind": "poi.view",
-          "hex": "M18",
+          "kind": "the.cross.keys",
+          "hex": "L17",
           "poi_id": "CrossedKeysInn",
           "view_url": "/images/the_cross_keys.jpg",
-          "ox": -0.7,
-          "oy": 0.1,
+          "ox": 0.65,
+          "oy": -0.79,
           "spriteScale": 2,
-          "floorId": "ground"
+          "floorId": "ground",
+          "z": 5,
+          "parent_room": "room_ml38fkoh"
         }
       ]
     }
