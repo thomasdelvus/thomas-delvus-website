@@ -670,9 +670,8 @@
 
       function resolveOpeningSprite(kindRaw, openPct) {
         const k = String(kindRaw || '').toLowerCase();
-        if (k.startsWith('window')) {
-          return resolveSpriteUrl(openPct > 0 ? 'window.open' : 'window');
-        }
+        if (k.startsWith('window.open')) return resolveSpriteUrl('window.open');
+        if (k.startsWith('window')) return resolveSpriteUrl('window');
         if (k.startsWith('door')) {
           return resolveSpriteUrl(k);
         }
