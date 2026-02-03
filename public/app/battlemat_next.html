@@ -1850,6 +1850,7 @@
         const points = Array.isArray(room.points) ? room.points
           : (Array.isArray(room.poly) ? room.poly : (Array.isArray(room.vertices) ? room.vertices : null));
         if (!Array.isArray(points) || points.length < 3) return false;
+        if (!Array.isArray(room.corners) || room.corners.length < 3) return true;
         return !isRectPointList(points);
       }
 
