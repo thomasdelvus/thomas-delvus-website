@@ -1846,6 +1846,7 @@
 
       function isPolyRoom(room) {
         if (!room || typeof room !== 'object') return false;
+        if (room.shape === 'poly' || room.isPoly === true) return true;
         const points = Array.isArray(room.points) ? room.points
           : (Array.isArray(room.poly) ? room.poly : (Array.isArray(room.vertices) ? room.vertices : null));
         if (!Array.isArray(points) || points.length < 3) return false;
@@ -3423,6 +3424,7 @@
             pushHistory();
             const room = {
               id: 'room_' + Date.now().toString(36),
+              shape: 'poly',
               points: points.map(p => p.label),
               thickness: 15,
               floor: { kind: 'wood_oak' },
