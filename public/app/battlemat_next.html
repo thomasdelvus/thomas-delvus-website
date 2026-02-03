@@ -120,7 +120,7 @@
       z-index: 10;
     }
 
-    #navBar button, #navBar input {
+    #navBar button, #navBar input, #navBar select {
       background: #0f141c;
       color: var(--text);
       border: 1px solid rgba(255,255,255,0.12);
@@ -148,6 +148,15 @@
       accent-color: var(--accent);
     }
 
+    #navBar .mini select {
+      background: #0f141c;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      font-size: 12px;
+      padding: 2px 6px;
+    }
+
     #navBar .toggles {
       display: flex;
       flex-direction: column;
@@ -158,16 +167,16 @@
     .panPad {
       display: grid;
       grid-template-columns: 28px 28px 28px;
-      grid-template-rows: 20px 28px 20px;
+      grid-template-rows: 24px 28px 24px;
       grid-template-areas:
         ". up ."
-        "left down right"
-        ". . .";
-      gap: 2px;
+        "left . right"
+        ". down .";
+      gap: 4px;
     }
 
-    #panUp { grid-area: up; align-self: end; }
-    #panDown { grid-area: down; align-self: start; }
+    #panUp { grid-area: up; transform: translateY(12px); }
+    #panDown { grid-area: down; transform: translateY(-12px); }
     #panLeft { grid-area: left; }
     #panRight { grid-area: right; }
 
@@ -348,6 +357,13 @@
         <div class="toggles">
           <label class="mini"><input type="checkbox" id="labelBoldToggle" /> Bright Labels</label>
           <label class="mini"><input type="checkbox" id="hexGridToggle" checked /> Hexgrid</label>
+          <label class="mini">Video
+            <select id="videoQuality">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
         </div>
       </div>
     </div>
@@ -404,6 +420,7 @@
       const labelBoldToggle = document.getElementById('labelBoldToggle');
       const handlesToggle = document.getElementById('handlesToggle');
       const fogToggle = document.getElementById('fogToggle');
+      const videoSelect = document.getElementById('videoQuality');
       const saveButton = document.getElementById('btnSave');
       const undoButton = document.getElementById('btnUndo');
       const saveStatus = document.getElementById('saveStatus');
@@ -425,7 +442,9 @@
       };
       const VIEW = { camera: { col: 0, row: 0 }, cameraWorld: { x: 0, y: 0 }, zoom: 1, floorId: '' };
       const STATE = { battle: null, campaign: null, entities: [] };
-      const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true };
+      const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true, video: 'medium' };
+      const VIDEO_SCALE = { low: 1, medium: 1.5, high: 2 };
+      let renderDpr = window.devicePixelRatio || 1;
       const EDITOR = {
         tool: 'select',
         selection: null,
@@ -690,8 +709,8 @@
 
       function worldToScreen(p) {
         const cam = getCameraWorld();
-        const w = canvas.width / devicePixelRatio;
-        const h = canvas.height / devicePixelRatio;
+        const w = canvas.width / renderDpr;
+        const h = canvas.height / renderDpr;
         return {
           x: w / 2 + (p.x - cam.x) * VIEW.zoom,
           y: h / 2 + (p.y - cam.y) * VIEW.zoom,
@@ -700,8 +719,8 @@
 
       function screenToWorld(x, y) {
         const cam = getCameraWorld();
-        const w = canvas.width / devicePixelRatio;
-        const h = canvas.height / devicePixelRatio;
+        const w = canvas.width / renderDpr;
+        const h = canvas.height / renderDpr;
         const wx = (x - w / 2) / VIEW.zoom + cam.x;
         const wy = (y - h / 2) / VIEW.zoom + cam.y;
         return { x: wx, y: wy };
@@ -827,15 +846,18 @@
           const bright = localStorage.getItem('bm_bright_labels');
           const handles = localStorage.getItem('bm_handles');
           const fog = localStorage.getItem('bm_fog');
+          const video = localStorage.getItem('bm_video');
           if (grid != null) UI.hexGrid = grid === '1';
           if (bright != null) UI.brightLabels = bright === '1';
           if (handles != null) UI.showHandles = handles === '1';
           if (fog != null) UI.fogEnabled = fog === '1';
+          if (video === 'low' || video === 'medium' || video === 'high') UI.video = video;
         } catch {}
         if (hexGridToggle) hexGridToggle.checked = UI.hexGrid;
         if (labelBoldToggle) labelBoldToggle.checked = UI.brightLabels;
         if (handlesToggle) handlesToggle.checked = UI.showHandles;
         if (fogToggle) fogToggle.checked = UI.fogEnabled;
+        if (videoSelect) videoSelect.value = UI.video;
       }
 
       function savePrefs() {
@@ -844,6 +866,7 @@
           localStorage.setItem('bm_bright_labels', UI.brightLabels ? '1' : '0');
           localStorage.setItem('bm_handles', UI.showHandles ? '1' : '0');
           localStorage.setItem('bm_fog', UI.fogEnabled ? '1' : '0');
+          localStorage.setItem('bm_video', UI.video);
         } catch {}
       }
 
@@ -2321,7 +2344,10 @@
 
       function render() {
         if (!STATE.battle) return;
-        const dpr = window.devicePixelRatio || 1;
+        const baseDpr = window.devicePixelRatio || 1;
+        const scale = VIDEO_SCALE[UI.video] ?? 1.5;
+        const dpr = baseDpr * scale;
+        renderDpr = dpr;
         const rect = canvas.getBoundingClientRect();
         canvas.width = rect.width * dpr;
         canvas.height = rect.height * dpr;
@@ -3341,6 +3367,16 @@
             UI.fogEnabled = !!fogToggle.checked;
             savePrefs();
             render();
+          });
+        }
+        if (videoSelect) {
+          videoSelect.addEventListener('change', () => {
+            const next = videoSelect.value;
+            if (next === 'low' || next === 'medium' || next === 'high') {
+              UI.video = next;
+              savePrefs();
+              render();
+            }
           });
         }
         floorSelect.addEventListener('change', () => {
