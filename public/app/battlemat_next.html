@@ -56,14 +56,22 @@
       top: 12px;
       left: 12px;
       display: flex;
-      align-items: center;
-      gap: 8px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
       padding: 8px 10px;
       background: rgba(15,20,28,0.85);
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 8px;
       backdrop-filter: blur(8px);
       z-index: 10;
+    }
+
+    .toolbar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     #toolbar select, #toolbar input, #toolbar button {
@@ -451,60 +459,69 @@
     <div id="canvasWrap">
       <canvas id="map"></canvas>
       <div id="toolbar">
-        <button id="toolSelect" class="toolBtn active">Select</button>
-        <button id="toolRoom" class="toolBtn">Room</button>
-        <button id="toolPoly" class="toolBtn">Poly</button>
-        <button id="toolOpening" class="toolBtn">Opening</button>
-        <button id="toolObject" class="toolBtn">Object</button>
-        <button id="toolToken" class="toolBtn">Token</button>
-        <label class="status">Layer</label>
-        <select id="layerSelect">
-          <option value="all" selected>all</option>
-          <option value="floors">floors</option>
-          <option value="walls">walls</option>
-          <option value="objects">objects</option>
-          <option value="tokens">tokens</option>
-        </select>
-        <label class="mini"><input type="checkbox" id="handlesToggle" /> Handles</label>
-        <select id="floorSelect"></select>
-        <button id="btnUndo">Undo</button>
-        <label class="mini"><input type="checkbox" id="fogToggle" checked /> Fog</label>
-        <button id="btnSave">Save</button>
-        <span id="saveStatus" class="status">DB: idle</span>
-        <div id="openingGroup" class="toolGroup">
-          <label class="status">Opening</label>
-          <select id="openingKind">
-            <option value="door.wood">door.wood</option>
-            <option value="door">door</option>
-            <option value="window">window</option>
-            <option value="threshold">threshold</option>
-            <option value="portal">portal</option>
+        <div class="toolbar-row">
+          <button id="toolSelect" class="toolBtn active">Select</button>
+          <button id="toolRoom" class="toolBtn">Room</button>
+          <button id="toolPoly" class="toolBtn">Poly</button>
+          <button id="toolOpening" class="toolBtn">Opening</button>
+          <button id="toolObject" class="toolBtn">Object</button>
+          <button id="toolToken" class="toolBtn">Token</button>
+          <label class="status">Layer</label>
+          <select id="layerSelect">
+            <option value="all" selected>all</option>
+            <option value="floors">floors</option>
+            <option value="walls">walls</option>
+            <option value="objects">objects</option>
+            <option value="tokens">tokens</option>
           </select>
-          <button id="openingOrientH" class="toolBtn">H</button>
-          <button id="openingOrientV" class="toolBtn">V</button>
+          <label class="mini"><input type="checkbox" id="handlesToggle" /> Handles</label>
+          <select id="floorSelect"></select>
+          <button id="btnUndo">Undo</button>
+          <label class="mini"><input type="checkbox" id="fogToggle" checked /> Fog</label>
+          <button id="btnSave">Save</button>
+          <span id="saveStatus" class="status">DB: idle</span>
+          <div id="openingGroup" class="toolGroup">
+            <label class="status">Opening</label>
+            <select id="openingKind">
+              <option value="door.wood">door.wood</option>
+              <option value="door">door</option>
+              <option value="window">window</option>
+              <option value="threshold">threshold</option>
+              <option value="portal">portal</option>
+            </select>
+            <button id="openingOrientH" class="toolBtn">H</button>
+            <button id="openingOrientV" class="toolBtn">V</button>
+          </div>
+          <div id="objectGroup" class="toolGroup">
+            <label class="status">Object</label>
+            <select id="objectKind">
+              <option value="object">object</option>
+              <option value="poi.view">poi.view</option>
+              <option value="table.round">table.round</option>
+              <option value="table.rect">table.rect</option>
+              <option value="chair">chair</option>
+              <option value="crate">crate</option>
+              <option value="barrel">barrel</option>
+              <option value="stairs">stairs</option>
+              <option value="bed">bed</option>
+            </select>
+          </div>
+          <div id="tokenGroup" class="toolGroup">
+            <label class="status">Token</label>
+            <select id="tokenKind">
+              <option value="pc">pc</option>
+              <option value="npc" selected>npc</option>
+              <option value="monster">monster</option>
+              <option value="creature">creature</option>
+            </select>
+          </div>
         </div>
-        <div id="objectGroup" class="toolGroup">
-          <label class="status">Object</label>
-          <select id="objectKind">
-            <option value="object">object</option>
-            <option value="poi.view">poi.view</option>
-            <option value="table.round">table.round</option>
-            <option value="table.rect">table.rect</option>
-            <option value="chair">chair</option>
-            <option value="crate">crate</option>
-            <option value="barrel">barrel</option>
-            <option value="stairs">stairs</option>
-            <option value="bed">bed</option>
-          </select>
-        </div>
-        <div id="tokenGroup" class="toolGroup">
-          <label class="status">Token</label>
-          <select id="tokenKind">
-            <option value="pc">pc</option>
-            <option value="npc" selected>npc</option>
-            <option value="monster">monster</option>
-            <option value="creature">creature</option>
-          </select>
+        <div class="toolbar-row">
+          <label class="status">Map</label>
+          <label class="mini">X <input id="mapOffsetX" type="number" step="0.5" value="0" /></label>
+          <label class="mini">Y <input id="mapOffsetY" type="number" step="0.5" value="0" /></label>
+          <label class="mini">Scale % <input id="mapScale" type="number" step="1" value="100" /></label>
+          <label class="mini">Rot° <input id="mapRot" type="number" step="1" value="0" /></label>
         </div>
       </div>
       <div id="navBar">
@@ -599,6 +616,10 @@
       const openingOrientV = document.getElementById('openingOrientV');
       const objectKindSelect = document.getElementById('objectKind');
       const tokenKindSelect = document.getElementById('tokenKind');
+      const mapOffsetXInput = document.getElementById('mapOffsetX');
+      const mapOffsetYInput = document.getElementById('mapOffsetY');
+      const mapScaleInput = document.getElementById('mapScale');
+      const mapRotInput = document.getElementById('mapRot');
       const openingGroup = document.getElementById('openingGroup');
       const objectGroup = document.getElementById('objectGroup');
       const tokenGroup = document.getElementById('tokenGroup');
@@ -664,7 +685,13 @@
         widthHex: 500,
         origin: { x: 0, y: 0 },
         img: null,
-        loaded: false
+        loaded: false,
+        anchorHex: { col: 0, row: 0 },
+        anchorHexLabel: 'DO97',
+        anchorPixel: { x: 1229, yFromBottom: 1842 },
+        offsetHex: { x: 0, y: 0 },
+        scale: 1,
+        rotDeg: 0
       };
 
       BACKDROP.img = new Image();
@@ -2206,19 +2233,29 @@
 
       function drawBackdrop(gctx) {
         if (!BACKDROP.loaded || !BACKDROP.img) return;
+        const img = BACKDROP.img;
         const widthWorld = BACKDROP.widthHex * colStep();
-        const ratio = BACKDROP.img.naturalHeight / BACKDROP.img.naturalWidth;
-        const heightWorld = widthWorld * ratio;
-        const origin = BACKDROP.origin || { x: 0, y: 0 };
-        const bottomLeft = { x: origin.x, y: origin.y };
-        const topRight = { x: origin.x + widthWorld, y: origin.y - heightWorld };
-        const p1 = worldToScreen(bottomLeft);
-        const p2 = worldToScreen(topRight);
-        const x1 = Math.min(p1.x, p2.x);
-        const y1 = Math.min(p1.y, p2.y);
-        const w = Math.abs(p2.x - p1.x);
-        const h = Math.abs(p2.y - p1.y);
-        gctx.drawImage(BACKDROP.img, x1, y1, w, h);
+        const worldPerPixel = (widthWorld / img.naturalWidth) * (Number.isFinite(BACKDROP.scale) ? BACKDROP.scale : 1);
+        const scale = worldPerPixel * VIEW.zoom;
+        const parsedAnchor = BACKDROP.anchorHexLabel ? parseHexLabel(BACKDROP.anchorHexLabel) : null;
+        const anchorHex = parsedAnchor || BACKDROP.anchorHex || { col: 0, row: 0 };
+        const offset = BACKDROP.offsetHex || { x: 0, y: 0 };
+        const anchorWorld = hexToWorld(anchorHex.col + offset.x, anchorHex.row + offset.y);
+        const anchorScreen = worldToScreen(anchorWorld);
+        const anchorPx = {
+          x: Number(BACKDROP.anchorPixel && BACKDROP.anchorPixel.x) || 0,
+          y: Number.isFinite(BACKDROP.anchorPixel && BACKDROP.anchorPixel.yFromBottom)
+            ? (img.naturalHeight - BACKDROP.anchorPixel.yFromBottom)
+            : (Number(BACKDROP.anchorPixel && BACKDROP.anchorPixel.y) || 0)
+        };
+        const rot = (Number(BACKDROP.rotDeg) || 0) * Math.PI / 180;
+
+        gctx.save();
+        gctx.translate(anchorScreen.x, anchorScreen.y);
+        if (rot) gctx.rotate(rot);
+        gctx.scale(scale, scale);
+        gctx.drawImage(img, -anchorPx.x, -anchorPx.y);
+        gctx.restore();
       }
 
       function drawFloorsLayer(floor, gctx, rooms) {
@@ -4012,14 +4049,34 @@
           VIEW.floorId = floorSelect.value;
           render();
         });
-        if (layerSelect) {
-          layerSelect.addEventListener('change', () => {
-            render();
-          });
-        }
-        zoomInput.addEventListener('input', () => {
-          setZoom(Number(zoomInput.value));
+      if (layerSelect) {
+        layerSelect.addEventListener('change', () => {
+          render();
         });
+      }
+      zoomInput.addEventListener('input', () => {
+        setZoom(Number(zoomInput.value));
+      });
+      if (mapOffsetXInput) mapOffsetXInput.value = String(BACKDROP.offsetHex.x);
+      if (mapOffsetYInput) mapOffsetYInput.value = String(BACKDROP.offsetHex.y);
+      if (mapScaleInput) mapScaleInput.value = String(Math.round(BACKDROP.scale * 100));
+      if (mapRotInput) mapRotInput.value = String(BACKDROP.rotDeg || 0);
+
+      const applyBackdropControls = () => {
+        if (mapOffsetXInput) BACKDROP.offsetHex.x = Number(mapOffsetXInput.value) || 0;
+        if (mapOffsetYInput) BACKDROP.offsetHex.y = Number(mapOffsetYInput.value) || 0;
+        if (mapScaleInput) {
+          const val = Number(mapScaleInput.value);
+          BACKDROP.scale = Number.isFinite(val) && val > 0 ? (val / 100) : 1;
+        }
+        if (mapRotInput) BACKDROP.rotDeg = Number(mapRotInput.value) || 0;
+        render();
+      };
+
+      if (mapOffsetXInput) mapOffsetXInput.addEventListener('input', applyBackdropControls);
+      if (mapOffsetYInput) mapOffsetYInput.addEventListener('input', applyBackdropControls);
+      if (mapScaleInput) mapScaleInput.addEventListener('input', applyBackdropControls);
+      if (mapRotInput) mapRotInput.addEventListener('input', applyBackdropControls);
         if (canvasWrap) {
           canvasWrap.addEventListener('wheel', (ev) => {
             ev.preventDefault();
