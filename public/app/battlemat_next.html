@@ -21,17 +21,22 @@
     }
 
     * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+    }
+
     body {
       margin: 0;
       background: var(--bg);
       color: var(--text);
       font: 14px/1.4 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+      overflow: hidden;
     }
 
     #app {
       display: grid;
       grid-template-columns: 1fr 320px;
-      min-height: 100vh;
+      height: 100vh;
     }
 
     #canvasWrap {
@@ -195,6 +200,7 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
+      overflow: auto;
     }
     section {
       background: var(--panel-2);
