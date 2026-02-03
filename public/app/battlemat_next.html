@@ -231,6 +231,32 @@
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .collapseBtn {
+      background: #0f141c;
+      color: var(--muted);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      width: 22px;
+      height: 22px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    section.collapsed .sectionBody {
+      display: none;
+    }
+
+    section.collapsed .collapseBtn {
+      transform: rotate(-90deg);
     }
 
     .row {
@@ -562,37 +588,43 @@
     </div>
 
     <aside id="sidebar">
-      <section>
-        <h3>Status</h3>
-        <div id="statusMeta"></div>
-        <div class="statusWrap">
-          <table id="statusTable">
-            <thead>
-              <tr>
-                <th>Actor</th>
-                <th class="statusNum">Init</th>
-                <th class="statusNum">HP</th>
-                <th>Cond</th>
-              </tr>
-            </thead>
-            <tbody id="statusBody"></tbody>
-          </table>
+      <section data-section="status">
+        <h3><span>Status</span><button type="button" class="collapseBtn" aria-label="Collapse Status">▾</button></h3>
+        <div class="sectionBody">
+          <div id="statusMeta"></div>
+          <div class="statusWrap">
+            <table id="statusTable">
+              <thead>
+                <tr>
+                  <th>Actor</th>
+                  <th class="statusNum">Init</th>
+                  <th class="statusNum">HP</th>
+                  <th>Cond</th>
+                </tr>
+              </thead>
+              <tbody id="statusBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
-      <section>
-        <h3>Chat</h3>
-        <div id="chatLog"></div>
-        <div id="chatBar">
-          <select id="chatSpeaker"></select>
-          <button id="chatSend">Send</button>
-          <input id="chatInput" type="text" placeholder="Type message..." />
+      <section data-section="chat">
+        <h3><span>Chat</span><button type="button" class="collapseBtn" aria-label="Collapse Chat">▾</button></h3>
+        <div class="sectionBody">
+          <div id="chatLog"></div>
+          <div id="chatBar">
+            <select id="chatSpeaker"></select>
+            <button id="chatSend">Send</button>
+            <input id="chatInput" type="text" placeholder="Type message..." />
+          </div>
         </div>
       </section>
 
-      <section>
-        <h3>Inspector</h3>
-        <div id="inspectorEmpty">Select something to edit.</div>
-        <div id="inspectorFields" hidden></div>
+      <section data-section="inspector">
+        <h3><span>Inspector</span><button type="button" class="collapseBtn" aria-label="Collapse Inspector">▾</button></h3>
+        <div class="sectionBody">
+          <div id="inspectorEmpty">Select something to edit.</div>
+          <div id="inspectorFields" hidden></div>
+        </div>
       </section>
     </aside>
   </div>
@@ -1133,6 +1165,26 @@
           localStorage.setItem('bm_fog', UI.fogEnabled ? '1' : '0');
           localStorage.setItem('bm_video', UI.video);
         } catch {}
+      }
+
+      function initSectionCollapse() {
+        const sections = document.querySelectorAll('section[data-section]');
+        sections.forEach(section => {
+          const name = section.dataset.section || '';
+          const btn = section.querySelector('.collapseBtn');
+          if (!btn) return;
+          const key = `bm_section_${name}`;
+          try {
+            const saved = localStorage.getItem(key);
+            if (saved === '1') section.classList.add('collapsed');
+          } catch {}
+          btn.addEventListener('click', () => {
+            section.classList.toggle('collapsed');
+            try {
+              localStorage.setItem(key, section.classList.contains('collapsed') ? '1' : '0');
+            } catch {}
+          });
+        });
       }
 
       function setTool(tool) {
@@ -4329,6 +4381,7 @@
         await loadBattle();
         await loadCampaign();
         loadPrefs();
+        initSectionCollapse();
         setFloorOptions();
         populateKindLists();
         VIEW.zoom = Number(zoomInput.value);
