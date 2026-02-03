@@ -659,6 +659,21 @@
       };
       const HISTORY = { stack: [], index: -1, limit: 20 };
 
+      const BACKDROP = {
+        src: '/images/zone.jpg',
+        widthHex: 500,
+        origin: { x: 0, y: 0 },
+        img: null,
+        loaded: false
+      };
+
+      BACKDROP.img = new Image();
+      BACKDROP.img.onload = () => {
+        BACKDROP.loaded = true;
+        render();
+      };
+      BACKDROP.img.src = BACKDROP.src;
+
       const DEFAULT_FLOOR_KINDS = [
         'wood_oak', 'wood', 'stone', 'cobble', 'brick', 'brick_dark', 'gravel', 'fog'
       ];
@@ -2189,8 +2204,26 @@
         gctx.fillRect(x1, y1, x2 - x1, y2 - y1);
       }
 
+      function drawBackdrop(gctx) {
+        if (!BACKDROP.loaded || !BACKDROP.img) return;
+        const widthWorld = BACKDROP.widthHex * colStep();
+        const ratio = BACKDROP.img.naturalHeight / BACKDROP.img.naturalWidth;
+        const heightWorld = widthWorld * ratio;
+        const origin = BACKDROP.origin || { x: 0, y: 0 };
+        const bottomLeft = { x: origin.x, y: origin.y };
+        const topRight = { x: origin.x + widthWorld, y: origin.y - heightWorld };
+        const p1 = worldToScreen(bottomLeft);
+        const p2 = worldToScreen(topRight);
+        const x1 = Math.min(p1.x, p2.x);
+        const y1 = Math.min(p1.y, p2.y);
+        const w = Math.abs(p2.x - p1.x);
+        const h = Math.abs(p2.y - p1.y);
+        gctx.drawImage(BACKDROP.img, x1, y1, w, h);
+      }
+
       function drawFloorsLayer(floor, gctx, rooms) {
         const list = sortByZ(rooms || filterAlive(floor.rooms || []));
+        drawBackdrop(gctx);
         list.forEach(room => drawFloorRoom(room, gctx));
       }
 
