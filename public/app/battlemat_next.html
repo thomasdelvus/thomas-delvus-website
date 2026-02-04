@@ -2602,6 +2602,19 @@
               const scale = Math.min(1, Math.sin(theta / 2) / base);
               return (lineW * 0.5) * (Number.isFinite(scale) ? scale : 1);
             });
+            const cornerAngle = screenPts.map((pt, i) => {
+              const prev = screenPts[(i - 1 + screenPts.length) % screenPts.length];
+              const next = screenPts[(i + 1) % screenPts.length];
+              const v1x = prev.x - pt.x;
+              const v1y = prev.y - pt.y;
+              const v2x = next.x - pt.x;
+              const v2y = next.y - pt.y;
+              const l1 = Math.hypot(v1x, v1y) || 1;
+              const l2 = Math.hypot(v2x, v2y) || 1;
+              const dot = (v1x * v2x + v1y * v2y) / (l1 * l2);
+              const clamped = Math.max(-1, Math.min(1, dot));
+              return Math.acos(clamped);
+            });
             gctx.save();
             gctx.strokeStyle = fill;
             gctx.lineWidth = lineW;
@@ -2619,7 +2632,12 @@
               const uy = dy / len;
               const padA = cornerPads[i] ?? (lineW * 0.5);
               const padB = cornerPads[(i + 1) % screenPts.length] ?? (lineW * 0.5);
+              const thetaA = cornerAngle[i] ?? Math.PI / 2;
+              const thetaB = cornerAngle[(i + 1) % screenPts.length] ?? Math.PI / 2;
+              const useRound = Math.abs(thetaA - Math.PI / 2) > (Math.PI / 6) || Math.abs(thetaB - Math.PI / 2) > (Math.PI / 6);
               gctx.beginPath();
+              gctx.lineCap = useRound ? 'round' : 'butt';
+              gctx.lineJoin = useRound ? 'round' : 'miter';
               gctx.moveTo(a.x - ux * padA, a.y - uy * padA);
               gctx.lineTo(b.x + ux * padB, b.y + uy * padB);
               gctx.stroke();
