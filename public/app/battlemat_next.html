@@ -780,6 +780,13 @@
         'crate', 'barrel', 'keg'
       ];
       const DEFAULT_TOKEN_KINDS = ['pc', 'npc', 'monster', 'creature'];
+      const DEFAULT_TOKEN_SCALE = 1.5;
+      const TOKEN_KIND_SCALES = {
+        pc: 1.5,
+        npc: 1.5,
+        monster: 1.5,
+        creature: 1.5
+      };
 
       // Floors under wall bands can hide cutouts; keep false unless you want that effect.
       const FLOOR_UNDER_WALLS = false;
@@ -1799,6 +1806,7 @@
               floorId,
               kind: e.kind || 'pc',
               sprite: e.sprite || (e.appearance && e.appearance.sprite) || '',
+              spriteScale: (e.appearance && (e.appearance.sprite_scale ?? e.appearance.spriteScale)) ?? e.spriteScale ?? null,
               hp: e.hp || (e.stats && e.stats.hp) || null,
               hp_max: e.hp_max || (e.stats && e.stats.hp_max) || null,
               init: e.init || (e.stats && e.stats.init) || null,
@@ -3019,13 +3027,21 @@
         gctx.restore();
       }
 
+      function tokenDefaultScale(token) {
+        if (!token) return DEFAULT_TOKEN_SCALE;
+        const kind = String(token.kind || '').toLowerCase();
+        if (TOKEN_KIND_SCALES[kind] != null) return Number(TOKEN_KIND_SCALES[kind]) || DEFAULT_TOKEN_SCALE;
+        return DEFAULT_TOKEN_SCALE;
+      }
+
       function drawToken(token, gctx) {
         const p = parseHexLabel(token.hex);
         if (!p) return;
         const center = worldToScreen(hexToWorld(p.col, p.row));
         const url = token.sprite || token.spriteFile || resolveSpriteUrl(token.kind) ||
           resolveSpriteUrl(token.side === 'NPC' ? 'token.npc' : 'token.pc');
-        const base = GRID.size * 0.9;
+        const scale = Number.isFinite(Number(token.spriteScale)) ? Number(token.spriteScale) : tokenDefaultScale(token);
+        const base = GRID.size * 0.9 * scale;
         if (url) {
           const img = loadSprite(url);
           if (img && img.complete && img.naturalWidth && img.naturalHeight) {
@@ -3037,7 +3053,7 @@
           }
           if (img && img.__bmStatus !== 'error') return;
         }
-        const r = GRID.size * 0.35 * VIEW.zoom;
+        const r = GRID.size * 0.35 * VIEW.zoom * scale;
         gctx.fillStyle = token.side === 'NPC' ? '#c95c5c' : '#5ca9c9';
         gctx.beginPath();
         gctx.arc(center.x, center.y, r, 0, Math.PI * 2);
@@ -3503,6 +3519,7 @@
           addField('Floor', sel.item.floorId || '', 'floorId');
           addField('POI', sel.item.poi_id || '', 'poi_id');
           addSelectField('Sprite', sel.item.sprite || '', 'sprite', TOKEN_SPRITE_OPTIONS);
+          addField('Scale', sel.item.spriteScale != null ? sel.item.spriteScale : '', 'spriteScale', { type: 'number', step: '0.05' });
           addField('Side', sel.item.side || '', 'side');
           addField('HP', sel.item.hp != null ? sel.item.hp : '', 'hp', { type: 'number', step: '1' });
           addField('Init', sel.item.init != null ? sel.item.init : '', 'init', { type: 'number', step: '1' });
@@ -3643,6 +3660,7 @@
             if (!value) delete item.sprite;
             else item.sprite = value;
           }
+          if (key === 'spriteScale') item.spriteScale = num(value, null);
           if (key === 'side') item.side = value;
           if (key === 'hp') item.hp = num(value, null);
           if (key === 'init') item.init = num(value, null);
@@ -3989,6 +4007,13 @@
         if (token.kind) entity.kind = token.kind;
         if (token.sprite) entity.sprite = token.sprite;
         if (!token.sprite && entity.sprite) delete entity.sprite;
+        if (token.spriteScale != null) {
+          if (!entity.appearance || typeof entity.appearance !== 'object') entity.appearance = {};
+          entity.appearance.sprite_scale = token.spriteScale;
+        } else if (entity.appearance && (entity.appearance.sprite_scale != null || entity.appearance.spriteScale != null)) {
+          delete entity.appearance.sprite_scale;
+          delete entity.appearance.spriteScale;
+        }
         if (!entity.location || typeof entity.location !== 'object') entity.location = {};
         if (token.hex) entity.location.hex = token.hex;
         if (token.floorId) entity.location.floorId = token.floorId;
@@ -4355,6 +4380,12 @@
         };
         if (token.sprite) patch.sprite = token.sprite;
         else if (token.__entity && token.__entity.sprite) patch.sprite = null;
+        if (token.spriteScale != null) {
+          const existing = token.__entity && token.__entity.appearance && typeof token.__entity.appearance === 'object'
+            ? token.__entity.appearance
+            : {};
+          patch.appearance = { ...existing, sprite_scale: token.spriteScale };
+        }
         saveEntityPatch(token.id, patch, true);
       }
 
