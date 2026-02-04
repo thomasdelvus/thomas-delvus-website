@@ -2632,7 +2632,7 @@
               const uy = dy / len;
               const thetaA = cornerAngle[i] ?? Math.PI / 2;
               const thetaB = cornerAngle[(i + 1) % screenPts.length] ?? Math.PI / 2;
-              const useRound = Math.abs(thetaA - Math.PI / 2) > (Math.PI / 6) || Math.abs(thetaB - Math.PI / 2) > (Math.PI / 6);
+              const useRound = Math.abs(thetaA - Math.PI / 2) > (Math.PI / 20) || Math.abs(thetaB - Math.PI / 2) > (Math.PI / 20);
               const padA = useRound ? 0 : (cornerPads[i] ?? (lineW * 0.5));
               const padB = useRound ? 0 : (cornerPads[(i + 1) % screenPts.length] ?? (lineW * 0.5));
               gctx.beginPath();
