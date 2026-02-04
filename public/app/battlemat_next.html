@@ -1602,12 +1602,19 @@
         if (!room) return;
         const points = Array.isArray(room.points) ? room.points
           : (Array.isArray(room.poly) ? room.poly : (Array.isArray(room.vertices) ? room.vertices : null));
-        if (!Array.isArray(points) || index < 0 || index >= points.length) return;
-        points[index] = label;
-        if (Array.isArray(room.points)) room.points = points.slice();
-        else if (Array.isArray(room.poly)) room.poly = points.slice();
-        else if (Array.isArray(room.vertices)) room.vertices = points.slice();
-        else room.points = points.slice();
+        if (Array.isArray(points)) {
+          if (index < 0 || index >= points.length) return;
+          points[index] = label;
+          if (Array.isArray(room.points)) room.points = points.slice();
+          else if (Array.isArray(room.poly)) room.poly = points.slice();
+          else if (Array.isArray(room.vertices)) room.vertices = points.slice();
+          else room.points = points.slice();
+          return;
+        }
+        const corners = Array.isArray(room.corners) ? room.corners.slice() : [];
+        if (!corners.length || index < 0 || index >= corners.length) return;
+        corners[index] = label;
+        room.corners = corners;
       }
 
       function setPolyPoints(room, labels) {
@@ -1615,6 +1622,7 @@
         if (Array.isArray(room.points)) room.points = labels.slice();
         else if (Array.isArray(room.poly)) room.poly = labels.slice();
         else if (Array.isArray(room.vertices)) room.vertices = labels.slice();
+        else if (Array.isArray(room.corners) && room.corners.length >= 3) room.corners = labels.slice();
         else room.points = labels.slice();
       }
 
@@ -2131,7 +2139,9 @@
         if (!room || typeof room !== 'object') return null;
         const points = Array.isArray(room.points) ? room.points
           : (Array.isArray(room.poly) ? room.poly : (Array.isArray(room.vertices) ? room.vertices : null));
-        return (Array.isArray(points) && points.length >= 3) ? points : null;
+        if (Array.isArray(points) && points.length >= 3) return points;
+        const corners = Array.isArray(room.corners) ? room.corners : [];
+        return corners.length >= 3 ? corners : null;
       }
 
       function getPolyEdgeHiddenArray(room) {
@@ -3472,7 +3482,7 @@
           addField('Floor Rot', sel.item.floor && (sel.item.floor.rot ?? sel.item.floor.rotDeg) ? (sel.item.floor.rot ?? sel.item.floor.rotDeg) : '', 'floor.rot', { type: 'number', step: '1' });
           addField('Wall Kind', sel.item.wall && sel.item.wall.kind ? sel.item.wall.kind : '', 'wall.kind', { list: 'wallKindList' });
           addField('Erase', sel.item.wall_erase || sel.item.wallErase || sel.item.erase || '', 'wall_erase');
-          if (isPolyRoom(sel.item)) {
+          if (getPolyPointLabels(sel.item)) {
             const edgeHidden = getPolyEdgeHiddenArray(sel.item).join(',');
             addField('Edge Hidden', edgeHidden, 'edge_hidden');
           }
@@ -4199,7 +4209,8 @@
         if (floor && EDITOR.selection && EDITOR.selection.type === 'room') {
           let hit = null;
           if (UI.showHandles || UI.handleHot) {
-            hit = isPolyRoom(EDITOR.selection.item)
+            const hasPoly = !!getPolyPointLabels(EDITOR.selection.item);
+            hit = hasPoly
               ? getPolyHandleHit(EDITOR.selection.item, screenPoint)
               : getRoomHandleHit(EDITOR.selection.item, screenPoint);
           }
@@ -4244,7 +4255,8 @@
           selectItem(sel.type, sel.item, sel.floorId);
           const showHandles = UI.showHandles || UI.handleHot;
           if (showHandles) {
-            const hit = isPolyRoom(sel.item)
+            const hasPoly = !!getPolyPointLabels(sel.item);
+            const hit = hasPoly
               ? getPolyHandleHit(sel.item, screenPoint)
               : getRoomHandleHit(sel.item, screenPoint);
               if (hit) {
