@@ -201,6 +201,43 @@
       align-items: flex-start;
     }
 
+    .zoomBlock {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .zoomRow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .zoomButtons {
+      display: grid;
+      grid-template-columns: 28px auto 28px;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #ff5c5c;
+    }
+
+    .zoomButtons button {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      line-height: 1;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #zoomLevel {
+      text-align: center;
+      min-width: 48px;
+      font-weight: 600;
+    }
+
     .panPad {
       display: grid;
       grid-template-columns: 28px 28px 28px;
@@ -593,8 +630,17 @@
           <button id="panDown" title="Pan down">↓</button>
           <div></div>
         </div>
-        <label class="status">Zoom</label>
-        <input id="zoom" type="range" min="0.05" max="4" step="0.05" value="1" />
+        <div class="zoomBlock">
+          <div class="zoomRow">
+            <label class="status">Zoom</label>
+            <input id="zoom" type="range" min="0.05" max="4" step="0.05" value="1" />
+          </div>
+          <div class="zoomButtons">
+            <button id="zoomOut" title="Zoom out">−</button>
+            <div id="zoomLevel">100%</div>
+            <button id="zoomIn" title="Zoom in">+</button>
+          </div>
+        </div>
         <div class="toggles">
           <label class="mini"><input type="checkbox" id="labelBoldToggle" /> Bright Labels</label>
           <label class="mini"><input type="checkbox" id="hexGridToggle" checked /> Hexgrid</label>
@@ -692,6 +738,9 @@
       const panDown = document.getElementById('panDown');
       const panLeft = document.getElementById('panLeft');
       const panRight = document.getElementById('panRight');
+      const zoomInButton = document.getElementById('zoomIn');
+      const zoomOutButton = document.getElementById('zoomOut');
+      const zoomLevel = document.getElementById('zoomLevel');
       const hexGridToggle = document.getElementById('hexGridToggle');
       const labelBoldToggle = document.getElementById('labelBoldToggle');
       const handlesToggle = document.getElementById('handlesToggle');
@@ -1594,6 +1643,7 @@
         const next = clampZoom(value);
         VIEW.zoom = next;
         if (zoomInput) zoomInput.value = String(next);
+        if (zoomLevel) zoomLevel.textContent = `${Math.round(next * 100)}%`;
         render();
       }
 
@@ -4583,10 +4633,39 @@
           btn.addEventListener('touchend', stop);
           btn.addEventListener('touchcancel', stop);
         };
+        const setupHold = (btn, stepFn) => {
+          if (!btn) return;
+          let timer = null;
+          let active = false;
+          const step = () => stepFn();
+          const stop = () => {
+            active = false;
+            if (timer) {
+              clearInterval(timer);
+              timer = null;
+            }
+          };
+          const start = (ev) => {
+            ev.preventDefault();
+            if (active) return;
+            active = true;
+            step();
+            timer = setInterval(step, 60);
+          };
+          btn.addEventListener('mousedown', start);
+          btn.addEventListener('touchstart', start, { passive: false });
+          btn.addEventListener('mouseup', stop);
+          btn.addEventListener('mouseleave', stop);
+          btn.addEventListener('touchend', stop);
+          btn.addEventListener('touchcancel', stop);
+        };
         setupPanHold(panUp, () => 0, () => -rowStep() * nudgeStep * panScale());
         setupPanHold(panDown, () => 0, () => rowStep() * nudgeStep * panScale());
         setupPanHold(panLeft, () => -colStep() * nudgeStep * panScale(), () => 0);
         setupPanHold(panRight, () => colStep() * nudgeStep * panScale(), () => 0);
+        const zoomStep = () => zoomInput ? Number(zoomInput.step) || 0.05 : 0.05;
+        setupHold(zoomOutButton, () => setZoom(VIEW.zoom - zoomStep()));
+        setupHold(zoomInButton, () => setZoom(VIEW.zoom + zoomStep()));
         if (undoButton) undoButton.addEventListener('click', () => undo());
         saveButton.addEventListener('click', () => saveState());
         if (chatSend) chatSend.addEventListener('click', () => sendChatMessage());
@@ -4691,6 +4770,7 @@
         populateKindLists();
         await loadMapOptions();
         VIEW.zoom = Number(zoomInput.value);
+        if (zoomLevel) zoomLevel.textContent = `${Math.round(VIEW.zoom * 100)}%`;
         autoCenterCamera();
         pushHistory();
         renderStatus();
