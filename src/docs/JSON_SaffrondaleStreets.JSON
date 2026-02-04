@@ -36,172 +36,6 @@
       "name": "Ground",
       "rooms": [
         {
-          "id": "room_mkle3qxf_5rr",
-          "corners": [
-            "ER109",
-            "EX109",
-            "EX104",
-            "ER104"
-          ],
-          "thickness": 15,
-          "floor": {
-            "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_mkle45ne_g",
-          "corners": [
-            "ER114",
-            "EX114",
-            "EX109",
-            "ER109"
-          ],
-          "thickness": 15,
-          "floor": {
-            "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_mklecjhm_2h3",
-          "corners": [
-            "FP110",
-            "FT110",
-            "FT106",
-            "FP106"
-          ],
-          "thickness": 15,
-          "floor": {
-            "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          },
-          "points": [
-            "FP110",
-            "FT110",
-            "FT106.5",
-            "FP106.5"
-          ]
-        },
-        {
-          "id": "room_mkli3rr4_jt",
-          "corners": [
-            "EL105",
-            "ER105",
-            "ER96.5",
-            "EL96.5"
-          ],
-          "thickness": 15,
-          "floor": {
-            "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_mkli46vt_7fu",
-          "corners": [
-            "ER104",
-            "EX104",
-            "EX96.5",
-            "ER96.5"
-          ],
-          "thickness": 15,
-          "floor": {
-            "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_mkli4dl5_1zn",
-          "corners": [
-            "EX104",
-            "FB104",
-            "FB96.5",
-            "EX96.5"
-          ],
-          "thickness": 15,
-          "floor": {
-            "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_mkli550f_2na",
-          "corners": [
-            "FD106",
-            "FP106",
-            "FP96.5",
-            "FD96.5"
-          ],
-          "thickness": 15,
-          "floor": {
-            "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          },
-          "points": [
-            "FD106.5",
-            "FP106.5",
-            "FP96.5",
-            "FD96.5"
-          ]
-        },
-        {
-          "id": "room_mkmu2yeb_433",
-          "corners": [
-            "DO96.75",
-            "ER96.75",
-            "ER92",
-            "DO92"
-          ],
-          "thickness": 15,
-          "floor": {
-            "kind": "cobble"
-          },
-          "wall": {
-            "kind": "brick"
-          },
-          "points": [
-            "DO97",
-            "GD96.5",
-            "GD91.5",
-            "DO92"
-          ],
-          "fog_mode": "visible",
-          "wall_erase": "EW",
-          "z": 4
-        },
-        {
-          "id": "room_mkmuw9iz_53a",
-          "corners": [
-            "FB104",
-            "FD104",
-            "FD96.5",
-            "FB96.5"
-          ],
-          "thickness": 15,
-          "floor": {
-            "kind": "cobble"
-          },
-          "wall": {
-            "kind": "brick"
-          },
-          "wall_erase": "N"
-        },
-        {
           "id": "room_mkli3g41_z",
           "corners": [
             "DO110.5",
@@ -211,18 +45,35 @@
           ],
           "thickness": 15,
           "floor": {
-            "kind": "wood_oak"
+            "kind": "stone"
           },
           "wall": {
             "kind": "brick"
-          }
+          },
+          "points": [
+            "DO127",
+            "EF126.5",
+            "EF122",
+            "DW122.5",
+            "DW119.5",
+            "DU119.5",
+            "DU115.5",
+            "ED115",
+            "ED110.5",
+            "DV110.5",
+            "DV107",
+            "EE107.5",
+            "EE105.5",
+            "DO105.5"
+          ],
+          "fog_mode": "always_fogged"
         },
         {
           "id": "room_mkli30iq_2yw",
           "corners": [
-            "DO105.25",
-            "EL105.25",
-            "EL96.75",
+            "DO105.5",
+            "EL105",
+            "EL96.5",
             "DO96.75"
           ],
           "thickness": 15,
@@ -231,37 +82,175 @@
           },
           "wall": {
             "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml37qbe9",
-          "corners": [
-            "FH115",
-            "FP115",
-            "FP110",
-            "FH110"
-          ],
-          "thickness": 12,
-          "floor": {
-            "kind": "wood_oak"
           },
-          "wall": {
-            "kind": "brick"
-          },
+          "fog_mode": "explored",
           "points": [
-            "FE115.5",
-            "FP115",
-            "FP110",
-            "FE110.5"
+            "DO105.5",
+            "EL105",
+            "EL96.5",
+            "DO97"
           ]
         },
         {
-          "id": "room_ml38djoh",
-          "corners": [
-            "FX106",
-            "GD106",
-            "GD96.5",
-            "FX96.5"
+          "id": "room_ml81fxkr",
+          "shape": "poly",
+          "points": [
+            "GJ176.5",
+            "GQ178",
+            "GQ173",
+            "GO172.5",
+            "GP160",
+            "GL159.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml81ga6m",
+          "shape": "poly",
+          "points": [
+            "GS178.5",
+            "HP181",
+            "HQ166.5",
+            "HL165.5",
+            "HK176",
+            "GY174",
+            "GZ162.5",
+            "GT162"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml81gx5g",
+          "shape": "poly",
+          "points": [
+            "IJ183.5",
+            "IJ177.5",
+            "IE178",
+            "IE171",
+            "II171",
+            "II161.5",
+            "HX160",
+            "HW174.5",
+            "HR181.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml81qh7f",
+          "shape": "poly",
+          "points": [
+            "EL105",
+            "EQ105.5",
+            "EQ97",
+            "EL96.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml81qpay",
+          "shape": "poly",
+          "points": [
+            "EQ105.5",
+            "EW105.5",
+            "EW97",
+            "EQ97"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml81qx7v",
+          "shape": "poly",
+          "points": [
+            "EW97",
+            "FA97",
+            "FA105.5",
+            "EW105.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml81rios",
+          "shape": "poly",
+          "points": [
+            "FC105.5",
+            "FC97",
+            "FH96.5",
+            "FH107",
+            "FC107.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml81s06b",
+          "shape": "poly",
+          "points": [
+            "FA105.5",
+            "FC105.5",
+            "FC97",
+            "FA97"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "cobble"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "edge_hidden": [
+            0,
+            2
+          ]
+        },
+        {
+          "id": "room_ml81u2az",
+          "shape": "poly",
+          "points": [
+            "FH96.5",
+            "FH107",
+            "FW107.5",
+            "FW97"
           ],
           "thickness": 15,
           "floor": {
@@ -272,59 +261,688 @@
           }
         },
         {
-          "id": "room_ml38fkoh",
-          "corners": [
-            "DH101.5",
-            "DO101.5",
-            "DO97",
-            "DH97"
+          "id": "room_ml81wld1",
+          "shape": "poly",
+          "points": [
+            "FY97",
+            "FY107.5",
+            "GG107.5",
+            "GG97"
           ],
           "thickness": 15,
           "floor": {
-            "kind": "cobble"
+            "kind": "stone"
           },
           "wall": {
             "kind": "brick"
-          },
+          }
+        },
+        {
+          "id": "room_ml81xobh",
+          "shape": "poly",
           "points": [
-            "DH117.5",
-            "DO118",
-            "DO86.5",
-            "DH86"
+            "GG102.5",
+            "GG112",
+            "GO112",
+            "GO103"
           ],
-          "fog_mode": "visible",
-          "wall_erase": "NS",
-          "z": 2
-        },
-        {
-          "id": "room_ml38njjk",
-          "corners": [
-            "FT110",
-            "FX110",
-            "FX96.5",
-            "FT96.5"
-          ],
-          "thickness": 12,
+          "thickness": 15,
           "floor": {
-            "kind": "cobble"
+            "kind": "stone"
           },
           "wall": {
             "kind": "brick"
-          },
-          "wall_erase": "NS",
-          "z": 15
+          }
         },
         {
-          "id": "room_ml4m235k",
-          "corners": [
-            "FP106",
-            "FT106",
-            "FT96.5",
-            "FP96.5"
+          "id": "room_ml81z1x0",
+          "shape": "poly",
+          "points": [
+            "JV107.5",
+            "IX107.5",
+            "IX124",
+            "JV124"
           ],
-          "thickness": 12,
+          "thickness": 15,
           "floor": {
             "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml822kxh",
+          "shape": "poly",
+          "points": [
+            "IX107.5",
+            "IX119",
+            "IN119",
+            "IN107"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml823t2d",
+          "shape": "poly",
+          "points": [
+            "IN107",
+            "IN119",
+            "IH119",
+            "IH107"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml824esu",
+          "shape": "poly",
+          "points": [
+            "IH107",
+            "IH119",
+            "IA119.5",
+            "IA107"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml825g2d",
+          "shape": "poly",
+          "points": [
+            "HY107",
+            "HR106",
+            "HR119",
+            "HY119.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml826jt1",
+          "shape": "poly",
+          "points": [
+            "HO118.5",
+            "HO104.5",
+            "HB104",
+            "HB118"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82a06l",
+          "shape": "poly",
+          "points": [
+            "GO103",
+            "GU104",
+            "GU121",
+            "GO120.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82a9ok",
+          "shape": "poly",
+          "points": [
+            "GU104",
+            "HB104",
+            "HB116",
+            "GU116.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82giwm",
+          "shape": "poly",
+          "points": [
+            "DZ91",
+            "EF91",
+            "EF83",
+            "DZ83"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82h89y",
+          "shape": "poly",
+          "points": [
+            "EF83",
+            "EF91",
+            "EL91",
+            "EL83"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82i1ry",
+          "shape": "poly",
+          "points": [
+            "EL91",
+            "EQ91.5",
+            "EQ83.5",
+            "EL83"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82ib8d",
+          "shape": "poly",
+          "points": [
+            "EQ91.5",
+            "EZ91",
+            "EZ83",
+            "EQ83.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82is0t",
+          "shape": "poly",
+          "points": [
+            "DX91",
+            "DS91.5",
+            "DS80",
+            "DX79.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82j8au",
+          "shape": "poly",
+          "points": [
+            "DS91.5",
+            "DN91",
+            "DN86",
+            "DS86.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82jixp",
+          "shape": "poly",
+          "points": [
+            "DN86",
+            "DM80",
+            "DS80",
+            "DS86.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82jwp0",
+          "shape": "poly",
+          "points": [
+            "DM80",
+            "DM75",
+            "DX74.5",
+            "DX79.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82k9p1",
+          "shape": "poly",
+          "points": [
+            "DM75",
+            "DL70",
+            "DX69.5",
+            "DX74.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82lp5x",
+          "shape": "poly",
+          "points": [
+            "DL65",
+            "DX65",
+            "DX60",
+            "DK60.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82lwxx",
+          "shape": "poly",
+          "points": [
+            "DK60.5",
+            "DK55",
+            "DR54.5",
+            "DR60"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82m7pa",
+          "shape": "poly",
+          "points": [
+            "DK46",
+            "DK50",
+            "DQ50",
+            "DQ46"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82mfph",
+          "shape": "poly",
+          "points": [
+            "DK55",
+            "DK50",
+            "DU50",
+            "DU55"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82qse5",
+          "shape": "poly",
+          "points": [
+            "KE89.5",
+            "KE99",
+            "KK99",
+            "KK100.5",
+            "KS100.5",
+            "KS99",
+            "KY99",
+            "KY89.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82rxe6",
+          "shape": "poly",
+          "points": [
+            "KY99",
+            "LC99",
+            "LC86",
+            "KY86"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82tx5q",
+          "shape": "poly",
+          "points": [
+            "LQ111",
+            "LQ132",
+            "MF131.5",
+            "MF126.5",
+            "MO127",
+            "MO113.5",
+            "ME113.5",
+            "ME111"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82u7lp",
+          "shape": "poly",
+          "points": [
+            "LQ109",
+            "ME109",
+            "ME104",
+            "LQ104"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82ur84",
+          "shape": "poly",
+          "points": [
+            "LQ132",
+            "LR138",
+            "MC138.5",
+            "MC132"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82v5pg",
+          "shape": "poly",
+          "points": [
+            "LR138",
+            "LR142",
+            "MC142.5",
+            "MC138.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82zac5",
+          "shape": "poly",
+          "points": [
+            "LN132",
+            "LN141",
+            "LI141.5",
+            "LI132.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82zo5p",
+          "shape": "poly",
+          "points": [
+            "LI132.5",
+            "LD132",
+            "LD141",
+            "LI141.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml82zxx0",
+          "shape": "poly",
+          "points": [
+            "LD132",
+            "KW132",
+            "KW141.5",
+            "LD141"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml8306n9",
+          "shape": "poly",
+          "points": [
+            "KW132",
+            "KQ131.5",
+            "KQ141.5",
+            "KW141.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml830erx",
+          "shape": "poly",
+          "points": [
+            "KQ131.5",
+            "KK131",
+            "KK141.5",
+            "KQ141.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml830lat",
+          "shape": "poly",
+          "points": [
+            "KK131",
+            "KF130.5",
+            "KF141",
+            "KK141.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml831ylp",
+          "shape": "poly",
+          "points": [
+            "KF148",
+            "KF141",
+            "KL141",
+            "KL148"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml832b99",
+          "shape": "poly",
+          "points": [
+            "KL148",
+            "KR148",
+            "KR141",
+            "KL141"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml832hk5",
+          "shape": "poly",
+          "points": [
+            "KR148",
+            "KY149",
+            "KY141.5",
+            "KR141"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml832mvi",
+          "shape": "poly",
+          "points": [
+            "KY149",
+            "LE149",
+            "LE141.5",
+            "KY141.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml832uwd",
+          "shape": "poly",
+          "points": [
+            "LE149",
+            "LK149",
+            "LK141.5",
+            "LE141.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "t"
           },
           "wall": {
             "kind": "brick"
@@ -332,34 +950,6 @@
         }
       ],
       "openings": [
-        {
-          "id": "door_mkli3uew_254",
-          "kind": "door.wood",
-          "hex": "EO97",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "door_mkli4h1y_1zp",
-          "kind": "door.wood",
-          "hex": "EU97",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "door_mkli4hxt_1gj",
-          "kind": "door.wood",
-          "hex": "EZ96.5",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "door_mkmuwwle_14p",
-          "kind": "door.wood",
-          "hex": "FC97",
-          "orientation": "h",
-          "openPct": 0
-        },
         {
           "id": "door_mkmuy3fz_5jn",
           "kind": "door.wood",
@@ -370,7 +960,7 @@
         {
           "id": "door_mkmuy4y7_4d3",
           "kind": "door.wood",
-          "hex": "EG97.25",
+          "hex": "EG97",
           "orientation": "h",
           "openPct": 0
         },
