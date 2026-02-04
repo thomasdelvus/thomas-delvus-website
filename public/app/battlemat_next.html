@@ -1384,42 +1384,6 @@
         gctx.restore();
       }
 
-      function roomEdgeHandleWorlds(room) {
-        if (!room || room.deleted) return null;
-        if (isPolyRoom(room)) return null;
-        const box = roomToWallBox(room);
-        if (!box) return null;
-        const cx = (box.center.x1 + box.center.x2) / 2;
-        const cy = (box.center.y1 + box.center.y2) / 2;
-        return {
-          top: { x: cx, y: box.center.y1 },
-          bottom: { x: cx, y: box.center.y2 },
-          left: { x: box.center.x1, y: cy },
-          right: { x: box.center.x2, y: cy },
-          center: { x: cx, y: cy },
-          rect: { x1: box.center.x1, y1: box.center.y1, x2: box.center.x2, y2: box.center.y2 }
-        };
-      }
-
-      function getRectCornerData(room) {
-        const labels = roomPointLabels(room);
-        if (!labels || labels.length < 4) return null;
-        const parsed = labels.map(l => ({ label: l, ...parseHexLabel(l) })).filter(p => Number.isFinite(p.col) && Number.isFinite(p.row));
-        if (parsed.length < 4) return null;
-        const cols = Array.from(new Set(parsed.map(p => p.col)));
-        if (cols.length !== 2) return null;
-        const leftCol = Math.min(...cols);
-        const rightCol = Math.max(...cols);
-        const leftPts = parsed.filter(p => p.col === leftCol);
-        const rightPts = parsed.filter(p => p.col === rightCol);
-        if (leftPts.length < 2 || rightPts.length < 2) return null;
-        const topLeft = leftPts.reduce((a, b) => (a.row > b.row ? a : b));
-        const botLeft = leftPts.reduce((a, b) => (a.row < b.row ? a : b));
-        const topRight = rightPts.reduce((a, b) => (a.row > b.row ? a : b));
-        const botRight = rightPts.reduce((a, b) => (a.row < b.row ? a : b));
-        return { leftCol, rightCol, topLeft, botLeft, topRight, botRight };
-      }
-
       function drawRoomEdgeHandles(floor, gctx) {
         const show = UI.showHandles || UI.handleHot;
         if (!show || !floor) return;
@@ -1456,42 +1420,7 @@
           gctx.restore();
           return;
         }
-        const handles = roomEdgeHandleWorlds(sel.item);
-        if (!handles) return;
-        gctx.save();
-        gctx.strokeStyle = 'rgba(255,145,0,0.95)';
-        gctx.lineWidth = 1.6;
-        const size = Math.max(5, Math.min(12, 7 * VIEW.zoom));
-        const midTop = worldToScreen(handles.top);
-        const midBot = worldToScreen(handles.bottom);
-        const midLeft = worldToScreen(handles.left);
-        const midRight = worldToScreen(handles.right);
-        const midCenter = worldToScreen(handles.center);
-        drawHandle(gctx, midTop, size);
-        drawHandle(gctx, midBot, size);
-        drawHandle(gctx, midLeft, size);
-        drawHandle(gctx, midRight, size);
-        drawHandle(gctx, midCenter, size);
-        gctx.restore();
-      }
-
-      function getRoomHandleHit(room, screenPoint) {
-        const handles = roomEdgeHandleWorlds(room);
-        if (!handles) return null;
-        const hitR = Math.max(8, Math.min(14, 9 * VIEW.zoom));
-        const hitR2 = hitR * hitR;
-        const hit = (p) => {
-          const sp = worldToScreen(p);
-          const dx = sp.x - screenPoint.x;
-          const dy = sp.y - screenPoint.y;
-          return dx * dx + dy * dy <= hitR2;
-        };
-        if (hit(handles.center)) return { type: 'room-move' };
-        if (hit(handles.top)) return { type: 'room-edge', side: 'n' };
-        if (hit(handles.bottom)) return { type: 'room-edge', side: 's' };
-        if (hit(handles.left)) return { type: 'room-edge', side: 'w' };
-        if (hit(handles.right)) return { type: 'room-edge', side: 'e' };
-        return null;
+        return;
       }
 
       function getPolyHandleHit(room, screenPoint) {
@@ -1625,20 +1554,6 @@
         else if (Array.isArray(room.corners) && room.corners.length >= 3) room.corners = labels.slice();
         else room.points = labels.slice();
       }
-
-      function setRoomRectCorners(room, corners) {
-        if (!room || !Array.isArray(corners) || corners.length !== 4) return;
-        if (Array.isArray(room.points) && isRectPointList(room.points)) {
-          room.points = corners.slice();
-          return;
-        }
-        if (Array.isArray(room.corners)) {
-          room.corners = corners.slice();
-          return;
-        }
-        room.corners = corners.slice();
-      }
-
 
       function clampZoom(value) {
         const min = zoomInput ? Number(zoomInput.min) : 0.05;
@@ -2117,15 +2032,6 @@
         return thickness > 0 && roomWallKind(room) !== 'none';
       }
 
-      function parseEraseSides(room) {
-        const raw = String(room && (room.wall_erase || room.wallErase || room.erase || '') || '');
-        const out = new Set();
-        for (const ch of raw.toUpperCase()) {
-          if ('NSEW'.includes(ch)) out.add(ch);
-        }
-        return out;
-      }
-
       function roomPointLabels(room) {
         if (!room || typeof room !== 'object') return [];
         const points = Array.isArray(room.points) ? room.points
@@ -2208,34 +2114,14 @@
         return { x: sx / pointsWorld.length, y: sy / pointsWorld.length };
       }
 
-      function getRectPointStats(points) {
-        if (!Array.isArray(points) || points.length < 4) return null;
-        const parsed = points.map(parseHexLabel).filter(Boolean);
-        if (parsed.length < 4) return null;
-        const cols = Array.from(new Set(parsed.map(p => p.col)));
-        const rows = Array.from(new Set(parsed.map(p => p.row)));
-        if (cols.length !== 2 || rows.length !== 2) return null;
-        return {
-          cols: cols.sort((a, b) => a - b),
-          rows: rows.sort((a, b) => a - b),
-        };
-      }
-
-      function isRectPointList(points) {
-        return !!getRectPointStats(points);
-      }
-
       function isPolyRoom(room) {
         if (!room || typeof room !== 'object') return false;
         if (room.shape === 'poly' || room.isPoly === true) return true;
         if (Array.isArray(room.points) && room.points.length >= 3) return true;
         if (Array.isArray(room.poly) && room.poly.length >= 3) return true;
         if (Array.isArray(room.vertices) && room.vertices.length >= 3) return true;
-        const points = Array.isArray(room.points) ? room.points
-          : (Array.isArray(room.poly) ? room.poly : (Array.isArray(room.vertices) ? room.vertices : null));
-        if (!Array.isArray(points) || points.length < 3) return false;
-        if (!Array.isArray(room.corners) || room.corners.length < 3) return true;
-        return !isRectPointList(points);
+        const corners = Array.isArray(room.corners) ? room.corners : [];
+        return corners.length >= 3;
       }
 
       function roomWorldPoints(room) {
@@ -2254,60 +2140,6 @@
         const pts = roomWorldPoints(room);
         if (pts.length < 3) return null;
         return pts.map(worldToScreen);
-      }
-
-      function roomToWallBox(room) {
-        if (isPolyRoom(room)) return null;
-        let corners = Array.isArray(room && room.corners) ? room.corners : [];
-        if (corners.length !== 4) {
-          const points = roomPointLabels(room);
-          const stats = getRectPointStats(points);
-          if (!stats) return null;
-          const [c0, c1] = stats.cols;
-          const [r0, r1] = stats.rows;
-          const minRow = Math.min(r0, r1);
-          const maxRow = Math.max(r0, r1);
-          const minCol = Math.min(c0, c1);
-          const maxCol = Math.max(c0, c1);
-          corners = [
-            toHexLabel(minCol, maxRow),
-            toHexLabel(maxCol, maxRow),
-            toHexLabel(maxCol, minRow),
-            toHexLabel(minCol, minRow),
-          ];
-        }
-        const tl = parseHexLabel(corners[0]);
-        const tr = parseHexLabel(corners[1]);
-        const br = parseHexLabel(corners[2]);
-        const bl = parseHexLabel(corners[3]);
-        if (!tl || !tr || !br || !bl) return null;
-
-        const pTL = hexToWorld(tl.col, tl.row);
-        const pTR = hexToWorld(tr.col, tr.row);
-        const pBR = hexToWorld(br.col, br.row);
-        const pBL = hexToWorld(bl.col, bl.row);
-
-        const xL = (pTL.x + pBL.x) / 2;
-        const xR = (pTR.x + pBR.x) / 2;
-        const yTop = (pTL.y + pTR.y) / 2;
-        const yBot = (pBL.y + pBR.y) / 2;
-
-        const thicknessBase = Number(room && room.thickness != null ? room.thickness : 0);
-        const t = roomHasWalls(room) ? thicknessBase : 0;
-        const half = t / 2;
-
-        // Treat corners as the wall centerline. Expand outward for wall band.
-        const center = { x1: xL, y1: yTop, x2: xR, y2: yBot };
-        const outer = { x1: xL - half, y1: yTop - half, x2: xR + half, y2: yBot + half };
-        const inner = { x1: xL + half, y1: yTop + half, x2: xR - half, y2: yBot - half };
-
-        return { xL, xR, yTop, yBot, thickness: t, center, outer, inner };
-      }
-
-      function roomFloorRectWorld(room, box) {
-        if (!box) return null;
-        const src = roomHasWalls(room) ? box.inner : box.center;
-        return { x1: src.x1, y1: src.y1, x2: src.x2, y2: src.y2 };
       }
 
       function formatRoomPoints(room) {
@@ -2386,17 +2218,7 @@
           if (pts.length < 2) continue;
           const t = Number.isFinite(Number(room.thickness)) ? Number(room.thickness) : 0;
           const roomId = room && room.id != null ? String(room.id) : '';
-          let hidden = getPolyEdgeHiddenSet(room);
-          if (!isPolyRoom(room)) {
-            const erase = parseEraseSides(room);
-            if (erase.size) {
-              hidden = new Set(hidden);
-              if (erase.has('N')) hidden.add(0);
-              if (erase.has('E')) hidden.add(1);
-              if (erase.has('S')) hidden.add(2);
-              if (erase.has('W')) hidden.add(3);
-            }
-          }
+          const hidden = getPolyEdgeHiddenSet(room);
           for (let i = 0; i < pts.length; i++) {
             if (hidden.has(i)) continue;
             const a = pts[i];
@@ -2470,34 +2292,12 @@
         return projectToWall(best, worldPoint) || worldPoint;
       }
 
-      function roomRectScreen(room) {
-        const box = roomToWallBox(room);
-        if (!box) return null;
-        const rect = roomFloorRectWorld(room, box);
-        if (!rect) return null;
-        const p1 = worldToScreen({ x: rect.x1, y: rect.y1 });
-        const p2 = worldToScreen({ x: rect.x2, y: rect.y2 });
-        return {
-          x1: Math.min(p1.x, p2.x),
-          y1: Math.min(p1.y, p2.y),
-          x2: Math.max(p1.x, p2.x),
-          y2: Math.max(p1.y, p2.y),
-          box
-        };
-      }
-
       function openingAllowsCutout(opening) {
         const flag = opening && (opening.cutout ?? opening.cutoutMode ?? opening.cutout_mode);
         if (flag === false) return false;
         if (flag == null) return true;
         const val = String(flag).toLowerCase();
         return val !== 'none' && val !== 'off' && val !== 'false';
-      }
-
-      function roomOuterRectWorld(room, box) {
-        if (!box) return null;
-        const src = roomHasWalls(room) ? (box.outer || box.center) : box.center;
-        return { x1: src.x1, y1: src.y1, x2: src.x2, y2: src.y2 };
       }
 
       function drawFloorRoom(room, gctx) {
@@ -2616,17 +2416,7 @@
           if (!fill) continue;
           const thickness = Number(room.thickness || 0);
           const lineW = Math.max(1, thickness * VIEW.zoom);
-          let hidden = getPolyEdgeHiddenSet(room);
-          if (!isPolyRoom(room)) {
-            const erase = parseEraseSides(room);
-            if (erase.size) {
-              hidden = new Set(hidden);
-              if (erase.has('N')) hidden.add(0);
-              if (erase.has('E')) hidden.add(1);
-              if (erase.has('S')) hidden.add(2);
-              if (erase.has('W')) hidden.add(3);
-            }
-          }
+          const hidden = getPolyEdgeHiddenSet(room);
           const cornerPads = screenPts.map((pt, i) => {
             const prev = screenPts[(i - 1 + screenPts.length) % screenPts.length];
             const next = screenPts[(i + 1) % screenPts.length];
@@ -2714,17 +2504,15 @@
       }
 
       function roomAnchorWorld(room) {
-        const box = roomToWallBox(room);
-        if (!box) return null;
-        const src = roomHasWalls(room) ? box.inner : box.center;
-        return { x: src.x1, y: src.y1 };
+        const pts = roomWorldPoints(room);
+        if (!pts.length) return null;
+        return pts[0];
       }
 
       function roomCenterWorld(room) {
-        const box = roomToWallBox(room);
-        if (!box) return null;
-        const src = roomHasWalls(room) ? box.inner : box.center;
-        return { x: (src.x1 + src.x2) / 2, y: (src.y1 + src.y2) / 2 };
+        const pts = roomWorldPoints(room);
+        if (!pts.length) return null;
+        return polyCenterWorld(pts);
       }
 
 
@@ -3171,19 +2959,9 @@
 
       function roomContainsWorld(room, worldPoint) {
         if (!room || !worldPoint) return false;
-        if (isPolyRoom(room)) {
-          const pts = roomWorldPoints(room);
-          if (pts.length < 3) return false;
-          return pointInPolygon(worldPoint, pts);
-        }
-        const box = roomToWallBox(room);
-        if (!box) return false;
-        const rect = roomFloorRectWorld(room, box) || box.center;
-        if (!rect) return false;
-        return worldPoint.x >= Math.min(rect.x1, rect.x2) &&
-          worldPoint.x <= Math.max(rect.x1, rect.x2) &&
-          worldPoint.y >= Math.min(rect.y1, rect.y2) &&
-          worldPoint.y <= Math.max(rect.y1, rect.y2);
+        const pts = roomWorldPoints(room);
+        if (pts.length < 3) return false;
+        return pointInPolygon(worldPoint, pts);
       }
 
       function findRoomForWorldPoint(rooms, worldPoint) {
@@ -3277,27 +3055,14 @@
         gctx.globalAlpha = alpha;
         for (const room of rooms) {
           if (!room || room.deleted) continue;
-          if (isPolyRoom(room)) {
-            const pts = roomWorldPoints(room);
-            if (pts.length < 3) continue;
-            const screenPts = pts.map(worldToScreen);
-            gctx.beginPath();
-            gctx.moveTo(screenPts[0].x, screenPts[0].y);
-            for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
-            gctx.closePath();
-            gctx.fill();
-            continue;
-          }
-          const box = roomToWallBox(room);
-          if (!box) continue;
-          const rect = roomHasWalls(room) ? (box.center || box.inner) : box.center;
-          const p1 = worldToScreen({ x: rect.x1, y: rect.y1 });
-          const p2 = worldToScreen({ x: rect.x2, y: rect.y2 });
-          const x1 = Math.min(p1.x, p2.x);
-          const y1 = Math.min(p1.y, p2.y);
-          const x2 = Math.max(p1.x, p2.x);
-          const y2 = Math.max(p1.y, p2.y);
-          gctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+          const pts = roomWorldPoints(room);
+          if (pts.length < 3) continue;
+          const screenPts = pts.map(worldToScreen);
+          gctx.beginPath();
+          gctx.moveTo(screenPts[0].x, screenPts[0].y);
+          for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
+          gctx.closePath();
+          gctx.fill();
         }
         gctx.restore();
       }
@@ -3478,7 +3243,6 @@
           addField('Floor Kind', sel.item.floor && sel.item.floor.kind ? sel.item.floor.kind : '', 'floor.kind', { list: 'floorKindList' });
           addField('Floor Rot', sel.item.floor && (sel.item.floor.rot ?? sel.item.floor.rotDeg) ? (sel.item.floor.rot ?? sel.item.floor.rotDeg) : '', 'floor.rot', { type: 'number', step: '1' });
           addField('Wall Kind', sel.item.wall && sel.item.wall.kind ? sel.item.wall.kind : '', 'wall.kind', { list: 'wallKindList' });
-          addField('Erase', sel.item.wall_erase || sel.item.wallErase || sel.item.erase || '', 'wall_erase');
           if (getPolyPointLabels(sel.item)) {
             const edgeHidden = getPolyEdgeHiddenArray(sel.item).join(',');
             addField('Edge Hidden', edgeHidden, 'edge_hidden');
@@ -3621,11 +3385,6 @@
           if (key === 'wall.kind') {
             item.wall = item.wall || {};
             item.wall.kind = value;
-          }
-          if (key === 'wall_erase') {
-            const cleaned = String(value || '').toUpperCase().replace(/[^NSEW]/g, '');
-            if (!cleaned) delete item.wall_erase;
-            else item.wall_erase = cleaned;
           }
           if (key === 'edge_hidden') {
             const raw = String(value || '').trim();
@@ -3858,13 +3617,6 @@
             if (pointInPolygon(screenPoint, poly)) {
               return { type: 'room', item: room, floorId: floor.id };
             }
-            continue;
-          }
-          const rectInfo = roomRectScreen(room);
-          if (!rectInfo) continue;
-          if (screenPoint.x >= rectInfo.x1 && screenPoint.x <= rectInfo.x2 &&
-              screenPoint.y >= rectInfo.y1 && screenPoint.y <= rectInfo.y2) {
-            return { type: 'room', item: room, floorId: floor.id };
           }
         }
 
@@ -4106,78 +3858,8 @@
           if (!base || !base.length) return;
           const labels = base.map(p => toHexLabel(p.col + dCol, p.row + dRow));
           setPolyPoints(drag.item, labels);
-        } else if (drag.type === 'room-edge' || drag.type === 'room-move') {
-          const handles = roomEdgeHandleWorlds(drag.item);
-          if (!handles) return;
-          const baseRect = drag.rect || handles.rect;
-          const startWorld = drag.startWorld || worldPoint;
-          const snapHex = worldToHexHalf(worldPoint);
-          const snapWorld = hexToWorld(snapHex.col, snapHex.row);
-
-          if (drag.type === 'room-move') {
-            const dx = worldPoint.x - startWorld.x;
-            const dy = worldPoint.y - startWorld.y;
-            const corners = roomCornersFromWorld(
-              { x: baseRect.x1 + dx, y: baseRect.y2 + dy },
-              { x: baseRect.x2 + dx, y: baseRect.y1 + dy }
-            );
-            setRoomRectCorners(drag.item, corners);
-          } else {
-            const data = getRectCornerData(drag.item);
-            if (!data) return;
-            const { leftCol, rightCol, topLeft, botLeft, topRight, botRight } = data;
-            if (drag.side === 'n') {
-              const yTop = hexToWorld(snapHex.col, snapHex.row).y;
-              const tlRow = rowFromWorldYForCol(yTop, leftCol);
-              const trRow = rowFromWorldYForCol(yTop, rightCol);
-              const corners = [
-                toHexLabel(leftCol, tlRow),
-                toHexLabel(rightCol, trRow),
-                toHexLabel(rightCol, botRight.row),
-                toHexLabel(leftCol, botLeft.row)
-              ];
-              setRoomRectCorners(drag.item, corners);
-            } else if (drag.side === 's') {
-              const yBot = hexToWorld(snapHex.col, snapHex.row).y;
-              const blRow = rowFromWorldYForCol(yBot, leftCol);
-              const brRow = rowFromWorldYForCol(yBot, rightCol);
-              const corners = [
-                toHexLabel(leftCol, topLeft.row),
-                toHexLabel(rightCol, topRight.row),
-                toHexLabel(rightCol, brRow),
-                toHexLabel(leftCol, blRow)
-              ];
-              setRoomRectCorners(drag.item, corners);
-            } else if (drag.side === 'w') {
-              const newCol = snapHex.col;
-              const yTop = hexToWorld(rightCol, topRight.row).y;
-              const yBot = hexToWorld(rightCol, botRight.row).y;
-              const tlRow = rowFromWorldYForCol(yTop, newCol);
-              const blRow = rowFromWorldYForCol(yBot, newCol);
-              const corners = [
-                toHexLabel(newCol, tlRow),
-                toHexLabel(rightCol, topRight.row),
-                toHexLabel(rightCol, botRight.row),
-                toHexLabel(newCol, blRow)
-              ];
-              setRoomRectCorners(drag.item, corners);
-            } else if (drag.side === 'e') {
-              const newCol = snapHex.col;
-              const yTop = hexToWorld(leftCol, topLeft.row).y;
-              const yBot = hexToWorld(leftCol, botLeft.row).y;
-              const trRow = rowFromWorldYForCol(yTop, newCol);
-              const brRow = rowFromWorldYForCol(yBot, newCol);
-              const corners = [
-                toHexLabel(leftCol, topLeft.row),
-                toHexLabel(newCol, trRow),
-                toHexLabel(newCol, brRow),
-                toHexLabel(leftCol, botLeft.row)
-              ];
-              setRoomRectCorners(drag.item, corners);
-            }
-          }
         }
-        if (drag.type === 'room-move' || drag.type === 'poly-move') {
+        if (drag.type === 'poly-move') {
           const openings = Array.isArray(drag.openingsBase) ? drag.openingsBase : null;
           if (openings && openings.length) {
             for (const entry of openings) {
@@ -4206,10 +3888,7 @@
         if (floor && EDITOR.selection && EDITOR.selection.type === 'room') {
           let hit = null;
           if (UI.showHandles || UI.handleHot) {
-            const hasPoly = !!getPolyPointLabels(EDITOR.selection.item);
-            hit = hasPoly
-              ? getPolyHandleHit(EDITOR.selection.item, screenPoint)
-              : getRoomHandleHit(EDITOR.selection.item, screenPoint);
+            hit = getPolyHandleHit(EDITOR.selection.item, screenPoint);
           }
           if (hit) {
             if (hit.type === 'poly-edge') {
@@ -4221,8 +3900,6 @@
               render();
               return;
             }
-            const rectHandles = roomEdgeHandleWorlds(EDITOR.selection.item);
-            const rect = rectHandles ? rectHandles.rect : null;
             const polyLabels = hit.type === 'poly-move' ? getPolyPointLabels(EDITOR.selection.item) : null;
             const pointsBase = polyLabels
               ? polyLabels.map(parseHexLabel).filter(p => p && Number.isFinite(p.col) && Number.isFinite(p.row))
@@ -4238,7 +3915,6 @@
               floorId: EDITOR.selection.floorId,
               startWorld: world,
               startHex: worldToHexHalf(world),
-              rect,
               pointsBase,
               openingsBase,
               didMove: false,
@@ -4252,10 +3928,7 @@
           selectItem(sel.type, sel.item, sel.floorId);
           const showHandles = UI.showHandles || UI.handleHot;
           if (showHandles) {
-            const hasPoly = !!getPolyPointLabels(sel.item);
-            const hit = hasPoly
-              ? getPolyHandleHit(sel.item, screenPoint)
-              : getRoomHandleHit(sel.item, screenPoint);
+            const hit = getPolyHandleHit(sel.item, screenPoint);
               if (hit) {
                 if (hit.type === 'poly-edge') {
                   pushHistory();
@@ -4266,8 +3939,6 @@
                   render();
                   return;
                 }
-                const rectHandles = roomEdgeHandleWorlds(sel.item);
-                const rect = rectHandles ? rectHandles.rect : null;
                 const polyLabels = hit.type === 'poly-move' ? getPolyPointLabels(sel.item) : null;
                 const pointsBase = polyLabels
                   ? polyLabels.map(parseHexLabel).filter(p => p && Number.isFinite(p.col) && Number.isFinite(p.row))
@@ -4283,7 +3954,6 @@
                   floorId: sel.floorId,
                 startWorld: world,
                 startHex: worldToHexHalf(world),
-                rect,
                 pointsBase,
                 openingsBase,
                 didMove: false,
