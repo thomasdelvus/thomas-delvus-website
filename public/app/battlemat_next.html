@@ -201,6 +201,17 @@
       align-items: flex-start;
     }
 
+    .polyTools {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-start;
+    }
+
+    .polyTools input[type="range"] {
+      width: 90px;
+    }
+
     .zoomBlock {
       display: flex;
       flex-direction: column;
@@ -565,6 +576,10 @@
           <button id="btnUndo">Undo</button>
           <label class="mini"><input type="checkbox" id="fogToggle" checked /> Fog</label>
           <button id="btnSave">Save</button>
+          <div class="polyTools">
+            <label class="mini">Polys <input id="polyAlpha" type="range" min="0" max="100" step="5" value="100" /></label>
+            <label class="mini"><input type="checkbox" id="backdropToggle" checked /> Background</label>
+          </div>
           <span id="saveStatus" class="status">DB: idle</span>
           <div id="openingGroup" class="toolGroup">
             <label class="status">Opening</label>
@@ -574,6 +589,7 @@
               <option value="window">window</option>
               <option value="threshold">threshold</option>
               <option value="portal">portal</option>
+              <option value="gate">gate</option>
             </select>
             <button id="openingOrientH" class="toolBtn">H</button>
             <button id="openingOrientV" class="toolBtn">V</button>
@@ -741,6 +757,8 @@
       const zoomInButton = document.getElementById('zoomIn');
       const zoomOutButton = document.getElementById('zoomOut');
       const zoomLevel = document.getElementById('zoomLevel');
+      const polyAlphaInput = document.getElementById('polyAlpha');
+      const backdropToggle = document.getElementById('backdropToggle');
       const hexGridToggle = document.getElementById('hexGridToggle');
       const labelBoldToggle = document.getElementById('labelBoldToggle');
       const handlesToggle = document.getElementById('handlesToggle');
@@ -772,7 +790,7 @@
       };
       const VIEW = { camera: { col: 0, row: 0 }, cameraWorld: { x: 0, y: 0 }, zoom: 1, floorId: '' };
       const STATE = { battle: null, campaign: null, entities: [] };
-      const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true, video: 'medium' };
+      const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true, video: 'medium', polyAlpha: 1, showBackdrop: true };
       const VIDEO_SCALE = { low: 1, medium: 1.5, high: 2, ultra: 3 };
       let renderDpr = window.devicePixelRatio || 1;
       const CHAT = { rows: [], byId: new Map(), lastTs: 0, timer: null };
@@ -1221,17 +1239,26 @@
           const handles = localStorage.getItem('bm_handles');
           const fog = localStorage.getItem('bm_fog');
           const video = localStorage.getItem('bm_video');
+          const polyAlpha = localStorage.getItem('bm_poly_alpha');
+          const backdrop = localStorage.getItem('bm_backdrop');
           if (grid != null) UI.hexGrid = grid === '1';
           if (bright != null) UI.brightLabels = bright === '1';
           if (handles != null) UI.showHandles = handles === '1';
           if (fog != null) UI.fogEnabled = fog === '1';
           if (video === 'low' || video === 'medium' || video === 'high' || video === 'ultra') UI.video = video;
+          if (polyAlpha != null) {
+            const n = Number(polyAlpha);
+            if (Number.isFinite(n)) UI.polyAlpha = Math.max(0, Math.min(1, n));
+          }
+          if (backdrop != null) UI.showBackdrop = backdrop === '1';
         } catch {}
         if (hexGridToggle) hexGridToggle.checked = UI.hexGrid;
         if (labelBoldToggle) labelBoldToggle.checked = UI.brightLabels;
         if (handlesToggle) handlesToggle.checked = UI.showHandles;
         if (fogToggle) fogToggle.checked = UI.fogEnabled;
         if (videoSelect) videoSelect.value = UI.video;
+        if (polyAlphaInput) polyAlphaInput.value = String(Math.round(UI.polyAlpha * 100));
+        if (backdropToggle) backdropToggle.checked = UI.showBackdrop;
         if (mapOffsetXInput) mapOffsetXInput.value = String(BACKDROP.offsetHex.x);
         if (mapOffsetYInput) mapOffsetYInput.value = String(BACKDROP.offsetHex.y);
         if (mapScaleInput) mapScaleInput.value = String(Math.round(BACKDROP.scale * 100));
@@ -1245,6 +1272,8 @@
           localStorage.setItem('bm_handles', UI.showHandles ? '1' : '0');
           localStorage.setItem('bm_fog', UI.fogEnabled ? '1' : '0');
           localStorage.setItem('bm_video', UI.video);
+          localStorage.setItem('bm_poly_alpha', String(UI.polyAlpha));
+          localStorage.setItem('bm_backdrop', UI.showBackdrop ? '1' : '0');
         } catch {}
       }
 
@@ -2313,6 +2342,7 @@
         if (!fill) return;
         gctx.save();
         gctx.fillStyle = fill;
+        gctx.globalAlpha *= (UI.polyAlpha != null ? UI.polyAlpha : 1);
         gctx.beginPath();
         gctx.moveTo(screenPts[0].x, screenPts[0].y);
         for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
@@ -2322,6 +2352,7 @@
       }
 
       function drawBackdrop(gctx) {
+        if (!UI.showBackdrop) return;
         if (!BACKDROP.loaded || !BACKDROP.img) return;
         const img = BACKDROP.img;
         const widthWorld = BACKDROP.widthHex * colStep();
@@ -2484,6 +2515,7 @@
           gctx.lineJoin = 'miter';
           gctx.lineCap = 'butt';
           gctx.miterLimit = 20;
+          gctx.globalAlpha *= (UI.polyAlpha != null ? UI.polyAlpha : 1);
           if (hidden && hidden.size) {
             gctx.save();
             gctx.globalCompositeOperation = 'destination-out';
@@ -4182,6 +4214,23 @@
         if (fogToggle) {
           fogToggle.addEventListener('change', () => {
             UI.fogEnabled = !!fogToggle.checked;
+            savePrefs();
+            render();
+          });
+        }
+        if (polyAlphaInput) {
+          polyAlphaInput.addEventListener('input', () => {
+            const val = Number(polyAlphaInput.value);
+            if (Number.isFinite(val)) {
+              UI.polyAlpha = Math.max(0, Math.min(1, val / 100));
+              savePrefs();
+              render();
+            }
+          });
+        }
+        if (backdropToggle) {
+          backdropToggle.addEventListener('change', () => {
+            UI.showBackdrop = !!backdropToggle.checked;
             savePrefs();
             render();
           });
