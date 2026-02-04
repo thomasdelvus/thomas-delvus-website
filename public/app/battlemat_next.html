@@ -835,7 +835,7 @@
       BACKDROP.img.src = BACKDROP.src;
 
       const DEFAULT_FLOOR_KINDS = [
-        'wood_oak', 'wood', 'stone', 'cobble', 'brick', 'brick_dark', 'gravel', 'fog'
+        'wood_oak', 'wood', 'stone', 'cobble', 'brick', 'brick_dark', 'gravel', 'terracotta', 'thatch', 'fog'
       ];
       const DEFAULT_WALL_KINDS = [
         'brick', 'brick_dark', 'wood_dark', 'wood', 'stone', 'cobble', 'none'
@@ -874,6 +874,8 @@
         wood_oak: '#3a2b1e',
         cobble: '#45474a',
         stone: '#3f3f3f',
+        terracotta: '#6a3a2a',
+        thatch: '#6a5a3a',
         default: '#1a1f2a'
       };
 
@@ -894,6 +896,8 @@
         brick_gray: '/assets/sprites/brick_gray.png',
         brick_red: '/assets/sprites/brick_red.png',
         brick_dark: '/assets/sprites/brick_dark.png',
+        terracotta: '/assets/sprites/terracotta.png',
+        thatch: '/assets/sprites/thatch.png',
         crosskeys: '/images/the_cross_keys_floor.jpg'
       };
 
@@ -917,6 +921,8 @@
           brick_gray: 0.15,
           brick_red: 0.15,
           brick_dark: 0.15,
+          terracotta: 0.2,
+          thatch: 0.2,
           crosskeys: 1.0
         }
       };
