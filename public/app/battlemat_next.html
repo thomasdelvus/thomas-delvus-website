@@ -2996,7 +2996,7 @@
         for (const room of rooms) {
           const mode = String(room.fog_mode || room.fogMode || '').toLowerCase();
           if (mode === 'hidden') { hidden.push(room); continue; }
-          if (mode === 'explored') { explored.push(room); continue; }
+          if (mode === 'explored' || mode === 'always_fogged' || mode === 'fogged') { explored.push(room); continue; }
           if (roomAlwaysVisible(room) || mode === 'visible') {
             visible.push(room);
             continue;
@@ -3262,6 +3262,7 @@
           addSelectField('Fog', sel.item.fog_mode || sel.item.fogMode || '', 'fog_mode', [
             { value: '', label: 'Default' },
             { value: 'visible', label: 'Always Visible' },
+            { value: 'always_fogged', label: 'Always Fogged' },
             { value: 'explored', label: 'Always Explored' },
             { value: 'hidden', label: 'Always Hidden' }
           ]);
