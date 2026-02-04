@@ -565,7 +565,6 @@
       <div id="toolbar">
         <div class="toolbar-row">
           <button id="toolSelect" class="toolBtn active">Select</button>
-          <button id="toolRoom" class="toolBtn">Room</button>
           <button id="toolPoly" class="toolBtn">Poly</button>
           <button id="toolOpening" class="toolBtn">Opening</button>
           <button id="toolObject" class="toolBtn">Object</button>
@@ -733,7 +732,6 @@
 
       const toolButtons = {
         select: document.getElementById('toolSelect'),
-        room: document.getElementById('toolRoom'),
         poly: document.getElementById('toolPoly'),
         opening: document.getElementById('toolOpening'),
         object: document.getElementById('toolObject'),
@@ -803,8 +801,6 @@
       const EDITOR = {
         tool: 'select',
         selection: null,
-        roomStart: null,
-        roomHover: null,
         polyPoints: [],
         polyHover: null,
         dirty: false,
@@ -1497,30 +1493,6 @@
         return null;
       }
 
-
-      function drawRoomPreview(gctx) {
-        if (EDITOR.tool !== 'room' || !EDITOR.roomStart || !EDITOR.roomHover) return;
-        const start = EDITOR.roomStart.world ? EDITOR.roomStart.world : null;
-        const end = EDITOR.roomHover.world ? EDITOR.roomHover.world : null;
-        if (!start || !end) return;
-        const wx1 = Math.min(start.x, end.x);
-        const wx2 = Math.max(start.x, end.x);
-        const wy1 = Math.min(start.y, end.y);
-        const wy2 = Math.max(start.y, end.y);
-        const p1 = worldToScreen({ x: wx1, y: wy1 });
-        const p2 = worldToScreen({ x: wx2, y: wy2 });
-        const sx1 = Math.min(p1.x, p2.x);
-        const sy1 = Math.min(p1.y, p2.y);
-        const sx2 = Math.max(p1.x, p2.x);
-        const sy2 = Math.max(p1.y, p2.y);
-
-        gctx.save();
-        gctx.strokeStyle = 'rgba(88, 220, 120, 0.9)';
-        gctx.lineWidth = 2;
-        gctx.setLineDash([6, 6]);
-        gctx.strokeRect(sx1, sy1, sx2 - sx1, sy2 - sy1);
-        gctx.restore();
-      }
 
       function drawPolyPreview(gctx) {
         if (EDITOR.tool !== 'poly' || !Array.isArray(EDITOR.polyPoints) || !EDITOR.polyPoints.length) return;
@@ -3209,7 +3181,6 @@
           ctx.drawImage(handleLayer.canvas, 0, 0, rect.width, rect.height);
         }
         if (layerMode === 'all') {
-          drawRoomPreview(ctx);
           drawPolyPreview(ctx);
         }
       }
@@ -3711,7 +3682,7 @@
         const x = ev.clientX - rect.left;
         const y = ev.clientY - rect.top;
         const world = screenToWorld(x, y);
-        const hex = (EDITOR.tool === 'room' || EDITOR.tool === 'poly') ? worldToHexHalf(world) : worldToHex(world);
+        const hex = (EDITOR.tool === 'poly') ? worldToHexHalf(world) : worldToHex(world);
         const hexLabel = toHexLabel(hex.col, hex.row);
         const hexWorld = hexToWorld(hex.col, hex.row);
         const floor = pickFloor();
@@ -3721,31 +3692,6 @@
           const sel = findSelectionAt(world);
           if (sel) selectItem(sel.type, sel.item, sel.floorId);
           else clearSelection();
-          return;
-        }
-
-        if (EDITOR.tool === 'room') {
-          if (!EDITOR.roomStart) {
-            EDITOR.roomStart = { hex, world: hexWorld };
-            return;
-          }
-          pushHistory();
-          const start = EDITOR.roomStart;
-          EDITOR.roomStart = null;
-          const startWorld = start.world ? start.world : hexToWorld(start.hex.col, start.hex.row);
-          const endWorld = hexWorld;
-          const corners = roomCornersFromWorld(startWorld, endWorld);
-          const room = {
-            id: 'room_' + Date.now().toString(36),
-            corners,
-            thickness: 15,
-            floor: { kind: 'wood_oak' },
-            wall: { kind: 'brick' }
-          };
-          floor.rooms.push(room);
-          selectItem('room', room, floor.id);
-          EDITOR.dirty = true;
-          render();
           return;
         }
 
@@ -4054,20 +4000,16 @@
 
         canvas.addEventListener('mousemove', (ev) => {
           if (EDITOR.drag) return;
-          if (EDITOR.tool !== 'room' && EDITOR.tool !== 'poly') return;
-          const rect = canvas.getBoundingClientRect();
-          const x = ev.clientX - rect.left;
-          const y = ev.clientY - rect.top;
-          const world = screenToWorld(x, y);
-          const hex = worldToHexHalf(world);
-          const snapWorld = hexToWorld(hex.col, hex.row);
-          if (EDITOR.tool === 'room') {
-            EDITOR.roomHover = { hex, world: snapWorld };
-          } else {
-            EDITOR.polyHover = { hex, world: snapWorld };
-          }
-          render();
-        });
+        if (EDITOR.tool !== 'poly') return;
+        const rect = canvas.getBoundingClientRect();
+        const x = ev.clientX - rect.left;
+        const y = ev.clientY - rect.top;
+        const world = screenToWorld(x, y);
+        const hex = worldToHexHalf(world);
+        const snapWorld = hexToWorld(hex.col, hex.row);
+        EDITOR.polyHover = { hex, world: snapWorld };
+        render();
+      });
 
         window.addEventListener('mouseup', () => {
           if (!EDITOR.drag) return;
@@ -4391,15 +4333,11 @@
         });
         window.addEventListener('keydown', (ev) => {
           if (ev.key === 'Escape') {
-            if (EDITOR.roomStart) {
-              EDITOR.roomStart = null;
-              render();
-            }
-            if (Array.isArray(EDITOR.polyPoints) && EDITOR.polyPoints.length) {
-              EDITOR.polyPoints = [];
-              EDITOR.polyHover = null;
-              render();
-            }
+          if (Array.isArray(EDITOR.polyPoints) && EDITOR.polyPoints.length) {
+            EDITOR.polyPoints = [];
+            EDITOR.polyHover = null;
+            render();
+          }
           }
         });
         window.addEventListener('keydown', (ev) => {
