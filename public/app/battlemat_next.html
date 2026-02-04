@@ -2382,30 +2382,27 @@
       function buildWallSegments(rooms) {
         const segs = [];
         for (const room of filterAlive(rooms)) {
-          if (isPolyRoom(room)) {
-            const pts = roomWorldPoints(room);
-            if (pts.length < 2) continue;
-            const t = Number.isFinite(Number(room.thickness)) ? Number(room.thickness) : 0;
-            const roomId = room && room.id != null ? String(room.id) : '';
-            for (let i = 0; i < pts.length; i++) {
-              const a = pts[i];
-              const b = pts[(i + 1) % pts.length];
-              segs.push({ orientation: 'a', a, b, thickness: t, roomId, room });
-            }
-            continue;
-          }
-          const box = roomToWallBox(room);
-          if (!box) continue;
-          const t = Number.isFinite(box.thickness) ? box.thickness : 0;
+          const pts = roomWorldPoints(room);
+          if (pts.length < 2) continue;
+          const t = Number.isFinite(Number(room.thickness)) ? Number(room.thickness) : 0;
           const roomId = room && room.id != null ? String(room.id) : '';
-          const yTop = box.yTop;
-          const yBot = box.yBot;
-          const xL = box.xL;
-          const xR = box.xR;
-          segs.push({ orientation: 'h', a: { x: xL, y: yTop }, b: { x: xR, y: yTop }, thickness: t, roomId, room });
-          segs.push({ orientation: 'h', a: { x: xL, y: yBot }, b: { x: xR, y: yBot }, thickness: t, roomId, room });
-          segs.push({ orientation: 'v', a: { x: xL, y: yTop }, b: { x: xL, y: yBot }, thickness: t, roomId, room });
-          segs.push({ orientation: 'v', a: { x: xR, y: yTop }, b: { x: xR, y: yBot }, thickness: t, roomId, room });
+          let hidden = getPolyEdgeHiddenSet(room);
+          if (!isPolyRoom(room)) {
+            const erase = parseEraseSides(room);
+            if (erase.size) {
+              hidden = new Set(hidden);
+              if (erase.has('N')) hidden.add(0);
+              if (erase.has('E')) hidden.add(1);
+              if (erase.has('S')) hidden.add(2);
+              if (erase.has('W')) hidden.add(3);
+            }
+          }
+          for (let i = 0; i < pts.length; i++) {
+            if (hidden.has(i)) continue;
+            const a = pts[i];
+            const b = pts[(i + 1) % pts.length];
+            segs.push({ orientation: 'a', a, b, thickness: t, roomId, room });
+          }
         }
         return segs;
       }
