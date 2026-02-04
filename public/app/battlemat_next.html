@@ -2590,13 +2590,21 @@
             gctx.strokeStyle = fill;
             gctx.lineWidth = lineW;
             gctx.lineJoin = 'miter';
+            gctx.lineCap = 'butt';
+            gctx.miterLimit = 20;
             for (let i = 0; i < screenPts.length; i++) {
               if (hidden.has(i)) continue;
               const a = screenPts[i];
               const b = screenPts[(i + 1) % screenPts.length];
+              const dx = b.x - a.x;
+              const dy = b.y - a.y;
+              const len = Math.hypot(dx, dy) || 1;
+              const pad = lineW * 0.5;
+              const ux = dx / len;
+              const uy = dy / len;
               gctx.beginPath();
-              gctx.moveTo(a.x, a.y);
-              gctx.lineTo(b.x, b.y);
+              gctx.moveTo(a.x - ux * pad, a.y - uy * pad);
+              gctx.lineTo(b.x + ux * pad, b.y + uy * pad);
               gctx.stroke();
             }
             gctx.restore();
