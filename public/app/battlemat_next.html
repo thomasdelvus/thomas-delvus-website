@@ -2586,6 +2586,22 @@
             const thickness = Number(room.thickness || 0);
             const lineW = Math.max(1, thickness * VIEW.zoom);
             const hidden = getPolyEdgeHiddenSet(room);
+            const cornerPads = screenPts.map((pt, i) => {
+              const prev = screenPts[(i - 1 + screenPts.length) % screenPts.length];
+              const next = screenPts[(i + 1) % screenPts.length];
+              const v1x = prev.x - pt.x;
+              const v1y = prev.y - pt.y;
+              const v2x = next.x - pt.x;
+              const v2y = next.y - pt.y;
+              const l1 = Math.hypot(v1x, v1y) || 1;
+              const l2 = Math.hypot(v2x, v2y) || 1;
+              const dot = (v1x * v2x + v1y * v2y) / (l1 * l2);
+              const clamped = Math.max(-1, Math.min(1, dot));
+              const theta = Math.acos(clamped); // interior angle in radians
+              const base = Math.sin(Math.PI / 4); // sin(45deg) to normalize
+              const scale = Math.min(1, Math.sin(theta / 2) / base);
+              return (lineW * 0.5) * (Number.isFinite(scale) ? scale : 1);
+            });
             gctx.save();
             gctx.strokeStyle = fill;
             gctx.lineWidth = lineW;
@@ -2599,12 +2615,13 @@
               const dx = b.x - a.x;
               const dy = b.y - a.y;
               const len = Math.hypot(dx, dy) || 1;
-              const pad = lineW * 0.5;
               const ux = dx / len;
               const uy = dy / len;
+              const padA = cornerPads[i] ?? (lineW * 0.5);
+              const padB = cornerPads[(i + 1) % screenPts.length] ?? (lineW * 0.5);
               gctx.beginPath();
-              gctx.moveTo(a.x - ux * pad, a.y - uy * pad);
-              gctx.lineTo(b.x + ux * pad, b.y + uy * pad);
+              gctx.moveTo(a.x - ux * padA, a.y - uy * padA);
+              gctx.lineTo(b.x + ux * padB, b.y + uy * padB);
               gctx.stroke();
             }
             gctx.restore();
