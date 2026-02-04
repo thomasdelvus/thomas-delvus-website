@@ -4553,6 +4553,10 @@
           }, { passive: false });
         }
         const nudgeStep = 1;
+        const panScale = () => {
+          const z = Number(VIEW.zoom) || 1;
+          return Math.min(6, Math.max(0.25, 1 / z));
+        };
         const setupPanHold = (btn, dxFn, dyFn) => {
           if (!btn) return;
           let timer = null;
@@ -4579,10 +4583,10 @@
           btn.addEventListener('touchend', stop);
           btn.addEventListener('touchcancel', stop);
         };
-        setupPanHold(panUp, () => 0, () => -rowStep() * nudgeStep);
-        setupPanHold(panDown, () => 0, () => rowStep() * nudgeStep);
-        setupPanHold(panLeft, () => -colStep() * nudgeStep, () => 0);
-        setupPanHold(panRight, () => colStep() * nudgeStep, () => 0);
+        setupPanHold(panUp, () => 0, () => -rowStep() * nudgeStep * panScale());
+        setupPanHold(panDown, () => 0, () => rowStep() * nudgeStep * panScale());
+        setupPanHold(panLeft, () => -colStep() * nudgeStep * panScale(), () => 0);
+        setupPanHold(panRight, () => colStep() * nudgeStep * panScale(), () => 0);
         if (undoButton) undoButton.addEventListener('click', () => undo());
         saveButton.addEventListener('click', () => saveState());
         if (chatSend) chatSend.addEventListener('click', () => sendChatMessage());
