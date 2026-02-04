@@ -4503,10 +4503,36 @@
           }, { passive: false });
         }
         const nudgeStep = 1;
-        if (panUp) panUp.addEventListener('click', () => nudgeCamera(0, -rowStep() * nudgeStep));
-        if (panDown) panDown.addEventListener('click', () => nudgeCamera(0, rowStep() * nudgeStep));
-        if (panLeft) panLeft.addEventListener('click', () => nudgeCamera(-colStep() * nudgeStep, 0));
-        if (panRight) panRight.addEventListener('click', () => nudgeCamera(colStep() * nudgeStep, 0));
+        const setupPanHold = (btn, dxFn, dyFn) => {
+          if (!btn) return;
+          let timer = null;
+          let active = false;
+          const step = () => nudgeCamera(dxFn(), dyFn());
+          const stop = () => {
+            active = false;
+            if (timer) {
+              clearInterval(timer);
+              timer = null;
+            }
+          };
+          const start = (ev) => {
+            ev.preventDefault();
+            if (active) return;
+            active = true;
+            step();
+            timer = setInterval(step, 60);
+          };
+          btn.addEventListener('mousedown', start);
+          btn.addEventListener('touchstart', start, { passive: false });
+          btn.addEventListener('mouseup', stop);
+          btn.addEventListener('mouseleave', stop);
+          btn.addEventListener('touchend', stop);
+          btn.addEventListener('touchcancel', stop);
+        };
+        setupPanHold(panUp, () => 0, () => -rowStep() * nudgeStep);
+        setupPanHold(panDown, () => 0, () => rowStep() * nudgeStep);
+        setupPanHold(panLeft, () => -colStep() * nudgeStep, () => 0);
+        setupPanHold(panRight, () => colStep() * nudgeStep, () => 0);
         if (undoButton) undoButton.addEventListener('click', () => undo());
         saveButton.addEventListener('click', () => saveState());
         if (chatSend) chatSend.addEventListener('click', () => sendChatMessage());
