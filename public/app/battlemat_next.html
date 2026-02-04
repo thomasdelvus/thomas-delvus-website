@@ -2632,10 +2632,17 @@
               const uy = dy / len;
               const thetaA = cornerAngle[i] ?? Math.PI / 2;
               const thetaB = cornerAngle[(i + 1) % screenPts.length] ?? Math.PI / 2;
-              const useRound = Math.abs(thetaA - Math.PI / 2) > (Math.PI / 20) || Math.abs(thetaB - Math.PI / 2) > (Math.PI / 20);
+              const devA = Math.abs(thetaA - Math.PI / 2);
+              const devB = Math.abs(thetaB - Math.PI / 2);
+              const dev = Math.max(devA, devB);
+              const devMin = Math.PI / 180; // 1 deg
+              const devMax = Math.PI / 4; // 45 deg
+              const t = Math.max(0, Math.min(1, (dev - devMin) / (devMax - devMin)));
+              const useRound = dev >= devMin;
               const padA = useRound ? 0 : (cornerPads[i] ?? (lineW * 0.5));
               const padB = useRound ? 0 : (cornerPads[(i + 1) % screenPts.length] ?? (lineW * 0.5));
               gctx.beginPath();
+              gctx.lineWidth = useRound ? (lineW * (0.9 + 0.1 * t)) : lineW;
               gctx.lineCap = useRound ? 'round' : 'butt';
               gctx.lineJoin = useRound ? 'round' : 'miter';
               gctx.moveTo(a.x - ux * padA, a.y - uy * padA);
