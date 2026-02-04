@@ -2404,19 +2404,7 @@
 
       function drawWallsLayer(floor, gctx, rooms, roomSets) {
         const list = sortByZ(rooms || filterAlive(floor.rooms || []));
-        for (const room of list) {
-          if (!roomHasWalls(room)) continue;
-          const pts = roomWorldPoints(room);
-          if (pts.length < 3) continue;
-          const screenPts = pts.map(worldToScreen);
-          const wk = roomWallKind(room);
-          const wallColor = WALL_COLORS[wk] || WALL_COLORS.default;
-          const wallAnchor = pts[0];
-          const fill = getFillStyle(gctx, 'wall', wk, wallColor, wallAnchor, { allowFallback: false });
-          if (!fill) continue;
-          const thickness = Number(room.thickness || 0);
-          const lineW = Math.max(1, thickness * VIEW.zoom);
-          const hidden = getPolyEdgeHiddenSet(room);
+        const drawWallStroke = (ctx, screenPts, lineW, hiddenSet, erasePass) => {
           const cornerPads = screenPts.map((pt, i) => {
             const prev = screenPts[(i - 1 + screenPts.length) % screenPts.length];
             const next = screenPts[(i + 1) % screenPts.length];
@@ -2428,8 +2416,8 @@
             const l2 = Math.hypot(v2x, v2y) || 1;
             const dot = (v1x * v2x + v1y * v2y) / (l1 * l2);
             const clamped = Math.max(-1, Math.min(1, dot));
-            const theta = Math.acos(clamped); // interior angle in radians
-            const base = Math.sin(Math.PI / 4); // sin(45deg) to normalize
+            const theta = Math.acos(clamped);
+            const base = Math.sin(Math.PI / 4);
             const scale = Math.min(1, Math.sin(theta / 2) / base);
             return (lineW * 0.5) * (Number.isFinite(scale) ? scale : 1);
           });
@@ -2446,14 +2434,8 @@
             const clamped = Math.max(-1, Math.min(1, dot));
             return Math.acos(clamped);
           });
-          gctx.save();
-          gctx.strokeStyle = fill;
-          gctx.lineWidth = lineW;
-          gctx.lineJoin = 'miter';
-          gctx.lineCap = 'butt';
-          gctx.miterLimit = 20;
           for (let i = 0; i < screenPts.length; i++) {
-            if (hidden.has(i)) continue;
+            if (!erasePass && hiddenSet && hiddenSet.has(i)) continue;
             const a = screenPts[i];
             const b = screenPts[(i + 1) % screenPts.length];
             const dx = b.x - a.x;
@@ -2472,14 +2454,43 @@
             const useRound = dev >= devMin;
             const padA = useRound ? 0 : (cornerPads[i] ?? (lineW * 0.5));
             const padB = useRound ? 0 : (cornerPads[(i + 1) % screenPts.length] ?? (lineW * 0.5));
-            gctx.beginPath();
-            gctx.lineWidth = useRound ? (lineW * (0.9 + 0.1 * t)) : lineW;
-            gctx.lineCap = useRound ? 'round' : 'butt';
-            gctx.lineJoin = useRound ? 'round' : 'miter';
-            gctx.moveTo(a.x - ux * padA, a.y - uy * padA);
-            gctx.lineTo(b.x + ux * padB, b.y + uy * padB);
-            gctx.stroke();
+            ctx.beginPath();
+            ctx.lineWidth = useRound ? (lineW * (0.9 + 0.1 * t)) : lineW;
+            ctx.lineCap = useRound ? 'round' : 'butt';
+            ctx.lineJoin = useRound ? 'round' : 'miter';
+            ctx.moveTo(a.x - ux * padA, a.y - uy * padA);
+            ctx.lineTo(b.x + ux * padB, b.y + uy * padB);
+            ctx.stroke();
           }
+        };
+
+        for (const room of list) {
+          if (!roomHasWalls(room)) continue;
+          const pts = roomWorldPoints(room);
+          if (pts.length < 3) continue;
+          const screenPts = pts.map(worldToScreen);
+          const wk = roomWallKind(room);
+          const wallColor = WALL_COLORS[wk] || WALL_COLORS.default;
+          const wallAnchor = pts[0];
+          const fill = getFillStyle(gctx, 'wall', wk, wallColor, wallAnchor, { allowFallback: false });
+          if (!fill) continue;
+          const thickness = Number(room.thickness || 0);
+          const lineW = Math.max(1, thickness * VIEW.zoom);
+          const hidden = getPolyEdgeHiddenSet(room);
+          gctx.save();
+          gctx.strokeStyle = fill;
+          gctx.lineJoin = 'miter';
+          gctx.lineCap = 'butt';
+          gctx.miterLimit = 20;
+          if (hidden && hidden.size) {
+            gctx.save();
+            gctx.globalCompositeOperation = 'destination-out';
+            gctx.lineWidth = lineW * 1.05;
+            drawWallStroke(gctx, screenPts, lineW * 1.05, hidden, true);
+            gctx.restore();
+          }
+          gctx.lineWidth = lineW;
+          drawWallStroke(gctx, screenPts, lineW, hidden, false);
           gctx.restore();
         }
 
