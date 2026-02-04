@@ -4283,7 +4283,13 @@
         setupPanHold(panDown, () => 0, () => rowStep() * nudgeStep * panScale());
         setupPanHold(panLeft, () => -colStep() * nudgeStep * panScale(), () => 0);
         setupPanHold(panRight, () => colStep() * nudgeStep * panScale(), () => 0);
-        const zoomStep = () => zoomInput ? Number(zoomInput.step) || 0.05 : 0.05;
+        const zoomStep = () => {
+          const pct = (Number(VIEW.zoom) || 1) * 100;
+          if (pct < 25) return 0.01;
+          if (pct < 100) return 0.05;
+          if (pct < 200) return 0.1;
+          return 0.2;
+        };
         setupHold(zoomOutButton, () => setZoom(VIEW.zoom - zoomStep()));
         setupHold(zoomInButton, () => setZoom(VIEW.zoom + zoomStep()));
         if (undoButton) undoButton.addEventListener('click', () => undo());
