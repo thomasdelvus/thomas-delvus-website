@@ -536,6 +536,32 @@
         return { minX, maxX, minY, maxY };
       }
 
+      function rectCornerPoints(rect) {
+        const { minX, maxX, minY, maxY } = rectCorners(rect);
+        return [
+          { x: minX, y: minY },
+          { x: maxX, y: minY },
+          { x: maxX, y: maxY },
+          { x: minX, y: maxY }
+        ];
+      }
+
+      function farthestRectCorner(rect, point) {
+        const corners = rectCornerPoints(rect);
+        let best = corners[0];
+        let bestD2 = -Infinity;
+        for (const c of corners) {
+          const dx = c.x - point.x;
+          const dy = c.y - point.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 > bestD2) {
+            bestD2 = d2;
+            best = c;
+          }
+        }
+        return best;
+      }
+
       function rectCenter(rect) {
         const { minX, maxX, minY, maxY } = rectCorners(rect);
         return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
@@ -816,7 +842,6 @@
               const midX = (minX + maxX) / 2;
               const midY = (minY + maxY) / 2;
               const valleyLines = getValleyLinesForRect(rect);
-              const keepPoint = rectCenter(rect);
               const clipRect = () => {
                 const p1 = worldToScreen({ x: minX, y: minY });
                 const p2 = worldToScreen({ x: maxX, y: maxY });
@@ -831,11 +856,20 @@
                 gctx.rect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
                 gctx.clip();
               };
-              const fillHalf = (x1, y1, x2, y2, rotDeg) => {
+              const spine = rectSpineLine(rect);
+              const fillHalf = (x1, y1, x2, y2, rotDeg, halfTag) => {
                 gctx.save();
                 clipRect();
+                const halfCenter = { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
                 for (const line of valleyLines) {
-                  clipToHalfPlaneWorld(gctx, line.a, line.b, keepPoint);
+                  if (spine.orientation === 'h') {
+                    const isTop = line.a.y <= midY;
+                    if ((halfTag === 'top' && !isTop) || (halfTag === 'bottom' && isTop)) continue;
+                  } else {
+                    const isLeft = line.a.x <= midX;
+                    if ((halfTag === 'left' && !isLeft) || (halfTag === 'right' && isLeft)) continue;
+                  }
+                  clipToHalfPlaneWorld(gctx, line.a, line.b, halfCenter);
                 }
                 clipHalf(x1, y1, x2, y2);
                 applyPatternTransform(tex.pattern, scale, { x: x1, y: y1 }, rotDeg);
@@ -847,12 +881,12 @@
               };
               if (heightW > widthW) {
                 // vertical spine: split left/right
-                fillHalf(minX, minY, midX, maxY, baseRot + 90);
-                fillHalf(midX, minY, maxX, maxY, baseRot + 270);
+                fillHalf(minX, minY, midX, maxY, baseRot + 90, 'left');
+                fillHalf(midX, minY, maxX, maxY, baseRot + 270, 'right');
               } else {
                 // horizontal spine: split top/bottom
-                fillHalf(minX, midY, maxX, maxY, baseRot + 0);
-                fillHalf(minX, minY, maxX, midY, baseRot + 180);
+                fillHalf(minX, midY, maxX, maxY, baseRot + 0, 'bottom');
+                fillHalf(minX, minY, maxX, midY, baseRot + 180, 'top');
               }
               fill = tex.pattern;
             } else {
