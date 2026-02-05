@@ -713,6 +713,29 @@
         return Math.sign((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x));
       }
 
+      function pickKeepPoint(rect, halfCenter, line, otherCenter) {
+        if (!otherCenter) return halfCenter;
+        const sideOther = lineSide(otherCenter, line.a, line.b);
+        if (!sideOther) return halfCenter;
+        const candidates = [
+          halfCenter,
+          rectCenter(rect),
+          ...rectCornerPoints(rect)
+        ];
+        let best = halfCenter;
+        let bestScore = Infinity;
+        for (const c of candidates) {
+          const sideC = lineSide(c, line.a, line.b);
+          if (!sideC) continue;
+          const score = sideC * sideOther; // negative is opposite
+          if (score < bestScore) {
+            bestScore = score;
+            best = c;
+          }
+        }
+        return best;
+      }
+
       function chooseDiagonal(overlap, c1, c2) {
         const diag1 = { a: { x: overlap.minX, y: overlap.minY }, b: { x: overlap.maxX, y: overlap.maxY } };
         const diag2 = { a: { x: overlap.minX, y: overlap.maxY }, b: { x: overlap.maxX, y: overlap.minY } };
@@ -866,14 +889,7 @@
                     const isLeft = line.a.x <= midX;
                     if ((halfTag === 'left' && !isLeft) || (halfTag === 'right' && isLeft)) continue;
                   }
-                  let keepPoint = halfCenter;
-                  if (line.otherCenter) {
-                    const sideOther = lineSide(line.otherCenter, line.a, line.b);
-                    const sideKeep = lineSide(keepPoint, line.a, line.b);
-                    if (sideOther && sideKeep && sideOther === sideKeep) {
-                      keepPoint = farthestRectCorner(rect, line.otherCenter);
-                    }
-                  }
+                  const keepPoint = pickKeepPoint(rect, halfCenter, line, line.otherCenter);
                   clipToHalfPlaneWorld(gctx, line.a, line.b, keepPoint);
                 }
                 clipHalf(x1, y1, x2, y2);
