@@ -559,6 +559,35 @@
         return widthW >= heightW ? 0 : Math.PI / 2;
       }
 
+      function rectSpineLine(rect) {
+        const { minX, maxX, minY, maxY } = rectCorners(rect);
+        const widthW = Math.abs(maxX - minX);
+        const heightW = Math.abs(maxY - minY);
+        if (widthW >= heightW) {
+          const y = (minY + maxY) / 2;
+          return { orientation: 'h', a: { x: minX, y }, b: { x: maxX, y } };
+        }
+        const x = (minX + maxX) / 2;
+        return { orientation: 'v', a: { x, y: minY }, b: { x, y: maxY } };
+      }
+
+      function spineIntersection(a, b) {
+        if (!a || !b || a.orientation === b.orientation) return null;
+        if (a.orientation === 'h') {
+          return { x: b.a.x, y: a.a.y };
+        }
+        return { x: a.a.x, y: b.a.y };
+      }
+
+      function overlapCorners(overlap) {
+        return [
+          { x: overlap.minX, y: overlap.minY },
+          { x: overlap.maxX, y: overlap.minY },
+          { x: overlap.maxX, y: overlap.maxY },
+          { x: overlap.minX, y: overlap.maxY }
+        ];
+      }
+
       function lineSide(p, a, b) {
         return Math.sign((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x));
       }
@@ -770,14 +799,24 @@
             const b = STATE.rects[j];
             const overlap = rectOverlap(a, b);
             if (!overlap) continue;
-            const angA = rectSpineAngle(a);
-            const angB = rectSpineAngle(b);
-            if (Math.abs(angA - angB) < 0.001) continue;
-            const c1 = rectCenter(a);
-            const c2 = rectCenter(b);
-            const diag = chooseDiagonal(overlap, c1, c2);
-            const p1 = worldToScreen(diag.a);
-            const p2 = worldToScreen(diag.b);
+            const spineA = rectSpineLine(a);
+            const spineB = rectSpineLine(b);
+            const intersection = spineIntersection(spineA, spineB);
+            if (!intersection) continue;
+            const corners = overlapCorners(overlap);
+            let best = corners[0];
+            let bestD2 = Infinity;
+            for (const c of corners) {
+              const dx = c.x - intersection.x;
+              const dy = c.y - intersection.y;
+              const d2 = dx * dx + dy * dy;
+              if (d2 < bestD2) {
+                bestD2 = d2;
+                best = c;
+              }
+            }
+            const p1 = worldToScreen(best);
+            const p2 = worldToScreen(intersection);
             gctx.beginPath();
             gctx.moveTo(p1.x, p1.y);
             gctx.lineTo(p2.x, p2.y);
