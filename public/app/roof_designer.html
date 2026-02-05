@@ -197,6 +197,7 @@
       };
 
       const spriteCache = new Map();
+      const SPINE_SPRITE_URL = '/assets/sprites/roof_spine.png';
 
       const canvas = document.getElementById('roofCanvas');
       const ctx = canvas.getContext('2d');
@@ -670,6 +671,48 @@
         gctx.restore();
       }
 
+      function drawSpineForRect(gctx, rect, clipRectFn, clipTopFn) {
+        const img = loadSprite(SPINE_SPRITE_URL);
+        const { minX, maxX, minY, maxY } = rectCorners(rect);
+        const widthW = Math.abs(maxX - minX);
+        const heightW = Math.abs(maxY - minY);
+        const midX = (minX + maxX) / 2;
+        const midY = (minY + maxY) / 2;
+        const center = worldToScreen({ x: midX, y: midY });
+        const spineThickness = GRID.size * 0.35 * VIEW.zoom;
+        gctx.save();
+        clipRectFn();
+        clipTopFn();
+        if (widthW >= heightW) {
+          const len = widthW * VIEW.zoom;
+          if (img && img.complete && img.naturalWidth && img.naturalHeight) {
+            gctx.drawImage(img, center.x - len / 2, center.y - spineThickness / 2, len, spineThickness);
+          } else if (!img || img.__rdStatus === 'error') {
+            gctx.strokeStyle = 'rgba(180,170,150,0.9)';
+            gctx.lineWidth = Math.max(2, spineThickness * 0.35);
+            gctx.beginPath();
+            gctx.moveTo(center.x - len / 2, center.y);
+            gctx.lineTo(center.x + len / 2, center.y);
+            gctx.stroke();
+          }
+        } else {
+          const len = heightW * VIEW.zoom;
+          if (img && img.complete && img.naturalWidth && img.naturalHeight) {
+            gctx.translate(center.x, center.y);
+            gctx.rotate(Math.PI / 2);
+            gctx.drawImage(img, -len / 2, -spineThickness / 2, len, spineThickness);
+          } else if (!img || img.__rdStatus === 'error') {
+            gctx.strokeStyle = 'rgba(180,170,150,0.9)';
+            gctx.lineWidth = Math.max(2, spineThickness * 0.35);
+            gctx.beginPath();
+            gctx.moveTo(center.x, center.y - len / 2);
+            gctx.lineTo(center.x, center.y + len / 2);
+            gctx.stroke();
+          }
+        }
+        gctx.restore();
+      }
+
       function rectCornerPoints(rect) {
         const { minX, maxX, minY, maxY } = rectCorners(rect);
         return [
@@ -1070,6 +1113,7 @@
               // subtle shadowing on north/east sides
               shadeHalf(minX, minY, maxX, midY, 0.08); // north
               shadeHalf(midX, minY, maxX, maxY, 0.05); // east
+              drawSpineForRect(gctx, rect, clipRect, clipTopShape);
               fill = tex.pattern;
             } else {
               fill = def.color;
