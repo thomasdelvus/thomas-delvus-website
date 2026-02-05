@@ -149,6 +149,8 @@
         <option value="180">180</option>
         <option value="270">270</option>
       </select>
+      <label>Cap</label>
+      <input type="checkbox" id="rectCap" checked />
     </div>
     <label><input type="checkbox" id="gridToggle" checked /> Hexgrid</label>
     <label><input type="checkbox" id="snapToggle" checked /> Snap 0.5</label>
@@ -217,6 +219,7 @@
       const rectCutAngle = document.getElementById('rectCutAngle');
       const rectTail = document.getElementById('rectTail');
       const rectRot = document.getElementById('rectRot');
+      const rectCap = document.getElementById('rectCap');
       const btnExportPng = document.getElementById('btnExportPng');
       const btnCopyJson = document.getElementById('btnCopyJson');
       const info = document.getElementById('info');
@@ -644,6 +647,29 @@
         return rotatePoints(pts, { x: midX, y: midY }, rotDeg);
       }
 
+      function drawCapForRect(gctx, rect) {
+        if (rect.cap === false) return;
+        const { minX, maxX, minY, maxY } = rectCorners(rect);
+        const poly = rect.type === 'top' ? topCutPolygon(rect) : [
+          { x: minX, y: minY },
+          { x: maxX, y: minY },
+          { x: maxX, y: maxY },
+          { x: minX, y: maxY }
+        ];
+        const screenPts = poly.map(worldToScreen);
+        gctx.save();
+        gctx.lineJoin = 'round';
+        gctx.lineCap = 'round';
+        gctx.strokeStyle = 'rgba(170,160,140,0.85)';
+        gctx.lineWidth = 6;
+        gctx.beginPath();
+        gctx.moveTo(screenPts[0].x, screenPts[0].y);
+        for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
+        gctx.closePath();
+        gctx.stroke();
+        gctx.restore();
+      }
+
       function rectCornerPoints(rect) {
         const { minX, maxX, minY, maxY } = rectCorners(rect);
         return [
@@ -1054,6 +1080,8 @@
             gctx.fillRect(tl.x, tl.y, w, h);
           }
 
+          drawCapForRect(gctx, rect);
+
           if (STATE.selection && STATE.selection.type === 'rect' && STATE.selection.id === rect.id) {
             gctx.strokeStyle = '#6aa9ff';
             gctx.lineWidth = 2;
@@ -1169,6 +1197,7 @@
           rectCutAngle.value = String(rect.cutAngle ?? 45);
           rectTail.value = rect.cutTail || 'both';
           rectRot.value = String(rect.cutRot ?? 0);
+          rectCap.checked = rect.cap !== false;
         }
       }
 
@@ -1305,7 +1334,8 @@
             type: rectType.value,
             cutAngle: Number(rectCutAngle.value) || 45,
             cutTail: rectTail.value,
-            cutRot: Number(rectRot.value) || 0
+            cutRot: Number(rectRot.value) || 0,
+            cap: rectCap.checked
           };
           if (rectInsidePolygon(rectObj)) {
             STATE.rects.push(rectObj);
@@ -1408,6 +1438,14 @@
         if (STATE.selection && STATE.selection.type === 'rect') {
           const rect = STATE.rects.find(r => r.id === STATE.selection.id);
           if (rect) rect.cutRot = Number(rectRot.value) || 0;
+          render();
+        }
+      });
+
+      rectCap.addEventListener('change', () => {
+        if (STATE.selection && STATE.selection.type === 'rect') {
+          const rect = STATE.rects.find(r => r.id === STATE.selection.id);
+          if (rect) rect.cap = rectCap.checked;
           render();
         }
       });
