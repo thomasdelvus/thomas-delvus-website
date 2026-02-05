@@ -615,6 +615,28 @@
         return { x, y };
       }
 
+      function pickValleyCorners(overlap, rectA, rectB) {
+        const spineA = rectSpineLine(rectA);
+        const centerB = rectCenter(rectB);
+        const sideA = sideFromSpine(spineA, centerB);
+        if (sideA === 'left' || sideA === 'right') {
+          const x = sideA === 'left' ? overlap.minX : overlap.maxX;
+          return [
+            { x, y: overlap.minY },
+            { x, y: overlap.maxY }
+          ];
+        }
+        if (sideA === 'top' || sideA === 'bottom') {
+          const y = sideA === 'top' ? overlap.minY : overlap.maxY;
+          return [
+            { x: overlap.minX, y },
+            { x: overlap.maxX, y }
+          ];
+        }
+        const one = pickValleyCorner(overlap, rectA, rectB);
+        return [one];
+      }
+
       function lineSide(p, a, b) {
         return Math.sign((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x));
       }
@@ -830,13 +852,15 @@
             const spineB = rectSpineLine(b);
             const intersection = spineIntersection(spineA, spineB);
             if (!intersection) continue;
-            const corner = pickValleyCorner(overlap, a, b);
-            const p1 = worldToScreen(corner);
+            const corners = pickValleyCorners(overlap, a, b);
             const p2 = worldToScreen(intersection);
-            gctx.beginPath();
-            gctx.moveTo(p1.x, p1.y);
-            gctx.lineTo(p2.x, p2.y);
-            gctx.stroke();
+            for (const corner of corners) {
+              const p1 = worldToScreen(corner);
+              gctx.beginPath();
+              gctx.moveTo(p1.x, p1.y);
+              gctx.lineTo(p2.x, p2.y);
+              gctx.stroke();
+            }
           }
         }
         gctx.restore();
