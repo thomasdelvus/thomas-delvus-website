@@ -125,6 +125,7 @@
     </div>
     <label><input type="checkbox" id="gridToggle" checked /> Hexgrid</label>
     <label><input type="checkbox" id="snapToggle" checked /> Snap 0.5</label>
+    <label><input type="checkbox" id="boundaryToggle" checked /> Clamp to Boundary</label>
     <button id="btnExportPng">Export PNG</button>
     <button id="btnCopyJson">Copy JSON</button>
     <span id="info" class="info"></span>
@@ -137,7 +138,7 @@
     (() => {
       const GRID = { size: 32, lineAlpha: 0.22, lineWidth: 1.1 };
       const VIEW = { cameraWorld: { x: 0, y: 0 }, zoom: 1 };
-      const UI = { hexGrid: true, snapHalf: true };
+      const UI = { hexGrid: true, snapHalf: true, snapBoundary: true };
       const STATE = {
         points: [],
         worldPoints: [],
@@ -172,6 +173,7 @@
       const btnApply = document.getElementById('btnApply');
       const gridToggle = document.getElementById('gridToggle');
       const snapToggle = document.getElementById('snapToggle');
+      const boundaryToggle = document.getElementById('boundaryToggle');
       const tileKind = document.getElementById('tileKind');
       const tileScale = document.getElementById('tileScale');
       const tileRot = document.getElementById('tileRot');
@@ -421,12 +423,60 @@
         return { x: base.x + ox * GRID.size, y: base.y + oy * GRID.size };
       }
 
+      function pointInPolygon(p, poly) {
+        let inside = false;
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+          const xi = poly[i].x, yi = poly[i].y;
+          const xj = poly[j].x, yj = poly[j].y;
+          const intersect = ((yi > p.y) !== (yj > p.y)) &&
+            (p.x < (xj - xi) * (p.y - yi) / (yj - yi + 0.0000001) + xi);
+          if (intersect) inside = !inside;
+        }
+        return inside;
+      }
+
+      function closestPointOnSegment(p, a, b) {
+        const abx = b.x - a.x;
+        const aby = b.y - a.y;
+        const apx = p.x - a.x;
+        const apy = p.y - a.y;
+        const abLen2 = abx * abx + aby * aby;
+        if (abLen2 <= 0.000001) return { x: a.x, y: a.y };
+        let t = (apx * abx + apy * aby) / abLen2;
+        t = Math.max(0, Math.min(1, t));
+        return { x: a.x + abx * t, y: a.y + aby * t };
+      }
+
+      function closestPointOnPolygon(p, poly) {
+        let best = null;
+        let bestD2 = Infinity;
+        for (let i = 0; i < poly.length; i++) {
+          const a = poly[i];
+          const b = poly[(i + 1) % poly.length];
+          const c = closestPointOnSegment(p, a, b);
+          const dx = p.x - c.x;
+          const dy = p.y - c.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < bestD2) {
+            bestD2 = d2;
+            best = c;
+          }
+        }
+        return best || p;
+      }
+
       function setPartFromWorld(part, world) {
-        const snap = UI.snapHalf ? worldToHexHalf(world) : worldToHex(world);
+        let target = world;
+        if (UI.snapBoundary && STATE.worldPoints.length >= 3) {
+          if (!pointInPolygon(target, STATE.worldPoints)) {
+            target = closestPointOnPolygon(target, STATE.worldPoints);
+          }
+        }
+        const snap = UI.snapHalf ? worldToHexHalf(target) : worldToHex(target);
         part.hex = toHexLabel(snap.col, snap.row);
         const base = hexToWorld(snap.col, snap.row);
-        part.ox = (world.x - base.x) / GRID.size;
-        part.oy = (world.y - base.y) / GRID.size;
+        part.ox = (target.x - base.x) / GRID.size;
+        part.oy = (target.y - base.y) / GRID.size;
       }
 
       function drawParts(gctx) {
@@ -589,6 +639,9 @@
       });
       snapToggle.addEventListener('change', () => {
         UI.snapHalf = snapToggle.checked;
+      });
+      boundaryToggle.addEventListener('change', () => {
+        UI.snapBoundary = boundaryToggle.checked;
       });
 
       tileKind.addEventListener('change', () => {
