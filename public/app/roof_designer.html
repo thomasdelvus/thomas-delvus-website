@@ -588,6 +588,33 @@
         ];
       }
 
+      function sideFromSpine(spine, otherCenter) {
+        if (spine.orientation === 'h') {
+          return otherCenter.y < spine.a.y ? 'top' : 'bottom';
+        }
+        return otherCenter.x < spine.a.x ? 'left' : 'right';
+      }
+
+      function pickValleyCorner(overlap, rectA, rectB) {
+        const spineA = rectSpineLine(rectA);
+        const spineB = rectSpineLine(rectB);
+        const centerA = rectCenter(rectA);
+        const centerB = rectCenter(rectB);
+        const sideA = sideFromSpine(spineA, centerB);
+        const sideB = sideFromSpine(spineB, centerA);
+        let x = null;
+        let y = null;
+        const pickX = (side) => (side === 'left' ? overlap.minX : overlap.maxX);
+        const pickY = (side) => (side === 'top' ? overlap.minY : overlap.maxY);
+        if (sideA === 'left' || sideA === 'right') x = pickX(sideA);
+        if (sideA === 'top' || sideA === 'bottom') y = pickY(sideA);
+        if (sideB === 'left' || sideB === 'right') x = x ?? pickX(sideB);
+        if (sideB === 'top' || sideB === 'bottom') y = y ?? pickY(sideB);
+        if (x == null) x = overlap.minX;
+        if (y == null) y = overlap.minY;
+        return { x, y };
+      }
+
       function lineSide(p, a, b) {
         return Math.sign((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x));
       }
@@ -803,19 +830,8 @@
             const spineB = rectSpineLine(b);
             const intersection = spineIntersection(spineA, spineB);
             if (!intersection) continue;
-            const corners = overlapCorners(overlap);
-            let best = corners[0];
-            let bestD2 = Infinity;
-            for (const c of corners) {
-              const dx = c.x - intersection.x;
-              const dy = c.y - intersection.y;
-              const d2 = dx * dx + dy * dy;
-              if (d2 < bestD2) {
-                bestD2 = d2;
-                best = c;
-              }
-            }
-            const p1 = worldToScreen(best);
+            const corner = pickValleyCorner(overlap, a, b);
+            const p1 = worldToScreen(corner);
             const p2 = worldToScreen(intersection);
             gctx.beginPath();
             gctx.moveTo(p1.x, p1.y);
