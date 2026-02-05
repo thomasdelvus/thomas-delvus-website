@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Roof Designer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0f14;
+      --panel: rgba(18, 22, 30, 0.96);
+      --panel-border: rgba(255,255,255,0.08);
+      --text: #e6e9ef;
+      --muted: #9aa5b1;
+      --accent: #6aa9ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+    }
+    #toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--panel-border);
+      flex-wrap: wrap;
+    }
+    #toolbar label {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    #pointsInput {
+      min-width: 420px;
+      max-width: 70vw;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--panel-border);
+      background: #0f141c;
+      color: var(--text);
+    }
+    #toolbar button {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--panel-border);
+      background: #0f141c;
+      color: var(--text);
+      cursor: pointer;
+    }
+    #toolbar .info {
+      font-size: 12px;
+      color: var(--muted);
+      margin-left: auto;
+    }
+    #canvasWrap {
+      padding: 16px;
+    }
+    canvas {
+      display: block;
+      background: #0b0f14;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <label for="pointsInput">Points</label>
+    <input id="pointsInput" type="text" placeholder="HA96.5, HA87.5, IC87.5, IC96.5" />
+    <button id="btnApply">Apply</button>
+    <label><input type="checkbox" id="gridToggle" checked /> Hexgrid</label>
+    <span id="info" class="info"></span>
+  </div>
+  <div id="canvasWrap">
+    <canvas id="roofCanvas"></canvas>
+  </div>
+
+  <script>
+    (() => {
+      const GRID = { size: 32, lineAlpha: 0.22, lineWidth: 1.1 };
+      const VIEW = { cameraWorld: { x: 0, y: 0 }, zoom: 1 };
+      const UI = { hexGrid: true };
+      const STATE = { points: [], worldPoints: [] };
+
+      const canvas = document.getElementById('roofCanvas');
+      const ctx = canvas.getContext('2d');
+      const pointsInput = document.getElementById('pointsInput');
+      const btnApply = document.getElementById('btnApply');
+      const gridToggle = document.getElementById('gridToggle');
+      const info = document.getElementById('info');
+
+      let renderDpr = window.devicePixelRatio || 1;
+
+      function indexToLetters(idx) {
+        let n = idx;
+        let out = '';
+        while (n >= 0) {
+          out = String.fromCharCode(65 + (n % 26)) + out;
+          n = Math.floor(n / 26) - 1;
+        }
+        return out;
+      }
+
+      function lettersToIndex(letters) {
+        let n = 0;
+        for (let i = 0; i < letters.length; i++) {
+          n = n * 26 + (letters.charCodeAt(i) - 64);
+        }
+        return n - 1;
+      }
+
+      function toHexLabel(col, row) {
+        return indexToLetters(col) + String(row + 1);
+      }
+
+      function parseHexLabel(label) {
+        if (!label) return null;
+        const m = String(label).trim().toUpperCase().match(/^([A-Z]+)(-?\d+(?:\.\d+)?)$/);
+        if (!m) return null;
+        const col = lettersToIndex(m[1]);
+        const row = parseFloat(m[2]) - 1;
+        return { col, row };
+      }
+
+      function parsePointList(text) {
+        const raw = String(text || '')
+          .split(',')
+          .map(t => t.trim())
+          .filter(Boolean);
+        const out = [];
+        for (const entry of raw) {
+          const parsed = parseHexLabel(entry);
+          if (!parsed) continue;
+          out.push(entry.toUpperCase());
+        }
+        return out;
+      }
+
+      function colStep() { return 1.5 * GRID.size; }
+      function rowStep() { return Math.sqrt(3) * GRID.size; }
+
+      function hexToWorld(col, row) {
+        const x = col * colStep();
+        const y = -(row * rowStep() + (col & 1) * (rowStep() / 2));
+        return { x, y };
+      }
+
+      function worldToHex(p) {
+        const size = GRID.size || 1;
+        const qf = (2 / 3) * (p.x / size);
+        const rf = ((-p.y) / size) / Math.sqrt(3) - (qf / 2);
+        const col = Math.round(qf);
+        const rowf = rf + (col - (col & 1)) / 2;
+        const row = Math.round(rowf);
+        return { col, row };
+      }
+
+      function worldToScreen(p) {
+        const cam = VIEW.cameraWorld;
+        const w = canvas.width / renderDpr;
+        const h = canvas.height / renderDpr;
+        return {
+          x: w / 2 + (p.x - cam.x) * VIEW.zoom,
+          y: h / 2 + (p.y - cam.y) * VIEW.zoom,
+        };
+      }
+
+      function setCanvasForBounds(bounds) {
+        const pad = GRID.size * 2;
+        const width = Math.max(200, (bounds.maxX - bounds.minX) + pad * 2);
+        const height = Math.max(200, (bounds.maxY - bounds.minY) + pad * 2);
+        renderDpr = window.devicePixelRatio || 1;
+        canvas.width = width * renderDpr;
+        canvas.height = height * renderDpr;
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.setTransform(renderDpr, 0, 0, renderDpr, 0, 0);
+      }
+
+      function computeBounds(pts) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const p of pts) {
+          minX = Math.min(minX, p.x);
+          minY = Math.min(minY, p.y);
+          maxX = Math.max(maxX, p.x);
+          maxY = Math.max(maxY, p.y);
+        }
+        return { minX, minY, maxX, maxY };
+      }
+
+      function drawHexOutline(gctx, center, size) {
+        const pts = [];
+        for (let i = 0; i < 6; i++) {
+          const a = (Math.PI / 180) * (60 * i);
+          pts.push({ x: center.x + size * Math.cos(a), y: center.y + size * Math.sin(a) });
+        }
+        gctx.beginPath();
+        gctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) gctx.lineTo(pts[i].x, pts[i].y);
+        gctx.closePath();
+        gctx.stroke();
+      }
+
+      function drawGridLayer(gctx) {
+        if (!UI.hexGrid) return;
+        const rectW = canvas.width / renderDpr;
+        const rectH = canvas.height / renderDpr;
+        const camHex = worldToHex(VIEW.cameraWorld);
+        const colsR = Math.ceil((rectW / 2) / colStep()) + 4;
+        const rowsR = Math.ceil((rectH / 2) / rowStep()) + 4;
+        gctx.save();
+        gctx.strokeStyle = `rgba(255,255,255,${GRID.lineAlpha})`;
+        gctx.lineWidth = GRID.lineWidth;
+        const size = GRID.size * VIEW.zoom;
+        for (let dc = -colsR; dc <= colsR; dc++) {
+          for (let dr = -rowsR; dr <= rowsR; dr++) {
+            const col = camHex.col + dc;
+            const row = camHex.row + dr;
+            const p = worldToScreen(hexToWorld(col, row));
+            if (p.x < -100 || p.x > rectW + 100 || p.y < -100 || p.y > rectH + 100) continue;
+            drawHexOutline(gctx, p, size);
+          }
+        }
+        gctx.restore();
+      }
+
+      function drawPolygon(gctx) {
+        if (!STATE.worldPoints.length) return;
+        const screenPts = STATE.worldPoints.map(worldToScreen);
+        gctx.save();
+        gctx.fillStyle = 'rgba(106,169,255,0.08)';
+        gctx.strokeStyle = 'rgba(106,169,255,0.85)';
+        gctx.lineWidth = 2;
+        gctx.beginPath();
+        gctx.moveTo(screenPts[0].x, screenPts[0].y);
+        for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
+        gctx.closePath();
+        gctx.fill();
+        gctx.stroke();
+        gctx.restore();
+      }
+
+      function render() {
+        const rectW = canvas.width / renderDpr;
+        const rectH = canvas.height / renderDpr;
+        ctx.clearRect(0, 0, rectW, rectH);
+        drawGridLayer(ctx);
+        drawPolygon(ctx);
+      }
+
+      function loadPoints(raw) {
+        const points = parsePointList(raw);
+        STATE.points = points;
+        STATE.worldPoints = points.map(label => {
+          const parsed = parseHexLabel(label);
+          return parsed ? hexToWorld(parsed.col, parsed.row) : null;
+        }).filter(Boolean);
+        if (STATE.worldPoints.length >= 3) {
+          const bounds = computeBounds(STATE.worldPoints);
+          VIEW.cameraWorld = {
+            x: (bounds.minX + bounds.maxX) / 2,
+            y: (bounds.minY + bounds.maxY) / 2
+          };
+          setCanvasForBounds(bounds);
+          if (info) {
+            info.textContent = `${STATE.points.length} points`;
+          }
+          render();
+        } else {
+          if (info) info.textContent = 'Enter at least 3 points';
+        }
+      }
+
+      btnApply.addEventListener('click', () => loadPoints(pointsInput.value));
+      gridToggle.addEventListener('change', () => {
+        UI.hexGrid = gridToggle.checked;
+        render();
+      });
+
+      const qp = new URLSearchParams(window.location.search || '');
+      const qPoints = qp.get('points');
+      if (qPoints) {
+        pointsInput.value = qPoints;
+        loadPoints(qPoints);
+      } else {
+        render();
+      }
+    })();
+  </script>
+</body>
+</html>
