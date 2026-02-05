@@ -956,9 +956,6 @@
           const w = br.x - tl.x;
           const h = br.y - tl.y;
           gctx.save();
-          gctx.strokeStyle = 'rgba(255,210,102,0.9)';
-          gctx.lineWidth = 2;
-          gctx.strokeRect(tl.x, tl.y, w, h);
           const tileKindVal = rect.tileKind || STATE.tile.kind;
           const def = TILE_TEXTURES[tileKindVal];
           let fill = null;
@@ -1024,6 +1021,17 @@
                 gctx.fillRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
                 gctx.restore();
               };
+              const shadeHalf = (x1, y1, x2, y2, alpha) => {
+                gctx.save();
+                clipRect();
+                clipTopShape();
+                clipHalf(x1, y1, x2, y2);
+                gctx.fillStyle = `rgba(0,0,0,${alpha})`;
+                const p1 = worldToScreen({ x: x1, y: y1 });
+                const p2 = worldToScreen({ x: x2, y: y2 });
+                gctx.fillRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+                gctx.restore();
+              };
               if (heightW > widthW) {
                 // vertical spine: split left/right
                 fillHalf(minX, minY, midX, maxY, baseRot + 90, 'left');
@@ -1033,6 +1041,9 @@
                 fillHalf(minX, midY, maxX, maxY, baseRot + 0, 'bottom');
                 fillHalf(minX, minY, maxX, midY, baseRot + 180, 'top');
               }
+              // subtle shadowing on north/east sides
+              shadeHalf(minX, minY, maxX, midY, 0.08); // north
+              shadeHalf(midX, minY, maxX, maxY, 0.05); // east
               fill = tex.pattern;
             } else {
               fill = def.color;
@@ -1042,26 +1053,6 @@
             gctx.fillStyle = 'rgba(255,210,102,0.08)';
             gctx.fillRect(tl.x, tl.y, w, h);
           }
-
-          const widthW = Math.abs(maxX - minX);
-          const heightW = Math.abs(maxY - minY);
-          gctx.strokeStyle = 'rgba(255,210,102,0.95)';
-          gctx.lineWidth = 2;
-          gctx.beginPath();
-          if (widthW >= heightW) {
-            const yMid = (minY + maxY) / 2;
-            const a = worldToScreen({ x: minX, y: yMid });
-            const b = worldToScreen({ x: maxX, y: yMid });
-            gctx.moveTo(a.x, a.y);
-            gctx.lineTo(b.x, b.y);
-          } else {
-            const xMid = (minX + maxX) / 2;
-            const a = worldToScreen({ x: xMid, y: minY });
-            const b = worldToScreen({ x: xMid, y: maxY });
-            gctx.moveTo(a.x, a.y);
-            gctx.lineTo(b.x, b.y);
-          }
-          gctx.stroke();
 
           if (STATE.selection && STATE.selection.type === 'rect' && STATE.selection.id === rect.id) {
             gctx.strokeStyle = '#6aa9ff';
