@@ -574,6 +574,7 @@
             <option value="all" selected>all</option>
             <option value="floors">floors</option>
             <option value="walls">walls</option>
+            <option value="roofs">roofs</option>
             <option value="objects">objects</option>
             <option value="tokens">tokens</option>
           </select>
@@ -719,6 +720,7 @@
     </aside>
   </div>
   <datalist id="floorKindList"></datalist>
+  <datalist id="roofKindList"></datalist>
   <datalist id="wallKindList"></datalist>
   <datalist id="openingKindList"></datalist>
   <datalist id="objectKindList"></datalist>
@@ -780,6 +782,7 @@
       const inspectorEmpty = document.getElementById('inspectorEmpty');
       const inspectorFields = document.getElementById('inspectorFields');
       const floorKindList = document.getElementById('floorKindList');
+      const roofKindList = document.getElementById('roofKindList');
       const wallKindList = document.getElementById('wallKindList');
       const openingKindList = document.getElementById('openingKindList');
       const objectKindList = document.getElementById('objectKindList');
@@ -836,6 +839,9 @@
 
       const DEFAULT_FLOOR_KINDS = [
         'wood_oak', 'wood', 'stone', 'cobble', 'brick', 'brick_dark', 'gravel', 'terracotta', 'thatch', 'slate', 'grass', 'fog'
+      ];
+      const DEFAULT_ROOF_KINDS = [
+        'wood_oak', 'wood', 'stone', 'cobble', 'brick', 'brick_dark', 'gravel', 'terracotta', 'thatch', 'slate', 'grass'
       ];
       const DEFAULT_WALL_KINDS = [
         'brick', 'brick_dark', 'wood_dark', 'wood', 'stone', 'cobble', 'none'
@@ -930,6 +936,20 @@
           slate: 0.2,
           grass: 0.2,
           crosskeys: 1.0
+        },
+        roof: {
+          wood_oak: 0.2,
+          wood_elm: 0.2,
+          wood_dark: 0.2,
+          stone: 0.2,
+          stone_cobble: 0.2,
+          brick_gray: 0.2,
+          brick_red: 0.2,
+          brick_dark: 0.2,
+          terracotta: 0.2,
+          thatch: 0.2,
+          slate: 0.2,
+          grass: 0.2
         }
       };
 
@@ -942,6 +962,13 @@
           gravel: 'stone_cobble'
         },
         floor: {
+          wood: 'wood_oak',
+          stone: 'stone',
+          cobble: 'stone_cobble',
+          gravel: 'stone_cobble',
+          brick: 'brick_gray'
+        },
+        roof: {
           wood: 'wood_oak',
           stone: 'stone',
           cobble: 'stone_cobble',
@@ -2341,6 +2368,41 @@
         gctx.restore();
       }
 
+      function drawRoofRoom(room, gctx) {
+        const roof = room && room.roof ? room.roof : null;
+        if (!roof || !roof.kind) return;
+        const pts = roomWorldPoints(room);
+        if (pts.length < 3) return;
+        const screenPts = pts.map(worldToScreen);
+        const rk = String(roof.kind);
+        const roofColor = FLOOR_COLORS[rk] || FLOOR_COLORS.default;
+        const roofAnchor = pts[0];
+        const roofRot = roof.rot ?? roof.rotDeg;
+        let fill = null;
+        const tex = getTexturePattern(gctx, 'roof', rk);
+        if (tex && tex.pattern) {
+          const overrideScale = Number(roof.scale);
+          const scale = Number.isFinite(overrideScale) ? overrideScale : tex.scale;
+          applyPatternTransform(tex.pattern, scale, roofAnchor, roofRot);
+          fill = tex.pattern;
+        } else {
+          fill = roofColor;
+        }
+        if (!fill) return;
+        let alpha = Number(roof.alpha);
+        if (!Number.isFinite(alpha)) alpha = 1;
+        gctx.save();
+        gctx.fillStyle = fill;
+        gctx.globalAlpha *= alpha;
+        gctx.globalAlpha *= (UI.polyAlpha != null ? UI.polyAlpha : 1);
+        gctx.beginPath();
+        gctx.moveTo(screenPts[0].x, screenPts[0].y);
+        for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
+        gctx.closePath();
+        gctx.fill();
+        gctx.restore();
+      }
+
       function drawBackdrop(gctx) {
         if (!UI.showBackdrop) return;
         if (!BACKDROP.loaded || !BACKDROP.img) return;
@@ -2373,6 +2435,11 @@
         const list = sortByZ(rooms || filterAlive(floor.rooms || []));
         drawBackdrop(gctx);
         list.forEach(room => drawFloorRoom(room, gctx));
+      }
+
+      function drawRoofsLayer(floor, gctx, rooms) {
+        const list = sortByZ(rooms || filterAlive(floor.rooms || []));
+        list.forEach(room => drawRoofRoom(room, gctx));
       }
 
       function wallThicknessAtWorld(worldPoint, floor) {
@@ -3124,6 +3191,7 @@
         const layerMode = layerSelect ? layerSelect.value : 'all';
         const floorLayer = getLayerContext('floors', rect, dpr);
         const wallLayer = getLayerContext('walls', rect, dpr);
+        const roofLayer = getLayerContext('roofs', rect, dpr);
         const objectLayer = getLayerContext('objects', rect, dpr);
         const fogLayer = getLayerContext('fog', rect, dpr);
         const gridLayer = getLayerContext('grid', rect, dpr);
@@ -3137,6 +3205,7 @@
 
         drawFloorsLayer(floor, floorLayer.ctx, roomsToDraw);
         drawWallsLayer(floor, wallLayer.ctx, roomsToDraw, fogSets);
+        drawRoofsLayer(floor, roofLayer.ctx, roomsToDraw);
         drawGridLayer(gridLayer.ctx);
         drawHandlesLayer(floor, handleLayer.ctx);
         drawRoomEdgeHandles(floor, handleLayer.ctx);
@@ -3182,6 +3251,9 @@
         }
         if (layerMode === 'all' || layerMode === 'walls') {
           ctx.drawImage(wallLayer.canvas, 0, 0, rect.width, rect.height);
+        }
+        if (layerMode === 'all' || layerMode === 'roofs') {
+          ctx.drawImage(roofLayer.canvas, 0, 0, rect.width, rect.height);
         }
         if (layerMode === 'all' || layerMode === 'tokens') {
           ctx.drawImage(tokenLayer.canvas, 0, 0, rect.width, rect.height);
@@ -3281,6 +3353,10 @@
           addField('Floor Kind', sel.item.floor && sel.item.floor.kind ? sel.item.floor.kind : '', 'floor.kind', { list: 'floorKindList' });
           addField('Floor Rot', sel.item.floor && (sel.item.floor.rot ?? sel.item.floor.rotDeg) ? (sel.item.floor.rot ?? sel.item.floor.rotDeg) : '', 'floor.rot', { type: 'number', step: '1' });
           addField('Wall Kind', sel.item.wall && sel.item.wall.kind ? sel.item.wall.kind : '', 'wall.kind', { list: 'wallKindList' });
+          addField('Roof Kind', sel.item.roof && sel.item.roof.kind ? sel.item.roof.kind : '', 'roof.kind', { list: 'roofKindList' });
+          addField('Roof Rot', sel.item.roof && (sel.item.roof.rot ?? sel.item.roof.rotDeg) ? (sel.item.roof.rot ?? sel.item.roof.rotDeg) : '', 'roof.rot', { type: 'number', step: '1' });
+          addField('Roof Scale', sel.item.roof && sel.item.roof.scale != null ? sel.item.roof.scale : '', 'roof.scale', { type: 'number', step: '0.01' });
+          addField('Roof Alpha', sel.item.roof && sel.item.roof.alpha != null ? sel.item.roof.alpha : '', 'roof.alpha', { type: 'number', step: '0.05' });
           if (getPolyPointLabels(sel.item)) {
             const edgeHidden = getPolyEdgeHiddenArray(sel.item).join(',');
             addField('Edge Hidden', edgeHidden, 'edge_hidden');
@@ -3430,6 +3506,33 @@
           if (key === 'wall.kind') {
             item.wall = item.wall || {};
             item.wall.kind = value;
+          }
+          if (key === 'roof.kind') {
+            const v = String(value || '').trim();
+            if (!v) {
+              delete item.roof;
+            } else {
+              item.roof = item.roof || {};
+              item.roof.kind = v;
+            }
+          }
+          if (key === 'roof.rot') {
+            item.roof = item.roof || {};
+            const n = num(value, null);
+            if (n == null) delete item.roof.rot;
+            else item.roof.rot = n;
+          }
+          if (key === 'roof.scale') {
+            item.roof = item.roof || {};
+            const n = num(value, null);
+            if (n == null) delete item.roof.scale;
+            else item.roof.scale = n;
+          }
+          if (key === 'roof.alpha') {
+            item.roof = item.roof || {};
+            const n = num(value, null);
+            if (n == null) delete item.roof.alpha;
+            else item.roof.alpha = Math.max(0, Math.min(1, n));
           }
           if (key === 'edge_hidden') {
             const raw = String(value || '').trim();
@@ -4370,8 +4473,9 @@
       }
 
       function populateKindLists() {
-        if (!floorKindList || !wallKindList || !openingKindList || !objectKindList) return;
+        if (!floorKindList || !roofKindList || !wallKindList || !openingKindList || !objectKindList) return;
         const floorKinds = new Set(DEFAULT_FLOOR_KINDS);
+        const roofKinds = new Set(DEFAULT_ROOF_KINDS);
         const wallKinds = new Set(DEFAULT_WALL_KINDS);
         const openingKinds = new Set(DEFAULT_OPENING_KINDS);
         const objectKinds = new Set(DEFAULT_OBJECT_KINDS);
@@ -4385,6 +4489,8 @@
                 const wk = room && room.wall && room.wall.kind;
                 if (fk) floorKinds.add(String(fk));
                 if (wk) wallKinds.add(String(wk));
+                const rk = room && room.roof && room.roof.kind;
+                if (rk) roofKinds.add(String(rk));
               }
             }
             if (Array.isArray(floor.openings)) {
@@ -4404,6 +4510,7 @@
           el.innerHTML = Array.from(values).sort().map(v => `<option value="${String(v).replace(/\"/g, '&quot;')}"></option>`).join('');
         };
         fill(floorKindList, floorKinds);
+        fill(roofKindList, roofKinds);
         fill(wallKindList, wallKinds);
         fill(openingKindList, openingKinds);
         fill(objectKindList, objectKinds);
