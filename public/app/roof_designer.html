@@ -924,11 +924,13 @@
         const handles = rectHandles(rect);
         gctx.save();
         gctx.strokeStyle = 'rgba(255,210,102,0.95)';
+        gctx.fillStyle = 'rgba(255,210,102,0.25)';
         gctx.lineWidth = 2;
         for (const h of handles) {
           const p = worldToScreen(h.world);
           gctx.beginPath();
-          gctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+          gctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+          gctx.fill();
           gctx.stroke();
         }
         gctx.restore();
@@ -940,7 +942,7 @@
           const p = worldToScreen(h.world);
           const dx = x - p.x;
           const dy = y - p.y;
-          const hit = 14;
+          const hit = 22;
           if ((dx * dx + dy * dy) <= hit * hit) return h.edge;
         }
         return null;
@@ -1081,30 +1083,6 @@
         }
       }
 
-      function drawValleyLines(gctx) {
-        if (STATE.rects.length < 2) return;
-        gctx.save();
-        gctx.strokeStyle = 'rgba(120,200,255,0.9)';
-        gctx.lineWidth = 2;
-        for (let i = 0; i < STATE.rects.length; i++) {
-          for (let j = i + 1; j < STATE.rects.length; j++) {
-            const a = STATE.rects[i];
-            const b = STATE.rects[j];
-            const lines = valleyLinesBetweenRects(a, b);
-            if (!lines.length) continue;
-            for (const line of lines) {
-              const p1 = worldToScreen(line.a);
-              const p2 = worldToScreen(line.b);
-              gctx.beginPath();
-              gctx.moveTo(p1.x, p1.y);
-              gctx.lineTo(p2.x, p2.y);
-              gctx.stroke();
-            }
-          }
-        }
-        gctx.restore();
-      }
-
       function render() {
         const rectW = canvas.width / renderDpr;
         const rectH = canvas.height / renderDpr;
@@ -1112,7 +1090,6 @@
         drawGridLayer(ctx);
         drawPolygonBase(ctx);
         drawRects(ctx);
-        drawValleyLines(ctx);
         if (STATE.selection && STATE.selection.type === 'rect') {
           const rect = STATE.rects.find(r => r.id === STATE.selection.id);
           if (rect) drawRectHandles(ctx, rect);
