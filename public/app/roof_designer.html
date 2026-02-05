@@ -637,6 +637,55 @@
         return [one];
       }
 
+      function valleyLinesBetweenRects(a, b) {
+        const overlap = rectOverlap(a, b);
+        if (!overlap) return [];
+        const spineA = rectSpineLine(a);
+        const spineB = rectSpineLine(b);
+        if (spineA.orientation === spineB.orientation) return [];
+        const intersection = spineIntersection(spineA, spineB);
+        if (!intersection) return [];
+        const corners = pickValleyCorners(overlap, a, b);
+        return corners.map(corner => ({ a: corner, b: intersection }));
+      }
+
+      function getValleyLinesForRect(rect) {
+        const out = [];
+        for (const other of STATE.rects) {
+          if (other.id === rect.id) continue;
+          const lines = valleyLinesBetweenRects(rect, other);
+          for (const line of lines) out.push(line);
+        }
+        return out;
+      }
+
+      function clipToHalfPlaneWorld(gctx, a, b, keep) {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const ux = dx / len;
+        const uy = dy / len;
+        const nx = -uy;
+        const ny = ux;
+        const sign = ((keep.x - a.x) * nx + (keep.y - a.y) * ny) >= 0 ? 1 : -1;
+        const big = 100000;
+        const p0 = { x: a.x - ux * big, y: a.y - uy * big };
+        const p1 = { x: a.x + ux * big, y: a.y + uy * big };
+        const p2 = { x: p1.x + nx * sign * big, y: p1.y + ny * sign * big };
+        const p3 = { x: p0.x + nx * sign * big, y: p0.y + ny * sign * big };
+        const s0 = worldToScreen(p0);
+        const s1 = worldToScreen(p1);
+        const s2 = worldToScreen(p2);
+        const s3 = worldToScreen(p3);
+        gctx.beginPath();
+        gctx.moveTo(s0.x, s0.y);
+        gctx.lineTo(s1.x, s1.y);
+        gctx.lineTo(s2.x, s2.y);
+        gctx.lineTo(s3.x, s3.y);
+        gctx.closePath();
+        gctx.clip();
+      }
+
       function lineSide(p, a, b) {
         return Math.sign((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x));
       }
@@ -766,15 +815,33 @@
               const baseRot = Number(STATE.tile.rotDeg) || 0;
               const midX = (minX + maxX) / 2;
               const midY = (minY + maxY) / 2;
-              const fillHalf = (x1, y1, x2, y2, rotDeg) => {
-                const p1 = worldToScreen({ x: x1, y: y1 });
-                const p2 = worldToScreen({ x: x2, y: y2 });
-                gctx.save();
+              const valleyLines = getValleyLinesForRect(rect);
+              const keepPoint = rectCenter(rect);
+              const clipRect = () => {
+                const p1 = worldToScreen({ x: minX, y: minY });
+                const p2 = worldToScreen({ x: maxX, y: maxY });
                 gctx.beginPath();
                 gctx.rect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
                 gctx.clip();
+              };
+              const clipHalf = (x1, y1, x2, y2) => {
+                const p1 = worldToScreen({ x: x1, y: y1 });
+                const p2 = worldToScreen({ x: x2, y: y2 });
+                gctx.beginPath();
+                gctx.rect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+                gctx.clip();
+              };
+              const fillHalf = (x1, y1, x2, y2, rotDeg) => {
+                gctx.save();
+                clipRect();
+                for (const line of valleyLines) {
+                  clipToHalfPlaneWorld(gctx, line.a, line.b, keepPoint);
+                }
+                clipHalf(x1, y1, x2, y2);
                 applyPatternTransform(tex.pattern, scale, { x: x1, y: y1 }, rotDeg);
                 gctx.fillStyle = tex.pattern;
+                const p1 = worldToScreen({ x: x1, y: y1 });
+                const p2 = worldToScreen({ x: x2, y: y2 });
                 gctx.fillRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
                 gctx.restore();
               };
@@ -846,16 +913,11 @@
           for (let j = i + 1; j < STATE.rects.length; j++) {
             const a = STATE.rects[i];
             const b = STATE.rects[j];
-            const overlap = rectOverlap(a, b);
-            if (!overlap) continue;
-            const spineA = rectSpineLine(a);
-            const spineB = rectSpineLine(b);
-            const intersection = spineIntersection(spineA, spineB);
-            if (!intersection) continue;
-            const corners = pickValleyCorners(overlap, a, b);
-            const p2 = worldToScreen(intersection);
-            for (const corner of corners) {
-              const p1 = worldToScreen(corner);
+            const lines = valleyLinesBetweenRects(a, b);
+            if (!lines.length) continue;
+            for (const line of lines) {
+              const p1 = worldToScreen(line.a);
+              const p2 = worldToScreen(line.b);
               gctx.beginPath();
               gctx.moveTo(p1.x, p1.y);
               gctx.lineTo(p2.x, p2.y);
