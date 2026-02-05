@@ -646,29 +646,36 @@
               const scale = Number.isFinite(Number(STATE.tile.scale)) ? Number(STATE.tile.scale) : tex.scale;
               const widthW = Math.abs(maxX - minX);
               const heightW = Math.abs(maxY - minY);
-              let spineAngle = 0;
-              if (widthW >= heightW) {
-                spineAngle = 0;
+              const baseRot = Number(STATE.tile.rotDeg) || 0;
+              const midX = (minX + maxX) / 2;
+              const midY = (minY + maxY) / 2;
+              const fillHalf = (x1, y1, x2, y2, rotDeg) => {
+                const p1 = worldToScreen({ x: x1, y: y1 });
+                const p2 = worldToScreen({ x: x2, y: y2 });
+                gctx.save();
+                gctx.beginPath();
+                gctx.rect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+                gctx.clip();
+                applyPatternTransform(tex.pattern, scale, { x: x1, y: y1 }, rotDeg);
+                gctx.fillStyle = tex.pattern;
+                gctx.fillRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+                gctx.restore();
+              };
+              if (heightW > widthW) {
+                // vertical spine: split left/right
+                fillHalf(minX, minY, midX, maxY, baseRot + 90);
+                fillHalf(midX, minY, maxX, maxY, baseRot + 270);
               } else {
-                spineAngle = Math.PI / 2;
+                // horizontal spine: split top/bottom
+                fillHalf(minX, midY, maxX, maxY, baseRot + 0);
+                fillHalf(minX, minY, maxX, midY, baseRot + 180);
               }
-              const tileRot = (Number(STATE.tile.rotDeg) || 0) * Math.PI / 180;
-              const flowRot = spineAngle + Math.PI / 2 + tileRot;
-              applyPatternTransform(tex.pattern, scale, { x: minX, y: minY }, flowRot * 180 / Math.PI);
               fill = tex.pattern;
             } else {
               fill = def.color;
             }
           }
-          if (fill) {
-            gctx.save();
-            gctx.beginPath();
-            gctx.rect(tl.x, tl.y, w, h);
-            gctx.clip();
-            gctx.fillStyle = fill;
-            gctx.fillRect(tl.x, tl.y, w, h);
-            gctx.restore();
-          } else {
+          if (!fill) {
             gctx.fillStyle = 'rgba(255,210,102,0.08)';
             gctx.fillRect(tl.x, tl.y, w, h);
           }
