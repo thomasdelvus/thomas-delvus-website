@@ -641,24 +641,21 @@
         return { x, y };
       }
 
+      function rectSideCorners(rect, side) {
+        const { minX, maxX, minY, maxY } = rectCorners(rect);
+        if (side === 'left') return [{ x: minX, y: minY }, { x: minX, y: maxY }];
+        if (side === 'right') return [{ x: maxX, y: minY }, { x: maxX, y: maxY }];
+        if (side === 'top') return [{ x: minX, y: minY }, { x: maxX, y: minY }];
+        if (side === 'bottom') return [{ x: minX, y: maxY }, { x: maxX, y: maxY }];
+        return [];
+      }
+
       function pickValleyCorners(overlap, rectA, rectB) {
         const spineA = rectSpineLine(rectA);
         const centerB = rectCenter(rectB);
         const sideA = sideFromSpine(spineA, centerB);
-        if (sideA === 'left' || sideA === 'right') {
-          const x = sideA === 'left' ? overlap.minX : overlap.maxX;
-          return [
-            { x, y: overlap.minY },
-            { x, y: overlap.maxY }
-          ];
-        }
-        if (sideA === 'top' || sideA === 'bottom') {
-          const y = sideA === 'top' ? overlap.minY : overlap.maxY;
-          return [
-            { x: overlap.minX, y },
-            { x: overlap.maxX, y }
-          ];
-        }
+        const corners = rectSideCorners(rectA, sideA);
+        if (corners.length) return corners;
         const one = pickValleyCorner(overlap, rectA, rectB);
         return [one];
       }
