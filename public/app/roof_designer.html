@@ -395,27 +395,29 @@
       function drawPolygonBase(gctx) {
         if (STATE.worldPoints.length < 3) return;
         const screenPts = STATE.worldPoints.map(worldToScreen);
-        const tileKindVal = STATE.tile.kind;
-        const def = TILE_TEXTURES[tileKindVal];
-        let fill = null;
-        if (def) {
-          const tex = getTexturePattern(tileKindVal);
-          if (tex && tex.pattern) {
-            const scale = Number.isFinite(Number(STATE.tile.scale)) ? Number(STATE.tile.scale) : tex.scale;
-            applyPatternTransform(tex.pattern, scale, STATE.worldPoints[0], STATE.tile.rotDeg || 0);
-            fill = tex.pattern;
-          } else {
-            fill = def.color;
-          }
-        }
         gctx.save();
         gctx.beginPath();
         gctx.moveTo(screenPts[0].x, screenPts[0].y);
         for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
         gctx.closePath();
-        if (fill) {
-          gctx.fillStyle = fill;
-          gctx.fill();
+        if (!STATE.rects.length) {
+          const tileKindVal = STATE.tile.kind;
+          const def = TILE_TEXTURES[tileKindVal];
+          let fill = null;
+          if (def) {
+            const tex = getTexturePattern(tileKindVal);
+            if (tex && tex.pattern) {
+              const scale = Number.isFinite(Number(STATE.tile.scale)) ? Number(STATE.tile.scale) : tex.scale;
+              applyPatternTransform(tex.pattern, scale, STATE.worldPoints[0], STATE.tile.rotDeg || 0);
+              fill = tex.pattern;
+            } else {
+              fill = def.color;
+            }
+          }
+          if (fill) {
+            gctx.fillStyle = fill;
+            gctx.fill();
+          }
         }
         gctx.strokeStyle = 'rgba(106,169,255,0.85)';
         gctx.lineWidth = 2;
@@ -534,6 +536,96 @@
         return { minX, maxX, minY, maxY };
       }
 
+      function rectPoints(rect) {
+        const { minX, maxX, minY, maxY } = rectCorners(rect);
+        const midX = (minX + maxX) / 2;
+        const midY = (minY + maxY) / 2;
+        return [
+          { x: minX, y: minY },
+          { x: maxX, y: minY },
+          { x: maxX, y: maxY },
+          { x: minX, y: maxY },
+          { x: midX, y: minY },
+          { x: maxX, y: midY },
+          { x: midX, y: maxY },
+          { x: minX, y: midY },
+          { x: midX, y: midY }
+        ];
+      }
+
+      function rectInsidePolygon(rect) {
+        if (!STATE.worldPoints.length) return true;
+        const pts = rectPoints(rect);
+        for (const p of pts) {
+          if (!pointInPolygon(p, STATE.worldPoints)) return false;
+        }
+        return true;
+      }
+
+      function interpolateRect(a, b, t) {
+        return {
+          x1: a.x1 + (b.x1 - a.x1) * t,
+          y1: a.y1 + (b.y1 - a.y1) * t,
+          x2: a.x2 + (b.x2 - a.x2) * t,
+          y2: a.y2 + (b.y2 - a.y2) * t
+        };
+      }
+
+      function clampRectToPolygon(orig, target) {
+        if (!UI.snapBoundary || !STATE.worldPoints.length) return target;
+        if (rectInsidePolygon(target)) return target;
+        let lo = 0;
+        let hi = 1;
+        let best = orig;
+        for (let i = 0; i < 16; i++) {
+          const mid = (lo + hi) / 2;
+          const test = interpolateRect(orig, target, mid);
+          if (rectInsidePolygon(test)) {
+            best = test;
+            lo = mid;
+          } else {
+            hi = mid;
+          }
+        }
+        return best;
+      }
+
+      function rectHandles(rect) {
+        const { minX, maxX, minY, maxY } = rectCorners(rect);
+        return [
+          { edge: 'n', world: { x: (minX + maxX) / 2, y: minY } },
+          { edge: 'e', world: { x: maxX, y: (minY + maxY) / 2 } },
+          { edge: 's', world: { x: (minX + maxX) / 2, y: maxY } },
+          { edge: 'w', world: { x: minX, y: (minY + maxY) / 2 } },
+        ];
+      }
+
+      function drawRectHandles(gctx, rect) {
+        const handles = rectHandles(rect);
+        gctx.save();
+        gctx.strokeStyle = 'rgba(255,210,102,0.95)';
+        gctx.lineWidth = 2;
+        for (const h of handles) {
+          const p = worldToScreen(h.world);
+          gctx.beginPath();
+          gctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+          gctx.stroke();
+        }
+        gctx.restore();
+      }
+
+      function findRectHandleAtScreen(rect, x, y) {
+        const handles = rectHandles(rect);
+        for (const h of handles) {
+          const p = worldToScreen(h.world);
+          const dx = x - p.x;
+          const dy = y - p.y;
+          const hit = 14;
+          if ((dx * dx + dy * dy) <= hit * hit) return h.edge;
+        }
+        return null;
+      }
+
       function drawRects(gctx) {
         for (const rect of STATE.rects) {
           const { minX, maxX, minY, maxY } = rectCorners(rect);
@@ -545,8 +637,41 @@
           gctx.strokeStyle = 'rgba(255,210,102,0.9)';
           gctx.lineWidth = 2;
           gctx.strokeRect(tl.x, tl.y, w, h);
-          gctx.fillStyle = 'rgba(255,210,102,0.08)';
-          gctx.fillRect(tl.x, tl.y, w, h);
+          const tileKindVal = rect.tileKind || STATE.tile.kind;
+          const def = TILE_TEXTURES[tileKindVal];
+          let fill = null;
+          if (def) {
+            const tex = getTexturePattern(tileKindVal);
+            if (tex && tex.pattern) {
+              const scale = Number.isFinite(Number(STATE.tile.scale)) ? Number(STATE.tile.scale) : tex.scale;
+              const widthW = Math.abs(maxX - minX);
+              const heightW = Math.abs(maxY - minY);
+              let spineAngle = 0;
+              if (widthW >= heightW) {
+                spineAngle = 0;
+              } else {
+                spineAngle = Math.PI / 2;
+              }
+              const tileRot = (Number(STATE.tile.rotDeg) || 0) * Math.PI / 180;
+              const flowRot = spineAngle + Math.PI / 2 + tileRot;
+              applyPatternTransform(tex.pattern, scale, { x: minX, y: minY }, flowRot * 180 / Math.PI);
+              fill = tex.pattern;
+            } else {
+              fill = def.color;
+            }
+          }
+          if (fill) {
+            gctx.save();
+            gctx.beginPath();
+            gctx.rect(tl.x, tl.y, w, h);
+            gctx.clip();
+            gctx.fillStyle = fill;
+            gctx.fillRect(tl.x, tl.y, w, h);
+            gctx.restore();
+          } else {
+            gctx.fillStyle = 'rgba(255,210,102,0.08)';
+            gctx.fillRect(tl.x, tl.y, w, h);
+          }
 
           const widthW = Math.abs(maxX - minX);
           const heightW = Math.abs(maxY - minY);
@@ -595,6 +720,10 @@
         drawGridLayer(ctx);
         drawPolygonBase(ctx);
         drawRects(ctx);
+        if (STATE.selection && STATE.selection.type === 'rect') {
+          const rect = STATE.rects.find(r => r.id === STATE.selection.id);
+          if (rect) drawRectHandles(ctx, rect);
+        }
         drawParts(ctx);
       }
 
@@ -696,17 +825,27 @@
         }
         if (hitRect) {
           STATE.selection = { type: 'rect', id: hitRect.id };
-          drag = {
-            type: 'rect',
-            id: hitRect.id,
-            offset: { x: 0, y: 0 },
-            startWorld: screenToWorld(x, y)
-          };
+          const handle = findRectHandleAtScreen(hitRect, x, y);
+          if (handle) {
+            drag = {
+              type: 'rect-handle',
+              id: hitRect.id,
+              edge: handle,
+              startWorld: screenToWorld(x, y),
+              startRect: { ...hitRect }
+            };
+          } else {
+            drag = {
+              type: 'rect',
+              id: hitRect.id,
+              startWorld: screenToWorld(x, y)
+            };
+          }
           render();
           return;
         }
 
-        if (STATE.mode === 'rect') {
+        if (STATE.mode === 'rects') {
           drag = { type: 'rect-new', startWorld: screenToWorld(x, y) };
           STATE.selection = null;
           render();
@@ -751,11 +890,38 @@
           if (!rectObj) return;
           const dx = world.x - drag.startWorld.x;
           const dy = world.y - drag.startWorld.y;
-          rectObj.x1 += dx;
-          rectObj.x2 += dx;
-          rectObj.y1 += dy;
-          rectObj.y2 += dy;
+          const orig = { ...rectObj };
+          const candidate = {
+            x1: rectObj.x1 + dx,
+            x2: rectObj.x2 + dx,
+            y1: rectObj.y1 + dy,
+            y2: rectObj.y2 + dy
+          };
+          const clamped = clampRectToPolygon(orig, candidate);
+          rectObj.x1 = clamped.x1;
+          rectObj.x2 = clamped.x2;
+          rectObj.y1 = clamped.y1;
+          rectObj.y2 = clamped.y2;
           drag.startWorld = world;
+        } else if (drag.type === 'rect-handle') {
+          const rectObj = STATE.rects.find(r => r.id === drag.id);
+          if (!rectObj) return;
+          const minSize = GRID.size * 0.5;
+          const candidate = { ...drag.startRect };
+          if (drag.edge === 'n') {
+            candidate.y1 = Math.min(world.y, candidate.y2 - minSize);
+          } else if (drag.edge === 's') {
+            candidate.y2 = Math.max(world.y, candidate.y1 + minSize);
+          } else if (drag.edge === 'w') {
+            candidate.x1 = Math.min(world.x, candidate.x2 - minSize);
+          } else if (drag.edge === 'e') {
+            candidate.x2 = Math.max(world.x, candidate.x1 + minSize);
+          }
+          const clamped = clampRectToPolygon(drag.startRect, candidate);
+          rectObj.x1 = clamped.x1;
+          rectObj.x2 = clamped.x2;
+          rectObj.y1 = clamped.y1;
+          rectObj.y2 = clamped.y2;
           render();
         }
       });
@@ -769,8 +935,10 @@
             x2: drag.preview.x2,
             y2: drag.preview.y2
           };
-          STATE.rects.push(rectObj);
-          STATE.selection = { type: 'rect', id: rectObj.id };
+          if (rectInsidePolygon(rectObj)) {
+            STATE.rects.push(rectObj);
+            STATE.selection = { type: 'rect', id: rectObj.id };
+          }
           if (info) info.textContent = `${STATE.points.length} points | ${STATE.parts.length} parts | ${STATE.rects.length} rects`;
         }
         drag = null;
