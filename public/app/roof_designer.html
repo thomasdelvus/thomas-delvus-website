@@ -536,6 +536,45 @@
         return { minX, maxX, minY, maxY };
       }
 
+      function rectCenter(rect) {
+        const { minX, maxX, minY, maxY } = rectCorners(rect);
+        return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+      }
+
+      function rectOverlap(a, b) {
+        const ra = rectCorners(a);
+        const rb = rectCorners(b);
+        const minX = Math.max(ra.minX, rb.minX);
+        const maxX = Math.min(ra.maxX, rb.maxX);
+        const minY = Math.max(ra.minY, rb.minY);
+        const maxY = Math.min(ra.maxY, rb.maxY);
+        if (minX >= maxX || minY >= maxY) return null;
+        return { minX, maxX, minY, maxY };
+      }
+
+      function rectSpineAngle(rect) {
+        const { minX, maxX, minY, maxY } = rectCorners(rect);
+        const widthW = Math.abs(maxX - minX);
+        const heightW = Math.abs(maxY - minY);
+        return widthW >= heightW ? 0 : Math.PI / 2;
+      }
+
+      function lineSide(p, a, b) {
+        return Math.sign((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x));
+      }
+
+      function chooseDiagonal(overlap, c1, c2) {
+        const diag1 = { a: { x: overlap.minX, y: overlap.minY }, b: { x: overlap.maxX, y: overlap.maxY } };
+        const diag2 = { a: { x: overlap.minX, y: overlap.maxY }, b: { x: overlap.maxX, y: overlap.minY } };
+        const s1 = lineSide(c1, diag1.a, diag1.b);
+        const s2 = lineSide(c2, diag1.a, diag1.b);
+        if (s1 && s2 && s1 !== s2) return diag1;
+        const t1 = lineSide(c1, diag2.a, diag2.b);
+        const t2 = lineSide(c2, diag2.a, diag2.b);
+        if (t1 && t2 && t1 !== t2) return diag2;
+        return diag1;
+      }
+
       function rectPoints(rect) {
         const { minX, maxX, minY, maxY } = rectCorners(rect);
         const midX = (minX + maxX) / 2;
@@ -720,6 +759,34 @@
         }
       }
 
+      function drawValleyLines(gctx) {
+        if (STATE.rects.length < 2) return;
+        gctx.save();
+        gctx.strokeStyle = 'rgba(120,200,255,0.9)';
+        gctx.lineWidth = 2;
+        for (let i = 0; i < STATE.rects.length; i++) {
+          for (let j = i + 1; j < STATE.rects.length; j++) {
+            const a = STATE.rects[i];
+            const b = STATE.rects[j];
+            const overlap = rectOverlap(a, b);
+            if (!overlap) continue;
+            const angA = rectSpineAngle(a);
+            const angB = rectSpineAngle(b);
+            if (Math.abs(angA - angB) < 0.001) continue;
+            const c1 = rectCenter(a);
+            const c2 = rectCenter(b);
+            const diag = chooseDiagonal(overlap, c1, c2);
+            const p1 = worldToScreen(diag.a);
+            const p2 = worldToScreen(diag.b);
+            gctx.beginPath();
+            gctx.moveTo(p1.x, p1.y);
+            gctx.lineTo(p2.x, p2.y);
+            gctx.stroke();
+          }
+        }
+        gctx.restore();
+      }
+
       function render() {
         const rectW = canvas.width / renderDpr;
         const rectH = canvas.height / renderDpr;
@@ -727,6 +794,7 @@
         drawGridLayer(ctx);
         drawPolygonBase(ctx);
         drawRects(ctx);
+        drawValleyLines(ctx);
         if (STATE.selection && STATE.selection.type === 'rect') {
           const rect = STATE.rects.find(r => r.id === STATE.selection.id);
           if (rect) drawRectHandles(ctx, rect);
@@ -1047,11 +1115,13 @@
 
       const qp = new URLSearchParams(window.location.search || '');
       const qPoints = qp.get('points');
+      const defaultPoints = 'HA96.5, HA87.5, HK87.5, HK85, HX84.5, HX96';
       if (qPoints) {
         pointsInput.value = qPoints;
         loadPoints(qPoints);
       } else {
-        render();
+        pointsInput.value = defaultPoints;
+        loadPoints(defaultPoints);
       }
 
       function setMode(mode) {
