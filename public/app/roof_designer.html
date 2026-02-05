@@ -123,6 +123,11 @@
       <button id="btnPlace" class="active">Place</button>
       <button id="btnDelete">Delete</button>
     </div>
+    <div class="group">
+      <label>Mode</label>
+      <button id="btnModeParts" class="active">Parts</button>
+      <button id="btnModeRects">Rects</button>
+    </div>
     <label><input type="checkbox" id="gridToggle" checked /> Hexgrid</label>
     <label><input type="checkbox" id="snapToggle" checked /> Snap 0.5</label>
     <label><input type="checkbox" id="boundaryToggle" checked /> Clamp to Boundary</label>
@@ -144,8 +149,10 @@
         worldPoints: [],
         tile: { kind: 'slate', scale: 0.2, rotDeg: 0 },
         parts: [],
+        rects: [],
         selection: null,
-        placeMode: true
+        placeMode: true,
+        mode: 'parts'
       };
 
       const TILE_TEXTURES = {
@@ -182,6 +189,8 @@
       const partRot = document.getElementById('partRot');
       const btnPlace = document.getElementById('btnPlace');
       const btnDelete = document.getElementById('btnDelete');
+      const btnModeParts = document.getElementById('btnModeParts');
+      const btnModeRects = document.getElementById('btnModeRects');
       const btnExportPng = document.getElementById('btnExportPng');
       const btnCopyJson = document.getElementById('btnCopyJson');
       const info = document.getElementById('info');
@@ -508,11 +517,73 @@
             gctx.textBaseline = 'middle';
             gctx.fillText(part.kind, 0, 0);
           }
-          if (STATE.selection && STATE.selection.id === part.id) {
+          if (STATE.selection && STATE.selection.type === 'part' && STATE.selection.id === part.id) {
             gctx.strokeStyle = '#6aa9ff';
             gctx.lineWidth = 2;
             gctx.strokeRect(-sizeW / 2, -sizeH / 2, sizeW, sizeH);
           }
+          gctx.restore();
+        }
+      }
+
+      function rectCorners(rect) {
+        const minX = Math.min(rect.x1, rect.x2);
+        const maxX = Math.max(rect.x1, rect.x2);
+        const minY = Math.min(rect.y1, rect.y2);
+        const maxY = Math.max(rect.y1, rect.y2);
+        return { minX, maxX, minY, maxY };
+      }
+
+      function drawRects(gctx) {
+        for (const rect of STATE.rects) {
+          const { minX, maxX, minY, maxY } = rectCorners(rect);
+          const tl = worldToScreen({ x: minX, y: minY });
+          const br = worldToScreen({ x: maxX, y: maxY });
+          const w = br.x - tl.x;
+          const h = br.y - tl.y;
+          gctx.save();
+          gctx.strokeStyle = 'rgba(255,210,102,0.9)';
+          gctx.lineWidth = 2;
+          gctx.strokeRect(tl.x, tl.y, w, h);
+          gctx.fillStyle = 'rgba(255,210,102,0.08)';
+          gctx.fillRect(tl.x, tl.y, w, h);
+
+          const widthW = Math.abs(maxX - minX);
+          const heightW = Math.abs(maxY - minY);
+          gctx.strokeStyle = 'rgba(255,210,102,0.95)';
+          gctx.lineWidth = 2;
+          gctx.beginPath();
+          if (widthW >= heightW) {
+            const yMid = (minY + maxY) / 2;
+            const a = worldToScreen({ x: minX, y: yMid });
+            const b = worldToScreen({ x: maxX, y: yMid });
+            gctx.moveTo(a.x, a.y);
+            gctx.lineTo(b.x, b.y);
+          } else {
+            const xMid = (minX + maxX) / 2;
+            const a = worldToScreen({ x: xMid, y: minY });
+            const b = worldToScreen({ x: xMid, y: maxY });
+            gctx.moveTo(a.x, a.y);
+            gctx.lineTo(b.x, b.y);
+          }
+          gctx.stroke();
+
+          if (STATE.selection && STATE.selection.type === 'rect' && STATE.selection.id === rect.id) {
+            gctx.strokeStyle = '#6aa9ff';
+            gctx.lineWidth = 2;
+            gctx.strokeRect(tl.x - 2, tl.y - 2, w + 4, h + 4);
+          }
+          gctx.restore();
+        }
+        if (drag && drag.type === 'rect-new' && drag.preview) {
+          const temp = rectCorners(drag.preview);
+          const tl = worldToScreen({ x: temp.minX, y: temp.minY });
+          const br = worldToScreen({ x: temp.maxX, y: temp.maxY });
+          gctx.save();
+          gctx.setLineDash([6, 4]);
+          gctx.strokeStyle = 'rgba(255,210,102,0.9)';
+          gctx.lineWidth = 2;
+          gctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
           gctx.restore();
         }
       }
@@ -523,6 +594,7 @@
         ctx.clearRect(0, 0, rectW, rectH);
         drawGridLayer(ctx);
         drawPolygonBase(ctx);
+        drawRects(ctx);
         drawParts(ctx);
       }
 
@@ -540,7 +612,7 @@
             y: (bounds.minY + bounds.maxY) / 2
           };
           setCanvasForBounds(bounds);
-          if (info) info.textContent = `${STATE.points.length} points`;
+          if (info) info.textContent = `${STATE.points.length} points | ${STATE.parts.length} parts | ${STATE.rects.length} rects`;
           render();
         } else {
           if (info) info.textContent = 'Enter at least 3 points';
@@ -564,6 +636,17 @@
         return null;
       }
 
+      function findRectAtScreen(x, y) {
+        for (let i = STATE.rects.length - 1; i >= 0; i--) {
+          const rect = STATE.rects[i];
+          const { minX, maxX, minY, maxY } = rectCorners(rect);
+          const tl = worldToScreen({ x: minX, y: minY });
+          const br = worldToScreen({ x: maxX, y: maxY });
+          if (x >= tl.x && x <= br.x && y >= tl.y && y <= br.y) return rect;
+        }
+        return null;
+      }
+
       function addPartAt(world) {
         const kind = partKind.value;
         const part = {
@@ -577,42 +660,69 @@
         };
         setPartFromWorld(part, world);
         STATE.parts.push(part);
-        STATE.selection = part;
+        STATE.selection = { type: 'part', id: part.id };
       }
 
       function updateSelectionUI() {
         const sel = STATE.selection;
         if (!sel) return;
-        partKind.value = sel.kind;
-        partScale.value = String(sel.scale ?? 1);
-        partRot.value = String(sel.rotDeg ?? 0);
+        if (sel.type === 'part') {
+          const part = STATE.parts.find(p => p.id === sel.id);
+          if (!part) return;
+          partKind.value = part.kind;
+          partScale.value = String(part.scale ?? 1);
+          partRot.value = String(part.rotDeg ?? 0);
+        }
       }
 
       canvas.addEventListener('mousedown', (ev) => {
         const rect = canvas.getBoundingClientRect();
         const x = ev.clientX - rect.left;
         const y = ev.clientY - rect.top;
-        const hit = findPartAtScreen(x, y);
-        if (hit) {
-          STATE.selection = hit;
+        const hitPart = findPartAtScreen(x, y);
+        const hitRect = hitPart ? null : findRectAtScreen(x, y);
+
+        if (hitPart) {
+          STATE.selection = { type: 'part', id: hitPart.id };
           updateSelectionUI();
-          const world = partWorld(hit);
+          const world = partWorld(hitPart);
           drag = {
-            id: hit.id,
+            type: 'part',
+            id: hitPart.id,
             offset: world ? { x: world.x - screenToWorld(x, y).x, y: world.y - screenToWorld(x, y).y } : { x: 0, y: 0 }
           };
           render();
           return;
         }
+        if (hitRect) {
+          STATE.selection = { type: 'rect', id: hitRect.id };
+          drag = {
+            type: 'rect',
+            id: hitRect.id,
+            offset: { x: 0, y: 0 },
+            startWorld: screenToWorld(x, y)
+          };
+          render();
+          return;
+        }
+
+        if (STATE.mode === 'rect') {
+          drag = { type: 'rect-new', startWorld: screenToWorld(x, y) };
+          STATE.selection = null;
+          render();
+          return;
+        }
+
         if (STATE.placeMode) {
           const world = screenToWorld(x, y);
           addPartAt(world);
           updateSelectionUI();
           render();
-        } else {
-          STATE.selection = null;
-          render();
+          return;
         }
+
+        STATE.selection = null;
+        render();
       });
 
       window.addEventListener('mousemove', (ev) => {
@@ -621,15 +731,50 @@
         const x = ev.clientX - rect.left;
         const y = ev.clientY - rect.top;
         const world = screenToWorld(x, y);
-        const part = STATE.parts.find(p => p.id === drag.id);
-        if (!part) return;
-        const target = { x: world.x + drag.offset.x, y: world.y + drag.offset.y };
-        setPartFromWorld(part, target);
-        render();
+        if (drag.type === 'part') {
+          const part = STATE.parts.find(p => p.id === drag.id);
+          if (!part) return;
+          const target = { x: world.x + drag.offset.x, y: world.y + drag.offset.y };
+          setPartFromWorld(part, target);
+          render();
+        } else if (drag.type === 'rect-new') {
+          const start = drag.startWorld;
+          drag.preview = {
+            x1: start.x,
+            y1: start.y,
+            x2: world.x,
+            y2: world.y
+          };
+          render();
+        } else if (drag.type === 'rect') {
+          const rectObj = STATE.rects.find(r => r.id === drag.id);
+          if (!rectObj) return;
+          const dx = world.x - drag.startWorld.x;
+          const dy = world.y - drag.startWorld.y;
+          rectObj.x1 += dx;
+          rectObj.x2 += dx;
+          rectObj.y1 += dy;
+          rectObj.y2 += dy;
+          drag.startWorld = world;
+          render();
+        }
       });
 
       window.addEventListener('mouseup', () => {
+        if (drag && drag.type === 'rect-new' && drag.preview) {
+          const rectObj = {
+            id: `rect_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+            x1: drag.preview.x1,
+            y1: drag.preview.y1,
+            x2: drag.preview.x2,
+            y2: drag.preview.y2
+          };
+          STATE.rects.push(rectObj);
+          STATE.selection = { type: 'rect', id: rectObj.id };
+          if (info) info.textContent = `${STATE.points.length} points | ${STATE.parts.length} parts | ${STATE.rects.length} rects`;
+        }
         drag = null;
+        render();
       });
 
       btnApply.addEventListener('click', () => loadPoints(pointsInput.value));
@@ -658,20 +803,23 @@
       });
 
       partKind.addEventListener('change', () => {
-        if (STATE.selection) {
-          STATE.selection.kind = partKind.value;
+        if (STATE.selection && STATE.selection.type === 'part') {
+          const part = STATE.parts.find(p => p.id === STATE.selection.id);
+          if (part) part.kind = partKind.value;
           render();
         }
       });
       partScale.addEventListener('input', () => {
-        if (STATE.selection) {
-          STATE.selection.scale = Number(partScale.value) || 1;
+        if (STATE.selection && STATE.selection.type === 'part') {
+          const part = STATE.parts.find(p => p.id === STATE.selection.id);
+          if (part) part.scale = Number(partScale.value) || 1;
           render();
         }
       });
       partRot.addEventListener('input', () => {
-        if (STATE.selection) {
-          STATE.selection.rotDeg = Number(partRot.value) || 0;
+        if (STATE.selection && STATE.selection.type === 'part') {
+          const part = STATE.parts.find(p => p.id === STATE.selection.id);
+          if (part) part.rotDeg = Number(partRot.value) || 0;
           render();
         }
       });
@@ -683,7 +831,11 @@
 
       btnDelete.addEventListener('click', () => {
         if (!STATE.selection) return;
-        STATE.parts = STATE.parts.filter(p => p.id !== STATE.selection.id);
+        if (STATE.selection.type === 'part') {
+          STATE.parts = STATE.parts.filter(p => p.id !== STATE.selection.id);
+        } else if (STATE.selection.type === 'rect') {
+          STATE.rects = STATE.rects.filter(r => r.id !== STATE.selection.id);
+        }
         STATE.selection = null;
         render();
       });
@@ -699,6 +851,7 @@
         const payload = {
           points: STATE.points,
           tile: STATE.tile,
+          rects: STATE.rects.map(r => ({ x1: r.x1, y1: r.y1, x2: r.x2, y2: r.y2 })),
           parts: STATE.parts.map(p => ({
             kind: p.kind,
             hex: p.hex,
@@ -725,6 +878,15 @@
       } else {
         render();
       }
+
+      function setMode(mode) {
+        STATE.mode = mode;
+        if (btnModeParts) btnModeParts.classList.toggle('active', mode === 'parts');
+        if (btnModeRects) btnModeRects.classList.toggle('active', mode === 'rects');
+      }
+
+      if (btnModeParts) btnModeParts.addEventListener('click', () => setMode('parts'));
+      if (btnModeRects) btnModeRects.addEventListener('click', () => setMode('rects'));
     })();
   </script>
 </body>
