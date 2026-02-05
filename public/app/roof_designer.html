@@ -37,14 +37,18 @@
       font-size: 13px;
       color: var(--muted);
     }
-    #pointsInput {
-      min-width: 420px;
-      max-width: 70vw;
+    #toolbar input[type="text"],
+    #toolbar input[type="number"],
+    #toolbar select {
       padding: 6px 8px;
       border-radius: 6px;
       border: 1px solid var(--panel-border);
       background: #0f141c;
       color: var(--text);
+    }
+    #pointsInput {
+      min-width: 420px;
+      max-width: 70vw;
     }
     #toolbar button {
       padding: 6px 10px;
@@ -53,6 +57,10 @@
       background: #0f141c;
       color: var(--text);
       cursor: pointer;
+    }
+    #toolbar button.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(106,169,255,0.35);
     }
     #toolbar .info {
       font-size: 12px;
@@ -68,14 +76,57 @@
       border: 1px solid rgba(255,255,255,0.06);
       border-radius: 8px;
     }
+    .group {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding-right: 8px;
+      border-right: 1px solid rgba(255,255,255,0.06);
+    }
   </style>
 </head>
 <body>
   <div id="toolbar">
-    <label for="pointsInput">Points</label>
-    <input id="pointsInput" type="text" placeholder="HA96.5, HA87.5, IC87.5, IC96.5" />
-    <button id="btnApply">Apply</button>
+    <div class="group">
+      <label for="pointsInput">Points</label>
+      <input id="pointsInput" type="text" placeholder="HA96.5, HA87.5, IC87.5, IC96.5" />
+      <button id="btnApply">Apply</button>
+    </div>
+    <div class="group">
+      <label>Tile</label>
+      <select id="tileKind">
+        <option value="slate" selected>slate</option>
+        <option value="thatch">thatch</option>
+        <option value="terracotta">terracotta</option>
+        <option value="grass">grass</option>
+      </select>
+      <label>Scale</label>
+      <input id="tileScale" type="number" step="0.01" value="0.2" />
+      <label>Rot</label>
+      <input id="tileRot" type="number" step="1" value="0" />
+    </div>
+    <div class="group">
+      <label>Part</label>
+      <select id="partKind">
+        <option value="ridge">ridge</option>
+        <option value="ridge_long">ridge_long</option>
+        <option value="cap">cap</option>
+        <option value="hip">hip</option>
+        <option value="dormer_small">dormer_small</option>
+        <option value="dormer_large">dormer_large</option>
+        <option value="chimney">chimney</option>
+      </select>
+      <label>Scale</label>
+      <input id="partScale" type="number" step="0.05" value="1" />
+      <label>Rot</label>
+      <input id="partRot" type="number" step="1" value="0" />
+      <button id="btnPlace" class="active">Place</button>
+      <button id="btnDelete">Delete</button>
+    </div>
     <label><input type="checkbox" id="gridToggle" checked /> Hexgrid</label>
+    <label><input type="checkbox" id="snapToggle" checked /> Snap 0.5</label>
+    <button id="btnExportPng">Export PNG</button>
+    <button id="btnCopyJson">Copy JSON</button>
     <span id="info" class="info"></span>
   </div>
   <div id="canvasWrap">
@@ -86,17 +137,55 @@
     (() => {
       const GRID = { size: 32, lineAlpha: 0.22, lineWidth: 1.1 };
       const VIEW = { cameraWorld: { x: 0, y: 0 }, zoom: 1 };
-      const UI = { hexGrid: true };
-      const STATE = { points: [], worldPoints: [] };
+      const UI = { hexGrid: true, snapHalf: true };
+      const STATE = {
+        points: [],
+        worldPoints: [],
+        tile: { kind: 'slate', scale: 0.2, rotDeg: 0 },
+        parts: [],
+        selection: null,
+        placeMode: true
+      };
+
+      const TILE_TEXTURES = {
+        slate: { url: '/assets/sprites/slate.png', scale: 0.2, color: '#3a434a' },
+        terracotta: { url: '/assets/sprites/terracotta.png', scale: 0.2, color: '#6a3a2a' },
+        thatch: { url: '/assets/sprites/thatch.png', scale: 0.2, color: '#6a5a3a' },
+        grass: { url: '/assets/sprites/grass.png', scale: 0.2, color: '#2f5a2f' }
+      };
+
+      const PART_CATALOG = {
+        ridge: { w: 2.0, h: 0.5, color: '#b9b1a5' },
+        ridge_long: { w: 3.5, h: 0.5, color: '#b9b1a5' },
+        cap: { w: 0.6, h: 0.6, color: '#c8bfae' },
+        hip: { w: 1.2, h: 0.8, color: '#bfa996' },
+        dormer_small: { w: 0.9, h: 0.9, color: '#7f8fa6' },
+        dormer_large: { w: 1.4, h: 1.2, color: '#7f8fa6' },
+        chimney: { w: 0.6, h: 0.9, color: '#9a5a4a' }
+      };
+
+      const spriteCache = new Map();
 
       const canvas = document.getElementById('roofCanvas');
       const ctx = canvas.getContext('2d');
       const pointsInput = document.getElementById('pointsInput');
       const btnApply = document.getElementById('btnApply');
       const gridToggle = document.getElementById('gridToggle');
+      const snapToggle = document.getElementById('snapToggle');
+      const tileKind = document.getElementById('tileKind');
+      const tileScale = document.getElementById('tileScale');
+      const tileRot = document.getElementById('tileRot');
+      const partKind = document.getElementById('partKind');
+      const partScale = document.getElementById('partScale');
+      const partRot = document.getElementById('partRot');
+      const btnPlace = document.getElementById('btnPlace');
+      const btnDelete = document.getElementById('btnDelete');
+      const btnExportPng = document.getElementById('btnExportPng');
+      const btnCopyJson = document.getElementById('btnCopyJson');
       const info = document.getElementById('info');
 
       let renderDpr = window.devicePixelRatio || 1;
+      let drag = null;
 
       function indexToLetters(idx) {
         let n = idx;
@@ -162,6 +251,20 @@
         return { col, row };
       }
 
+      function roundHalf(v) {
+        return Math.round(v * 2) / 2;
+      }
+
+      function worldToHexHalf(p) {
+        const size = GRID.size || 1;
+        const qf = (2 / 3) * (p.x / size);
+        const rf = ((-p.y) / size) / Math.sqrt(3) - (qf / 2);
+        const col = Math.round(qf);
+        const rowf = rf + (col - (col & 1)) / 2;
+        const row = roundHalf(rowf);
+        return { col, row };
+      }
+
       function worldToScreen(p) {
         const cam = VIEW.cameraWorld;
         const w = canvas.width / renderDpr;
@@ -172,10 +275,19 @@
         };
       }
 
+      function screenToWorld(x, y) {
+        const cam = VIEW.cameraWorld;
+        const w = canvas.width / renderDpr;
+        const h = canvas.height / renderDpr;
+        const wx = (x - w / 2) / VIEW.zoom + cam.x;
+        const wy = (y - h / 2) / VIEW.zoom + cam.y;
+        return { x: wx, y: wy };
+      }
+
       function setCanvasForBounds(bounds) {
         const pad = GRID.size * 2;
-        const width = Math.max(200, (bounds.maxX - bounds.minX) + pad * 2);
-        const height = Math.max(200, (bounds.maxY - bounds.minY) + pad * 2);
+        const width = Math.max(240, (bounds.maxX - bounds.minX) + pad * 2);
+        const height = Math.max(240, (bounds.maxY - bounds.minY) + pad * 2);
         renderDpr = window.devicePixelRatio || 1;
         canvas.width = width * renderDpr;
         canvas.height = height * renderDpr;
@@ -231,20 +343,128 @@
         gctx.restore();
       }
 
-      function drawPolygon(gctx) {
-        if (!STATE.worldPoints.length) return;
+      function loadSprite(url) {
+        if (!url) return null;
+        if (spriteCache.has(url)) return spriteCache.get(url);
+        const img = new Image();
+        img.__rdStatus = 'loading';
+        img.src = url;
+        img.onload = () => { img.__rdStatus = 'ready'; render(); };
+        img.onerror = () => { img.__rdStatus = 'error'; render(); };
+        spriteCache.set(url, img);
+        return img;
+      }
+
+      function applyPatternTransform(pattern, scale, anchorWorld, rotDeg) {
+        if (!pattern || typeof pattern.setTransform !== 'function') return;
+        const rectW = canvas.width / renderDpr;
+        const rectH = canvas.height / renderDpr;
+        const anchor = anchorWorld || { x: 0, y: 0 };
+        const originX = rectW / 2 + (anchor.x - VIEW.cameraWorld.x) * VIEW.zoom;
+        const originY = rectH / 2 + (anchor.y - VIEW.cameraWorld.y) * VIEW.zoom;
+        const s = (Number(scale) || 1) * VIEW.zoom;
+        const m = new DOMMatrix();
+        m.translateSelf(originX, originY);
+        if (Number.isFinite(Number(rotDeg)) && Number(rotDeg) !== 0) {
+          m.rotateSelf(Number(rotDeg));
+        }
+        m.scaleSelf(s, s);
+        pattern.setTransform(m);
+      }
+
+      function getTexturePattern(kind) {
+        const def = TILE_TEXTURES[kind];
+        if (!def) return null;
+        const img = loadSprite(def.url);
+        if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return null;
+        const pat = ctx.createPattern(img, 'repeat');
+        return { pattern: pat, scale: def.scale, color: def.color };
+      }
+
+      function drawPolygonBase(gctx) {
+        if (STATE.worldPoints.length < 3) return;
         const screenPts = STATE.worldPoints.map(worldToScreen);
+        const tileKindVal = STATE.tile.kind;
+        const def = TILE_TEXTURES[tileKindVal];
+        let fill = null;
+        if (def) {
+          const tex = getTexturePattern(tileKindVal);
+          if (tex && tex.pattern) {
+            const scale = Number.isFinite(Number(STATE.tile.scale)) ? Number(STATE.tile.scale) : tex.scale;
+            applyPatternTransform(tex.pattern, scale, STATE.worldPoints[0], STATE.tile.rotDeg || 0);
+            fill = tex.pattern;
+          } else {
+            fill = def.color;
+          }
+        }
         gctx.save();
-        gctx.fillStyle = 'rgba(106,169,255,0.08)';
-        gctx.strokeStyle = 'rgba(106,169,255,0.85)';
-        gctx.lineWidth = 2;
         gctx.beginPath();
         gctx.moveTo(screenPts[0].x, screenPts[0].y);
         for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
         gctx.closePath();
-        gctx.fill();
+        if (fill) {
+          gctx.fillStyle = fill;
+          gctx.fill();
+        }
+        gctx.strokeStyle = 'rgba(106,169,255,0.85)';
+        gctx.lineWidth = 2;
         gctx.stroke();
         gctx.restore();
+      }
+
+      function partWorld(part) {
+        const parsed = parseHexLabel(part.hex);
+        if (!parsed) return null;
+        const base = hexToWorld(parsed.col, parsed.row);
+        const ox = Number(part.ox) || 0;
+        const oy = Number(part.oy) || 0;
+        return { x: base.x + ox * GRID.size, y: base.y + oy * GRID.size };
+      }
+
+      function setPartFromWorld(part, world) {
+        const snap = UI.snapHalf ? worldToHexHalf(world) : worldToHex(world);
+        part.hex = toHexLabel(snap.col, snap.row);
+        const base = hexToWorld(snap.col, snap.row);
+        part.ox = (world.x - base.x) / GRID.size;
+        part.oy = (world.y - base.y) / GRID.size;
+      }
+
+      function drawParts(gctx) {
+        for (const part of STATE.parts) {
+          const world = partWorld(part);
+          if (!world) continue;
+          const center = worldToScreen(world);
+          const def = PART_CATALOG[part.kind] || { w: 1, h: 1, color: '#888' };
+          const scale = Number.isFinite(Number(part.scale)) ? Number(part.scale) : 1;
+          const rot = (Number(part.rotDeg) || 0) * Math.PI / 180;
+          const sizeW = GRID.size * def.w * scale * VIEW.zoom;
+          const sizeH = GRID.size * def.h * scale * VIEW.zoom;
+          const spriteUrl = `/assets/sprites/roof_parts/${part.kind}.png`;
+          const img = loadSprite(spriteUrl);
+
+          gctx.save();
+          gctx.translate(center.x, center.y);
+          if (rot) gctx.rotate(rot);
+          if (img && img.complete && img.naturalWidth && img.naturalHeight) {
+            gctx.drawImage(img, -sizeW / 2, -sizeH / 2, sizeW, sizeH);
+          } else if (!img || img.__rdStatus === 'error') {
+            gctx.fillStyle = def.color;
+            gctx.fillRect(-sizeW / 2, -sizeH / 2, sizeW, sizeH);
+            gctx.strokeStyle = '#2b2f3a';
+            gctx.strokeRect(-sizeW / 2, -sizeH / 2, sizeW, sizeH);
+            gctx.fillStyle = '#e6e9ef';
+            gctx.font = `${10 * VIEW.zoom}px ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif`;
+            gctx.textAlign = 'center';
+            gctx.textBaseline = 'middle';
+            gctx.fillText(part.kind, 0, 0);
+          }
+          if (STATE.selection && STATE.selection.id === part.id) {
+            gctx.strokeStyle = '#6aa9ff';
+            gctx.lineWidth = 2;
+            gctx.strokeRect(-sizeW / 2, -sizeH / 2, sizeW, sizeH);
+          }
+          gctx.restore();
+        }
       }
 
       function render() {
@@ -252,7 +472,8 @@
         const rectH = canvas.height / renderDpr;
         ctx.clearRect(0, 0, rectW, rectH);
         drawGridLayer(ctx);
-        drawPolygon(ctx);
+        drawPolygonBase(ctx);
+        drawParts(ctx);
       }
 
       function loadPoints(raw) {
@@ -269,19 +490,178 @@
             y: (bounds.minY + bounds.maxY) / 2
           };
           setCanvasForBounds(bounds);
-          if (info) {
-            info.textContent = `${STATE.points.length} points`;
-          }
+          if (info) info.textContent = `${STATE.points.length} points`;
           render();
         } else {
           if (info) info.textContent = 'Enter at least 3 points';
         }
       }
 
+      function findPartAtScreen(x, y) {
+        for (let i = STATE.parts.length - 1; i >= 0; i--) {
+          const part = STATE.parts[i];
+          const world = partWorld(part);
+          if (!world) continue;
+          const center = worldToScreen(world);
+          const def = PART_CATALOG[part.kind] || { w: 1, h: 1 };
+          const scale = Number.isFinite(Number(part.scale)) ? Number(part.scale) : 1;
+          const sizeW = GRID.size * def.w * scale * VIEW.zoom;
+          const sizeH = GRID.size * def.h * scale * VIEW.zoom;
+          const left = center.x - sizeW / 2;
+          const top = center.y - sizeH / 2;
+          if (x >= left && x <= left + sizeW && y >= top && y <= top + sizeH) return part;
+        }
+        return null;
+      }
+
+      function addPartAt(world) {
+        const kind = partKind.value;
+        const part = {
+          id: `part_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+          kind,
+          hex: 'A1',
+          ox: 0,
+          oy: 0,
+          scale: Number(partScale.value) || 1,
+          rotDeg: Number(partRot.value) || 0
+        };
+        setPartFromWorld(part, world);
+        STATE.parts.push(part);
+        STATE.selection = part;
+      }
+
+      function updateSelectionUI() {
+        const sel = STATE.selection;
+        if (!sel) return;
+        partKind.value = sel.kind;
+        partScale.value = String(sel.scale ?? 1);
+        partRot.value = String(sel.rotDeg ?? 0);
+      }
+
+      canvas.addEventListener('mousedown', (ev) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = ev.clientX - rect.left;
+        const y = ev.clientY - rect.top;
+        const hit = findPartAtScreen(x, y);
+        if (hit) {
+          STATE.selection = hit;
+          updateSelectionUI();
+          const world = partWorld(hit);
+          drag = {
+            id: hit.id,
+            offset: world ? { x: world.x - screenToWorld(x, y).x, y: world.y - screenToWorld(x, y).y } : { x: 0, y: 0 }
+          };
+          render();
+          return;
+        }
+        if (STATE.placeMode) {
+          const world = screenToWorld(x, y);
+          addPartAt(world);
+          updateSelectionUI();
+          render();
+        } else {
+          STATE.selection = null;
+          render();
+        }
+      });
+
+      window.addEventListener('mousemove', (ev) => {
+        if (!drag) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = ev.clientX - rect.left;
+        const y = ev.clientY - rect.top;
+        const world = screenToWorld(x, y);
+        const part = STATE.parts.find(p => p.id === drag.id);
+        if (!part) return;
+        const target = { x: world.x + drag.offset.x, y: world.y + drag.offset.y };
+        setPartFromWorld(part, target);
+        render();
+      });
+
+      window.addEventListener('mouseup', () => {
+        drag = null;
+      });
+
       btnApply.addEventListener('click', () => loadPoints(pointsInput.value));
       gridToggle.addEventListener('change', () => {
         UI.hexGrid = gridToggle.checked;
         render();
+      });
+      snapToggle.addEventListener('change', () => {
+        UI.snapHalf = snapToggle.checked;
+      });
+
+      tileKind.addEventListener('change', () => {
+        STATE.tile.kind = tileKind.value;
+        render();
+      });
+      tileScale.addEventListener('input', () => {
+        STATE.tile.scale = Number(tileScale.value) || STATE.tile.scale;
+        render();
+      });
+      tileRot.addEventListener('input', () => {
+        STATE.tile.rotDeg = Number(tileRot.value) || 0;
+        render();
+      });
+
+      partKind.addEventListener('change', () => {
+        if (STATE.selection) {
+          STATE.selection.kind = partKind.value;
+          render();
+        }
+      });
+      partScale.addEventListener('input', () => {
+        if (STATE.selection) {
+          STATE.selection.scale = Number(partScale.value) || 1;
+          render();
+        }
+      });
+      partRot.addEventListener('input', () => {
+        if (STATE.selection) {
+          STATE.selection.rotDeg = Number(partRot.value) || 0;
+          render();
+        }
+      });
+
+      btnPlace.addEventListener('click', () => {
+        STATE.placeMode = !STATE.placeMode;
+        btnPlace.classList.toggle('active', STATE.placeMode);
+      });
+
+      btnDelete.addEventListener('click', () => {
+        if (!STATE.selection) return;
+        STATE.parts = STATE.parts.filter(p => p.id !== STATE.selection.id);
+        STATE.selection = null;
+        render();
+      });
+
+      btnExportPng.addEventListener('click', () => {
+        const link = document.createElement('a');
+        link.download = 'roof.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+
+      btnCopyJson.addEventListener('click', async () => {
+        const payload = {
+          points: STATE.points,
+          tile: STATE.tile,
+          parts: STATE.parts.map(p => ({
+            kind: p.kind,
+            hex: p.hex,
+            ox: p.ox,
+            oy: p.oy,
+            scale: p.scale,
+            rotDeg: p.rotDeg
+          }))
+        };
+        const text = JSON.stringify(payload, null, 2);
+        try {
+          await navigator.clipboard.writeText(text);
+          if (info) info.textContent = 'Copied JSON';
+        } catch {
+          if (info) info.textContent = 'Copy failed';
+        }
       });
 
       const qp = new URLSearchParams(window.location.search || '');
