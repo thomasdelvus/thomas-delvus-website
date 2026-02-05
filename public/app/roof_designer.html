@@ -680,7 +680,7 @@
         for (const other of STATE.rects) {
           if (other.id === rect.id) continue;
           const lines = valleyLinesBetweenRects(rect, other);
-          for (const line of lines) out.push(line);
+          for (const line of lines) out.push({ ...line, otherCenter: rectCenter(other) });
         }
         return out;
       }
@@ -869,7 +869,15 @@
                     const isLeft = line.a.x <= midX;
                     if ((halfTag === 'left' && !isLeft) || (halfTag === 'right' && isLeft)) continue;
                   }
-                  clipToHalfPlaneWorld(gctx, line.a, line.b, halfCenter);
+                  let keepPoint = halfCenter;
+                  if (line.otherCenter) {
+                    const sideOther = lineSide(line.otherCenter, line.a, line.b);
+                    const sideKeep = lineSide(keepPoint, line.a, line.b);
+                    if (sideOther && sideKeep && sideOther === sideKeep) {
+                      keepPoint = farthestRectCorner(rect, line.otherCenter);
+                    }
+                  }
+                  clipToHalfPlaneWorld(gctx, line.a, line.b, keepPoint);
                 }
                 clipHalf(x1, y1, x2, y2);
                 applyPatternTransform(tex.pattern, scale, { x: x1, y: y1 }, rotDeg);
