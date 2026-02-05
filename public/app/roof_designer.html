@@ -128,6 +128,15 @@
       <button id="btnModeParts" class="active">Parts</button>
       <button id="btnModeRects">Rects</button>
     </div>
+    <div class="group">
+      <label>Rect</label>
+      <select id="rectType">
+        <option value="base" selected>Base</option>
+        <option value="top">Top</option>
+      </select>
+      <label>Cut°</label>
+      <input id="rectCutAngle" type="number" step="1" value="45" />
+    </div>
     <label><input type="checkbox" id="gridToggle" checked /> Hexgrid</label>
     <label><input type="checkbox" id="snapToggle" checked /> Snap 0.5</label>
     <label><input type="checkbox" id="boundaryToggle" checked /> Clamp to Boundary</label>
@@ -191,6 +200,8 @@
       const btnDelete = document.getElementById('btnDelete');
       const btnModeParts = document.getElementById('btnModeParts');
       const btnModeRects = document.getElementById('btnModeRects');
+      const rectType = document.getElementById('rectType');
+      const rectCutAngle = document.getElementById('rectCutAngle');
       const btnExportPng = document.getElementById('btnExportPng');
       const btnCopyJson = document.getElementById('btnCopyJson');
       const info = document.getElementById('info');
@@ -536,6 +547,44 @@
         return { minX, maxX, minY, maxY };
       }
 
+      function topCutPolygon(rect) {
+        const { minX, maxX, minY, maxY } = rectCorners(rect);
+        const widthW = Math.abs(maxX - minX);
+        const heightW = Math.abs(maxY - minY);
+        const midX = (minX + maxX) / 2;
+        const midY = (minY + maxY) / 2;
+        const angleDeg = Number.isFinite(Number(rect.cutAngle)) ? Number(rect.cutAngle) : 45;
+        const theta = Math.max(1, Math.min(89, angleDeg)) * Math.PI / 180;
+
+        if (widthW >= heightW) {
+          const halfH = heightW / 2;
+          let cutDepth = halfH / Math.tan(theta);
+          cutDepth = Math.min(cutDepth, widthW / 2 - 0.001);
+          cutDepth = Math.max(0, cutDepth);
+          return [
+            { x: minX + cutDepth, y: minY },
+            { x: maxX - cutDepth, y: minY },
+            { x: maxX, y: midY },
+            { x: maxX - cutDepth, y: maxY },
+            { x: minX + cutDepth, y: maxY },
+            { x: minX, y: midY }
+          ];
+        }
+
+        const halfW = widthW / 2;
+        let cutDepth = halfW / Math.tan(theta);
+        cutDepth = Math.min(cutDepth, heightW / 2 - 0.001);
+        cutDepth = Math.max(0, cutDepth);
+        return [
+          { x: minX, y: minY + cutDepth },
+          { x: midX, y: minY },
+          { x: maxX, y: minY + cutDepth },
+          { x: maxX, y: maxY - cutDepth },
+          { x: midX, y: maxY },
+          { x: minX, y: maxY - cutDepth }
+        ];
+      }
+
       function rectCornerPoints(rect) {
         const { minX, maxX, minY, maxY } = rectCorners(rect);
         return [
@@ -861,7 +910,20 @@
               const baseRot = Number(STATE.tile.rotDeg) || 0;
               const midX = (minX + maxX) / 2;
               const midY = (minY + maxY) / 2;
-              const valleyLines = getValleyLinesForRect(rect);
+              const valleyLines = [];
+              const clipTopShape = () => {
+                if (rect.type !== 'top') return;
+                const poly = topCutPolygon(rect);
+                const p0 = worldToScreen(poly[0]);
+                gctx.beginPath();
+                gctx.moveTo(p0.x, p0.y);
+                for (let i = 1; i < poly.length; i++) {
+                  const pi = worldToScreen(poly[i]);
+                  gctx.lineTo(pi.x, pi.y);
+                }
+                gctx.closePath();
+                gctx.clip();
+              };
               const clipRect = () => {
                 const p1 = worldToScreen({ x: minX, y: minY });
                 const p2 = worldToScreen({ x: maxX, y: maxY });
@@ -880,6 +942,7 @@
               const fillHalf = (x1, y1, x2, y2, rotDeg, halfTag) => {
                 gctx.save();
                 clipRect();
+                clipTopShape();
                 const halfCenter = { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
                 for (const line of valleyLines) {
                   if (spine.orientation === 'h') {
@@ -1072,6 +1135,11 @@
           partKind.value = part.kind;
           partScale.value = String(part.scale ?? 1);
           partRot.value = String(part.rotDeg ?? 0);
+        } else if (sel.type === 'rect') {
+          const rect = STATE.rects.find(r => r.id === sel.id);
+          if (!rect) return;
+          rectType.value = rect.type || 'base';
+          rectCutAngle.value = String(rect.cutAngle ?? 45);
         }
       }
 
@@ -1204,7 +1272,9 @@
             x1: drag.preview.x1,
             y1: drag.preview.y1,
             x2: drag.preview.x2,
-            y2: drag.preview.y2
+            y2: drag.preview.y2,
+            type: rectType.value,
+            cutAngle: Number(rectCutAngle.value) || 45
           };
           if (rectInsidePolygon(rectObj)) {
             STATE.rects.push(rectObj);
@@ -1277,6 +1347,22 @@
         }
         STATE.selection = null;
         render();
+      });
+
+      rectType.addEventListener('change', () => {
+        if (STATE.selection && STATE.selection.type === 'rect') {
+          const rect = STATE.rects.find(r => r.id === STATE.selection.id);
+          if (rect) rect.type = rectType.value;
+          render();
+        }
+      });
+
+      rectCutAngle.addEventListener('input', () => {
+        if (STATE.selection && STATE.selection.type === 'rect') {
+          const rect = STATE.rects.find(r => r.id === STATE.selection.id);
+          if (rect) rect.cutAngle = Number(rectCutAngle.value) || 45;
+          render();
+        }
       });
 
       btnExportPng.addEventListener('click', () => {
