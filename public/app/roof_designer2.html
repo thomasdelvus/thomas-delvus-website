@@ -190,7 +190,7 @@
         const spine=shape.spine.map(p=>({x:p.x*sc,y:p.y*sc}));
         const cuts=shape.cutLines.map(l=>[{x:l[0].x*sc,y:l[0].y*sc},{x:l[1].x*sc,y:l[1].y*sc}]);
         const tex=getTexturePattern(rect.tileKind||'slate');
-        const shadeAlpha=0.10;
+        const shadeAlpha=0.50;
         const shadeIf=(dirLocal, clipFn)=>{
           const r=(rot*Math.PI)/180;
           const dx=dirLocal.x*Math.cos(r)-dirLocal.y*Math.sin(r);
@@ -310,7 +310,7 @@
           spine={ a:sp[0], b:sp[1] };
         }
         const tex=getTexturePattern(poly.tileKind||'slate');
-        const shadeAlpha=0.10;
+        const shadeAlpha=0.50;
         const spineMid={ x:(spine.a.x+spine.b.x)/2, y:(spine.a.y+spine.b.y)/2 };
         const centroid=(polyPts)=>{
           let x=0,y=0; for(const p of polyPts){ x+=p.x; y+=p.y; }
