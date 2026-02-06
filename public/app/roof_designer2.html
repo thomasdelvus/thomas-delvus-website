@@ -95,8 +95,36 @@
       function computeBounds(points){ let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity; for(const p of points){ if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x; if(p.y<minY)minY=p.y; if(p.y>maxY)maxY=p.y; } return {minX,minY,maxX,maxY}; }
       function setCanvasForBounds(bounds){ const pad=GRID.size*5; const ww=Math.max(1,bounds.maxX-bounds.minX+pad*2), wh=Math.max(1,bounds.maxY-bounds.minY+pad*2); const maxW=window.innerWidth-40, maxH=Math.max(240,window.innerHeight-120); VIEW.zoom=clamp(Math.min(maxW/ww,maxH/wh),0.2,2); const cssW=Math.max(320,Math.round(ww*VIEW.zoom)), cssH=Math.max(220,Math.round(wh*VIEW.zoom)); const dpr=window.devicePixelRatio||1; canvas.style.width=`${cssW}px`; canvas.style.height=`${cssH}px`; canvas.width=Math.round(cssW*dpr); canvas.height=Math.round(cssH*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); }
       function parsePointList(raw){ return String(raw||'').split(',').map(s=>s.trim()).filter(Boolean).map(s=>s.replace(/\s+/g,'')); }
-      function pointInPolygon(point, polygon){ let inside=false; for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){ const xi=polygon[i].x, yi=polygon[i].y, xj=polygon[j].x, yj=polygon[j].y; const intersect=((yi>point.y)!==(yj>point.y)) && (point.x<((xj-xi)*(point.y-yi))/((yj-yi)||1e-9)+xi); if(intersect) inside=!inside; } return inside; }
-      const pointInBoundary=(p)=> STATE.boundary.length>=3 && pointInPolygon(p,STATE.boundary);
+      function pointInPolygon(point, polygon){
+        let inside=false;
+        for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){
+          const xi=polygon[i].x, yi=polygon[i].y, xj=polygon[j].x, yj=polygon[j].y;
+          const intersect=((yi>point.y)!==(yj>point.y)) && (point.x<((xj-xi)*(point.y-yi))/((yj-yi)||1e-9)+xi);
+          if(intersect) inside=!inside;
+        }
+        return inside;
+      }
+      function pointOnPolygonEdge(point, polygon, eps){
+        const eps2=eps*eps;
+        for(let i=0;i<polygon.length;i++){
+          const a=polygon[i];
+          const b=polygon[(i+1)%polygon.length];
+          const abx=b.x-a.x, aby=b.y-a.y;
+          const apx=point.x-a.x, apy=point.y-a.y;
+          const ab2=abx*abx+aby*aby || 1e-9;
+          let t=(apx*abx+apy*aby)/ab2;
+          t=clamp(t,0,1);
+          const cx=a.x+abx*t, cy=a.y+aby*t;
+          const dx=point.x-cx, dy=point.y-cy;
+          if(dx*dx+dy*dy<=eps2) return true;
+        }
+        return false;
+      }
+      const pointInBoundary=(p)=>{
+        if(STATE.boundary.length<3) return false;
+        if(pointInPolygon(p,STATE.boundary)) return true;
+        return pointOnPolygonEdge(p,STATE.boundary,GRID.size*0.01);
+      };
       function rotatePointLocal(p,deg){ const r=(deg||0)*Math.PI/180; if(!r) return {x:p.x,y:p.y}; const c=Math.cos(r),s=Math.sin(r); return { x:p.x*c-p.y*s, y:p.x*s+p.y*c }; }
       const worldToLocal=(w,c,rot)=>rotatePointLocal({x:w.x-c.x,y:w.y-c.y},-rot); const localToWorld=(l,c,rot)=>{ const r=rotatePointLocal(l,rot); return {x:c.x+r.x,y:c.y+r.y}; };
       function depthFromAngle(a,hw,hh){
