@@ -689,31 +689,39 @@
         const midY = (minY + maxY) / 2;
         const center = worldToScreen({ x: midX, y: midY });
         const spineThickness = (Number.isFinite(Number(rect.spineWidth)) ? Number(rect.spineWidth) : 3) * VIEW.zoom;
+        const buildSpine = (lenPx, thickPx) => {
+          if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return null;
+          const off = document.createElement('canvas');
+          off.width = Math.max(1, Math.round(lenPx));
+          off.height = Math.max(1, Math.round(thickPx));
+          const oc = off.getContext('2d');
+          oc.drawImage(img, 0, 0, off.width, off.height);
+          const fadeLen = Math.min(off.width * 0.15, off.height * 6);
+          oc.save();
+          oc.globalCompositeOperation = 'destination-in';
+          const gradL = oc.createLinearGradient(0, 0, fadeLen, 0);
+          gradL.addColorStop(0, 'rgba(0,0,0,0)');
+          gradL.addColorStop(1, 'rgba(0,0,0,1)');
+          oc.fillStyle = gradL;
+          oc.fillRect(0, 0, fadeLen, off.height);
+          const gradR = oc.createLinearGradient(off.width, 0, off.width - fadeLen, 0);
+          gradR.addColorStop(0, 'rgba(0,0,0,0)');
+          gradR.addColorStop(1, 'rgba(0,0,0,1)');
+          oc.fillStyle = gradR;
+          oc.fillRect(off.width - fadeLen, 0, fadeLen, off.height);
+          oc.restore();
+          return off;
+        };
+
         gctx.save();
         clipRectFn();
         clipTopFn();
         if (widthW >= heightW) {
           const len = widthW * VIEW.zoom;
-          if (img && img.complete && img.naturalWidth && img.naturalHeight) {
-            gctx.save();
-            gctx.globalAlpha = 1;
-            gctx.drawImage(img, center.x - len / 2, center.y - spineThickness / 2, len, spineThickness);
-            gctx.restore();
-            gctx.save();
-            gctx.globalCompositeOperation = 'destination-in';
-            const fadeLen = Math.min(len * 0.15, spineThickness * 6);
-            const grad = gctx.createLinearGradient(center.x - len / 2, center.y, center.x - len / 2 + fadeLen, center.y);
-            grad.addColorStop(0, 'rgba(0,0,0,0)');
-            grad.addColorStop(1, 'rgba(0,0,0,1)');
-            gctx.fillStyle = grad;
-            gctx.fillRect(center.x - len / 2, center.y - spineThickness / 2, fadeLen, spineThickness);
-            const grad2 = gctx.createLinearGradient(center.x + len / 2, center.y, center.x + len / 2 - fadeLen, center.y);
-            grad2.addColorStop(0, 'rgba(0,0,0,0)');
-            grad2.addColorStop(1, 'rgba(0,0,0,1)');
-            gctx.fillStyle = grad2;
-            gctx.fillRect(center.x + len / 2 - fadeLen, center.y - spineThickness / 2, fadeLen, spineThickness);
-            gctx.restore();
-          } else if (!img || img.__rdStatus === 'error') {
+          const spineImg = buildSpine(len, spineThickness);
+          if (spineImg) {
+            gctx.drawImage(spineImg, center.x - len / 2, center.y - spineThickness / 2);
+          } else {
             gctx.strokeStyle = 'rgba(180,170,150,0.9)';
             gctx.lineWidth = Math.max(2, spineThickness * 0.35);
             gctx.beginPath();
@@ -723,27 +731,12 @@
           }
         } else {
           const len = heightW * VIEW.zoom;
-          if (img && img.complete && img.naturalWidth && img.naturalHeight) {
+          const spineImg = buildSpine(len, spineThickness);
+          if (spineImg) {
             gctx.translate(center.x, center.y);
             gctx.rotate(Math.PI / 2);
-            gctx.save();
-            gctx.drawImage(img, -len / 2, -spineThickness / 2, len, spineThickness);
-            gctx.restore();
-            gctx.save();
-            gctx.globalCompositeOperation = 'destination-in';
-            const fadeLen = Math.min(len * 0.15, spineThickness * 6);
-            const grad = gctx.createLinearGradient(-len / 2, 0, -len / 2 + fadeLen, 0);
-            grad.addColorStop(0, 'rgba(0,0,0,0)');
-            grad.addColorStop(1, 'rgba(0,0,0,1)');
-            gctx.fillStyle = grad;
-            gctx.fillRect(-len / 2, -spineThickness / 2, fadeLen, spineThickness);
-            const grad2 = gctx.createLinearGradient(len / 2, 0, len / 2 - fadeLen, 0);
-            grad2.addColorStop(0, 'rgba(0,0,0,0)');
-            grad2.addColorStop(1, 'rgba(0,0,0,1)');
-            gctx.fillStyle = grad2;
-            gctx.fillRect(len / 2 - fadeLen, -spineThickness / 2, fadeLen, spineThickness);
-            gctx.restore();
-          } else if (!img || img.__rdStatus === 'error') {
+            gctx.drawImage(spineImg, -len / 2, -spineThickness / 2);
+          } else {
             gctx.strokeStyle = 'rgba(180,170,150,0.9)';
             gctx.lineWidth = Math.max(2, spineThickness * 0.35);
             gctx.beginPath();
