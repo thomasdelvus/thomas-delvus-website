@@ -191,53 +191,58 @@
         const cuts=shape.cutLines.map(l=>[{x:l[0].x*sc,y:l[0].y*sc},{x:l[1].x*sc,y:l[1].y*sc}]);
         const tex=getTexturePattern(rect.tileKind||'slate');
         const shadeAlpha=0.50;
-        const shadeIf=(dirLocal, clipFn)=>{
-          const r=(-rot*Math.PI)/180;
-          const dx=dirLocal.x*Math.cos(r)-dirLocal.y*Math.sin(r);
-          const dy=dirLocal.x*Math.sin(r)+dirLocal.y*Math.cos(r);
-          if(dx>0 || dy<0){
-            g.save();
-            clipFn();
-            g.fillStyle=`rgba(0,0,0,${shadeAlpha})`;
-            g.fillRect(-100000,-100000,200000,200000);
-            g.restore();
-          }
+        const centerWorld=rectCenterWorld(rect);
+        const spineMidLocal={ x:0, y:(shape.spine[0].y+shape.spine[1].y)/2 };
+        const spineMidWorld=localToWorld(spineMidLocal, centerWorld, rot);
+        const centroidLocal=(ptsLocal)=>{
+          let x=0,y=0; for(const p of ptsLocal){ x+=p.x; y+=p.y; }
+          const n=Math.max(1,ptsLocal.length); return { x:x/n, y:y/n };
         };
-        const fillHalf=(left)=>{ g.save(); polygonPathLocal(g,poly); g.clip(); if(left) clipLeftHalf(g); else clipRightHalf(g); if(tex.pattern){ applyPatternTransform(tex.pattern, rect.tileScale||0.2, left?90:270); g.fillStyle=tex.pattern; } else g.fillStyle=tex.color; g.fillRect(-100000,-100000,200000,200000); g.restore(); };
-        fillHalf(true); shadeIf({x:-1,y:0},()=>{ polygonPathLocal(g,poly); g.clip(); clipLeftHalf(g); });
-        fillHalf(false); shadeIf({x:1,y:0},()=>{ polygonPathLocal(g,poly); g.clip(); clipRightHalf(g); });
-        const fillTriangle=(a,b,c,rotDeg)=>{
+        const shouldShade=(ptsLocal)=>{
+          if(ptsLocal.length<3) return false;
+          const cL=centroidLocal(ptsLocal);
+          const cW=localToWorld(cL, centerWorld, rot);
+          const dir={ x:cW.x-spineMidWorld.x, y:cW.y-spineMidWorld.y };
+          return dir.x>0 || dir.y<0;
+        };
+        const fillLocalPoly=(ptsLocal, rotDeg)=>{
+          if(ptsLocal.length<3) return;
           g.save();
-          g.beginPath(); g.moveTo(a.x,a.y); g.lineTo(b.x,b.y); g.lineTo(c.x,c.y); g.closePath();
+          g.beginPath();
+          g.moveTo(ptsLocal[0].x*sc, ptsLocal[0].y*sc);
+          for(let i=1;i<ptsLocal.length;i++) g.lineTo(ptsLocal[i].x*sc, ptsLocal[i].y*sc);
+          g.closePath();
           g.clip();
           if(tex.pattern){ applyPatternTransform(tex.pattern, rect.tileScale||0.2, rotDeg); g.fillStyle=tex.pattern; }
           else g.fillStyle=tex.color;
           g.fillRect(-100000,-100000,200000,200000);
+          if(shouldShade(ptsLocal)){
+            g.fillStyle=`rgba(0,0,0,${shadeAlpha})`;
+            g.fillRect(-100000,-100000,200000,200000);
+          }
           g.restore();
         };
+        const leftLocal=clipPolyHalfPlane(shape.poly, {x:0,y:-100000}, {x:0,y:100000}, true);
+        const rightLocal=clipPolyHalfPlane(shape.poly, {x:0,y:-100000}, {x:0,y:100000}, false);
+        fillLocalPoly(leftLocal, 90);
+        fillLocalPoly(rightLocal, 270);
         if(shape.sa<0){
-          const tip={x:0,y:(-shape.hh+shape.ds)*sc};
-          const a1={x:-shape.hw*sc,y:-shape.hh*sc};
-          const b1={x:0,y:-shape.hh*sc};
-          const a2={x:0,y:-shape.hh*sc};
-          const b2={x:shape.hw*sc,y:-shape.hh*sc};
-          fillTriangle(a1,b1,tip,180);
-          fillTriangle(a2,b2,tip,180);
-          shadeIf({x:0,y:-1},()=>{
-            g.beginPath(); g.moveTo(a1.x,a1.y); g.lineTo(b2.x,b2.y); g.lineTo(tip.x,tip.y); g.closePath(); g.clip();
-          });
+          const tip={x:0,y:-shape.hh+shape.ds};
+          const a1={x:-shape.hw,y:-shape.hh};
+          const b1={x:0,y:-shape.hh};
+          const a2={x:0,y:-shape.hh};
+          const b2={x:shape.hw,y:-shape.hh};
+          fillLocalPoly([a1,b1,tip],180);
+          fillLocalPoly([a2,b2,tip],180);
         }
         if(shape.ea<0){
-          const tip={x:0,y:(shape.hh-shape.de)*sc};
-          const a1={x:-shape.hw*sc,y:shape.hh*sc};
-          const b1={x:0,y:shape.hh*sc};
-          const a2={x:0,y:shape.hh*sc};
-          const b2={x:shape.hw*sc,y:shape.hh*sc};
-          fillTriangle(a1,b1,tip,0);
-          fillTriangle(a2,b2,tip,0);
-          shadeIf({x:0,y:1},()=>{
-            g.beginPath(); g.moveTo(a1.x,a1.y); g.lineTo(b2.x,b2.y); g.lineTo(tip.x,tip.y); g.closePath(); g.clip();
-          });
+          const tip={x:0,y:shape.hh-shape.de};
+          const a1={x:-shape.hw,y:shape.hh};
+          const b1={x:0,y:shape.hh};
+          const a2={x:0,y:shape.hh};
+          const b2={x:shape.hw,y:shape.hh};
+          fillLocalPoly([a1,b1,tip],0);
+          fillLocalPoly([a2,b2,tip],0);
         }
         g.strokeStyle=STATE.lineColor; g.lineWidth=Math.max(.5,Number(STATE.lineWidth)||2); g.lineJoin='round'; g.lineCap='round';
         polygonPathLocal(g,poly); g.stroke(); g.beginPath(); g.moveTo(spine[0].x,spine[0].y); g.lineTo(spine[1].x,spine[1].y); g.stroke();
