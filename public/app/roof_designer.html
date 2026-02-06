@@ -698,15 +698,16 @@
           oc.drawImage(img, 0, 0, off.width, off.height);
           const fadeLen = Math.min(off.width * 0.15, off.height * 6);
           oc.save();
-          oc.globalCompositeOperation = 'destination-in';
+          // Remove pixels near each end to create a soft taper.
+          oc.globalCompositeOperation = 'destination-out';
           const gradL = oc.createLinearGradient(0, 0, fadeLen, 0);
-          gradL.addColorStop(0, 'rgba(0,0,0,0)');
-          gradL.addColorStop(1, 'rgba(0,0,0,1)');
+          gradL.addColorStop(0, 'rgba(0,0,0,1)');
+          gradL.addColorStop(1, 'rgba(0,0,0,0)');
           oc.fillStyle = gradL;
           oc.fillRect(0, 0, fadeLen, off.height);
           const gradR = oc.createLinearGradient(off.width, 0, off.width - fadeLen, 0);
-          gradR.addColorStop(0, 'rgba(0,0,0,0)');
-          gradR.addColorStop(1, 'rgba(0,0,0,1)');
+          gradR.addColorStop(0, 'rgba(0,0,0,1)');
+          gradR.addColorStop(1, 'rgba(0,0,0,0)');
           oc.fillStyle = gradR;
           oc.fillRect(off.width - fadeLen, 0, fadeLen, off.height);
           oc.restore();
