@@ -148,7 +148,7 @@
         const cuts=[];
         if(sa!==0){ const tip=sa>0?{x:0,y:-hh}:{x:0,y:-hh+ds}; cuts.push([{x:-hw,y:-hh},tip],[{x:hw,y:-hh},tip]); }
         if(ea!==0){ const tip=ea>0?{x:0,y:hh}:{x:0,y:hh-de}; cuts.push([{x:-hw,y:hh},tip],[{x:hw,y:hh},tip]); }
-        return { poly:pts, spine, cutLines:cuts, hw, hh };
+        return { poly:pts, spine, cutLines:cuts, hw, hh, ds, de, sa, ea };
       }
       function rectPolygonWorld(rect){ const c=rectCenterWorld(rect), s=buildRectShapeLocal(rect), rot=Number(rect.rot)||0; return s.poly.map(p=>localToWorld(p,c,rot)); }
       function rectInsideBoundary(rect){ if(STATE.boundary.length<3) return false; for(const p of rectPolygonWorld(rect)){ if(!pointInBoundary(p)) return false; } return true; }
@@ -188,6 +188,27 @@
         const tex=getTexturePattern(rect.tileKind||'slate');
         const fillHalf=(left)=>{ g.save(); polygonPathLocal(g,poly); g.clip(); if(left) clipLeftHalf(g); else clipRightHalf(g); if(tex.pattern){ applyPatternTransform(tex.pattern, rect.tileScale||0.2, left?90:270); g.fillStyle=tex.pattern; } else g.fillStyle=tex.color; g.fillRect(-100000,-100000,200000,200000); g.restore(); };
         fillHalf(true); fillHalf(false);
+        const fillTriangle=(a,b,c,rotDeg)=>{
+          g.save();
+          g.beginPath(); g.moveTo(a.x,a.y); g.lineTo(b.x,b.y); g.lineTo(c.x,c.y); g.closePath();
+          g.clip();
+          if(tex.pattern){ applyPatternTransform(tex.pattern, rect.tileScale||0.2, rotDeg); g.fillStyle=tex.pattern; }
+          else g.fillStyle=tex.color;
+          g.fillRect(-100000,-100000,200000,200000);
+          g.restore();
+        };
+        if(shape.sa<0){
+          const a={x:-shape.hw*sc,y:-shape.hh*sc};
+          const b={x:shape.hw*sc,y:-shape.hh*sc};
+          const cpt={x:0,y:(-shape.hh+shape.ds)*sc};
+          fillTriangle(a,b,cpt,0);
+        }
+        if(shape.ea<0){
+          const a={x:-shape.hw*sc,y:shape.hh*sc};
+          const b={x:shape.hw*sc,y:shape.hh*sc};
+          const cpt={x:0,y:(shape.hh-shape.de)*sc};
+          fillTriangle(a,b,cpt,180);
+        }
         g.strokeStyle=STATE.lineColor; g.lineWidth=Math.max(.5,Number(STATE.lineWidth)||2); g.lineJoin='round'; g.lineCap='round';
         polygonPathLocal(g,poly); g.stroke(); g.beginPath(); g.moveTo(spine[0].x,spine[0].y); g.lineTo(spine[1].x,spine[1].y); g.stroke();
         for(const l of cuts){ g.beginPath(); g.moveTo(l[0].x,l[0].y); g.lineTo(l[1].x,l[1].y); g.stroke(); }
@@ -246,13 +267,18 @@
         return out;
       }
       function drawPoly(g, poly, selected){
-        let pts=polyWorldPoints(poly);
-        if(pts.length<3) return;
-        const bounds=computeBounds(pts);
+        const pts0=polyWorldPoints(poly);
+        if(pts0.length<3) return;
+        const bounds=computeBounds(pts0);
         const center={ x:(bounds.minX+bounds.maxX)/2, y:(bounds.minY+bounds.maxY)/2 };
         const rot=Number(poly.rot)||0;
-        if(rot) pts=rotateWorldPoints(pts, center, rot);
-        const spine=polySpine(pts);
+        let pts=pts0;
+        let spine=polySpine(pts0);
+        if(rot){
+          pts=rotateWorldPoints(pts0, center, rot);
+          const sp=rotateWorldPoints([spine.a, spine.b], center, rot);
+          spine={ a:sp[0], b:sp[1] };
+        }
         const tex=getTexturePattern(poly.tileKind||'slate');
         const left=clipPolyHalfPlane(pts, spine.a, spine.b, true);
         const right=clipPolyHalfPlane(pts, spine.a, spine.b, false);
@@ -287,11 +313,12 @@
         g.restore();
       }
       function polyHandles(poly){
-        let pts=polyWorldPoints(poly);
-        const bounds=computeBounds(pts);
+        const pts0=polyWorldPoints(poly);
+        const bounds=computeBounds(pts0);
         const center={ x:(bounds.minX+bounds.maxX)/2, y:(bounds.minY+bounds.maxY)/2 };
         const rot=Number(poly.rot)||0;
-        if(rot) pts=rotateWorldPoints(pts, center, rot);
+        let pts=pts0;
+        if(rot) pts=rotateWorldPoints(pts0, center, rot);
         return pts.map((p,idx)=>({ idx, world: p }));
       }
       function drawPolyHandles(g, poly){
@@ -312,11 +339,12 @@
         const sorted=[...STATE.polys].sort((a,b)=>(Number(a.z)||0)-(Number(b.z)||0));
         for(let i=sorted.length-1;i>=0;i--){
           const poly=sorted[i];
-          let pts=polyWorldPoints(poly);
-          const bounds=computeBounds(pts);
+          const pts0=polyWorldPoints(poly);
+          const bounds=computeBounds(pts0);
           const center={ x:(bounds.minX+bounds.maxX)/2, y:(bounds.minY+bounds.maxY)/2 };
           const rot=Number(poly.rot)||0;
-          if(rot) pts=rotateWorldPoints(pts, center, rot);
+          let pts=pts0;
+          if(rot) pts=rotateWorldPoints(pts0, center, rot);
           if(pointInPolygon(world,pts)) return poly;
         }
         return null;
@@ -385,6 +413,8 @@
         if(STATE.selection.type==='rect'){
           startAngleEl.value=String(sel.startAngle||0);
           endAngleEl.value=String(sel.endAngle||0);
+          rectRotEl.value=String(sel.rot||0);
+        } else {
           rectRotEl.value=String(sel.rot||0);
         }
         rectZEl.value=String(sel.z||0);
@@ -490,17 +520,19 @@
         }
         if(drag.type==='poly-handle'){
           const poly=STATE.polys.find(p=>p.id===drag.id); if(!poly) return;
-          const h=worldToHexHalf(w);
-          const next={ col:h.col, row:h.row };
           const bounds=computeBounds(polyWorldPoints(poly));
           const center={ x:(bounds.minX+bounds.maxX)/2, y:(bounds.minY+bounds.maxY)/2 };
           const rot=Number(poly.rot)||0;
-          let candidateWorld=hexToWorld(next.col,next.row);
+          let worldRaw=screenToWorld(sx,sy);
           if(rot){
             const r=(-rot*Math.PI)/180;
-            const dx=candidateWorld.x-center.x, dy=candidateWorld.y-center.y;
-            candidateWorld={ x:center.x + dx*Math.cos(r) - dy*Math.sin(r), y:center.y + dx*Math.sin(r) + dy*Math.cos(r) };
+            const dx=worldRaw.x-center.x, dy=worldRaw.y-center.y;
+            worldRaw={ x:center.x + dx*Math.cos(r) - dy*Math.sin(r), y:center.y + dx*Math.sin(r) + dy*Math.cos(r) };
           }
+          const snap=snapWorldToHex(worldRaw);
+          const h=worldToHexHalf(snap);
+          const next={ col:h.col, row:h.row };
+          const candidateWorld=hexToWorld(next.col,next.row);
           if(pointInBoundary(candidateWorld)){ poly.points[drag.idx]=next; render(); }
         }
       });
