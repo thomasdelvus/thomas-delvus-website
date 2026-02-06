@@ -126,8 +126,10 @@
         const minCol=Math.floor((Math.min(tl.x,br.x)/colStep())-3), maxCol=Math.ceil((Math.max(tl.x,br.x)/colStep())+3);
         const minRow=Math.floor((Math.min(-tl.y,-br.y)/rowStep())-3), maxRow=Math.ceil((Math.max(-tl.y,-br.y)/rowStep())+3);
         const r=GRID.size*VIEW.zoom;
+        const baseAngle=Math.PI/2; // flat-top
         for(let c=minCol;c<=maxCol;c++) for(let rr=minRow;rr<=maxRow;rr++){
-          const p=worldToScreen(hexToWorld(c,rr)); const pts=[]; for(let i=0;i<6;i++){ const a=Math.PI/6+i*Math.PI/3; pts.push({x:p.x+r*Math.cos(a),y:p.y+r*Math.sin(a)}); }
+          const p=worldToScreen(hexToWorld(c,rr)); const pts=[];
+          for(let i=0;i<6;i++){ const a=baseAngle+i*Math.PI/3; pts.push({x:p.x+r*Math.cos(a),y:p.y+r*Math.sin(a)}); }
           g.beginPath(); g.moveTo(pts[0].x,pts[0].y); for(let i=1;i<6;i++) g.lineTo(pts[i].x,pts[i].y); g.closePath(); g.stroke();
         }
         g.restore();
