@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Roof Designer 3</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b0f14; --panel:rgba(18,22,30,.96); --panel-border:rgba(255,255,255,.08); --text:#e6e9ef; --muted:#9aa5b1; --accent:#6aa9ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif; }
+    #toolbar { position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--panel); border-bottom:1px solid var(--panel-border); flex-wrap:wrap; }
+    #toolbar label { font-size:12px; color:var(--muted); }
+    #toolbar input[type="text"], #toolbar input[type="number"], #toolbar select { padding:6px 8px; border-radius:6px; border:1px solid var(--panel-border); background:#0f141c; color:var(--text); }
+    #toolbar button { padding:6px 10px; border-radius:6px; border:1px solid var(--panel-border); background:#0f141c; color:var(--text); cursor:pointer; }
+    #toolbar button.active { border-color:var(--accent); box-shadow:0 0 0 1px rgba(106,169,255,.35); }
+    .group { display:inline-flex; align-items:center; gap:6px; padding-right:8px; border-right:1px solid rgba(255,255,255,.06); }
+    .info { margin-left:auto; font-size:12px; color:var(--muted); }
+    #canvasWrap { padding:16px; }
+    canvas { display:block; background:#0b0f14; border:1px solid rgba(255,255,255,.08); border-radius:8px; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <div class="group">
+      <label>Mode</label>
+      <button id="btnModeDraw" class="active">Draw</button>
+      <button id="btnModeSelect">Select</button>
+      <button id="btnDelete">Delete</button>
+    </div>
+    <div class="group">
+      <label>Start°</label><input id="startAngle" type="number" step="1" value="0" min="-85" max="85" />
+      <label>End°</label><input id="endAngle" type="number" step="1" value="0" min="-85" max="85" />
+      <label>Rot</label>
+      <select id="rectRot">
+        <option value="0" selected>0</option>
+        <option value="90">90</option>
+      </select>
+      <label>Z</label><input id="rectZ" type="number" step="1" value="0" />
+      <button id="btnFront">Front</button><button id="btnBack">Back</button>
+    </div>
+    <div class="group">
+      <label>Tile</label>
+      <select id="tileKind">
+        <option value="slate" selected>slate</option>
+        <option value="thatch">thatch</option>
+        <option value="terracotta">terracotta</option>
+        <option value="grass">grass</option>
+      </select>
+      <label>Scale</label><input id="tileScale" type="number" step="0.01" value="0.20" />
+    </div>
+    <div class="group">
+      <label>Line</label><input id="lineColor" type="color" value="#70777e" />
+      <label>W</label><input id="lineWidth" type="number" step="0.5" value="2" />
+    </div>
+    <div class="group">
+      <button id="btnUndo">Undo</button><button id="btnRedo">Redo</button><button id="btnExportPng">Export PNG</button><button id="btnCopyJson">Copy JSON</button>
+    </div>
+    <label><input type="checkbox" id="gridToggle" checked /> Hexgrid</label>
+    <span id="info" class="info"></span>
+  </div>
+  <div id="canvasWrap"><canvas id="canvas"></canvas></div>
+  <script>
+    (() => {
+      const GRID = { size: 32, lineAlpha: 0.22, lineWidth: 1.1 };
+      const VIEW = { cameraWorld: { x: 0, y: 0 }, zoom: 1 };
+      const HISTORY_MAX = 30;
+      const STATE = { rects: [], mode: 'draw', selectionId: null, preview: null, lineColor: '#70777e', lineWidth: 2, historyPast: [], historyFuture: [] };
+      const TILE_TEXTURES = { slate:{url:'/assets/sprites/slate.png',color:'#3a434a'}, terracotta:{url:'/assets/sprites/terracotta.png',color:'#6a3a2a'}, thatch:{url:'/assets/sprites/thatch.png',color:'#6a5a3a'}, grass:{url:'/assets/sprites/grass.png',color:'#2f5a2f'} };
+      const spriteCache = new Map();
+      const canvas=document.getElementById('canvas'); const ctx=canvas.getContext('2d');
+      const btnModeDraw=document.getElementById('btnModeDraw'); const btnModeSelect=document.getElementById('btnModeSelect'); const btnDelete=document.getElementById('btnDelete');
+      const startAngleEl=document.getElementById('startAngle'); const endAngleEl=document.getElementById('endAngle'); const rectRotEl=document.getElementById('rectRot'); const rectZEl=document.getElementById('rectZ');
+      const btnFront=document.getElementById('btnFront'); const btnBack=document.getElementById('btnBack');
+      const tileKindEl=document.getElementById('tileKind'); const tileScaleEl=document.getElementById('tileScale');
+      const lineColorEl=document.getElementById('lineColor'); const lineWidthEl=document.getElementById('lineWidth');
+      const btnUndo=document.getElementById('btnUndo'); const btnRedo=document.getElementById('btnRedo'); const btnExportPng=document.getElementById('btnExportPng'); const btnCopyJson=document.getElementById('btnCopyJson');
+      const gridToggle=document.getElementById('gridToggle'); const info=document.getElementById('info');
+      let drag=null;
+      const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+      const colStep=()=>1.5*GRID.size;
+      const rowStep=()=>Math.sqrt(3)*GRID.size;
+
+      function loadSprite(url){ if(spriteCache.has(url)) return spriteCache.get(url); const img=new Image(); img.src=url; spriteCache.set(url,img); img.onload=render; return img; }
+      function getTexturePattern(kind){ const def=TILE_TEXTURES[kind]||TILE_TEXTURES.slate; const img=loadSprite(def.url); if(!img||!img.complete||!img.naturalWidth||!img.naturalHeight) return {pattern:null,color:def.color}; return { pattern:ctx.createPattern(img,'repeat'), color:def.color }; }
+      function applyPatternTransform(pattern, scale, rotDeg){ if(!pattern||typeof pattern.setTransform!=='function') return; const s=Math.max(.01,(Number(scale)||0.2)*VIEW.zoom); const m=new DOMMatrix(); m.rotateSelf(rotDeg||0); m.scaleSelf(s,s); pattern.setTransform(m); }
+
+      function hexToWorld(col,row){ const x=col*colStep(); const y=-(row*rowStep() + (col & 1)*(rowStep()/2)); return { x, y }; }
+      function worldToHexHalf(world){
+        const size=GRID.size||1;
+        const qf=(2/3)*(world.x/size);
+        const rf=(((-world.y)/size)/Math.sqrt(3))-(qf/2);
+        const col=Math.round(qf);
+        const rowf=rf + (col - (col & 1))/2;
+        return { col, row:Math.round(rowf*2)/2 };
+      }
+      function snapWorldToHex(world){ const h=worldToHexHalf(world); return hexToWorld(h.col,h.row); }
+      function worldToScreen(p){ const w=canvas.clientWidth,h=canvas.clientHeight; return { x:w/2+(p.x-VIEW.cameraWorld.x)*VIEW.zoom, y:h/2+(p.y-VIEW.cameraWorld.y)*VIEW.zoom }; }
+      function screenToWorld(x,y){ const w=canvas.clientWidth,h=canvas.clientHeight; return { x:(x-w/2)/VIEW.zoom+VIEW.cameraWorld.x, y:(y-h/2)/VIEW.zoom+VIEW.cameraWorld.y }; }
+      function setCanvasToWindow(){
+        const cssW=Math.max(320, window.innerWidth-32);
+        const cssH=Math.max(220, window.innerHeight-120);
+        const dpr=window.devicePixelRatio||1;
+        canvas.style.width=`${cssW}px`; canvas.style.height=`${cssH}px`;
+        canvas.width=Math.round(cssW*dpr); canvas.height=Math.round(cssH*dpr);
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+      }
+      function rotatePointLocal(p,deg){ const r=(deg||0)*Math.PI/180; if(!r) return {x:p.x,y:p.y}; const c=Math.cos(r),s=Math.sin(r); return { x:p.x*c-p.y*s, y:p.x*s+p.y*c }; }
+      const localToWorld=(l,c,rot)=>{ const r=rotatePointLocal(l,rot); return {x:c.x+r.x,y:c.y+r.y}; };
+
+      function drawHexGrid(g){
+        if(!gridToggle.checked) return;
+        g.save();
+        g.strokeStyle=`rgba(210,220,240,${GRID.lineAlpha})`;
+        g.lineWidth=GRID.lineWidth;
+        const w=canvas.clientWidth,h=canvas.clientHeight;
+        const camHex=worldToHexHalf(VIEW.cameraWorld);
+        const colsR=Math.ceil((w/2)/colStep())+4;
+        const rowsR=Math.ceil((h/2)/rowStep())+4;
+        const size=GRID.size*VIEW.zoom;
+        for(let dc=-colsR; dc<=colsR; dc++){
+          for(let dr=-rowsR; dr<=rowsR; dr++){
+            const col=camHex.col+dc;
+            const row=camHex.row+dr;
+            const p=worldToScreen(hexToWorld(col,row));
+            if(p.x<-100||p.x>w+100||p.y<-100||p.y>h+100) continue;
+            const pts=[];
+            for(let i=0;i<6;i++){
+              const a=(Math.PI/180)*(60*i);
+              pts.push({ x:p.x+size*Math.cos(a), y:p.y+size*Math.sin(a) });
+            }
+            g.beginPath(); g.moveTo(pts[0].x,pts[0].y);
+            for(let i=1;i<6;i++) g.lineTo(pts[i].x,pts[i].y);
+            g.closePath(); g.stroke();
+          }
+        }
+        g.restore();
+      }
+
+      function rectCenterWorld(r){ return hexToWorld(r.col,r.row); }
+      function rectDimsWorld(r){ return { w:Math.max(1,r.wCols)*colStep(), h:Math.max(0.5,r.hRows)*rowStep() }; }
+      function depthFromAngle(a,hw,hh){ if(a<=0) return 0; const t=clamp(a,0,85)*Math.PI/180; return clamp(Math.tan(t)*hw,0,hh-0.001); }
+
+      function buildRectGeomLocal(rect){
+        const dims=rectDimsWorld(rect), hw=dims.w/2, hh=dims.h/2;
+        const sa=clamp(Number(rect.startAngle)||0,-85,85);
+        const ea=clamp(Number(rect.endAngle)||0,-85,85);
+        const ds=depthFromAngle(Math.abs(sa),hw,hh);
+        const de=depthFromAngle(Math.abs(ea),hw,hh);
+        const topTipY = sa>0 ? -hh-ds : (sa<0 ? -hh+ds : -hh);
+        const botTipY = ea>0 ? hh+de : (ea<0 ? hh-de : hh);
+        const TL={x:-hw,y:-hh}, TR={x:hw,y:-hh}, BR={x:hw,y:hh}, BL={x:-hw,y:hh};
+        const topTip={x:0,y:topTipY}, botTip={x:0,y:botTipY};
+        const north=(topTipY!==-hh)?[TL,TR,topTip]:[];
+        const south=(botTipY!==hh)?[BL,BR,botTip]:[];
+        const west=[TL,topTip,botTip,BL];
+        const east=[TR,BR,botTip,topTip];
+        const outline=[TL];
+        if(topTipY<-hh) outline.push(topTip);
+        outline.push(TR,BR);
+        if(botTipY>hh) outline.push(botTip);
+        outline.push(BL);
+        const cutLines=[];
+        if(topTipY!==-hh){ cutLines.push([TL,topTip],[TR,topTip]); }
+        if(botTipY!==hh){ cutLines.push([BL,botTip],[BR,botTip]); }
+        const spine=[topTip,botTip];
+        return { hw, hh, north, south, west, east, outline, spine, cutLines };
+      }
+
+      function polygonCentroid(pts){
+        let x=0,y=0; for(const p of pts){ x+=p.x; y+=p.y; }
+        const n=Math.max(1,pts.length); return { x:x/n, y:y/n };
+      }
+
+      function drawRect(g, rect, selected){
+        const rot=Number(rect.rot)||0;
+        const centerWorld=rectCenterWorld(rect);
+        const geom=buildRectGeomLocal(rect);
+        const tex=getTexturePattern(rect.tileKind||'slate');
+        const shadeAlpha=0.5;
+
+        const segments=[
+          { name:'north', pts:geom.north, rot:180 },
+          { name:'south', pts:geom.south, rot:0 },
+          { name:'west', pts:geom.west, rot:90 },
+          { name:'east', pts:geom.east, rot:270 }
+        ];
+
+        const fillSegment=(seg)=>{
+          if(!seg.pts || seg.pts.length<3) return;
+          const ptsWorld=seg.pts.map(p=>localToWorld(p,centerWorld,rot));
+          g.save();
+          g.beginPath();
+          const p0=worldToScreen(ptsWorld[0]); g.moveTo(p0.x,p0.y);
+          for(let i=1;i<ptsWorld.length;i++){ const p=worldToScreen(ptsWorld[i]); g.lineTo(p.x,p.y); }
+          g.closePath(); g.clip();
+          if(tex.pattern){ applyPatternTransform(tex.pattern, rect.tileScale||0.2, (seg.rot+rot)%360); g.fillStyle=tex.pattern; }
+          else g.fillStyle=tex.color;
+          g.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
+          const c=polygonCentroid(ptsWorld);
+          const dir={ x:c.x-centerWorld.x, y:c.y-centerWorld.y };
+          if(dir.x>0 || dir.y<0){
+            g.fillStyle=`rgba(0,0,0,${shadeAlpha})`;
+            g.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
+          }
+          g.restore();
+        };
+
+        for(const seg of segments) fillSegment(seg);
+
+        g.save();
+        g.strokeStyle=STATE.lineColor;
+        g.lineWidth=Math.max(0.5,Number(STATE.lineWidth)||2);
+        g.lineJoin='round';
+        g.lineCap='round';
+        const outlineWorld=geom.outline.map(p=>localToWorld(p,centerWorld,rot));
+        g.beginPath();
+        const o0=worldToScreen(outlineWorld[0]); g.moveTo(o0.x,o0.y);
+        for(let i=1;i<outlineWorld.length;i++){ const p=worldToScreen(outlineWorld[i]); g.lineTo(p.x,p.y); }
+        g.closePath(); g.stroke();
+        const spineWorld=geom.spine.map(p=>localToWorld(p,centerWorld,rot));
+        const s0=worldToScreen(spineWorld[0]), s1=worldToScreen(spineWorld[1]);
+        g.beginPath(); g.moveTo(s0.x,s0.y); g.lineTo(s1.x,s1.y); g.stroke();
+        for(const line of geom.cutLines){
+          const a=worldToScreen(localToWorld(line[0],centerWorld,rot));
+          const b=worldToScreen(localToWorld(line[1],centerWorld,rot));
+          g.beginPath(); g.moveTo(a.x,a.y); g.lineTo(b.x,b.y); g.stroke();
+        }
+        if(selected){
+          g.strokeStyle='#6aa9ff';
+          g.lineWidth=2;
+          g.beginPath(); g.moveTo(o0.x,o0.y);
+          for(let i=1;i<outlineWorld.length;i++){ const p=worldToScreen(outlineWorld[i]); g.lineTo(p.x,p.y); }
+          g.closePath(); g.stroke();
+        }
+        g.restore();
+      }
+
+      function rectHandles(rect){
+        const c=rectCenterWorld(rect);
+        const dims=rectDimsWorld(rect);
+        const hw=dims.w/2, hh=dims.h/2;
+        const rot=Number(rect.rot)||0;
+        const handles=[
+          { id:'n', local:{x:0,y:-hh} },
+          { id:'s', local:{x:0,y:hh} },
+          { id:'e', local:{x:hw,y:0} },
+          { id:'w', local:{x:-hw,y:0} },
+          { id:'c', local:{x:0,y:0} },
+        ];
+        return handles.map(h=>({ id:h.id, world: localToWorld(h.local,c,rot) }));
+      }
+      function drawHandles(g, rect){
+        g.save(); g.strokeStyle='rgba(255,200,100,.95)'; g.fillStyle='rgba(255,200,100,.22)'; g.lineWidth=2;
+        for(const h of rectHandles(rect)){ const p=worldToScreen(h.world); g.beginPath(); g.arc(p.x,p.y,9,0,Math.PI*2); g.fill(); g.stroke(); }
+        g.restore();
+      }
+      function handleAtScreen(rect,x,y){
+        for(const h of rectHandles(rect)){ const p=worldToScreen(h.world); const dx=x-p.x, dy=y-p.y; if(dx*dx+dy*dy<=18*18) return h.id; }
+        return null;
+      }
+      function rectAtScreen(x,y){
+        const w=screenToWorld(x,y);
+        const sorted=[...STATE.rects].sort((a,b)=>(Number(a.z)||0)-(Number(b.z)||0));
+        for(let i=sorted.length-1;i>=0;i--){
+          const r=sorted[i];
+          const c=rectCenterWorld(r);
+          const rot=Number(r.rot)||0;
+          const local=rotatePointLocal({x:w.x-c.x,y:w.y-c.y},-rot);
+          const geom=buildRectGeomLocal(r);
+          // simple point-in-rect bounds
+          const dims=rectDimsWorld(r); const hw=dims.w/2, hh=dims.h/2;
+          if(local.x>=-hw && local.x<=hw && local.y>=-hh && local.y<=hh) return r;
+        }
+        return null;
+      }
+
+      function drawPreview(g){
+        if(!STATE.preview) return;
+        const a=worldToScreen(STATE.preview.a), b=worldToScreen(STATE.preview.b);
+        g.save(); g.strokeStyle='#6ee787'; g.lineWidth=2; g.setLineDash([6,4]);
+        g.strokeRect(Math.min(a.x,b.x),Math.min(a.y,b.y),Math.abs(a.x-b.x),Math.abs(a.y-b.y));
+        g.restore();
+      }
+
+      function render(){
+        const w=canvas.clientWidth,h=canvas.clientHeight;
+        ctx.clearRect(0,0,w,h);
+        drawHexGrid(ctx);
+        const items=[...STATE.rects].sort((a,b)=>(Number(a.z)||0)-(Number(b.z)||0));
+        for(const r of items){ drawRect(ctx,r,STATE.selectionId===r.id); }
+        if(STATE.selectionId){
+          const sel=STATE.rects.find(r=>r.id===STATE.selectionId);
+          if(sel) drawHandles(ctx,sel);
+        }
+        drawPreview(ctx);
+        if(info) info.textContent=`${STATE.rects.length} rects | mode: ${STATE.mode}`;
+      }
+
+      const cloneRects=()=>JSON.parse(JSON.stringify(STATE.rects));
+      function pushHistorySnapshot(snapshot){ STATE.historyPast.push(snapshot); if(STATE.historyPast.length>HISTORY_MAX) STATE.historyPast.shift(); STATE.historyFuture=[]; }
+      function undo(){ if(!STATE.historyPast.length) return; STATE.historyFuture.push(cloneRects()); STATE.rects=STATE.historyPast.pop(); if(STATE.selectionId && !STATE.rects.find(r=>r.id===STATE.selectionId)) STATE.selectionId=null; render(); }
+      function redo(){ if(!STATE.historyFuture.length) return; STATE.historyPast.push(cloneRects()); if(STATE.historyPast.length>HISTORY_MAX) STATE.historyPast.shift(); STATE.rects=STATE.historyFuture.pop(); if(STATE.selectionId && !STATE.rects.find(r=>r.id===STATE.selectionId)) STATE.selectionId=null; render(); }
+
+      function previewToRect(pre){
+        const minX=Math.min(pre.a.x,pre.b.x), maxX=Math.max(pre.a.x,pre.b.x), minY=Math.min(pre.a.y,pre.b.y), maxY=Math.max(pre.a.y,pre.b.y);
+        const centerH=worldToHexHalf({x:(minX+maxX)/2,y:(minY+maxY)/2});
+        const wCols=Math.max(1,Math.round((maxX-minX)/colStep()));
+        const halfRS=rowStep()*0.5;
+        const hRows=Math.max(0.5,Math.round(((maxY-minY)/halfRS))/2);
+        return {
+          id:`rect_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`,
+          col:centerH.col, row:centerH.row, wCols, hRows,
+          rot:Number(rectRotEl.value)||0,
+          startAngle:clamp(Number(startAngleEl.value)||0,-85,85),
+          endAngle:clamp(Number(endAngleEl.value)||0,-85,85),
+          tileKind:tileKindEl.value, tileScale:Number(tileScaleEl.value)||0.2,
+          z:Number(rectZEl.value)||STATE.rects.length
+        };
+      }
+
+      function setMode(mode){
+        STATE.mode=mode;
+        btnModeDraw.classList.toggle('active',mode==='draw');
+        btnModeSelect.classList.toggle('active',mode==='select');
+        if(mode!=='draw') STATE.preview=null;
+      }
+
+      canvas.addEventListener('mousedown',(ev)=>{
+        const rc=canvas.getBoundingClientRect(); const sx=ev.clientX-rc.left, sy=ev.clientY-rc.top; const w=snapWorldToHex(screenToWorld(sx,sy));
+        if(STATE.mode==='draw'){
+          STATE.preview={a:w,b:w};
+          drag={type:'draw-rect'};
+          render();
+          return;
+        }
+        if(STATE.selectionId){
+          const sel=STATE.rects.find(r=>r.id===STATE.selectionId);
+          if(sel){
+            const h=handleAtScreen(sel,sx,sy);
+            if(h){ drag={type:'rect-handle',id:sel.id,handle:h,startSnapshot:cloneRects()}; return; }
+          }
+        }
+        const hit=rectAtScreen(sx,sy);
+        if(hit){ STATE.selectionId=hit.id; drag={type:'rect-move',id:hit.id,offset:worldToHexHalf({x:0,y:0}),startSnapshot:cloneRects()}; render(); return; }
+        STATE.selectionId=null; render();
+      });
+
+      window.addEventListener('mousemove',(ev)=>{
+        if(!drag) return;
+        const rc=canvas.getBoundingClientRect(); const sx=ev.clientX-rc.left, sy=ev.clientY-rc.top; const w=snapWorldToHex(screenToWorld(sx,sy));
+        if(drag.type==='draw-rect'){ STATE.preview.b=w; render(); return; }
+        if(drag.type==='rect-move'){
+          const t=STATE.rects.find(r=>r.id===drag.id); if(!t) return;
+          const h=worldToHexHalf(w); t.col=h.col; t.row=h.row; render(); return;
+        }
+        if(drag.type==='rect-handle'){
+          const t=STATE.rects.find(r=>r.id===drag.id); if(!t) return;
+          if(drag.handle==='c'){ const h=worldToHexHalf(w); t.col=h.col; t.row=h.row; render(); return; }
+          const rot=Number(t.rot)||0;
+          const c=rectCenterWorld(t);
+          const local=rotatePointLocal({x:w.x-c.x,y:w.y-c.y},-rot);
+          const dims=rectDimsWorld(t);
+          let hw=dims.w/2, hh=dims.h/2;
+          const minHW=colStep()*0.5, minHH=rowStep()*0.25;
+          let newCenterLocal={x:0,y:0};
+          if(drag.handle==='n' || drag.handle==='s'){
+            const top = (drag.handle==='n') ? Math.min(local.y, hh - minHH) : -hh;
+            const bottom = (drag.handle==='s') ? Math.max(local.y, -hh + minHH) : hh;
+            const newHH = Math.max(minHH, (bottom - top)/2);
+            newCenterLocal.y = (top + bottom)/2;
+            hh = newHH;
+          }
+          if(drag.handle==='e' || drag.handle==='w'){
+            const left = (drag.handle==='w') ? Math.min(local.x, hw - minHW) : -hw;
+            const right = (drag.handle==='e') ? Math.max(local.x, -hw + minHW) : hw;
+            const newHW = Math.max(minHW, (right - left)/2);
+            newCenterLocal.x = (left + right)/2;
+            hw = newHW;
+          }
+          const newCenterWorld=localToWorld(newCenterLocal,c,rot);
+          const centerHex=worldToHexHalf(newCenterWorld);
+          const halfRS=rowStep()*0.5;
+          const wCols=Math.max(1,Math.round((hw*2)/colStep()));
+          const hRows=Math.max(0.5,Math.round(((hh*2)/halfRS))/2);
+          t.col=centerHex.col; t.row=centerHex.row; t.wCols=wCols; t.hRows=hRows;
+          render();
+        }
+      });
+
+      window.addEventListener('mouseup',()=>{
+        if(!drag) return;
+        if(drag.type==='draw-rect' && STATE.preview){
+          const r=previewToRect(STATE.preview);
+          pushHistorySnapshot(cloneRects());
+          STATE.rects.push(r);
+          STATE.selectionId=r.id;
+          STATE.preview=null;
+          setMode('select');
+          render();
+          drag=null;
+          return;
+        }
+        if((drag.type==='rect-move'||drag.type==='rect-handle')&&drag.startSnapshot){
+          if(JSON.stringify(drag.startSnapshot)!==JSON.stringify(cloneRects())) pushHistorySnapshot(drag.startSnapshot);
+        }
+        drag=null; render();
+      });
+
+      btnModeDraw.addEventListener('click',()=>setMode('draw'));
+      btnModeSelect.addEventListener('click',()=>setMode('select'));
+      btnDelete.addEventListener('click',()=>{
+        if(!STATE.selectionId) return;
+        const idx=STATE.rects.findIndex(r=>r.id===STATE.selectionId); if(idx<0) return;
+        pushHistorySnapshot(cloneRects()); STATE.rects.splice(idx,1); STATE.selectionId=null; render();
+      });
+
+      function applyToSelected(mutator){
+        if(!STATE.selectionId) return;
+        const r=STATE.rects.find(x=>x.id===STATE.selectionId); if(!r) return;
+        const before=cloneRects(); mutator(r); pushHistorySnapshot(before); render();
+      }
+
+      startAngleEl.addEventListener('input',()=>applyToSelected(r=>{ r.startAngle=clamp(Number(startAngleEl.value)||0,-85,85); }));
+      endAngleEl.addEventListener('input',()=>applyToSelected(r=>{ r.endAngle=clamp(Number(endAngleEl.value)||0,-85,85); }));
+      rectRotEl.addEventListener('change',()=>applyToSelected(r=>{ r.rot=Number(rectRotEl.value)||0; }));
+      rectZEl.addEventListener('input',()=>applyToSelected(r=>{ r.z=Number(rectZEl.value)||0; }));
+      tileKindEl.addEventListener('change',()=>applyToSelected(r=>{ r.tileKind=tileKindEl.value; }));
+      tileScaleEl.addEventListener('input',()=>applyToSelected(r=>{ r.tileScale=Number(tileScaleEl.value)||0.2; }));
+
+      btnFront.addEventListener('click',()=>{ if(!STATE.selectionId) return; const r=STATE.rects.find(x=>x.id===STATE.selectionId); if(!r) return; pushHistorySnapshot(cloneRects()); r.z=STATE.rects.reduce((m,x)=>Math.max(m,Number(x.z)||0),0)+1; rectZEl.value=String(r.z); render(); });
+      btnBack.addEventListener('click',()=>{ if(!STATE.selectionId) return; const r=STATE.rects.find(x=>x.id===STATE.selectionId); if(!r) return; pushHistorySnapshot(cloneRects()); r.z=STATE.rects.reduce((m,x)=>Math.min(m,Number(x.z)||0),0)-1; rectZEl.value=String(r.z); render(); });
+
+      lineColorEl.addEventListener('input',()=>{ STATE.lineColor=lineColorEl.value; render(); });
+      lineWidthEl.addEventListener('input',()=>{ STATE.lineWidth=Math.max(0.5,Number(lineWidthEl.value)||2); render(); });
+
+      btnUndo.addEventListener('click',undo);
+      btnRedo.addEventListener('click',redo);
+      window.addEventListener('keydown',(ev)=>{
+        if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='z'){ ev.preventDefault(); undo(); }
+        if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='y'){ ev.preventDefault(); redo(); }
+      });
+      btnExportPng.addEventListener('click',()=>{ const a=document.createElement('a'); a.download='roof_design3.png'; a.href=canvas.toDataURL('image/png'); a.click(); });
+      btnCopyJson.addEventListener('click',async()=>{
+        const payload={ rects:STATE.rects.map(r=>({ id:r.id, center_hex:r.col+','+r.row, width_cols:r.wCols, height_rows:r.hRows, rot:r.rot, start_angle:r.startAngle, end_angle:r.endAngle, tile:r.tileKind, tile_scale:r.tileScale, z:r.z })), style:{ line_color:STATE.lineColor, line_width:STATE.lineWidth } };
+        try{ await navigator.clipboard.writeText(JSON.stringify(payload,null,2)); if(info) info.textContent='Copied JSON'; } catch { if(info) info.textContent='Copy failed'; }
+      });
+
+      window.addEventListener('resize',()=>{ setCanvasToWindow(); render(); });
+      setCanvasToWindow();
+      render();
+    })();
+  </script>
+</body>
+</html>
