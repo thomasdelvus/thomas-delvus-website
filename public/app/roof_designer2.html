@@ -138,16 +138,20 @@
         const sa=clamp(Number(rect.startAngle)||0,-85,85), ea=clamp(Number(rect.endAngle)||0,-85,85);
         const ds=depthFromAngle(Math.abs(sa),hw,hh), de=depthFromAngle(Math.abs(ea),hw,hh);
         const pts=[];
-        if(sa>0){ pts.push({x:-hw,y:-hh+ds},{x:0,y:-hh},{x:hw,y:-hh+ds}); }
-        else if(sa<0){ pts.push({x:-hw,y:-hh},{x:0,y:-hh+ds},{x:hw,y:-hh}); }
-        else { pts.push({x:-hw,y:-hh},{x:hw,y:-hh}); }
-        if(ea>0){ pts.push({x:hw,y:hh-de},{x:0,y:hh},{x:-hw,y:hh-de}); }
-        else if(ea<0){ pts.push({x:hw,y:hh},{x:0,y:hh-de},{x:-hw,y:hh}); }
-        else { pts.push({x:hw,y:hh},{x:-hw,y:hh}); }
+        if(sa>0){
+          pts.push({x:-hw,y:-hh+ds},{x:0,y:-hh},{x:hw,y:-hh+ds});
+        } else {
+          pts.push({x:-hw,y:-hh},{x:hw,y:-hh});
+        }
+        if(ea>0){
+          pts.push({x:hw,y:hh-de},{x:0,y:hh},{x:-hw,y:hh-de});
+        } else {
+          pts.push({x:hw,y:hh},{x:-hw,y:hh});
+        }
         const spine=[{x:0,y:-hh+(sa<0?ds:0)},{x:0,y:hh-(ea<0?de:0)}];
         const cuts=[];
-        if(sa!==0){ const tip=sa>0?{x:0,y:-hh}:{x:0,y:-hh+ds}; cuts.push([{x:-hw,y:-hh},tip],[{x:hw,y:-hh},tip]); }
-        if(ea!==0){ const tip=ea>0?{x:0,y:hh}:{x:0,y:hh-de}; cuts.push([{x:-hw,y:hh},tip],[{x:hw,y:hh},tip]); }
+        if(sa<0){ const tip={x:0,y:-hh+ds}; cuts.push([{x:-hw,y:-hh},tip],[{x:hw,y:-hh},tip]); }
+        if(ea<0){ const tip={x:0,y:hh-de}; cuts.push([{x:-hw,y:hh},tip],[{x:hw,y:hh},tip]); }
         return { poly:pts, spine, cutLines:cuts, hw, hh, ds, de, sa, ea };
       }
       function rectPolygonWorld(rect){ const c=rectCenterWorld(rect), s=buildRectShapeLocal(rect), rot=Number(rect.rot)||0; return s.poly.map(p=>localToWorld(p,c,rot)); }
@@ -198,16 +202,22 @@
           g.restore();
         };
         if(shape.sa<0){
-          const a={x:-shape.hw*sc,y:-shape.hh*sc};
-          const b={x:shape.hw*sc,y:-shape.hh*sc};
-          const cpt={x:0,y:(-shape.hh+shape.ds)*sc};
-          fillTriangle(a,b,cpt,0);
+          const tip={x:0,y:(-shape.hh+shape.ds)*sc};
+          const a1={x:-shape.hw*sc,y:-shape.hh*sc};
+          const b1={x:0,y:-shape.hh*sc};
+          const a2={x:0,y:-shape.hh*sc};
+          const b2={x:shape.hw*sc,y:-shape.hh*sc};
+          fillTriangle(a1,b1,tip,180);
+          fillTriangle(a2,b2,tip,180);
         }
         if(shape.ea<0){
-          const a={x:-shape.hw*sc,y:shape.hh*sc};
-          const b={x:shape.hw*sc,y:shape.hh*sc};
-          const cpt={x:0,y:(shape.hh-shape.de)*sc};
-          fillTriangle(a,b,cpt,180);
+          const tip={x:0,y:(shape.hh-shape.de)*sc};
+          const a1={x:-shape.hw*sc,y:shape.hh*sc};
+          const b1={x:0,y:shape.hh*sc};
+          const a2={x:0,y:shape.hh*sc};
+          const b2={x:shape.hw*sc,y:shape.hh*sc};
+          fillTriangle(a1,b1,tip,0);
+          fillTriangle(a2,b2,tip,0);
         }
         g.strokeStyle=STATE.lineColor; g.lineWidth=Math.max(.5,Number(STATE.lineWidth)||2); g.lineJoin='round'; g.lineCap='round';
         polygonPathLocal(g,poly); g.stroke(); g.beginPath(); g.moveTo(spine[0].x,spine[0].y); g.lineTo(spine[1].x,spine[1].y); g.stroke();
