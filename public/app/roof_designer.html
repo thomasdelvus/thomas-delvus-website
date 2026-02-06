@@ -151,6 +151,12 @@
       </select>
       <label>Cap</label>
       <input type="checkbox" id="rectCap" checked />
+      <label>Cap W</label>
+      <input id="rectCapWidth" type="number" step="0.5" value="4" />
+      <label>Cap Col</label>
+      <input id="rectCapColor" type="color" value="#4b4f54" />
+      <label>Spine W</label>
+      <input id="rectSpineWidth" type="number" step="0.5" value="3" />
     </div>
     <label><input type="checkbox" id="gridToggle" checked /> Hexgrid</label>
     <label><input type="checkbox" id="snapToggle" checked /> Snap 0.5</label>
@@ -221,6 +227,9 @@
       const rectTail = document.getElementById('rectTail');
       const rectRot = document.getElementById('rectRot');
       const rectCap = document.getElementById('rectCap');
+      const rectCapWidth = document.getElementById('rectCapWidth');
+      const rectCapColor = document.getElementById('rectCapColor');
+      const rectSpineWidth = document.getElementById('rectSpineWidth');
       const btnExportPng = document.getElementById('btnExportPng');
       const btnCopyJson = document.getElementById('btnCopyJson');
       const info = document.getElementById('info');
@@ -661,8 +670,8 @@
         gctx.save();
         gctx.lineJoin = 'round';
         gctx.lineCap = 'round';
-        gctx.strokeStyle = 'rgba(170,160,140,0.85)';
-        gctx.lineWidth = 6;
+        gctx.strokeStyle = rect.capColor || '#4b4f54';
+        gctx.lineWidth = Number.isFinite(Number(rect.capWidth)) ? Number(rect.capWidth) : 4;
         gctx.beginPath();
         gctx.moveTo(screenPts[0].x, screenPts[0].y);
         for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
@@ -679,14 +688,31 @@
         const midX = (minX + maxX) / 2;
         const midY = (minY + maxY) / 2;
         const center = worldToScreen({ x: midX, y: midY });
-        const spineThickness = GRID.size * 0.35 * VIEW.zoom;
+        const spineThickness = (Number.isFinite(Number(rect.spineWidth)) ? Number(rect.spineWidth) : 3) * VIEW.zoom;
         gctx.save();
         clipRectFn();
         clipTopFn();
         if (widthW >= heightW) {
           const len = widthW * VIEW.zoom;
           if (img && img.complete && img.naturalWidth && img.naturalHeight) {
+            gctx.save();
+            gctx.globalAlpha = 1;
             gctx.drawImage(img, center.x - len / 2, center.y - spineThickness / 2, len, spineThickness);
+            gctx.restore();
+            gctx.save();
+            gctx.globalCompositeOperation = 'destination-in';
+            const fadeLen = Math.min(len * 0.15, spineThickness * 6);
+            const grad = gctx.createLinearGradient(center.x - len / 2, center.y, center.x - len / 2 + fadeLen, center.y);
+            grad.addColorStop(0, 'rgba(0,0,0,0)');
+            grad.addColorStop(1, 'rgba(0,0,0,1)');
+            gctx.fillStyle = grad;
+            gctx.fillRect(center.x - len / 2, center.y - spineThickness / 2, fadeLen, spineThickness);
+            const grad2 = gctx.createLinearGradient(center.x + len / 2, center.y, center.x + len / 2 - fadeLen, center.y);
+            grad2.addColorStop(0, 'rgba(0,0,0,0)');
+            grad2.addColorStop(1, 'rgba(0,0,0,1)');
+            gctx.fillStyle = grad2;
+            gctx.fillRect(center.x + len / 2 - fadeLen, center.y - spineThickness / 2, fadeLen, spineThickness);
+            gctx.restore();
           } else if (!img || img.__rdStatus === 'error') {
             gctx.strokeStyle = 'rgba(180,170,150,0.9)';
             gctx.lineWidth = Math.max(2, spineThickness * 0.35);
@@ -700,7 +726,23 @@
           if (img && img.complete && img.naturalWidth && img.naturalHeight) {
             gctx.translate(center.x, center.y);
             gctx.rotate(Math.PI / 2);
+            gctx.save();
             gctx.drawImage(img, -len / 2, -spineThickness / 2, len, spineThickness);
+            gctx.restore();
+            gctx.save();
+            gctx.globalCompositeOperation = 'destination-in';
+            const fadeLen = Math.min(len * 0.15, spineThickness * 6);
+            const grad = gctx.createLinearGradient(-len / 2, 0, -len / 2 + fadeLen, 0);
+            grad.addColorStop(0, 'rgba(0,0,0,0)');
+            grad.addColorStop(1, 'rgba(0,0,0,1)');
+            gctx.fillStyle = grad;
+            gctx.fillRect(-len / 2, -spineThickness / 2, fadeLen, spineThickness);
+            const grad2 = gctx.createLinearGradient(len / 2, 0, len / 2 - fadeLen, 0);
+            grad2.addColorStop(0, 'rgba(0,0,0,0)');
+            grad2.addColorStop(1, 'rgba(0,0,0,1)');
+            gctx.fillStyle = grad2;
+            gctx.fillRect(len / 2 - fadeLen, -spineThickness / 2, fadeLen, spineThickness);
+            gctx.restore();
           } else if (!img || img.__rdStatus === 'error') {
             gctx.strokeStyle = 'rgba(180,170,150,0.9)';
             gctx.lineWidth = Math.max(2, spineThickness * 0.35);
@@ -1242,6 +1284,9 @@
           rectTail.value = rect.cutTail || 'both';
           rectRot.value = String(rect.cutRot ?? 0);
           rectCap.checked = rect.cap !== false;
+          rectCapWidth.value = String(rect.capWidth ?? 4);
+          rectCapColor.value = rect.capColor || '#4b4f54';
+          rectSpineWidth.value = String(rect.spineWidth ?? 3);
         }
       }
 
@@ -1379,7 +1424,10 @@
             cutAngle: Number(rectCutAngle.value) || 45,
             cutTail: rectTail.value,
             cutRot: Number(rectRot.value) || 0,
-            cap: rectCap.checked
+            cap: rectCap.checked,
+            capWidth: Number(rectCapWidth.value) || 4,
+            capColor: rectCapColor.value || '#4b4f54',
+            spineWidth: Number(rectSpineWidth.value) || 3
           };
           if (rectInsidePolygon(rectObj)) {
             STATE.rects.push(rectObj);
@@ -1490,6 +1538,30 @@
         if (STATE.selection && STATE.selection.type === 'rect') {
           const rect = STATE.rects.find(r => r.id === STATE.selection.id);
           if (rect) rect.cap = rectCap.checked;
+          render();
+        }
+      });
+
+      rectCapWidth.addEventListener('input', () => {
+        if (STATE.selection && STATE.selection.type === 'rect') {
+          const rect = STATE.rects.find(r => r.id === STATE.selection.id);
+          if (rect) rect.capWidth = Number(rectCapWidth.value) || 4;
+          render();
+        }
+      });
+
+      rectCapColor.addEventListener('input', () => {
+        if (STATE.selection && STATE.selection.type === 'rect') {
+          const rect = STATE.rects.find(r => r.id === STATE.selection.id);
+          if (rect) rect.capColor = rectCapColor.value;
+          render();
+        }
+      });
+
+      rectSpineWidth.addEventListener('input', () => {
+        if (STATE.selection && STATE.selection.type === 'rect') {
+          const rect = STATE.rects.find(r => r.id === STATE.selection.id);
+          if (rect) rect.spineWidth = Number(rectSpineWidth.value) || 3;
           render();
         }
       });
