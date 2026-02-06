@@ -192,7 +192,7 @@
         const tex=getTexturePattern(rect.tileKind||'slate');
         const shadeAlpha=0.50;
         const shadeIf=(dirLocal, clipFn)=>{
-          const r=(rot*Math.PI)/180;
+          const r=(-rot*Math.PI)/180;
           const dx=dirLocal.x*Math.cos(r)-dirLocal.y*Math.sin(r);
           const dy=dirLocal.x*Math.sin(r)+dirLocal.y*Math.cos(r);
           if(dx>0 || dy<0){
