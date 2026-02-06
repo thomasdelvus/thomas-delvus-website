@@ -34,6 +34,11 @@
       <button id="btnDelete">Delete</button>
     </div>
     <div class="group">
+      <label>Tool</label>
+      <button id="btnToolRect" class="active">Rect</button>
+      <button id="btnToolPoly">Poly</button>
+    </div>
+    <div class="group">
       <label>Start°</label><input id="startAngle" type="number" step="1" value="0" min="-85" max="85" />
       <label>End°</label><input id="endAngle" type="number" step="1" value="0" min="-85" max="85" />
       <label>Rot</label><select id="rectRot"><option value="0" selected>0</option><option value="90">90</option><option value="180">180</option><option value="270">270</option></select>
@@ -61,13 +66,14 @@
       const GRID = { size: 32, lineAlpha: 0.22, lineWidth: 1.1 };
       const VIEW = { cameraWorld: { x: 0, y: 0 }, zoom: 1 };
       const HISTORY_MAX = 20;
-      const STATE = { points: [], boundary: [], rects: [], mode: 'draw', selectionId: null, preview: null, lineColor: '#4b4f54', lineWidth: 2, historyPast: [], historyFuture: [] };
+      const STATE = { points: [], boundary: [], rects: [], polys: [], mode: 'draw', tool: 'rect', selection: null, preview: null, polyDraft: null, lineColor: '#4b4f54', lineWidth: 2, historyPast: [], historyFuture: [] };
       const TILE_TEXTURES = { slate:{url:'/assets/sprites/slate.png',color:'#3a434a'}, terracotta:{url:'/assets/sprites/terracotta.png',color:'#6a3a2a'}, thatch:{url:'/assets/sprites/thatch.png',color:'#6a5a3a'}, grass:{url:'/assets/sprites/grass.png',color:'#2f5a2f'} };
       const spriteCache = new Map();
       function loadSprite(url){ if(spriteCache.has(url)) return spriteCache.get(url); const img=new Image(); img.src=url; spriteCache.set(url,img); img.onload=render; return img; }
       const canvas=document.getElementById('canvas'); const ctx=canvas.getContext('2d');
       const pointsInput=document.getElementById('pointsInput'); const btnApply=document.getElementById('btnApply');
       const btnModeDraw=document.getElementById('btnModeDraw'); const btnModeSelect=document.getElementById('btnModeSelect'); const btnDelete=document.getElementById('btnDelete');
+      const btnToolRect=document.getElementById('btnToolRect'); const btnToolPoly=document.getElementById('btnToolPoly');
       const startAngleEl=document.getElementById('startAngle'); const endAngleEl=document.getElementById('endAngle'); const rectRotEl=document.getElementById('rectRot'); const rectZEl=document.getElementById('rectZ');
       const btnFront=document.getElementById('btnFront'); const btnBack=document.getElementById('btnBack');
       const tileKindEl=document.getElementById('tileKind'); const tileScaleEl=document.getElementById('tileScale');
@@ -93,7 +99,11 @@
       const pointInBoundary=(p)=> STATE.boundary.length>=3 && pointInPolygon(p,STATE.boundary);
       function rotatePointLocal(p,deg){ const r=(deg||0)*Math.PI/180; if(!r) return {x:p.x,y:p.y}; const c=Math.cos(r),s=Math.sin(r); return { x:p.x*c-p.y*s, y:p.x*s+p.y*c }; }
       const worldToLocal=(w,c,rot)=>rotatePointLocal({x:w.x-c.x,y:w.y-c.y},-rot); const localToWorld=(l,c,rot)=>{ const r=rotatePointLocal(l,rot); return {x:c.x+r.x,y:c.y+r.y}; };
-      function depthFromAngle(a,hw,hh){ if(a<1) return 0; const t=clamp(a,1,85)*Math.PI/180; return clamp(hw/Math.tan(t),0,hh-0.001); }
+      function depthFromAngle(a,hw,hh){
+        if(a<=0) return 0;
+        const t=clamp(a,0,85)*Math.PI/180;
+        return clamp(Math.tan(t)*hw,0,hh-0.001);
+      }
       const rectCenterWorld=(r)=>hexToWorld(r.col,r.row); const rectDimsWorld=(r)=>({w:Math.max(1,r.wCols)*colStep(),h:Math.max(0.5,r.hRows)*rowStep()});
       function buildRectShapeLocal(rect){
         const dims=rectDimsWorld(rect), hw=dims.w/2, hh=dims.h/2;
@@ -126,7 +136,7 @@
         const minCol=Math.floor((Math.min(tl.x,br.x)/colStep())-3), maxCol=Math.ceil((Math.max(tl.x,br.x)/colStep())+3);
         const minRow=Math.floor((Math.min(-tl.y,-br.y)/rowStep())-3), maxRow=Math.ceil((Math.max(-tl.y,-br.y)/rowStep())+3);
         const r=GRID.size*VIEW.zoom;
-        const baseAngle=Math.PI/2; // flat-top
+        const baseAngle=0; // flat-top to match battlemat
         for(let c=minCol;c<=maxCol;c++) for(let rr=minRow;rr<=maxRow;rr++){
           const p=worldToScreen(hexToWorld(c,rr)); const pts=[];
           for(let i=0;i<6;i++){ const a=baseAngle+i*Math.PI/3; pts.push({x:p.x+r*Math.cos(a),y:p.y+r*Math.sin(a)}); }
@@ -167,13 +177,163 @@
         for(let i=sorted.length-1;i>=0;i--){ const r=sorted[i], c=rectCenterWorld(r), local=worldToLocal(w,c,Number(r.rot)||0), shape=buildRectShapeLocal(r); if(pointInPolygon(local,shape.poly)) return r; }
         return null;
       }
-      function drawPreview(g){ if(!STATE.preview) return; const a=worldToScreen(STATE.preview.a), b=worldToScreen(STATE.preview.b); g.save(); g.strokeStyle='#6ee787'; g.lineWidth=2; g.setLineDash([6,4]); g.strokeRect(Math.min(a.x,b.x),Math.min(a.y,b.y),Math.abs(a.x-b.x),Math.abs(a.y-b.y)); g.restore(); }
-      function render(){ const w=canvas.clientWidth,h=canvas.clientHeight; ctx.clearRect(0,0,w,h); drawHexGrid(ctx); drawBoundary(ctx); const sorted=[...STATE.rects].sort((a,b)=>(Number(a.z)||0)-(Number(b.z)||0)); for(const r of sorted) drawRect(ctx,r,r.id===STATE.selectionId); const sel=STATE.rects.find(r=>r.id===STATE.selectionId); if(sel) drawHandles(ctx,sel); drawPreview(ctx); if(info) info.textContent=`${STATE.points.length} points | ${STATE.rects.length} rects | mode: ${STATE.mode}`; }
-      const cloneRects=()=>JSON.parse(JSON.stringify(STATE.rects));
+      function polyWorldPoints(poly){
+        return poly.points.map(p=>hexToWorld(p.col,p.row));
+      }
+      function polySpine(polyPts){
+        let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+        for(const p of polyPts){ if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x; if(p.y<minY)minY=p.y; if(p.y>maxY)maxY=p.y; }
+        const x=(minX+maxX)/2;
+        return { a:{x, y:minY}, b:{x, y:maxY} };
+      }
+      function clipPolyHalfPlane(points, a, b, keepLeft){
+        const out=[];
+        const side=(p)=> (b.x-a.x)*(p.y-a.y) - (b.y-a.y)*(p.x-a.x);
+        for(let i=0;i<points.length;i++){
+          const p1=points[i];
+          const p2=points[(i+1)%points.length];
+          const s1=side(p1);
+          const s2=side(p2);
+          const in1=keepLeft ? s1>=0 : s1<=0;
+          const in2=keepLeft ? s2>=0 : s2<=0;
+          if(in1 && in2){
+            out.push(p2);
+          } else if(in1 && !in2){
+            const t=s1/(s1-s2);
+            out.push({ x:p1.x + (p2.x-p1.x)*t, y:p1.y + (p2.y-p1.y)*t });
+          } else if(!in1 && in2){
+            const t=s1/(s1-s2);
+            out.push({ x:p1.x + (p2.x-p1.x)*t, y:p1.y + (p2.y-p1.y)*t });
+            out.push(p2);
+          }
+        }
+        return out;
+      }
+      function drawPoly(g, poly, selected){
+        const pts=polyWorldPoints(poly);
+        if(pts.length<3) return;
+        const spine=polySpine(pts);
+        const tex=getTexturePattern(poly.tileKind||'slate');
+        const left=clipPolyHalfPlane(pts, spine.a, spine.b, true);
+        const right=clipPolyHalfPlane(pts, spine.a, spine.b, false);
+        const fillHalf=(halfPts, rotDeg)=>{
+          if(halfPts.length<3) return;
+          g.save();
+          g.beginPath();
+          const p0=worldToScreen(halfPts[0]); g.moveTo(p0.x,p0.y);
+          for(let i=1;i<halfPts.length;i++){ const p=worldToScreen(halfPts[i]); g.lineTo(p.x,p.y); }
+          g.closePath();
+          g.clip();
+          if(tex.pattern){
+            applyPatternTransform(tex.pattern, poly.tileScale||0.2, rotDeg);
+            g.fillStyle=tex.pattern;
+          } else g.fillStyle=tex.color;
+          g.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
+          g.restore();
+        };
+        fillHalf(left, 90);
+        fillHalf(right, 270);
+        g.save();
+        g.strokeStyle=STATE.lineColor; g.lineWidth=Math.max(.5,Number(STATE.lineWidth)||2); g.lineJoin='round'; g.lineCap='round';
+        g.beginPath();
+        const s0=worldToScreen(pts[0]); g.moveTo(s0.x,s0.y);
+        for(let i=1;i<pts.length;i++){ const p=worldToScreen(pts[i]); g.lineTo(p.x,p.y); }
+        g.closePath(); g.stroke();
+        const sa=worldToScreen(spine.a), sb=worldToScreen(spine.b);
+        g.beginPath(); g.moveTo(sa.x,sa.y); g.lineTo(sb.x,sb.y); g.stroke();
+        if(selected){
+          g.strokeStyle='#6aa9ff'; g.lineWidth=2; g.stroke();
+        }
+        g.restore();
+      }
+      function polyHandles(poly){
+        return poly.points.map((p,idx)=>({ idx, world: hexToWorld(p.col,p.row) }));
+      }
+      function drawPolyHandles(g, poly){
+        g.save(); g.strokeStyle='rgba(255,200,100,.95)'; g.fillStyle='rgba(255,200,100,.22)'; g.lineWidth=2;
+        for(const h of polyHandles(poly)){ const p=worldToScreen(h.world); g.beginPath(); g.arc(p.x,p.y,8,0,Math.PI*2); g.fill(); g.stroke(); }
+        g.restore();
+      }
+      function polyHandleAtScreen(poly, x, y){
+        for(const h of polyHandles(poly)){ const p=worldToScreen(h.world); const dx=x-p.x, dy=y-p.y; if(dx*dx+dy*dy<=16*16) return h.idx; }
+        return null;
+      }
+      function polyAtScreen(x,y){
+        const world=screenToWorld(x,y);
+        const sorted=[...STATE.polys].sort((a,b)=>(Number(a.z)||0)-(Number(b.z)||0));
+        for(let i=sorted.length-1;i>=0;i--){ const poly=sorted[i]; const pts=polyWorldPoints(poly); if(pointInPolygon(world,pts)) return poly; }
+        return null;
+      }
+      function drawPreview(g){
+        if(STATE.preview){
+          const a=worldToScreen(STATE.preview.a), b=worldToScreen(STATE.preview.b);
+          g.save(); g.strokeStyle='#6ee787'; g.lineWidth=2; g.setLineDash([6,4]);
+          g.strokeRect(Math.min(a.x,b.x),Math.min(a.y,b.y),Math.abs(a.x-b.x),Math.abs(a.y-b.y));
+          g.restore();
+        }
+        if(STATE.polyDraft && STATE.polyDraft.length){
+          g.save(); g.strokeStyle='#6ee787'; g.lineWidth=2; g.setLineDash([6,4]);
+          const p0=worldToScreen(hexToWorld(STATE.polyDraft[0].col, STATE.polyDraft[0].row));
+          g.beginPath(); g.moveTo(p0.x,p0.y);
+          for(let i=1;i<STATE.polyDraft.length;i++){
+            const p=worldToScreen(hexToWorld(STATE.polyDraft[i].col, STATE.polyDraft[i].row));
+            g.lineTo(p.x,p.y);
+          }
+          if(STATE.polyHover){
+            const p=worldToScreen(STATE.polyHover);
+            g.lineTo(p.x,p.y);
+          }
+          g.stroke();
+          g.restore();
+        }
+      }
+      function render(){
+        const w=canvas.clientWidth,h=canvas.clientHeight;
+        ctx.clearRect(0,0,w,h);
+        drawHexGrid(ctx);
+        drawBoundary(ctx);
+        const items=[
+          ...STATE.rects.map(r=>({type:'rect', z:Number(r.z)||0, item:r})),
+          ...STATE.polys.map(p=>({type:'poly', z:Number(p.z)||0, item:p}))
+        ].sort((a,b)=>a.z-b.z);
+        for(const it of items){
+          if(it.type==='rect') drawRect(ctx, it.item, STATE.selection && STATE.selection.type==='rect' && STATE.selection.id===it.item.id);
+          else drawPoly(ctx, it.item, STATE.selection && STATE.selection.type==='poly' && STATE.selection.id===it.item.id);
+        }
+        if(STATE.selection){
+          if(STATE.selection.type==='rect'){
+            const sel=STATE.rects.find(r=>r.id===STATE.selection.id);
+            if(sel) drawHandles(ctx,sel);
+          } else {
+            const sel=STATE.polys.find(p=>p.id===STATE.selection.id);
+            if(sel) drawPolyHandles(ctx,sel);
+          }
+        }
+        drawPreview(ctx);
+        if(info) info.textContent=`${STATE.points.length} points | ${STATE.rects.length} rects | ${STATE.polys.length} polys | mode: ${STATE.mode} | tool: ${STATE.tool}`;
+      }
+      const cloneState=()=>({ rects: JSON.parse(JSON.stringify(STATE.rects)), polys: JSON.parse(JSON.stringify(STATE.polys)) });
       function pushHistorySnapshot(snapshot){ STATE.historyPast.push(snapshot); if(STATE.historyPast.length>HISTORY_MAX) STATE.historyPast.shift(); STATE.historyFuture=[]; }
-      function undo(){ if(!STATE.historyPast.length) return; STATE.historyFuture.push(cloneRects()); STATE.rects=STATE.historyPast.pop(); if(STATE.selectionId&&!STATE.rects.some(r=>r.id===STATE.selectionId)) STATE.selectionId=null; render(); }
-      function redo(){ if(!STATE.historyFuture.length) return; STATE.historyPast.push(cloneRects()); if(STATE.historyPast.length>HISTORY_MAX) STATE.historyPast.shift(); STATE.rects=STATE.historyFuture.pop(); render(); }
-      function syncSelectedControls(){ const sel=STATE.rects.find(r=>r.id===STATE.selectionId); if(!sel) return; startAngleEl.value=String(sel.startAngle||0); endAngleEl.value=String(sel.endAngle||0); rectRotEl.value=String(sel.rot||0); rectZEl.value=String(sel.z||0); tileKindEl.value=sel.tileKind||'slate'; tileScaleEl.value=String(sel.tileScale||0.2); }
+      function undo(){ if(!STATE.historyPast.length) return; STATE.historyFuture.push(cloneState()); const snap=STATE.historyPast.pop(); STATE.rects=snap.rects; STATE.polys=snap.polys; if(STATE.selection && !findSelection()) STATE.selection=null; render(); }
+      function redo(){ if(!STATE.historyFuture.length) return; STATE.historyPast.push(cloneState()); if(STATE.historyPast.length>HISTORY_MAX) STATE.historyPast.shift(); const snap=STATE.historyFuture.pop(); STATE.rects=snap.rects; STATE.polys=snap.polys; if(STATE.selection && !findSelection()) STATE.selection=null; render(); }
+      function findSelection(){
+        if(!STATE.selection) return null;
+        if(STATE.selection.type==='rect') return STATE.rects.find(r=>r.id===STATE.selection.id) || null;
+        if(STATE.selection.type==='poly') return STATE.polys.find(p=>p.id===STATE.selection.id) || null;
+        return null;
+      }
+      function syncSelectedControls(){
+        const sel=findSelection();
+        if(!sel) return;
+        if(STATE.selection.type==='rect'){
+          startAngleEl.value=String(sel.startAngle||0);
+          endAngleEl.value=String(sel.endAngle||0);
+          rectRotEl.value=String(sel.rot||0);
+        }
+        rectZEl.value=String(sel.z||0);
+        tileKindEl.value=sel.tileKind||'slate';
+        tileScaleEl.value=String(sel.tileScale||0.2);
+      }
       function applyBoundary(raw){
         const labels=parsePointList(raw); const points=labels.map(parseHexLabel).filter(Boolean).map(h=>hexToWorld(h.col,h.row));
         if(points.length<3){ if(info) info.textContent='Enter at least 3 points'; return; }
@@ -187,75 +347,157 @@
         const hRows=Math.max(0.5,Math.round(((maxY-minY)/halfRS))/2);
         return { id:`rect_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`, col:centerH.col, row:centerH.row, wCols, hRows, rot:Number(rectRotEl.value)||0, startAngle:clamp(Number(startAngleEl.value)||0,-85,85), endAngle:clamp(Number(endAngleEl.value)||0,-85,85), tileKind:tileKindEl.value, tileScale:Number(tileScaleEl.value)||0.2, z:Number(rectZEl.value)||STATE.rects.length };
       }
-      function setMode(mode){ STATE.mode=mode; btnModeDraw.classList.toggle('active',mode==='draw'); btnModeSelect.classList.toggle('active',mode==='select'); }
+      function setMode(mode){
+        STATE.mode=mode;
+        btnModeDraw.classList.toggle('active',mode==='draw');
+        btnModeSelect.classList.toggle('active',mode==='select');
+        if(mode!=='draw'){ STATE.preview=null; STATE.polyDraft=null; STATE.polyHover=null; }
+      }
+      function setTool(tool){
+        STATE.tool=tool;
+        btnToolRect.classList.toggle('active',tool==='rect');
+        btnToolPoly.classList.toggle('active',tool==='poly');
+        STATE.preview=null;
+        STATE.polyDraft=null;
+        STATE.polyHover=null;
+      }
 
       canvas.addEventListener('mousedown',(ev)=>{
         const rc=canvas.getBoundingClientRect(); const sx=ev.clientX-rc.left, sy=ev.clientY-rc.top; const w=snapWorldToHex(screenToWorld(sx,sy));
-        if(STATE.mode==='draw'){ STATE.preview={a:w,b:w}; drag={type:'draw'}; render(); return; }
-        const sel=STATE.rects.find(r=>r.id===STATE.selectionId);
-        if(sel){ const h=handleAtScreen(sel,sx,sy); if(h){ drag={type:'handle',id:sel.id,handle:h,startSnapshot:cloneRects()}; return; } }
-        const hit=rectAtScreen(sx,sy);
-        if(hit){ STATE.selectionId=hit.id; syncSelectedControls(); const c=rectCenterWorld(hit); drag={type:'move',id:hit.id,offset:{x:c.x-w.x,y:c.y-w.y},startSnapshot:cloneRects()}; render(); return; }
-        STATE.selectionId=null; render();
+        if(STATE.mode==='draw'){
+          if(STATE.tool==='rect'){ STATE.preview={a:w,b:w}; drag={type:'draw-rect'}; render(); return; }
+          if(STATE.tool==='poly'){
+            if(!STATE.polyDraft) STATE.polyDraft=[];
+            const h=worldToHexHalf(w);
+            const next={ col:h.col, row:h.row };
+            if(STATE.polyDraft.length>=3){
+              const first=STATE.polyDraft[0];
+              const fp=worldToScreen(hexToWorld(first.col, first.row));
+              const dx=sx-fp.x, dy=sy-fp.y;
+              if(dx*dx+dy*dy<16*16){
+                const poly={ id:`poly_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`, points:[...STATE.polyDraft], tileKind:tileKindEl.value, tileScale:Number(tileScaleEl.value)||0.2, z:Number(rectZEl.value)||STATE.polys.length };
+                if(poly.points.length>=3){ pushHistorySnapshot(cloneState()); STATE.polys.push(poly); STATE.selection={type:'poly', id:poly.id}; syncSelectedControls(); }
+                STATE.polyDraft=null; render(); return;
+              }
+            }
+            STATE.polyDraft.push(next);
+            render();
+            return;
+          }
+        }
+
+        if(STATE.selection){
+          if(STATE.selection.type==='rect'){
+            const sel=STATE.rects.find(r=>r.id===STATE.selection.id);
+            if(sel){ const h=handleAtScreen(sel,sx,sy); if(h){ drag={type:'rect-handle',id:sel.id,handle:h,startSnapshot:cloneState()}; return; } }
+          } else {
+            const sel=STATE.polys.find(p=>p.id===STATE.selection.id);
+            if(sel){ const idx=polyHandleAtScreen(sel,sx,sy); if(Number.isFinite(idx)){ drag={type:'poly-handle',id:sel.id,idx,startSnapshot:cloneState()}; return; } }
+          }
+        }
+
+        const hitPoly=polyAtScreen(sx,sy);
+        if(hitPoly){ STATE.selection={type:'poly', id:hitPoly.id}; syncSelectedControls(); render(); return; }
+        const hitRect=rectAtScreen(sx,sy);
+        if(hitRect){ STATE.selection={type:'rect', id:hitRect.id}; syncSelectedControls(); const c=rectCenterWorld(hitRect); drag={type:'rect-move',id:hitRect.id,offset:{x:c.x-w.x,y:c.y-w.y},startSnapshot:cloneState()}; render(); return; }
+        STATE.selection=null; render();
       });
 
       window.addEventListener('mousemove',(ev)=>{
-        if(!drag) return; const rc=canvas.getBoundingClientRect(); const sx=ev.clientX-rc.left, sy=ev.clientY-rc.top; const w=snapWorldToHex(screenToWorld(sx,sy));
-        if(drag.type==='draw'){ STATE.preview.b=w; render(); return; }
-        const t=STATE.rects.find(r=>r.id===drag.id); if(!t) return;
-        if(drag.type==='move'){
+        const rc=canvas.getBoundingClientRect(); const sx=ev.clientX-rc.left, sy=ev.clientY-rc.top; const w=snapWorldToHex(screenToWorld(sx,sy));
+        if(!drag){
+          if(STATE.mode==='draw' && STATE.tool==='poly' && STATE.polyDraft){
+            STATE.polyHover=w; render();
+          }
+          return;
+        }
+        if(drag.type==='draw-rect'){ STATE.preview.b=w; render(); return; }
+        if(drag.type==='rect-move'){
+          const t=STATE.rects.find(r=>r.id===drag.id); if(!t) return;
           const h=worldToHexHalf({x:w.x+drag.offset.x,y:w.y+drag.offset.y}); const cand={...t,col:h.col,row:h.row};
           if(rectInsideBoundary(cand)){ t.col=cand.col; t.row=cand.row; render(); }
           return;
         }
-        if(drag.type==='handle'){
+        if(drag.type==='rect-handle'){
+          const t=STATE.rects.find(r=>r.id===drag.id); if(!t) return;
           if(drag.handle==='c'){ const h=worldToHexHalf(w); const cand={...t,col:h.col,row:h.row}; if(rectInsideBoundary(cand)){ t.col=cand.col; t.row=cand.row; render(); } return; }
           const c=rectCenterWorld(t), local=worldToLocal(w,c,Number(t.rot)||0), dims=rectDimsWorld(t);
           let hw=dims.w/2, hh=dims.h/2; const minHW=colStep()*0.5, minHH=rowStep()*0.25;
           if(drag.handle==='n') hh=Math.max(minHH,-local.y); if(drag.handle==='s') hh=Math.max(minHH,local.y); if(drag.handle==='e') hw=Math.max(minHW,local.x); if(drag.handle==='w') hw=Math.max(minHW,-local.x);
           const halfRS=rowStep()*0.5; const wCols=Math.max(1,Math.round((hw*2)/colStep())); const hRows=Math.max(0.5,Math.round(((hh*2)/halfRS))/2);
           const cand={...t,wCols,hRows}; if(rectInsideBoundary(cand)){ t.wCols=wCols; t.hRows=hRows; render(); }
+          return;
+        }
+        if(drag.type==='poly-handle'){
+          const poly=STATE.polys.find(p=>p.id===drag.id); if(!poly) return;
+          const h=worldToHexHalf(w);
+          const next={ col:h.col, row:h.row };
+          if(pointInBoundary(hexToWorld(next.col,next.row))){ poly.points[drag.idx]=next; render(); }
         }
       });
 
       window.addEventListener('mouseup',()=>{
         if(!drag) return;
-        if(drag.type==='draw'&&STATE.preview){ const r=previewToRect(STATE.preview); if(rectInsideBoundary(r)){ pushHistorySnapshot(cloneRects()); STATE.rects.push(r); STATE.selectionId=r.id; syncSelectedControls(); } STATE.preview=null; drag=null; render(); return; }
-        if((drag.type==='move'||drag.type==='handle')&&drag.startSnapshot){ if(JSON.stringify(drag.startSnapshot)!==JSON.stringify(STATE.rects)) pushHistorySnapshot(drag.startSnapshot); }
+        if(drag.type==='draw-rect'&&STATE.preview){
+          const r=previewToRect(STATE.preview);
+          if(rectInsideBoundary(r)){ pushHistorySnapshot(cloneState()); STATE.rects.push(r); STATE.selection={type:'rect', id:r.id}; syncSelectedControls(); }
+          STATE.preview=null; drag=null; render(); return;
+        }
+        if((drag.type==='rect-move'||drag.type==='rect-handle'||drag.type==='poly-handle')&&drag.startSnapshot){
+          if(JSON.stringify(drag.startSnapshot)!==JSON.stringify(cloneState())) pushHistorySnapshot(drag.startSnapshot);
+        }
         drag=null; render();
       });
       btnApply.addEventListener('click',()=>applyBoundary(pointsInput.value));
       btnModeDraw.addEventListener('click',()=>setMode('draw'));
       btnModeSelect.addEventListener('click',()=>setMode('select'));
+      btnToolRect.addEventListener('click',()=>setTool('rect'));
+      btnToolPoly.addEventListener('click',()=>setTool('poly'));
 
       btnDelete.addEventListener('click',()=>{
-        if(!STATE.selectionId) return;
-        const idx=STATE.rects.findIndex(r=>r.id===STATE.selectionId); if(idx<0) return;
-        pushHistorySnapshot(cloneRects()); STATE.rects.splice(idx,1); STATE.selectionId=null; render();
+        if(!STATE.selection) return;
+        const before=cloneState();
+        if(STATE.selection.type==='rect'){
+          const idx=STATE.rects.findIndex(r=>r.id===STATE.selection.id);
+          if(idx>=0) STATE.rects.splice(idx,1);
+        } else if(STATE.selection.type==='poly'){
+          const idx=STATE.polys.findIndex(p=>p.id===STATE.selection.id);
+          if(idx>=0) STATE.polys.splice(idx,1);
+        }
+        STATE.selection=null;
+        pushHistorySnapshot(before);
+        render();
       });
 
-      function applyToSelected(mutator){
-        if(!STATE.selectionId) return;
-        const r=STATE.rects.find(x=>x.id===STATE.selectionId); if(!r) return;
-        const before=cloneRects(); mutator(r);
-        if(!rectInsideBoundary(r)){ STATE.rects=before; return; }
+      function applyToSelectedAny(mutator){
+        const sel=findSelection(); if(!sel) return;
+        const before=cloneState(); mutator(sel);
+        if(STATE.selection.type==='rect' && !rectInsideBoundary(sel)){ STATE.rects=before.rects; STATE.polys=before.polys; return; }
+        pushHistorySnapshot(before); render();
+      }
+      function applyToSelectedRect(mutator){
+        const sel=findSelection(); if(!sel || STATE.selection.type!=='rect') return;
+        const before=cloneState(); mutator(sel);
+        if(!rectInsideBoundary(sel)){ STATE.rects=before.rects; STATE.polys=before.polys; return; }
         pushHistorySnapshot(before); render();
       }
 
-      startAngleEl.addEventListener('input',()=>applyToSelected(r=>{ r.startAngle=clamp(Number(startAngleEl.value)||0,-85,85); }));
-      endAngleEl.addEventListener('input',()=>applyToSelected(r=>{ r.endAngle=clamp(Number(endAngleEl.value)||0,-85,85); }));
-      rectRotEl.addEventListener('change',()=>applyToSelected(r=>{ r.rot=Number(rectRotEl.value)||0; }));
-      rectZEl.addEventListener('input',()=>applyToSelected(r=>{ r.z=Number(rectZEl.value)||0; }));
-      tileKindEl.addEventListener('change',()=>applyToSelected(r=>{ r.tileKind=tileKindEl.value; }));
-      tileScaleEl.addEventListener('input',()=>applyToSelected(r=>{ r.tileScale=Number(tileScaleEl.value)||0.2; }));
+      startAngleEl.addEventListener('input',()=>applyToSelectedRect(r=>{ r.startAngle=clamp(Number(startAngleEl.value)||0,-85,85); }));
+      endAngleEl.addEventListener('input',()=>applyToSelectedRect(r=>{ r.endAngle=clamp(Number(endAngleEl.value)||0,-85,85); }));
+      rectRotEl.addEventListener('change',()=>applyToSelectedRect(r=>{ r.rot=Number(rectRotEl.value)||0; }));
+      rectZEl.addEventListener('input',()=>applyToSelectedAny(r=>{ r.z=Number(rectZEl.value)||0; }));
+      tileKindEl.addEventListener('change',()=>applyToSelectedAny(r=>{ r.tileKind=tileKindEl.value; }));
+      tileScaleEl.addEventListener('input',()=>applyToSelectedAny(r=>{ r.tileScale=Number(tileScaleEl.value)||0.2; }));
 
       btnFront.addEventListener('click',()=>{
-        if(!STATE.selectionId) return; const r=STATE.rects.find(x=>x.id===STATE.selectionId); if(!r) return;
-        pushHistorySnapshot(cloneRects()); r.z=STATE.rects.reduce((m,x)=>Math.max(m,Number(x.z)||0),0)+1; rectZEl.value=String(r.z); render();
+        const sel=findSelection(); if(!sel) return;
+        const maxZ=Math.max(0,...STATE.rects.map(r=>Number(r.z)||0),...STATE.polys.map(p=>Number(p.z)||0));
+        const before=cloneState(); sel.z=maxZ+1; rectZEl.value=String(sel.z); pushHistorySnapshot(before); render();
       });
       btnBack.addEventListener('click',()=>{
-        if(!STATE.selectionId) return; const r=STATE.rects.find(x=>x.id===STATE.selectionId); if(!r) return;
-        pushHistorySnapshot(cloneRects()); r.z=STATE.rects.reduce((m,x)=>Math.min(m,Number(x.z)||0),0)-1; rectZEl.value=String(r.z); render();
+        const sel=findSelection(); if(!sel) return;
+        const minZ=Math.min(0,...STATE.rects.map(r=>Number(r.z)||0),...STATE.polys.map(p=>Number(p.z)||0));
+        const before=cloneState(); sel.z=minZ-1; rectZEl.value=String(sel.z); pushHistorySnapshot(before); render();
       });
 
       lineColorEl.addEventListener('input',()=>{ STATE.lineColor=lineColorEl.value; render(); });
