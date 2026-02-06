@@ -129,13 +129,8 @@
       <button id="btnModeRects">Rects</button>
     </div>
     <div class="group">
-      <label>Rect</label>
-      <select id="rectType">
-        <option value="base" selected>Base</option>
-        <option value="top">Top</option>
-      </select>
-      <label>Cut°</label>
-      <input id="rectCutAngle" type="number" step="1" value="45" />
+      <label>Shape°</label>
+      <input id="rectShapeAngle" type="number" step="1" value="0" />
       <label>Tail</label>
       <select id="rectTail">
         <option value="both" selected>Both</option>
@@ -157,6 +152,10 @@
       <input id="rectCapColor" type="color" value="#4b4f54" />
       <label>Spine W</label>
       <input id="rectSpineWidth" type="number" step="0.5" value="3" />
+      <label>Z</label>
+      <input id="rectZ" type="number" step="1" value="0" />
+      <button id="btnRectFront">Front</button>
+      <button id="btnRectBack">Back</button>
     </div>
     <label><input type="checkbox" id="gridToggle" checked /> Hexgrid</label>
     <label><input type="checkbox" id="snapToggle" checked /> Snap 0.5</label>
@@ -222,14 +221,16 @@
       const btnDelete = document.getElementById('btnDelete');
       const btnModeParts = document.getElementById('btnModeParts');
       const btnModeRects = document.getElementById('btnModeRects');
-      const rectType = document.getElementById('rectType');
-      const rectCutAngle = document.getElementById('rectCutAngle');
+      const rectShapeAngle = document.getElementById('rectShapeAngle');
       const rectTail = document.getElementById('rectTail');
       const rectRot = document.getElementById('rectRot');
       const rectCap = document.getElementById('rectCap');
       const rectCapWidth = document.getElementById('rectCapWidth');
       const rectCapColor = document.getElementById('rectCapColor');
       const rectSpineWidth = document.getElementById('rectSpineWidth');
+      const rectZ = document.getElementById('rectZ');
+      const btnRectFront = document.getElementById('btnRectFront');
+      const btnRectBack = document.getElementById('btnRectBack');
       const btnExportPng = document.getElementById('btnExportPng');
       const btnCopyJson = document.getElementById('btnCopyJson');
       const info = document.getElementById('info');
@@ -590,13 +591,13 @@
         });
       }
 
-      function topCutPolygon(rect) {
+      function topCutPolygon(rect, angleDegRaw) {
         const { minX, maxX, minY, maxY } = rectCorners(rect);
         const widthW = Math.abs(maxX - minX);
         const heightW = Math.abs(maxY - minY);
         const midX = (minX + maxX) / 2;
         const midY = (minY + maxY) / 2;
-        const angleDeg = Number.isFinite(Number(rect.cutAngle)) ? Number(rect.cutAngle) : 45;
+        const angleDeg = Number.isFinite(Number(angleDegRaw)) ? Number(angleDegRaw) : 45;
         const theta = Math.max(1, Math.min(89, angleDeg)) * Math.PI / 180;
         const tail = rect.cutTail || 'both';
         const rotDeg = Number(rect.cutRot) || 0;
@@ -657,15 +658,85 @@
         return rotatePoints(pts, { x: midX, y: midY }, rotDeg);
       }
 
+      function bottomCutPolygon(rect, angleDegRaw) {
+        const { minX, maxX, minY, maxY } = rectCorners(rect);
+        const widthW = Math.abs(maxX - minX);
+        const heightW = Math.abs(maxY - minY);
+        const midX = (minX + maxX) / 2;
+        const midY = (minY + maxY) / 2;
+        const angleDeg = Number.isFinite(Number(angleDegRaw)) ? Number(angleDegRaw) : 45;
+        const theta = Math.max(1, Math.min(89, angleDeg)) * Math.PI / 180;
+        const tail = rect.cutTail || 'both';
+        const rotDeg = Number(rect.cutRot) || 0;
+
+        if (widthW >= heightW) {
+          const halfH = heightW / 2;
+          let cutDepth = halfH / Math.tan(theta);
+          cutDepth = Math.min(cutDepth, widthW / 2 - 0.001);
+          cutDepth = Math.max(0, cutDepth);
+          const leftCut = tail === 'both' || tail === 'start';
+          const rightCut = tail === 'both' || tail === 'end';
+          const pts = [
+            { x: minX, y: minY },
+            { x: maxX, y: minY },
+          ];
+          if (rightCut) pts.push({ x: maxX - cutDepth, y: midY });
+          pts.push({ x: maxX, y: maxY });
+          pts.push({ x: minX, y: maxY });
+          if (leftCut) pts.push({ x: minX + cutDepth, y: midY });
+          return rotatePoints(pts, { x: midX, y: midY }, rotDeg);
+        }
+
+        const halfW = widthW / 2;
+        let cutDepth = halfW / Math.tan(theta);
+        cutDepth = Math.min(cutDepth, heightW / 2 - 0.001);
+        cutDepth = Math.max(0, cutDepth);
+        const topCut = tail === 'both' || tail === 'start';
+        const bottomCut = tail === 'both' || tail === 'end';
+        const pts = [{ x: minX, y: minY }];
+        if (topCut) pts.push({ x: midX, y: minY + cutDepth });
+        pts.push({ x: maxX, y: minY });
+        pts.push({ x: maxX, y: maxY });
+        if (bottomCut) pts.push({ x: midX, y: maxY - cutDepth });
+        pts.push({ x: minX, y: maxY });
+        return rotatePoints(pts, { x: midX, y: midY }, rotDeg);
+      }
+
+      function rectDisplayPolygon(rect) {
+        const { minX, maxX, minY, maxY } = rectCorners(rect);
+        const angle = Number(rect.shapeAngle);
+        if (!Number.isFinite(angle) || Math.abs(angle) < 1e-6) {
+          return [
+            { x: minX, y: minY },
+            { x: maxX, y: minY },
+            { x: maxX, y: maxY },
+            { x: minX, y: maxY }
+          ];
+        }
+        if (angle > 0) return topCutPolygon(rect, Math.abs(angle));
+        return bottomCutPolygon(rect, Math.abs(angle));
+      }
+
+      function normalizeRect(rect, index) {
+        if (!rect || typeof rect !== 'object') return;
+        if (!Number.isFinite(Number(rect.shapeAngle))) {
+          const legacyType = rect.type || 'base';
+          const legacyAngle = Number.isFinite(Number(rect.cutAngle)) ? Number(rect.cutAngle) : 45;
+          rect.shapeAngle = legacyType === 'top' ? Math.abs(legacyAngle) : 0;
+        }
+        rect.shapeAngle = Number(rect.shapeAngle) || 0;
+        rect.cutTail = rect.cutTail || 'both';
+        rect.cutRot = Number(rect.cutRot) || 0;
+        rect.cap = rect.cap !== false;
+        rect.capWidth = Number(rect.capWidth) || 4;
+        rect.capColor = rect.capColor || '#4b4f54';
+        rect.spineWidth = Number(rect.spineWidth) || 3;
+        rect.z = Number.isFinite(Number(rect.z)) ? Number(rect.z) : index;
+      }
+
       function drawCapForRect(gctx, rect) {
         if (rect.cap === false) return;
-        const { minX, maxX, minY, maxY } = rectCorners(rect);
-        const poly = rect.type === 'top' ? topCutPolygon(rect) : [
-          { x: minX, y: minY },
-          { x: maxX, y: minY },
-          { x: maxX, y: maxY },
-          { x: minX, y: maxY }
-        ];
+        const poly = rectDisplayPolygon(rect);
         const screenPts = poly.map(worldToScreen);
         gctx.save();
         gctx.lineJoin = 'round';
@@ -1054,7 +1125,9 @@
       }
 
       function drawRects(gctx) {
-        for (const rect of STATE.rects) {
+        const sorted = [...STATE.rects].sort((a, b) => (Number(a.z) || 0) - (Number(b.z) || 0));
+        for (const rect of sorted) {
+          normalizeRect(rect, 0);
           const { minX, maxX, minY, maxY } = rectCorners(rect);
           const tl = worldToScreen({ x: minX, y: minY });
           const br = worldToScreen({ x: maxX, y: maxY });
@@ -1074,9 +1147,8 @@
               const midX = (minX + maxX) / 2;
               const midY = (minY + maxY) / 2;
               const valleyLines = [];
-              const clipTopShape = () => {
-                if (rect.type !== 'top') return;
-                const poly = topCutPolygon(rect);
+              const clipShape = () => {
+                const poly = rectDisplayPolygon(rect);
                 const p0 = worldToScreen(poly[0]);
                 gctx.beginPath();
                 gctx.moveTo(p0.x, p0.y);
@@ -1105,7 +1177,7 @@
               const fillHalf = (x1, y1, x2, y2, rotDeg, halfTag) => {
                 gctx.save();
                 clipRect();
-                clipTopShape();
+                clipShape();
                 const halfCenter = { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
                 for (const line of valleyLines) {
                   if (spine.orientation === 'h') {
@@ -1129,7 +1201,7 @@
               const shadeHalf = (x1, y1, x2, y2, alpha) => {
                 gctx.save();
                 clipRect();
-                clipTopShape();
+                clipShape();
                 clipHalf(x1, y1, x2, y2);
                 gctx.fillStyle = `rgba(0,0,0,${alpha})`;
                 const p1 = worldToScreen({ x: x1, y: y1 });
@@ -1149,7 +1221,7 @@
               // subtle shadowing on north/east sides
               shadeHalf(minX, minY, maxX, midY, 0.08); // north
               shadeHalf(midX, minY, maxX, maxY, 0.05); // east
-              drawSpineForRect(gctx, rect, clipRect, clipTopShape);
+              drawSpineForRect(gctx, rect, clipRect, clipShape);
               fill = tex.pattern;
             } else {
               fill = def.color;
@@ -1235,8 +1307,9 @@
       }
 
       function findRectAtScreen(x, y) {
-        for (let i = STATE.rects.length - 1; i >= 0; i--) {
-          const rect = STATE.rects[i];
+        const sorted = [...STATE.rects].sort((a, b) => (Number(a.z) || 0) - (Number(b.z) || 0));
+        for (let i = sorted.length - 1; i >= 0; i--) {
+          const rect = sorted[i];
           const { minX, maxX, minY, maxY } = rectCorners(rect);
           const tl = worldToScreen({ x: minX, y: minY });
           const br = worldToScreen({ x: maxX, y: maxY });
@@ -1273,14 +1346,15 @@
         } else if (sel.type === 'rect') {
           const rect = STATE.rects.find(r => r.id === sel.id);
           if (!rect) return;
-          rectType.value = rect.type || 'base';
-          rectCutAngle.value = String(rect.cutAngle ?? 45);
+          normalizeRect(rect, 0);
+          rectShapeAngle.value = String(rect.shapeAngle ?? 0);
           rectTail.value = rect.cutTail || 'both';
           rectRot.value = String(rect.cutRot ?? 0);
           rectCap.checked = rect.cap !== false;
           rectCapWidth.value = String(rect.capWidth ?? 4);
           rectCapColor.value = rect.capColor || '#4b4f54';
           rectSpineWidth.value = String(rect.spineWidth ?? 3);
+          rectZ.value = String(rect.z ?? 0);
         }
       }
 
@@ -1414,15 +1488,16 @@
             y1: drag.preview.y1,
             x2: drag.preview.x2,
             y2: drag.preview.y2,
-            type: rectType.value,
-            cutAngle: Number(rectCutAngle.value) || 45,
+            shapeAngle: Number(rectShapeAngle.value) || 0,
             cutTail: rectTail.value,
             cutRot: Number(rectRot.value) || 0,
             cap: rectCap.checked,
             capWidth: Number(rectCapWidth.value) || 4,
             capColor: rectCapColor.value || '#4b4f54',
-            spineWidth: Number(rectSpineWidth.value) || 3
+            spineWidth: Number(rectSpineWidth.value) || 3,
+            z: Number(rectZ.value) || STATE.rects.length
           };
+          normalizeRect(rectObj, STATE.rects.length);
           if (rectInsidePolygon(rectObj)) {
             STATE.rects.push(rectObj);
             STATE.selection = { type: 'rect', id: rectObj.id };
@@ -1496,18 +1571,10 @@
         render();
       });
 
-      rectType.addEventListener('change', () => {
+      rectShapeAngle.addEventListener('input', () => {
         if (STATE.selection && STATE.selection.type === 'rect') {
           const rect = STATE.rects.find(r => r.id === STATE.selection.id);
-          if (rect) rect.type = rectType.value;
-          render();
-        }
-      });
-
-      rectCutAngle.addEventListener('input', () => {
-        if (STATE.selection && STATE.selection.type === 'rect') {
-          const rect = STATE.rects.find(r => r.id === STATE.selection.id);
-          if (rect) rect.cutAngle = Number(rectCutAngle.value) || 45;
+          if (rect) rect.shapeAngle = Number(rectShapeAngle.value) || 0;
           render();
         }
       });
@@ -1560,6 +1627,34 @@
         }
       });
 
+      rectZ.addEventListener('input', () => {
+        if (STATE.selection && STATE.selection.type === 'rect') {
+          const rect = STATE.rects.find(r => r.id === STATE.selection.id);
+          if (rect) rect.z = Number(rectZ.value) || 0;
+          render();
+        }
+      });
+
+      btnRectFront.addEventListener('click', () => {
+        if (!(STATE.selection && STATE.selection.type === 'rect')) return;
+        const rect = STATE.rects.find(r => r.id === STATE.selection.id);
+        if (!rect) return;
+        const maxZ = STATE.rects.reduce((m, r) => Math.max(m, Number(r.z) || 0), 0);
+        rect.z = maxZ + 1;
+        rectZ.value = String(rect.z);
+        render();
+      });
+
+      btnRectBack.addEventListener('click', () => {
+        if (!(STATE.selection && STATE.selection.type === 'rect')) return;
+        const rect = STATE.rects.find(r => r.id === STATE.selection.id);
+        if (!rect) return;
+        const minZ = STATE.rects.reduce((m, r) => Math.min(m, Number(r.z) || 0), 0);
+        rect.z = minZ - 1;
+        rectZ.value = String(rect.z);
+        render();
+      });
+
       btnExportPng.addEventListener('click', () => {
         const link = document.createElement('a');
         link.download = 'roof.png';
@@ -1568,10 +1663,24 @@
       });
 
       btnCopyJson.addEventListener('click', async () => {
+        for (let i = 0; i < STATE.rects.length; i++) normalizeRect(STATE.rects[i], i);
         const payload = {
           points: STATE.points,
           tile: STATE.tile,
-          rects: STATE.rects.map(r => ({ x1: r.x1, y1: r.y1, x2: r.x2, y2: r.y2 })),
+          rects: STATE.rects.map(r => ({
+            x1: r.x1,
+            y1: r.y1,
+            x2: r.x2,
+            y2: r.y2,
+            shapeAngle: r.shapeAngle,
+            cutTail: r.cutTail,
+            cutRot: r.cutRot,
+            cap: r.cap,
+            capWidth: r.capWidth,
+            capColor: r.capColor,
+            spineWidth: r.spineWidth,
+            z: r.z
+          })),
           parts: STATE.parts.map(p => ({
             kind: p.kind,
             hex: p.hex,
