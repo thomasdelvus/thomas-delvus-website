@@ -50,7 +50,7 @@
       <label>Scale</label><input id="tileScale" type="number" step="0.01" value="0.20" />
     </div>
     <div class="group">
-      <label>Line</label><input id="lineColor" type="color" value="#4b4f54" />
+      <label>Line</label><input id="lineColor" type="color" value="#70777e" />
       <label>W</label><input id="lineWidth" type="number" step="0.5" value="2" />
     </div>
     <div class="group">
@@ -66,7 +66,7 @@
       const GRID = { size: 32, lineAlpha: 0.22, lineWidth: 1.1 };
       const VIEW = { cameraWorld: { x: 0, y: 0 }, zoom: 1 };
       const HISTORY_MAX = 20;
-      const STATE = { points: [], boundary: [], rects: [], polys: [], mode: 'draw', tool: 'rect', selection: null, preview: null, polyDraft: null, lineColor: '#4b4f54', lineWidth: 2, historyPast: [], historyFuture: [] };
+      const STATE = { points: [], boundary: [], rects: [], polys: [], mode: 'draw', tool: 'rect', selection: null, preview: null, polyDraft: null, lineColor: '#70777e', lineWidth: 2, historyPast: [], historyFuture: [] };
       const TILE_TEXTURES = { slate:{url:'/assets/sprites/slate.png',color:'#3a434a'}, terracotta:{url:'/assets/sprites/terracotta.png',color:'#6a3a2a'}, thatch:{url:'/assets/sprites/thatch.png',color:'#6a5a3a'}, grass:{url:'/assets/sprites/grass.png',color:'#2f5a2f'} };
       const spriteCache = new Map();
       function loadSprite(url){ if(spriteCache.has(url)) return spriteCache.get(url); const img=new Image(); img.src=url; spriteCache.set(url,img); img.onload=render; return img; }
@@ -520,12 +520,40 @@
         }
         if(drag.type==='rect-handle'){
           const t=STATE.rects.find(r=>r.id===drag.id); if(!t) return;
-          if(drag.handle==='c'){ const h=worldToHexHalf(w); const cand={...t,col:h.col,row:h.row}; if(rectInsideBoundary(cand)){ t.col=cand.col; t.row=cand.row; render(); } return; }
-          const c=rectCenterWorld(t), local=worldToLocal(w,c,Number(t.rot)||0), dims=rectDimsWorld(t);
-          let hw=dims.w/2, hh=dims.h/2; const minHW=colStep()*0.5, minHH=rowStep()*0.25;
-          if(drag.handle==='n') hh=Math.max(minHH,-local.y); if(drag.handle==='s') hh=Math.max(minHH,local.y); if(drag.handle==='e') hw=Math.max(minHW,local.x); if(drag.handle==='w') hw=Math.max(minHW,-local.x);
-          const halfRS=rowStep()*0.5; const wCols=Math.max(1,Math.round((hw*2)/colStep())); const hRows=Math.max(0.5,Math.round(((hh*2)/halfRS))/2);
-          const cand={...t,wCols,hRows}; if(rectInsideBoundary(cand)){ t.wCols=wCols; t.hRows=hRows; render(); }
+          if(drag.handle==='c'){
+            const h=worldToHexHalf(w);
+            const cand={...t,col:h.col,row:h.row};
+            if(rectInsideBoundary(cand)){ t.col=cand.col; t.row=cand.row; render(); }
+            return;
+          }
+          const rot=Number(t.rot)||0;
+          const c=rectCenterWorld(t);
+          const local=worldToLocal(w,c,rot);
+          const dims=rectDimsWorld(t);
+          let hw=dims.w/2, hh=dims.h/2;
+          const minHW=colStep()*0.5, minHH=rowStep()*0.25;
+          let newCenterLocal={x:0,y:0};
+          if(drag.handle==='n' || drag.handle==='s'){
+            const top = (drag.handle==='n') ? Math.min(local.y, hh - minHH) : -hh;
+            const bottom = (drag.handle==='s') ? Math.max(local.y, -hh + minHH) : hh;
+            const newHH = Math.max(minHH, (bottom - top)/2);
+            newCenterLocal.y = (top + bottom)/2;
+            hh = newHH;
+          }
+          if(drag.handle==='e' || drag.handle==='w'){
+            const left = (drag.handle==='w') ? Math.min(local.x, hw - minHW) : -hw;
+            const right = (drag.handle==='e') ? Math.max(local.x, -hw + minHW) : hw;
+            const newHW = Math.max(minHW, (right - left)/2);
+            newCenterLocal.x = (left + right)/2;
+            hw = newHW;
+          }
+          const newCenterWorld=localToWorld(newCenterLocal,c,rot);
+          const centerHex=worldToHexHalf(newCenterWorld);
+          const halfRS=rowStep()*0.5;
+          const wCols=Math.max(1,Math.round((hw*2)/colStep()));
+          const hRows=Math.max(0.5,Math.round(((hh*2)/halfRS))/2);
+          const cand={...t,col:centerHex.col,row:centerHex.row,wCols,hRows};
+          if(rectInsideBoundary(cand)){ t.col=cand.col; t.row=cand.row; t.wCols=wCols; t.hRows=hRows; render(); }
           return;
         }
         if(drag.type==='poly-handle'){
