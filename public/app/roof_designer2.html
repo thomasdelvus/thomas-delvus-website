@@ -214,6 +214,14 @@
         const x=(minX+maxX)/2;
         return { a:{x, y:minY}, b:{x, y:maxY} };
       }
+      function rotateWorldPoints(points, center, deg){
+        if(!deg) return points;
+        const r=(deg*Math.PI)/180, c=Math.cos(r), s=Math.sin(r);
+        return points.map(p=>{
+          const dx=p.x-center.x, dy=p.y-center.y;
+          return { x:center.x + dx*c - dy*s, y:center.y + dx*s + dy*c };
+        });
+      }
       function clipPolyHalfPlane(points, a, b, keepLeft){
         const out=[];
         const side=(p)=> (b.x-a.x)*(p.y-a.y) - (b.y-a.y)*(p.x-a.x);
@@ -238,8 +246,12 @@
         return out;
       }
       function drawPoly(g, poly, selected){
-        const pts=polyWorldPoints(poly);
+        let pts=polyWorldPoints(poly);
         if(pts.length<3) return;
+        const bounds=computeBounds(pts);
+        const center={ x:(bounds.minX+bounds.maxX)/2, y:(bounds.minY+bounds.maxY)/2 };
+        const rot=Number(poly.rot)||0;
+        if(rot) pts=rotateWorldPoints(pts, center, rot);
         const spine=polySpine(pts);
         const tex=getTexturePattern(poly.tileKind||'slate');
         const left=clipPolyHalfPlane(pts, spine.a, spine.b, true);
@@ -275,7 +287,12 @@
         g.restore();
       }
       function polyHandles(poly){
-        return poly.points.map((p,idx)=>({ idx, world: hexToWorld(p.col,p.row) }));
+        let pts=polyWorldPoints(poly);
+        const bounds=computeBounds(pts);
+        const center={ x:(bounds.minX+bounds.maxX)/2, y:(bounds.minY+bounds.maxY)/2 };
+        const rot=Number(poly.rot)||0;
+        if(rot) pts=rotateWorldPoints(pts, center, rot);
+        return pts.map((p,idx)=>({ idx, world: p }));
       }
       function drawPolyHandles(g, poly){
         g.save(); g.strokeStyle='rgba(255,200,100,.95)'; g.fillStyle='rgba(255,200,100,.22)'; g.lineWidth=2;
@@ -283,13 +300,25 @@
         g.restore();
       }
       function polyHandleAtScreen(poly, x, y){
-        for(const h of polyHandles(poly)){ const p=worldToScreen(h.world); const dx=x-p.x, dy=y-p.y; if(dx*dx+dy*dy<=16*16) return h.idx; }
+        for(const h of polyHandles(poly)){
+          const p=worldToScreen(h.world);
+          const dx=x-p.x, dy=y-p.y;
+          if(dx*dx+dy*dy<=16*16) return h;
+        }
         return null;
       }
       function polyAtScreen(x,y){
         const world=screenToWorld(x,y);
         const sorted=[...STATE.polys].sort((a,b)=>(Number(a.z)||0)-(Number(b.z)||0));
-        for(let i=sorted.length-1;i>=0;i--){ const poly=sorted[i]; const pts=polyWorldPoints(poly); if(pointInPolygon(world,pts)) return poly; }
+        for(let i=sorted.length-1;i>=0;i--){
+          const poly=sorted[i];
+          let pts=polyWorldPoints(poly);
+          const bounds=computeBounds(pts);
+          const center={ x:(bounds.minX+bounds.maxX)/2, y:(bounds.minY+bounds.maxY)/2 };
+          const rot=Number(poly.rot)||0;
+          if(rot) pts=rotateWorldPoints(pts, center, rot);
+          if(pointInPolygon(world,pts)) return poly;
+        }
         return null;
       }
       function drawPreview(g){
@@ -403,7 +432,7 @@
               const fp=worldToScreen(hexToWorld(first.col, first.row));
               const dx=sx-fp.x, dy=sy-fp.y;
               if(dx*dx+dy*dy<16*16){
-                const poly={ id:`poly_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`, points:[...STATE.polyDraft], tileKind:tileKindEl.value, tileScale:Number(tileScaleEl.value)||0.2, z:Number(rectZEl.value)||STATE.polys.length };
+                const poly={ id:`poly_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`, points:[...STATE.polyDraft], rot:Number(rectRotEl.value)||0, tileKind:tileKindEl.value, tileScale:Number(tileScaleEl.value)||0.2, z:Number(rectZEl.value)||STATE.polys.length };
                 if(poly.points.length>=3){ pushHistorySnapshot(cloneState()); STATE.polys.push(poly); STATE.selection={type:'poly', id:poly.id}; syncSelectedControls(); }
                 STATE.polyDraft=null; render(); return;
               }
@@ -420,7 +449,10 @@
             if(sel){ const h=handleAtScreen(sel,sx,sy); if(h){ drag={type:'rect-handle',id:sel.id,handle:h,startSnapshot:cloneState()}; return; } }
           } else {
             const sel=STATE.polys.find(p=>p.id===STATE.selection.id);
-            if(sel){ const idx=polyHandleAtScreen(sel,sx,sy); if(Number.isFinite(idx)){ drag={type:'poly-handle',id:sel.id,idx,startSnapshot:cloneState()}; return; } }
+            if(sel){
+              const h=polyHandleAtScreen(sel,sx,sy);
+              if(h){ drag={type:'poly-handle',id:sel.id,idx:h.idx,world:h.world,startSnapshot:cloneState()}; return; }
+            }
           }
         }
 
@@ -460,7 +492,16 @@
           const poly=STATE.polys.find(p=>p.id===drag.id); if(!poly) return;
           const h=worldToHexHalf(w);
           const next={ col:h.col, row:h.row };
-          if(pointInBoundary(hexToWorld(next.col,next.row))){ poly.points[drag.idx]=next; render(); }
+          const bounds=computeBounds(polyWorldPoints(poly));
+          const center={ x:(bounds.minX+bounds.maxX)/2, y:(bounds.minY+bounds.maxY)/2 };
+          const rot=Number(poly.rot)||0;
+          let candidateWorld=hexToWorld(next.col,next.row);
+          if(rot){
+            const r=(-rot*Math.PI)/180;
+            const dx=candidateWorld.x-center.x, dy=candidateWorld.y-center.y;
+            candidateWorld={ x:center.x + dx*Math.cos(r) - dy*Math.sin(r), y:center.y + dx*Math.sin(r) + dy*Math.cos(r) };
+          }
+          if(pointInBoundary(candidateWorld)){ poly.points[drag.idx]=next; render(); }
         }
       });
 
@@ -512,7 +553,7 @@
 
       startAngleEl.addEventListener('input',()=>applyToSelectedRect(r=>{ r.startAngle=clamp(Number(startAngleEl.value)||0,-85,85); }));
       endAngleEl.addEventListener('input',()=>applyToSelectedRect(r=>{ r.endAngle=clamp(Number(endAngleEl.value)||0,-85,85); }));
-      rectRotEl.addEventListener('change',()=>applyToSelectedRect(r=>{ r.rot=Number(rectRotEl.value)||0; }));
+      rectRotEl.addEventListener('change',()=>applyToSelectedAny(r=>{ r.rot=Number(rectRotEl.value)||0; }));
       rectZEl.addEventListener('input',()=>applyToSelectedAny(r=>{ r.z=Number(rectZEl.value)||0; }));
       tileKindEl.addEventListener('change',()=>applyToSelectedAny(r=>{ r.tileKind=tileKindEl.value; }));
       tileScaleEl.addEventListener('input',()=>applyToSelectedAny(r=>{ r.tileScale=Number(tileScaleEl.value)||0.2; }));
