@@ -4825,8 +4825,16 @@
           syncEntityFromToken(drag.item);
         } else if (drag.type === 'roof-move') {
           const floor = pickFloor();
-          const snap = worldToHexHalf(worldPoint);
-          setRoofPartCenterHex(drag.item, floor, snap);
+          const startHex = drag.startHex || worldToHexHalf(drag.startWorld || worldPoint);
+          const curHex = worldToHexHalf(worldPoint);
+          const dCol = curHex.col - startHex.col;
+          const dRow = curHex.row - startHex.row;
+          const base = drag.startCenter || roofPartCenterHex(drag.item, floor);
+          if (base) {
+            setRoofPartCenterHex(drag.item, floor, { col: base.col + dCol, row: base.row + dRow });
+          } else {
+            setRoofPartCenterHex(drag.item, floor, curHex);
+          }
         } else if (drag.type === 'roof-resize') {
           const floor = pickFloor();
           const centerHex = roofPartCenterHex(drag.item, floor);
@@ -4967,12 +4975,15 @@
           let roofHit = null;
           if (UI.showHandles || UI.handleHot) roofHit = getRoofHandleHit(EDITOR.selection.item, floor, screenPoint);
           if (roofHit) {
+            const startCenter = roofPartCenterHex(EDITOR.selection.item, floor);
             EDITOR.drag = {
               type: roofHit.type,
               side: roofHit.side,
               item: EDITOR.selection.item,
               floorId: EDITOR.selection.floorId,
               startWorld: world,
+              startHex: worldToHexHalf(world),
+              startCenter,
               didMove: false,
               pushed: false
             };
