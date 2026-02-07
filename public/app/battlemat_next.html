@@ -4837,14 +4837,14 @@
           const rot = Number(drag.item.rot) || 0;
           const rel = { x: worldPoint.x - centerWorld.x, y: worldPoint.y - centerWorld.y };
           const local = roofRotateLocalPoint(rel, -rot);
-          const altResize = !!modifiers.altKey;
+          const symmetricResize = !!modifiers.altKey;
           const dims = roofPartDimsWorld(drag.item);
           const oldHalfW = dims.w / 2;
           const oldHalfH = dims.h / 2;
           const minHalfW = colStep() * 0.5;
           const minHalfH = rowStep() * 0.25;
           if (drag.side === 'north' || drag.side === 'south') {
-            if (altResize) {
+            if (!symmetricResize) {
               const fixed = drag.side === 'north' ? oldHalfH : -oldHalfH;
               const signFixed = fixed >= 0 ? 1 : -1;
               const rawHalf = Math.abs(fixed - local.y) / 2;
@@ -4864,7 +4864,7 @@
               drag.item.hRows = Math.max(0.5, Math.round((halfH * 2 / rowStep()) * 2) / 2);
             }
           } else if (drag.side === 'east' || drag.side === 'west') {
-            if (altResize) {
+            if (!symmetricResize) {
               const fixed = drag.side === 'east' ? -oldHalfW : oldHalfW;
               const signFixed = fixed >= 0 ? 1 : -1;
               const rawHalf = Math.abs(fixed - local.x) / 2;
