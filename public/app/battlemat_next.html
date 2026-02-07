@@ -1845,8 +1845,8 @@
         out.localRow = n(out.localRow, 0);
         out.wCols = Math.max(1, n(out.wCols, 1));
         out.hRows = Math.max(0.5, n(out.hRows, 1));
-        out.startAngle = Math.max(-85, Math.min(85, n(out.startAngle, 0)));
-        out.endAngle = Math.max(-85, Math.min(85, n(out.endAngle, 0)));
+        out.startAngle = n(out.startAngle, 0);
+        out.endAngle = n(out.endAngle, 0);
         out.rot = Math.round(n(out.rot, 0) / 90) * 90;
         out.tileKind = String(out.tileKind || out.tile || 'slate');
         out.tileScale = Math.max(0.01, n(out.tileScale, 0.2));
@@ -2849,7 +2849,7 @@
       }
 
       function roofDepthFromAngle(angleDeg, halfW, halfH) {
-        const a = Math.max(0, Math.min(85, Number(angleDeg) || 0));
+        const a = Math.abs(Number(angleDeg) || 0);
         const t = (a * Math.PI) / 180;
         return Math.max(0, Math.min(Math.tan(t) * halfW, halfH - 0.001));
       }
@@ -2871,12 +2871,10 @@
         const dims = roofPartDimsWorld(part);
         const hw = dims.w / 2;
         const hh = dims.h / 2;
-        const saRaw = Number(part.startAngle ?? part.start_angle) || 0;
-        const eaRaw = Number(part.endAngle ?? part.end_angle) || 0;
-        const sa = Math.max(-85, Math.min(85, saRaw));
-        const ea = Math.max(-85, Math.min(85, eaRaw));
-        const ds = roofDepthFromAngle(Math.abs(sa), hw, hh);
-        const de = roofDepthFromAngle(Math.abs(ea), hw, hh);
+        const sa = Number(part.startAngle ?? part.start_angle) || 0;
+        const ea = Number(part.endAngle ?? part.end_angle) || 0;
+        const ds = roofDepthFromAngle(sa, hw, hh);
+        const de = roofDepthFromAngle(ea, hw, hh);
         const topTipY = sa > 0 ? (-hh - ds) : (sa < 0 ? (-hh + ds) : -hh);
         const botTipY = ea > 0 ? (hh + de) : (ea < 0 ? (hh - de) : hh);
         const TL = { x: -hw, y: -hh };
@@ -4380,8 +4378,8 @@
           if (key === 'localRow') item.localRow = num(value, 0);
           if (key === 'wCols') item.wCols = Math.max(1, num(value, 1));
           if (key === 'hRows') item.hRows = Math.max(0.5, num(value, 1));
-          if (key === 'startAngle') item.startAngle = Math.max(-85, Math.min(85, num(value, 0)));
-          if (key === 'endAngle') item.endAngle = Math.max(-85, Math.min(85, num(value, 0)));
+          if (key === 'startAngle') item.startAngle = num(value, 0);
+          if (key === 'endAngle') item.endAngle = num(value, 0);
           if (key === 'rot') item.rot = Math.round(num(value, 0) / 90) * 90;
           if (key === 'tileKind') item.tileKind = String(value || 'slate');
           if (key === 'tileScale') item.tileScale = Math.max(0.01, num(value, 0.2));
@@ -4812,7 +4810,7 @@
         }
       }
 
-      function onDragMove(worldPoint, modifiers = {}) {
+      function onDragMove(worldPoint) {
         const drag = EDITOR.drag;
         if (!drag) return;
         const hex = worldToHex(worldPoint);
@@ -4837,81 +4835,70 @@
           const rot = Number(drag.item.rot) || 0;
           const rel = { x: worldPoint.x - centerWorld.x, y: worldPoint.y - centerWorld.y };
           const local = roofRotateLocalPoint(rel, -rot);
-          const symmetricResize = !!modifiers.altKey;
           const dims = roofPartDimsWorld(drag.item);
           const oldHalfW = dims.w / 2;
           const oldHalfH = dims.h / 2;
           const minHalfW = colStep() * 0.5;
           const minHalfH = rowStep() * 0.25;
           if (drag.side === 'north' || drag.side === 'south') {
-            if (!symmetricResize) {
-              const fixed = drag.side === 'north' ? oldHalfH : -oldHalfH;
-              const signFixed = fixed >= 0 ? 1 : -1;
-              const rawHalf = Math.abs(fixed - local.y) / 2;
-              const desiredHalf = Math.max(minHalfH, rawHalf);
-              const hRows = Math.max(0.5, Math.round((desiredHalf * 2 / rowStep()) * 2) / 2);
-              const actualHalf = (hRows * rowStep()) / 2;
-              const centerOffset = fixed - signFixed * actualHalf;
-              drag.item.hRows = hRows;
-              if (Number.isFinite(centerOffset) && centerOffset !== 0) {
-                const offsetWorld = roofRotateLocalPoint({ x: 0, y: centerOffset }, rot);
-                const deltaCol = offsetWorld.x / colStep();
-                const deltaRow = -offsetWorld.y / rowStep();
-                const parentId = roofPartParentRoomId(drag.item);
-                if (parentId) {
-                  const baseCol = Number(drag.item.localCol ?? drag.item.local_col ?? 0);
-                  const baseRow = Number(drag.item.localRow ?? drag.item.local_row ?? 0);
-                  drag.item.localCol = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
-                  drag.item.localRow = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
-                  delete drag.item.col;
-                  delete drag.item.row;
-                  delete drag.item.center_hex;
-                  delete drag.item.centerHex;
-                } else {
-                  const baseCol = Number(drag.item.col ?? 0);
-                  const baseRow = Number(drag.item.row ?? 0);
-                  drag.item.col = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
-                  drag.item.row = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
-                }
+            const fixed = drag.side === 'north' ? oldHalfH : -oldHalfH;
+            const signFixed = fixed >= 0 ? 1 : -1;
+            const rawHalf = Math.abs(fixed - local.y) / 2;
+            const desiredHalf = Math.max(minHalfH, rawHalf);
+            const hRows = Math.max(0.5, Math.round((desiredHalf * 2 / rowStep()) * 2) / 2);
+            const actualHalf = (hRows * rowStep()) / 2;
+            const centerOffset = fixed - signFixed * actualHalf;
+            drag.item.hRows = hRows;
+            if (Number.isFinite(centerOffset) && centerOffset !== 0) {
+              const offsetWorld = roofRotateLocalPoint({ x: 0, y: centerOffset }, rot);
+              const deltaCol = offsetWorld.x / colStep();
+              const deltaRow = -offsetWorld.y / rowStep();
+              const parentId = roofPartParentRoomId(drag.item);
+              if (parentId) {
+                const baseCol = Number(drag.item.localCol ?? drag.item.local_col ?? 0);
+                const baseRow = Number(drag.item.localRow ?? drag.item.local_row ?? 0);
+                drag.item.localCol = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
+                drag.item.localRow = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
+                delete drag.item.col;
+                delete drag.item.row;
+                delete drag.item.center_hex;
+                delete drag.item.centerHex;
+              } else {
+                const baseCol = Number(drag.item.col ?? 0);
+                const baseRow = Number(drag.item.row ?? 0);
+                drag.item.col = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
+                drag.item.row = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
               }
-            } else {
-              const halfH = Math.max(minHalfH, Math.abs(local.y));
-              drag.item.hRows = Math.max(0.5, Math.round((halfH * 2 / rowStep()) * 2) / 2);
             }
           } else if (drag.side === 'east' || drag.side === 'west') {
-            if (!symmetricResize) {
-              const fixed = drag.side === 'east' ? -oldHalfW : oldHalfW;
-              const signFixed = fixed >= 0 ? 1 : -1;
-              const rawHalf = Math.abs(fixed - local.x) / 2;
-              const desiredHalf = Math.max(minHalfW, rawHalf);
-              const wCols = Math.max(1, Math.round((desiredHalf * 2 / colStep()) * 2) / 2);
-              const actualHalf = (wCols * colStep()) / 2;
-              const centerOffset = fixed - signFixed * actualHalf;
-              drag.item.wCols = wCols;
-              if (Number.isFinite(centerOffset) && centerOffset !== 0) {
-                const offsetWorld = roofRotateLocalPoint({ x: centerOffset, y: 0 }, rot);
-                const deltaCol = offsetWorld.x / colStep();
-                const deltaRow = -offsetWorld.y / rowStep();
-                const parentId = roofPartParentRoomId(drag.item);
-                if (parentId) {
-                  const baseCol = Number(drag.item.localCol ?? drag.item.local_col ?? 0);
-                  const baseRow = Number(drag.item.localRow ?? drag.item.local_row ?? 0);
-                  drag.item.localCol = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
-                  drag.item.localRow = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
-                  delete drag.item.col;
-                  delete drag.item.row;
-                  delete drag.item.center_hex;
-                  delete drag.item.centerHex;
-                } else {
-                  const baseCol = Number(drag.item.col ?? 0);
-                  const baseRow = Number(drag.item.row ?? 0);
-                  drag.item.col = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
-                  drag.item.row = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
-                }
+            const fixed = drag.side === 'east' ? -oldHalfW : oldHalfW;
+            const signFixed = fixed >= 0 ? 1 : -1;
+            const rawHalf = Math.abs(fixed - local.x) / 2;
+            const desiredHalf = Math.max(minHalfW, rawHalf);
+            const wCols = Math.max(1, Math.round((desiredHalf * 2 / colStep()) * 2) / 2);
+            const actualHalf = (wCols * colStep()) / 2;
+            const centerOffset = fixed - signFixed * actualHalf;
+            drag.item.wCols = wCols;
+            if (Number.isFinite(centerOffset) && centerOffset !== 0) {
+              const offsetWorld = roofRotateLocalPoint({ x: centerOffset, y: 0 }, rot);
+              const deltaCol = offsetWorld.x / colStep();
+              const deltaRow = -offsetWorld.y / rowStep();
+              const parentId = roofPartParentRoomId(drag.item);
+              if (parentId) {
+                const baseCol = Number(drag.item.localCol ?? drag.item.local_col ?? 0);
+                const baseRow = Number(drag.item.localRow ?? drag.item.local_row ?? 0);
+                drag.item.localCol = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
+                drag.item.localRow = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
+                delete drag.item.col;
+                delete drag.item.row;
+                delete drag.item.center_hex;
+                delete drag.item.centerHex;
+              } else {
+                const baseCol = Number(drag.item.col ?? 0);
+                const baseRow = Number(drag.item.row ?? 0);
+                drag.item.col = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
+                drag.item.row = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
               }
-            } else {
-              const halfW = Math.max(minHalfW, Math.abs(local.x));
-              drag.item.wCols = Math.max(1, Math.round((halfW * 2 / colStep()) * 2) / 2);
             }
           }
         } else if (drag.type === 'opening') {
@@ -5118,7 +5105,7 @@
             pushHistory();
             EDITOR.drag.pushed = true;
           }
-          onDragMove(world, { altKey: ev.altKey });
+          onDragMove(world);
         });
 
         canvas.addEventListener('mousemove', (ev) => {
