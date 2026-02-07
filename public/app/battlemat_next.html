@@ -2526,6 +2526,14 @@
         render();
       }
 
+      function prepareBattleForSave(battle) {
+        const clean = cloneValue(battle || {});
+        delete clean._battle_id;
+        delete clean._campaign_id;
+        if (!Array.isArray(clean.roofParts)) clean.roofParts = [];
+        return clean;
+      }
+
       function pushHistory() {
         const snap = snapshotState();
         if (HISTORY.index < HISTORY.stack.length - 1) {
@@ -5052,11 +5060,11 @@
         if (!battleId || !STATE.battle) return;
         saveStatus.textContent = 'DB: saving...';
         try {
-          let payloadState = STATE.battle;
+          let payloadState = prepareBattleForSave(STATE.battle);
           if (STATE.wrapper && STATE.recordId) {
-            const wrapper = STATE.wrapper;
+            const wrapper = cloneValue(STATE.wrapper);
             if (!wrapper.records || typeof wrapper.records !== 'object') wrapper.records = {};
-            wrapper.records[STATE.recordId] = STATE.battle;
+            wrapper.records[STATE.recordId] = payloadState;
             if (!wrapper.active || typeof wrapper.active !== 'object') wrapper.active = { recordId: STATE.recordId };
             if (!wrapper.active.recordId) wrapper.active.recordId = STATE.recordId;
             payloadState = wrapper;
