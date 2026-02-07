@@ -2885,7 +2885,7 @@
           const pf = part.floorId || part.floor_id || '';
           if (pf && String(pf) !== floorId) return false;
           const parent = part.parentRoomId || part.parent_room || part.parent_room_id || part.room_id || part.roomId || '';
-          if (!parent) return true;
+          if (!parent || !roomSet.size) return true;
           return roomSet.has(String(parent));
         });
       }
@@ -2924,9 +2924,15 @@
         list.forEach(room => drawFloorRoom(room, gctx));
       }
 
-      function drawRoofsLayer(floor, gctx, rooms) {
+      function drawRoofsLayer(floor, gctx, rooms, allRooms, roomSets) {
         const roomList = sortByZ(rooms || filterAlive(floor.rooms || []));
-        const partList = sortByZ(roofPartsForFloor(floor, rooms || []));
+        const baseRooms = allRooms || rooms || filterAlive(floor.rooms || []);
+        let partList = sortByZ(roofPartsForFloor(floor, baseRooms));
+        if (UI.fogEnabled && roomSets) {
+          partList = partList.filter((part) => {
+            return itemFogState(part, floor, baseRooms, roomSets, roofPartWorldCenter) !== 'hidden';
+          });
+        }
         const merged = [];
         roomList.forEach((room, idx) => merged.push({ kind: 'room', room, z: numOr(room && room.z, idx), idx }));
         partList.forEach((part, idx) => merged.push({ kind: 'part', part, z: numOr(part && part.z, idx), idx: roomList.length + idx }));
@@ -3706,7 +3712,7 @@
 
         drawFloorsLayer(floor, floorLayer.ctx, roomsToDraw);
         drawWallsLayer(floor, wallLayer.ctx, roomsToDraw, fogSets);
-        drawRoofsLayer(floor, roofLayer.ctx, roomsToDraw);
+        drawRoofsLayer(floor, roofLayer.ctx, roomsToDraw, allRooms, fogSets);
         drawGridLayer(gridLayer.ctx);
         drawHandlesLayer(floor, handleLayer.ctx);
         drawRoomEdgeHandles(floor, handleLayer.ctx);
