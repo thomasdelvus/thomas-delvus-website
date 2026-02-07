@@ -90,6 +90,14 @@
       function applyPatternTransform(pattern, scale, rotDeg){ if(!pattern||typeof pattern.setTransform!=='function') return; const s=Math.max(.01,(Number(scale)||0.2)*VIEW.zoom); const m=new DOMMatrix(); m.rotateSelf(rotDeg||0); m.scaleSelf(s,s); pattern.setTransform(m); }
 
       function hexToWorld(col,row){ const x=col*colStep(); const y=-(row*rowStep() + (col & 1)*(rowStep()/2)); return { x, y }; }
+      function worldToHex(world){
+        const size=GRID.size||1;
+        const qf=(2/3)*(world.x/size);
+        const rf=(((-world.y)/size)/Math.sqrt(3))-(qf/2);
+        const col=Math.round(qf);
+        const rowf=rf + (col - (col & 1))/2;
+        return { col, row:Math.round(rowf) };
+      }
       function worldToHexHalf(world){
         const size=GRID.size||1;
         const qf=(2/3)*(world.x/size);
@@ -125,7 +133,7 @@
         g.strokeStyle=`rgba(210,220,240,${GRID.lineAlpha})`;
         g.lineWidth=GRID.lineWidth;
         const w=canvas.clientWidth,h=canvas.clientHeight;
-        const camHex=worldToHexHalf(VIEW.cameraWorld);
+        const camHex=worldToHex(VIEW.cameraWorld);
         const colsR=Math.ceil((w/2)/colStep())+4;
         const rowsR=Math.ceil((h/2)/rowStep())+4;
         const size=GRID.size*VIEW.zoom;

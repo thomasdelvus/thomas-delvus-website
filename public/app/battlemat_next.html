@@ -3623,9 +3623,15 @@
         return hexToWorld(p.col, p.row);
       }
 
+      function roofPartWorldCenter(part, floor) {
+        const c = roofPartCenterHex(part, floor);
+        if (!c) return null;
+        return hexToWorld(c.col, c.row);
+      }
+
       function itemFogState(item, floor, rooms, roomSets, getWorld) {
         if (!UI.fogEnabled) return 'visible';
-        const parentId = item && (item.parent_room || item.parentRoom || item.room_id || item.roomId);
+        const parentId = item && (item.parent_room || item.parentRoom || item.parentRoomId || item.room_id || item.roomId);
         if (parentId) {
           const room = Array.isArray(rooms) ? rooms.find(r => r && String(r.id) === String(parentId)) : null;
           if (room && room.id != null) {
