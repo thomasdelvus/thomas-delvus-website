@@ -1650,6 +1650,7 @@
 
       function normalizeState(state) {
         if (!state || typeof state !== 'object') return { floors: [] };
+        if (!Array.isArray(state.roofParts)) state.roofParts = [];
         if (!Array.isArray(state.floors)) {
           const floorId = state.view && state.view.floorId ? String(state.view.floorId) : 'ground';
           state.floors = [{
@@ -2434,6 +2435,206 @@
         gctx.restore();
       }
 
+      function rotateCardinal(dir, rotDeg) {
+        const order = ['north', 'east', 'south', 'west'];
+        const idx = order.indexOf(dir);
+        if (idx < 0) return dir;
+        const steps = ((Math.round((Number(rotDeg) || 0) / 90) % 4) + 4) % 4;
+        return order[(idx + steps) % 4];
+      }
+
+      function roofPartCenterHex(part) {
+        if (!part || typeof part !== 'object') return null;
+        const col = Number(part.col);
+        const row = Number(part.row);
+        if (Number.isFinite(col) && Number.isFinite(row)) return { col, row };
+        const label = String(part.center_hex || part.centerHex || '').trim();
+        if (!label) return null;
+        if (label.includes(',')) {
+          const bits = label.split(',');
+          const c = Number(bits[0]);
+          const r = Number(bits[1]);
+          if (Number.isFinite(c) && Number.isFinite(r)) return { col: c, row: r };
+        }
+        const parsed = parseHexLabel(label);
+        return parsed || null;
+      }
+
+      function roofPartDimsWorld(part) {
+        const wCols = Number(part && (part.wCols ?? part.width_cols ?? part.widthCols));
+        const hRows = Number(part && (part.hRows ?? part.height_rows ?? part.heightRows));
+        return {
+          w: Math.max(1, Number.isFinite(wCols) ? wCols : 1) * colStep(),
+          h: Math.max(0.5, Number.isFinite(hRows) ? hRows : 1) * rowStep()
+        };
+      }
+
+      function roofDepthFromAngle(angleDeg, halfW, halfH) {
+        const a = Math.max(0, Math.min(85, Number(angleDeg) || 0));
+        const t = (a * Math.PI) / 180;
+        return Math.max(0, Math.min(Math.tan(t) * halfW, halfH - 0.001));
+      }
+
+      function roofRotateLocalPoint(p, rotDeg) {
+        const r = (Number(rotDeg) || 0) * Math.PI / 180;
+        if (!r) return { x: p.x, y: p.y };
+        const c = Math.cos(r);
+        const s = Math.sin(r);
+        return { x: p.x * c - p.y * s, y: p.x * s + p.y * c };
+      }
+
+      function roofLocalToWorld(local, centerWorld, rotDeg) {
+        const r = roofRotateLocalPoint(local, rotDeg);
+        return { x: centerWorld.x + r.x, y: centerWorld.y + r.y };
+      }
+
+      function buildRoofPartGeomLocal(part) {
+        const dims = roofPartDimsWorld(part);
+        const hw = dims.w / 2;
+        const hh = dims.h / 2;
+        const saRaw = Number(part.startAngle ?? part.start_angle) || 0;
+        const eaRaw = Number(part.endAngle ?? part.end_angle) || 0;
+        const sa = Math.max(-85, Math.min(85, saRaw));
+        const ea = Math.max(-85, Math.min(85, eaRaw));
+        const ds = roofDepthFromAngle(Math.abs(sa), hw, hh);
+        const de = roofDepthFromAngle(Math.abs(ea), hw, hh);
+        const topTipY = sa > 0 ? (-hh - ds) : (sa < 0 ? (-hh + ds) : -hh);
+        const botTipY = ea > 0 ? (hh + de) : (ea < 0 ? (hh - de) : hh);
+        const TL = { x: -hw, y: -hh };
+        const TR = { x: hw, y: -hh };
+        const BR = { x: hw, y: hh };
+        const BL = { x: -hw, y: hh };
+        const topTip = { x: 0, y: topTipY };
+        const botTip = { x: 0, y: botTipY };
+        const north = (topTipY !== -hh) ? [TL, TR, topTip] : [];
+        const south = (botTipY !== hh) ? [BL, BR, botTip] : [];
+        const west = [TL, topTip, botTip, BL];
+        const east = [TR, BR, botTip, topTip];
+        const outline = [TL];
+        if (topTipY < -hh) outline.push(topTip);
+        outline.push(TR, BR);
+        if (botTipY > hh) outline.push(botTip);
+        outline.push(BL);
+        const cutLines = [];
+        if (topTipY !== -hh) cutLines.push([TL, topTip], [TR, topTip]);
+        if (botTipY !== hh) cutLines.push([BL, botTip], [BR, botTip]);
+        const spine = [topTip, botTip];
+        return { north, south, west, east, outline, cutLines, spine };
+      }
+
+      function drawRoofPart(part, gctx) {
+        const centerHex = roofPartCenterHex(part);
+        if (!centerHex) return;
+        const centerWorld = hexToWorld(centerHex.col, centerHex.row);
+        const rot = Number(part.rot) || 0;
+        const geom = buildRoofPartGeomLocal(part);
+        const tileKind = String(part.tileKind ?? part.tile ?? 'slate');
+        const tex = getTexturePattern(gctx, 'roof', tileKind);
+        const fallback = FLOOR_COLORS[tileKind] || FLOOR_COLORS.default;
+        const tileScale = Number.isFinite(Number(part.tileScale ?? part.tile_scale))
+          ? Number(part.tileScale ?? part.tile_scale)
+          : (tex && Number.isFinite(Number(tex.scale)) ? Number(tex.scale) : 0.2);
+        const tintColor = String(part.tintColor ?? part.tint_color ?? '#000000');
+        const tintPct = Number(part.tintPct ?? part.tint_pct);
+        const tintAlpha = Math.max(0, Math.min(1, Number.isFinite(tintPct) ? (tintPct / 100) : 0));
+        const shadePct = Number(part.shadePct ?? part.shade_pct);
+        const shadeAlpha = Math.max(0, Math.min(1, Number.isFinite(shadePct) ? (shadePct / 100) : 0.5));
+        const segments = [
+          { name: 'north', pts: geom.north, segRot: 180 },
+          { name: 'south', pts: geom.south, segRot: 0 },
+          { name: 'west', pts: geom.west, segRot: 90 },
+          { name: 'east', pts: geom.east, segRot: 270 }
+        ];
+
+        const fillSegment = (segment) => {
+          if (!segment.pts || segment.pts.length < 3) return;
+          const ptsWorld = segment.pts.map((p) => roofLocalToWorld(p, centerWorld, rot));
+          gctx.save();
+          gctx.beginPath();
+          const first = worldToScreen(ptsWorld[0]);
+          gctx.moveTo(first.x, first.y);
+          for (let i = 1; i < ptsWorld.length; i++) {
+            const p = worldToScreen(ptsWorld[i]);
+            gctx.lineTo(p.x, p.y);
+          }
+          gctx.closePath();
+          gctx.clip();
+          if (tex && tex.pattern) {
+            applyPatternTransform(tex.pattern, tileScale, centerWorld, (segment.segRot + rot) % 360);
+            gctx.fillStyle = tex.pattern;
+          } else {
+            gctx.fillStyle = fallback;
+          }
+          gctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+          if (tintAlpha > 0) {
+            gctx.globalCompositeOperation = 'multiply';
+            gctx.fillStyle = tintColor;
+            gctx.globalAlpha = tintAlpha;
+            gctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+            gctx.globalAlpha = 1;
+            gctx.globalCompositeOperation = 'source-over';
+          }
+          const side = rotateCardinal(segment.name, rot);
+          if (side === 'north' || side === 'east') {
+            gctx.fillStyle = `rgba(0,0,0,${shadeAlpha})`;
+            gctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+          }
+          gctx.restore();
+        };
+
+        segments.forEach(fillSegment);
+
+        const lineColor = String(part.lineColor ?? part.line_color ?? '#70777e');
+        const lineWidth = Number(part.lineWidth ?? part.line_width);
+        const lineW = Math.max(0.5, Number.isFinite(lineWidth) ? lineWidth : 2);
+        gctx.save();
+        gctx.strokeStyle = lineColor;
+        gctx.lineWidth = lineW;
+        gctx.lineJoin = 'round';
+        gctx.lineCap = 'round';
+        const outlineWorld = geom.outline.map((p) => roofLocalToWorld(p, centerWorld, rot));
+        gctx.beginPath();
+        const o0 = worldToScreen(outlineWorld[0]);
+        gctx.moveTo(o0.x, o0.y);
+        for (let i = 1; i < outlineWorld.length; i++) {
+          const p = worldToScreen(outlineWorld[i]);
+          gctx.lineTo(p.x, p.y);
+        }
+        gctx.closePath();
+        gctx.stroke();
+        const spineWorld = geom.spine.map((p) => roofLocalToWorld(p, centerWorld, rot));
+        const s0 = worldToScreen(spineWorld[0]);
+        const s1 = worldToScreen(spineWorld[1]);
+        gctx.beginPath();
+        gctx.moveTo(s0.x, s0.y);
+        gctx.lineTo(s1.x, s1.y);
+        gctx.stroke();
+        for (const line of geom.cutLines) {
+          const a = worldToScreen(roofLocalToWorld(line[0], centerWorld, rot));
+          const b = worldToScreen(roofLocalToWorld(line[1], centerWorld, rot));
+          gctx.beginPath();
+          gctx.moveTo(a.x, a.y);
+          gctx.lineTo(b.x, b.y);
+          gctx.stroke();
+        }
+        gctx.restore();
+      }
+
+      function roofPartsForFloor(floor, rooms) {
+        const all = Array.isArray(STATE.battle && STATE.battle.roofParts) ? STATE.battle.roofParts : [];
+        if (!all.length) return [];
+        const floorId = floor && floor.id != null ? String(floor.id) : '';
+        const roomSet = new Set((rooms || []).filter(Boolean).map((r) => String(r.id || '')));
+        return all.filter((part) => {
+          if (!part || part.deleted) return false;
+          const pf = part.floorId || part.floor_id || '';
+          if (pf && String(pf) !== floorId) return false;
+          const parent = part.parentRoomId || part.parent_room || part.parent_room_id || part.room_id || part.roomId || '';
+          if (!parent) return true;
+          return roomSet.has(String(parent));
+        });
+      }
+
       function drawBackdrop(gctx) {
         if (!UI.showBackdrop) return;
         if (!BACKDROP.loaded || !BACKDROP.img) return;
@@ -2469,8 +2670,16 @@
       }
 
       function drawRoofsLayer(floor, gctx, rooms) {
-        const list = sortByZ(rooms || filterAlive(floor.rooms || []));
-        list.forEach(room => drawRoofRoom(room, gctx));
+        const roomList = sortByZ(rooms || filterAlive(floor.rooms || []));
+        const partList = sortByZ(roofPartsForFloor(floor, rooms || []));
+        const merged = [];
+        roomList.forEach((room, idx) => merged.push({ kind: 'room', room, z: numOr(room && room.z, idx), idx }));
+        partList.forEach((part, idx) => merged.push({ kind: 'part', part, z: numOr(part && part.z, idx), idx: roomList.length + idx }));
+        merged.sort((a, b) => a.z === b.z ? (a.idx - b.idx) : (a.z - b.z));
+        merged.forEach((entry) => {
+          if (entry.kind === 'room') drawRoofRoom(entry.room, gctx);
+          else drawRoofPart(entry.part, gctx);
+        });
       }
 
       function wallThicknessAtWorld(worldPoint, floor) {
