@@ -106,6 +106,13 @@
       }
       function rotatePointLocal(p,deg){ const r=(deg||0)*Math.PI/180; if(!r) return {x:p.x,y:p.y}; const c=Math.cos(r),s=Math.sin(r); return { x:p.x*c-p.y*s, y:p.x*s+p.y*c }; }
       const localToWorld=(l,c,rot)=>{ const r=rotatePointLocal(l,rot); return {x:c.x+r.x,y:c.y+r.y}; };
+      function rotateCardinal(dir, rotDeg){
+        const order=['north','east','south','west'];
+        const idx=order.indexOf(dir);
+        if(idx<0) return dir;
+        const steps=((Math.round((rotDeg||0)/90)%4)+4)%4;
+        return order[(idx+steps)%4];
+      }
 
       function drawHexGrid(g){
         if(!gridToggle.checked) return;
@@ -166,11 +173,6 @@
         return { hw, hh, north, south, west, east, outline, spine, cutLines };
       }
 
-      function polygonCentroid(pts){
-        let x=0,y=0; for(const p of pts){ x+=p.x; y+=p.y; }
-        const n=Math.max(1,pts.length); return { x:x/n, y:y/n };
-      }
-
       function drawRect(g, rect, selected){
         const rot=Number(rect.rot)||0;
         const centerWorld=rectCenterWorld(rect);
@@ -196,9 +198,8 @@
           if(tex.pattern){ applyPatternTransform(tex.pattern, rect.tileScale||0.2, (seg.rot+rot)%360); g.fillStyle=tex.pattern; }
           else g.fillStyle=tex.color;
           g.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
-          const c=polygonCentroid(ptsWorld);
-          const dir={ x:c.x-centerWorld.x, y:c.y-centerWorld.y };
-          if(dir.x>0 || dir.y<0){
+          const worldSide=rotateCardinal(seg.name, rot);
+          if(worldSide==='north' || worldSide==='east'){
             g.fillStyle=`rgba(0,0,0,${shadeAlpha})`;
             g.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
           }
