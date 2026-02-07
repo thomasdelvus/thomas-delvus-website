@@ -53,6 +53,10 @@
       <label>W</label><input id="lineWidth" type="number" step="0.5" value="2" />
     </div>
     <div class="group">
+      <label>Tint</label><input id="tintColor" type="color" value="#000000" />
+      <label>%</label><input id="tintPct" type="number" step="1" min="0" max="100" value="0" />
+    </div>
+    <div class="group">
       <button id="btnUndo">Undo</button><button id="btnRedo">Redo</button><button id="btnExportPng">Export PNG</button><button id="btnCopyJson">Copy JSON</button>
     </div>
     <label><input type="checkbox" id="gridToggle" checked /> Hexgrid</label>
@@ -64,7 +68,7 @@
       const GRID = { size: 32, lineAlpha: 0.22, lineWidth: 1.1 };
       const VIEW = { cameraWorld: { x: 0, y: 0 }, zoom: 1 };
       const HISTORY_MAX = 30;
-      const STATE = { rects: [], mode: 'draw', selectionId: null, preview: null, lineColor: '#70777e', lineWidth: 2, historyPast: [], historyFuture: [] };
+      const STATE = { rects: [], mode: 'draw', selectionId: null, preview: null, lineColor: '#70777e', lineWidth: 2, tintColor: '#000000', tintPct: 0, historyPast: [], historyFuture: [] };
       const TILE_TEXTURES = { slate:{url:'/assets/sprites/slate.png',color:'#3a434a'}, terracotta:{url:'/assets/sprites/terracotta.png',color:'#6a3a2a'}, thatch:{url:'/assets/sprites/thatch.png',color:'#6a5a3a'}, grass:{url:'/assets/sprites/grass.png',color:'#2f5a2f'} };
       const spriteCache = new Map();
       const canvas=document.getElementById('canvas'); const ctx=canvas.getContext('2d');
@@ -73,6 +77,7 @@
       const btnFront=document.getElementById('btnFront'); const btnBack=document.getElementById('btnBack');
       const tileKindEl=document.getElementById('tileKind'); const tileScaleEl=document.getElementById('tileScale');
       const lineColorEl=document.getElementById('lineColor'); const lineWidthEl=document.getElementById('lineWidth');
+      const tintColorEl=document.getElementById('tintColor'); const tintPctEl=document.getElementById('tintPct');
       const btnUndo=document.getElementById('btnUndo'); const btnRedo=document.getElementById('btnRedo'); const btnExportPng=document.getElementById('btnExportPng'); const btnCopyJson=document.getElementById('btnCopyJson');
       const gridToggle=document.getElementById('gridToggle'); const info=document.getElementById('info');
       let drag=null;
@@ -179,6 +184,7 @@
         const geom=buildRectGeomLocal(rect);
         const tex=getTexturePattern(rect.tileKind||'slate');
         const shadeAlpha=0.5;
+        const tintAlpha=clamp((Number(STATE.tintPct)||0)/100, 0, 1);
 
         const segments=[
           { name:'north', pts:geom.north, rot:180 },
@@ -198,6 +204,14 @@
           if(tex.pattern){ applyPatternTransform(tex.pattern, rect.tileScale||0.2, (seg.rot+rot)%360); g.fillStyle=tex.pattern; }
           else g.fillStyle=tex.color;
           g.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
+          if(tintAlpha>0){
+            g.globalCompositeOperation='multiply';
+            g.fillStyle=STATE.tintColor||'#000000';
+            g.globalAlpha=tintAlpha;
+            g.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
+            g.globalAlpha=1;
+            g.globalCompositeOperation='source-over';
+          }
           const worldSide=rotateCardinal(seg.name, rot);
           if(worldSide==='north' || worldSide==='east'){
             g.fillStyle=`rgba(0,0,0,${shadeAlpha})`;
@@ -433,6 +447,8 @@
 
       lineColorEl.addEventListener('input',()=>{ STATE.lineColor=lineColorEl.value; render(); });
       lineWidthEl.addEventListener('input',()=>{ STATE.lineWidth=Math.max(0.5,Number(lineWidthEl.value)||2); render(); });
+      tintColorEl.addEventListener('input',()=>{ STATE.tintColor=tintColorEl.value||'#000000'; render(); });
+      tintPctEl.addEventListener('input',()=>{ STATE.tintPct=clamp(Number(tintPctEl.value)||0,0,100); render(); });
 
       btnUndo.addEventListener('click',undo);
       btnRedo.addEventListener('click',redo);
@@ -442,7 +458,7 @@
       });
       btnExportPng.addEventListener('click',()=>{ const a=document.createElement('a'); a.download='roof_design3.png'; a.href=canvas.toDataURL('image/png'); a.click(); });
       btnCopyJson.addEventListener('click',async()=>{
-        const payload={ rects:STATE.rects.map(r=>({ id:r.id, center_hex:r.col+','+r.row, width_cols:r.wCols, height_rows:r.hRows, rot:r.rot, start_angle:r.startAngle, end_angle:r.endAngle, tile:r.tileKind, tile_scale:r.tileScale, z:r.z })), style:{ line_color:STATE.lineColor, line_width:STATE.lineWidth } };
+        const payload={ rects:STATE.rects.map(r=>({ id:r.id, center_hex:r.col+','+r.row, width_cols:r.wCols, height_rows:r.hRows, rot:r.rot, start_angle:r.startAngle, end_angle:r.endAngle, tile:r.tileKind, tile_scale:r.tileScale, z:r.z })), style:{ line_color:STATE.lineColor, line_width:STATE.lineWidth, tint_color:STATE.tintColor, tint_pct:STATE.tintPct } };
         try{ await navigator.clipboard.writeText(JSON.stringify(payload,null,2)); if(info) info.textContent='Copied JSON'; } catch { if(info) info.textContent='Copy failed'; }
       });
 
