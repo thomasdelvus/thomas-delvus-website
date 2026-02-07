@@ -4380,7 +4380,15 @@
           if (key === 'hRows') item.hRows = Math.max(0.5, num(value, 1));
           if (key === 'startAngle') item.startAngle = num(value, 0);
           if (key === 'endAngle') item.endAngle = num(value, 0);
-          if (key === 'rot') item.rot = Math.round(num(value, 0) / 90) * 90;
+          if (key === 'rot') {
+            item.rot = Math.round(num(value, 0) / 90) * 90;
+            const floor = pickFloor();
+            const center = roofPartCenterHex(item, floor);
+            if (center) {
+              const snapped = { col: Math.round(center.col), row: roundHalf(center.row) };
+              setRoofPartCenterHex(item, floor, snapped);
+            }
+          }
           if (key === 'tileKind') item.tileKind = String(value || 'slate');
           if (key === 'tileScale') item.tileScale = Math.max(0.01, num(value, 0.2));
           if (key === 'lineColor') item.lineColor = String(value || '#70777e');
@@ -4828,7 +4836,7 @@
           const startWorld = drag.startWorld || worldPoint;
           const dx = worldPoint.x - startWorld.x;
           const dy = worldPoint.y - startWorld.y;
-          const dCol = roundHalf(dx / colStep());
+          const dCol = Math.round(dx / colStep());
           const dRow = roundHalf(-dy / rowStep());
           const base = drag.startCenter || roofPartCenterHex(drag.item, floor);
           if (base) {
