@@ -4855,9 +4855,24 @@
               drag.item.hRows = hRows;
               if (Number.isFinite(centerOffset) && centerOffset !== 0) {
                 const offsetWorld = roofRotateLocalPoint({ x: 0, y: centerOffset }, rot);
-                const nextCenter = { x: centerWorld.x + offsetWorld.x, y: centerWorld.y + offsetWorld.y };
-                const nextHex = worldToHexHalf(nextCenter);
-                setRoofPartCenterHex(drag.item, floor, nextHex);
+                const deltaCol = offsetWorld.x / colStep();
+                const deltaRow = -offsetWorld.y / rowStep();
+                const parentId = roofPartParentRoomId(drag.item);
+                if (parentId) {
+                  const baseCol = Number(drag.item.localCol ?? drag.item.local_col ?? 0);
+                  const baseRow = Number(drag.item.localRow ?? drag.item.local_row ?? 0);
+                  drag.item.localCol = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
+                  drag.item.localRow = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
+                  delete drag.item.col;
+                  delete drag.item.row;
+                  delete drag.item.center_hex;
+                  delete drag.item.centerHex;
+                } else {
+                  const baseCol = Number(drag.item.col ?? 0);
+                  const baseRow = Number(drag.item.row ?? 0);
+                  drag.item.col = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
+                  drag.item.row = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
+                }
               }
             } else {
               const halfH = Math.max(minHalfH, Math.abs(local.y));
@@ -4875,9 +4890,24 @@
               drag.item.wCols = wCols;
               if (Number.isFinite(centerOffset) && centerOffset !== 0) {
                 const offsetWorld = roofRotateLocalPoint({ x: centerOffset, y: 0 }, rot);
-                const nextCenter = { x: centerWorld.x + offsetWorld.x, y: centerWorld.y + offsetWorld.y };
-                const nextHex = worldToHexHalf(nextCenter);
-                setRoofPartCenterHex(drag.item, floor, nextHex);
+                const deltaCol = offsetWorld.x / colStep();
+                const deltaRow = -offsetWorld.y / rowStep();
+                const parentId = roofPartParentRoomId(drag.item);
+                if (parentId) {
+                  const baseCol = Number(drag.item.localCol ?? drag.item.local_col ?? 0);
+                  const baseRow = Number(drag.item.localRow ?? drag.item.local_row ?? 0);
+                  drag.item.localCol = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
+                  drag.item.localRow = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
+                  delete drag.item.col;
+                  delete drag.item.row;
+                  delete drag.item.center_hex;
+                  delete drag.item.centerHex;
+                } else {
+                  const baseCol = Number(drag.item.col ?? 0);
+                  const baseRow = Number(drag.item.row ?? 0);
+                  drag.item.col = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
+                  drag.item.row = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
+                }
               }
             } else {
               const halfW = Math.max(minHalfW, Math.abs(local.x));
