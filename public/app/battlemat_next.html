@@ -1827,6 +1827,102 @@
         render();
       }
 
+      function normalizeRoofPart(part, floorId, index) {
+        const p = (part && typeof part === 'object') ? part : {};
+        const out = { ...p };
+        out.id = String(out.id || `roof_${floorId || 'floor'}_${index || 0}`);
+        out.floorId = String(out.floorId || out.floor_id || floorId || '');
+        const parent = out.parentRoomId || out.parent_room || out.parent_room_id || out.room_id || out.roomId || '';
+        if (parent) out.parentRoomId = String(parent);
+        else delete out.parentRoomId;
+        const n = (v, fb) => {
+          const x = Number(v);
+          return Number.isFinite(x) ? x : fb;
+        };
+        out.col = n(out.col, 0);
+        out.row = n(out.row, 0);
+        out.localCol = n(out.localCol, 0);
+        out.localRow = n(out.localRow, 0);
+        out.wCols = Math.max(1, n(out.wCols, 1));
+        out.hRows = Math.max(0.5, n(out.hRows, 1));
+        out.startAngle = Math.max(-85, Math.min(85, n(out.startAngle, 0)));
+        out.endAngle = Math.max(-85, Math.min(85, n(out.endAngle, 0)));
+        out.rot = Math.round(n(out.rot, 0) / 90) * 90;
+        out.tileKind = String(out.tileKind || out.tile || 'slate');
+        out.tileScale = Math.max(0.01, n(out.tileScale, 0.2));
+        out.lineColor = String(out.lineColor || out.line_color || '#70777e');
+        out.lineWidth = Math.max(0.5, n(out.lineWidth || out.line_width, 2));
+        out.tintColor = String(out.tintColor || out.tint_color || '#000000');
+        out.tintPct = Math.max(0, Math.min(100, n(out.tintPct || out.tint_pct, 0)));
+        out.shadePct = Math.max(0, Math.min(100, n(out.shadePct || out.shade_pct, 50)));
+        out.z = n(out.z, 0);
+        return out;
+      }
+
+      function migrateLegacyRoomRoofs(state) {
+        if (!state || !Array.isArray(state.floors)) return;
+        if (!Array.isArray(state.roofParts)) state.roofParts = [];
+        const existingParents = new Set(
+          state.roofParts
+            .map((p) => String(p && (p.parentRoomId || p.parent_room || p.parent_room_id || p.room_id || p.roomId || '')))
+            .filter(Boolean)
+        );
+        let idx = state.roofParts.length;
+        for (const floor of state.floors) {
+          if (!floor || !Array.isArray(floor.rooms)) continue;
+          for (const room of floor.rooms) {
+            if (!room || room.deleted || !room.roof || !room.roof.kind) continue;
+            const rid = String(room.id || '');
+            if (!rid) {
+              delete room.roof;
+              continue;
+            }
+            if (existingParents.has(rid)) {
+              delete room.roof;
+              continue;
+            }
+            const pts = roomWorldPoints(room);
+            if (!pts.length) {
+              delete room.roof;
+              continue;
+            }
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const p of pts) {
+              if (p.x < minX) minX = p.x;
+              if (p.y < minY) minY = p.y;
+              if (p.x > maxX) maxX = p.x;
+              if (p.y > maxY) maxY = p.y;
+            }
+            const center = polyCenterWorld(pts) || { x: (minX + maxX) * 0.5, y: (minY + maxY) * 0.5 };
+            const centerHex = worldToHexHalf(center);
+            const wCols = Math.max(1, roundHalf((maxX - minX) / colStep()));
+            const hRows = Math.max(0.5, roundHalf((maxY - minY) / rowStep()));
+            const legacy = room.roof || {};
+            const part = normalizeRoofPart({
+              id: `roof_${floor.id}_${rid}_${idx++}`,
+              floorId: floor.id,
+              parentRoomId: rid,
+              col: centerHex.col,
+              row: centerHex.row,
+              localCol: 0,
+              localRow: 0,
+              wCols,
+              hRows,
+              startAngle: 0,
+              endAngle: 0,
+              rot: Number(legacy.rot ?? legacy.rotDeg ?? 0),
+              tileKind: String(legacy.kind || 'slate'),
+              tileScale: Number.isFinite(Number(legacy.scale)) ? Number(legacy.scale) : 0.2,
+              z: Number.isFinite(Number(room.z)) ? Number(room.z) : 0,
+              migratedFromRoomRoof: true
+            }, floor.id, idx);
+            state.roofParts.push(part);
+            existingParents.add(rid);
+            delete room.roof;
+          }
+        }
+      }
+
       function normalizeState(state) {
         if (!state || typeof state !== 'object') return { floors: [] };
         if (!Array.isArray(state.roofParts)) state.roofParts = [];
@@ -1850,6 +1946,10 @@
             if (obj && obj.floorId == null) obj.floorId = floor.id;
           }
         }
+        migrateLegacyRoomRoofs(state);
+        state.roofParts = state.roofParts
+          .map((part, idx) => normalizeRoofPart(part, part && (part.floorId || part.floor_id) || '', idx))
+          .filter(Boolean);
         return state;
       }
 
@@ -2579,41 +2679,6 @@
         gctx.restore();
       }
 
-      function drawRoofRoom(room, gctx) {
-        const roof = room && room.roof ? room.roof : null;
-        if (!roof || !roof.kind) return;
-        const pts = roomWorldPoints(room);
-        if (pts.length < 3) return;
-        const screenPts = pts.map(worldToScreen);
-        const rk = String(roof.kind);
-        const roofColor = FLOOR_COLORS[rk] || FLOOR_COLORS.default;
-        const roofAnchor = pts[0];
-        const roofRot = roof.rot ?? roof.rotDeg;
-        let fill = null;
-        const tex = getTexturePattern(gctx, 'roof', rk);
-        if (tex && tex.pattern) {
-          const overrideScale = Number(roof.scale);
-          const scale = Number.isFinite(overrideScale) ? overrideScale : tex.scale;
-          applyPatternTransform(tex.pattern, scale, roofAnchor, roofRot);
-          fill = tex.pattern;
-        } else {
-          fill = roofColor;
-        }
-        if (!fill) return;
-        let alpha = Number(roof.alpha);
-        if (!Number.isFinite(alpha)) alpha = 1;
-        gctx.save();
-        gctx.fillStyle = fill;
-        gctx.globalAlpha *= alpha;
-        gctx.globalAlpha *= (UI.polyAlpha != null ? UI.polyAlpha : 1);
-        gctx.beginPath();
-        gctx.moveTo(screenPts[0].x, screenPts[0].y);
-        for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
-        gctx.closePath();
-        gctx.fill();
-        gctx.restore();
-      }
-
       function rotateCardinal(dir, rotDeg) {
         const order = ['north', 'east', 'south', 'west'];
         const idx = order.indexOf(dir);
@@ -2925,7 +2990,6 @@
       }
 
       function drawRoofsLayer(floor, gctx, rooms, allRooms, roomSets) {
-        const roomList = sortByZ(rooms || filterAlive(floor.rooms || []));
         const baseRooms = allRooms || rooms || filterAlive(floor.rooms || []);
         let partList = sortByZ(roofPartsForFloor(floor, baseRooms));
         if (UI.fogEnabled && roomSets) {
@@ -2933,14 +2997,7 @@
             return itemFogState(part, floor, baseRooms, roomSets, roofPartWorldCenter) !== 'hidden';
           });
         }
-        const merged = [];
-        roomList.forEach((room, idx) => merged.push({ kind: 'room', room, z: numOr(room && room.z, idx), idx }));
-        partList.forEach((part, idx) => merged.push({ kind: 'part', part, z: numOr(part && part.z, idx), idx: roomList.length + idx }));
-        merged.sort((a, b) => a.z === b.z ? (a.idx - b.idx) : (a.z - b.z));
-        merged.forEach((entry) => {
-          if (entry.kind === 'room') drawRoofRoom(entry.room, gctx);
-          else drawRoofPart(entry.part, gctx, floor);
-        });
+        partList.forEach((part) => drawRoofPart(part, gctx, floor));
       }
 
       function wallThicknessAtWorld(worldPoint, floor) {
@@ -3580,26 +3637,202 @@
         return null;
       }
 
-      function classifyRoomsForFog(floor) {
+      function roomFogMode(room) {
+        return String(room && (room.fog_mode || room.fogMode || '')).toLowerCase();
+      }
+
+      function roomIsStreetSegment(room) {
+        if (!room || room.deleted) return false;
+        const mode = roomFogMode(room);
+        if (mode === 'street' || mode === 'street_segment' || mode === 'street-segment') return true;
+        if (room.street === true || room.isStreet === true || room.streetSegment === true) return true;
+        const idName = String((room.name || room.id || '')).toLowerCase();
+        if (/(^|[^a-z])(street|road|lane|alley|close|way)([^a-z]|$)/.test(idName)) return true;
+        const fk = String(room && room.floor && room.floor.kind ? room.floor.kind : '').toLowerCase();
+        const wk = roomWallKind(room);
+        if ((fk.includes('cobble') || fk.includes('gravel') || fk === 'stone_cobble') && wk === 'none') return true;
+        return false;
+      }
+
+      function polygonBounds(points) {
+        if (!Array.isArray(points) || !points.length) return null;
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const p of points) {
+          if (p.x < minX) minX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y > maxY) maxY = p.y;
+        }
+        return { minX, minY, maxX, maxY };
+      }
+
+      function boundsOverlap(a, b) {
+        if (!a || !b) return false;
+        return !(a.maxX < b.minX || b.maxX < a.minX || a.maxY < b.minY || b.maxY < a.minY);
+      }
+
+      function segCross(a, b, c) {
+        return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+      }
+
+      function segOn(a, b, p, eps = 1e-6) {
+        if (Math.abs(segCross(a, b, p)) > eps) return false;
+        return (
+          p.x >= Math.min(a.x, b.x) - eps &&
+          p.x <= Math.max(a.x, b.x) + eps &&
+          p.y >= Math.min(a.y, b.y) - eps &&
+          p.y <= Math.max(a.y, b.y) + eps
+        );
+      }
+
+      function segmentsIntersectInclusive(a, b, c, d, eps = 1e-6) {
+        const o1 = segCross(a, b, c);
+        const o2 = segCross(a, b, d);
+        const o3 = segCross(c, d, a);
+        const o4 = segCross(c, d, b);
+        if ((o1 > eps && o2 < -eps || o1 < -eps && o2 > eps) && (o3 > eps && o4 < -eps || o3 < -eps && o4 > eps)) {
+          return true;
+        }
+        if (Math.abs(o1) <= eps && segOn(a, b, c, eps)) return true;
+        if (Math.abs(o2) <= eps && segOn(a, b, d, eps)) return true;
+        if (Math.abs(o3) <= eps && segOn(c, d, a, eps)) return true;
+        if (Math.abs(o4) <= eps && segOn(c, d, b, eps)) return true;
+        return false;
+      }
+
+      function polygonsTouchOrOverlap(aPts, bPts) {
+        if (!Array.isArray(aPts) || !Array.isArray(bPts) || aPts.length < 3 || bPts.length < 3) return false;
+        const aBox = polygonBounds(aPts);
+        const bBox = polygonBounds(bPts);
+        if (!boundsOverlap(aBox, bBox)) return false;
+        for (let i = 0; i < aPts.length; i++) {
+          const a1 = aPts[i];
+          const a2 = aPts[(i + 1) % aPts.length];
+          for (let j = 0; j < bPts.length; j++) {
+            const b1 = bPts[j];
+            const b2 = bPts[(j + 1) % bPts.length];
+            if (segmentsIntersectInclusive(a1, a2, b1, b2)) return true;
+          }
+        }
+        if (pointInPolygon(aPts[0], bPts)) return true;
+        if (pointInPolygon(bPts[0], aPts)) return true;
+        return false;
+      }
+
+      function ensureFogFloorArray(map, floorId) {
+        const key = String(floorId || '');
+        if (!map || typeof map !== 'object') return null;
+        if (!Array.isArray(map[key])) map[key] = [];
+        return map[key];
+      }
+
+      function applyStreetSegmentReveal(floor, rooms) {
+        const none = { visibleNow: new Set(), exploredNow: new Set() };
+        if (!UI.fogEnabled || !floor) return none;
+        const fog = getFogState();
+        if (!fog) return none;
+        if (fog.autoExplore === false) return none;
+        const roomList = Array.isArray(rooms) ? rooms : [];
+        if (!roomList.length) return none;
+        const streetRooms = roomList.filter(roomIsStreetSegment);
+        if (!streetRooms.length) return none;
+        const streetById = new Map(streetRooms.map((r) => [String(r.id || ''), r]).filter(([id]) => !!id));
+        const playerTokens = buildTokens().filter((t) => {
+          if (t && t.floorId && String(t.floorId) !== String(floor.id)) return false;
+          const kind = String(t && t.kind || '').toLowerCase();
+          const side = String(t && t.side || '').toUpperCase();
+          return kind === 'pc' || side === 'PC';
+        });
+        if (!playerTokens.length) return none;
+        const activeStreetIds = new Set();
+        for (const token of playerTokens) {
+          const world = tokenWorldCenter(token);
+          if (!world) continue;
+          const seg = findRoomForWorldPoint(streetRooms, world);
+          if (seg && seg.id != null) activeStreetIds.add(String(seg.id));
+        }
+        if (!activeStreetIds.size) return none;
+
+        const visibleNow = new Set(activeStreetIds);
+        const exploredNow = new Set();
+        const revealCandidates = roomList.filter((room) => {
+          if (!room || room.deleted || room.id == null) return false;
+          const mode = roomFogMode(room);
+          if (mode === 'hidden') return false;
+          return !roomIsStreetSegment(room);
+        });
+        const streetPolys = Array.from(activeStreetIds)
+          .map((id) => streetById.get(id))
+          .filter(Boolean)
+          .map((room) => ({ id: String(room.id), pts: roomWorldPoints(room) }))
+          .filter((entry) => entry.pts.length >= 3);
+
+        for (const room of revealCandidates) {
+          const rid = String(room.id);
+          const pts = roomWorldPoints(room);
+          if (pts.length < 3) continue;
+          for (const street of streetPolys) {
+            if (polygonsTouchOrOverlap(pts, street.pts)) {
+              visibleNow.add(rid);
+              exploredNow.add(rid);
+              break;
+            }
+          }
+        }
+
+        if (exploredNow.size) {
+          fog.exploredRoomIdsByFloor = fog.exploredRoomIdsByFloor || {};
+          const arr = ensureFogFloorArray(fog.exploredRoomIdsByFloor, floor.id);
+          if (Array.isArray(arr)) {
+            const set = new Set(arr.map(String));
+            let changed = false;
+            exploredNow.forEach((id) => {
+              if (!set.has(id)) {
+                set.add(id);
+                changed = true;
+              }
+            });
+            if (changed) {
+              fog.exploredRoomIdsByFloor[String(floor.id)] = Array.from(set);
+              DIRTY = true;
+              if (saveStatus) saveStatus.textContent = 'DB: unsaved';
+            }
+          }
+        }
+        return { visibleNow, exploredNow };
+      }
+
+      function classifyRoomsForFog(floor, revealCtx) {
         const rooms = filterAlive(floor && floor.rooms ? floor.rooms : []);
         if (!UI.fogEnabled) return { visible: rooms, explored: [], hidden: [] };
         const sets = getFogSets(floor.id);
         if (!sets) return { visible: rooms, explored: [], hidden: [] };
+        const forceVisible = revealCtx && revealCtx.visibleNow ? revealCtx.visibleNow : null;
+        const forceExplored = revealCtx && revealCtx.exploredNow ? revealCtx.exploredNow : null;
 
         const visible = [];
         const explored = [];
         const hidden = [];
         for (const room of rooms) {
           const mode = String(room.fog_mode || room.fogMode || '').toLowerCase();
+          const id = String(room.id || '');
           if (mode === 'hidden') { hidden.push(room); continue; }
+          if (mode === 'street' || mode === 'street_segment' || mode === 'street-segment') { visible.push(room); continue; }
           if (mode === 'explored' || mode === 'always_fogged' || mode === 'fogged') { explored.push(room); continue; }
           if (roomAlwaysVisible(room) || mode === 'visible') {
             visible.push(room);
             continue;
           }
-          const id = String(room.id || '');
+          if (forceVisible && forceVisible.has(id)) {
+            visible.push(room);
+            continue;
+          }
           if (sets.visible.has(id)) {
             visible.push(room);
+            continue;
+          }
+          if (forceExplored && forceExplored.has(id)) {
+            explored.push(room);
             continue;
           }
           if (sets.explored.has(id)) {
@@ -3706,7 +3939,8 @@
         const tokenLayer = getLayerContext('tokens', rect, dpr);
 
         const allRooms = filterAlive(floor.rooms || []);
-        const fogRooms = classifyRoomsForFog(floor);
+        const streetReveal = applyStreetSegmentReveal(floor, allRooms);
+        const fogRooms = classifyRoomsForFog(floor, streetReveal);
         const fogSets = buildFogRoomSets(fogRooms);
         const roomsToDraw = UI.fogEnabled ? fogRooms.visible.concat(fogRooms.explored) : allRooms;
 
@@ -3861,10 +4095,6 @@
           addField('Floor Kind', sel.item.floor && sel.item.floor.kind ? sel.item.floor.kind : '', 'floor.kind', { list: 'floorKindList' });
           addField('Floor Rot', sel.item.floor && (sel.item.floor.rot ?? sel.item.floor.rotDeg) ? (sel.item.floor.rot ?? sel.item.floor.rotDeg) : '', 'floor.rot', { type: 'number', step: '1' });
           addField('Wall Kind', sel.item.wall && sel.item.wall.kind ? sel.item.wall.kind : '', 'wall.kind', { list: 'wallKindList' });
-          addField('Roof Kind', sel.item.roof && sel.item.roof.kind ? sel.item.roof.kind : '', 'roof.kind', { list: 'roofKindList' });
-          addField('Roof Rot', sel.item.roof && (sel.item.roof.rot ?? sel.item.roof.rotDeg) ? (sel.item.roof.rot ?? sel.item.roof.rotDeg) : '', 'roof.rot', { type: 'number', step: '1' });
-          addField('Roof Scale', sel.item.roof && sel.item.roof.scale != null ? sel.item.roof.scale : '', 'roof.scale', { type: 'number', step: '0.01' });
-          addField('Roof Alpha', sel.item.roof && sel.item.roof.alpha != null ? sel.item.roof.alpha : '', 'roof.alpha', { type: 'number', step: '0.05' });
           if (getPolyPointLabels(sel.item)) {
             const edgeHidden = getPolyEdgeHiddenArray(sel.item).join(',');
             addField('Edge Hidden', edgeHidden, 'edge_hidden');
@@ -3872,6 +4102,7 @@
           addField('Z', sel.item.z != null ? sel.item.z : '', 'z', { type: 'number', step: '1' });
           addSelectField('Fog', sel.item.fog_mode || sel.item.fogMode || '', 'fog_mode', [
             { value: '', label: 'Default' },
+            { value: 'street_segment', label: 'Street Segment' },
             { value: 'visible', label: 'Always Visible' },
             { value: 'always_fogged', label: 'Always Fogged' },
             { value: 'explored', label: 'Always Explored' },
@@ -4045,33 +4276,6 @@
           if (key === 'wall.kind') {
             item.wall = item.wall || {};
             item.wall.kind = value;
-          }
-          if (key === 'roof.kind') {
-            const v = String(value || '').trim();
-            if (!v) {
-              delete item.roof;
-            } else {
-              item.roof = item.roof || {};
-              item.roof.kind = v;
-            }
-          }
-          if (key === 'roof.rot') {
-            item.roof = item.roof || {};
-            const n = num(value, null);
-            if (n == null) delete item.roof.rot;
-            else item.roof.rot = n;
-          }
-          if (key === 'roof.scale') {
-            item.roof = item.roof || {};
-            const n = num(value, null);
-            if (n == null) delete item.roof.scale;
-            else item.roof.scale = n;
-          }
-          if (key === 'roof.alpha') {
-            item.roof = item.roof || {};
-            const n = num(value, null);
-            if (n == null) delete item.roof.alpha;
-            else item.roof.alpha = Math.max(0, Math.min(1, n));
           }
           if (key === 'edge_hidden') {
             const raw = String(value || '').trim();
@@ -5257,8 +5461,6 @@
                 const wk = room && room.wall && room.wall.kind;
                 if (fk) floorKinds.add(String(fk));
                 if (wk) wallKinds.add(String(wk));
-                const rk = room && room.roof && room.roof.kind;
-                if (rk) roofKinds.add(String(rk));
               }
             }
             if (Array.isArray(floor.openings)) {
@@ -5325,3 +5527,4 @@
   </script>
 </body>
 </html>
+
