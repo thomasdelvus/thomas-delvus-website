@@ -1946,6 +1946,28 @@
             if (obj && obj.floorId == null) obj.floorId = floor.id;
           }
         }
+        const floorRoofParts = [];
+        if (Array.isArray(state.floors)) {
+          for (const floor of state.floors) {
+            if (!floor || !Array.isArray(floor.roofParts)) continue;
+            for (const part of floor.roofParts) {
+              if (!part) continue;
+              if (!part.floorId && floor.id != null) part.floorId = String(floor.id);
+              floorRoofParts.push(part);
+            }
+          }
+        }
+        if (!state.roofParts.length && floorRoofParts.length) {
+          state.roofParts = floorRoofParts;
+        } else if (floorRoofParts.length) {
+          const seen = new Set(state.roofParts.map(p => String(p && p.id || '')).filter(Boolean));
+          for (const part of floorRoofParts) {
+            const id = String(part && part.id || '');
+            if (id && seen.has(id)) continue;
+            state.roofParts.push(part);
+            if (id) seen.add(id);
+          }
+        }
         migrateLegacyRoomRoofs(state);
         state.roofParts = state.roofParts
           .map((part, idx) => normalizeRoofPart(part, part && (part.floorId || part.floor_id) || '', idx))
@@ -2531,6 +2553,35 @@
         delete clean._battle_id;
         delete clean._campaign_id;
         if (!Array.isArray(clean.roofParts)) clean.roofParts = [];
+        if (Array.isArray(clean.floors)) {
+          const roomToFloor = new Map();
+          for (const floor of clean.floors) {
+            if (!floor || floor.id == null || !Array.isArray(floor.rooms)) continue;
+            const fid = String(floor.id);
+            for (const room of floor.rooms) {
+              if (!room || room.id == null) continue;
+              roomToFloor.set(String(room.id), fid);
+            }
+          }
+          const byFloor = new Map();
+          for (const part of clean.roofParts) {
+            if (!part || part.deleted) continue;
+            let fid = part.floorId || part.floor_id || '';
+            if (!fid) {
+              const parent = part.parentRoomId || part.parent_room || part.parent_room_id || part.room_id || part.roomId || '';
+              if (parent && roomToFloor.has(String(parent))) fid = roomToFloor.get(String(parent));
+            }
+            if (fid) part.floorId = String(fid);
+            const key = fid ? String(fid) : '';
+            if (!byFloor.has(key)) byFloor.set(key, []);
+            byFloor.get(key).push(part);
+          }
+          for (const floor of clean.floors) {
+            if (!floor || floor.id == null) continue;
+            const fid = String(floor.id);
+            floor.roofParts = byFloor.get(fid) || [];
+          }
+        }
         return clean;
       }
 
