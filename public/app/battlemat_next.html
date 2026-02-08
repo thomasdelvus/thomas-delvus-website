@@ -581,8 +581,8 @@
           </select>
           <label class="mini"><input type="checkbox" id="handlesToggle" /> Handles</label>
           <label class="mini"><input type="checkbox" id="hideRoofsToggle" /> Hide Roofs</label>
-          <label class="mini">Roof Line <input id="roofLineColor" type="color" value="#70777e" /></label>
-          <label class="mini">Line W <input id="roofLineWidth" class="mapInput" type="number" step="0.5" value="2" /></label>
+          <label class="mini">Roof Line <input id="roofLineColor" type="color" value="#464a4f" /></label>
+          <label class="mini">Line W <input id="roofLineWidth" class="mapInput" type="number" step="0.5" value="1.5" /></label>
           <button id="btnUndo">Undo</button>
           <label class="mini"><input type="checkbox" id="fogToggle" checked /> Fog</label>
           <button id="btnSave">Save</button>
@@ -803,7 +803,7 @@
       };
       const VIEW = { camera: { col: 0, row: 0 }, cameraWorld: { x: 0, y: 0 }, zoom: 1, floorId: '' };
       const STATE = { battle: null, campaign: null, entities: [] };
-      const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true, video: 'medium', polyAlpha: 1, showBackdrop: true, hideRoofs: false, roofLineColor: '#70777e', roofLineWidth: 2 };
+      const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true, video: 'medium', polyAlpha: 1, showBackdrop: true, hideRoofs: false, roofLineColor: '#464a4f', roofLineWidth: 1.5 };
       const VIDEO_SCALE = { low: 1, medium: 1.5, high: 2, ultra: 3 };
       let renderDpr = window.devicePixelRatio || 1;
       const CHAT = { rows: [], byId: new Map(), lastTs: 0, timer: null };
