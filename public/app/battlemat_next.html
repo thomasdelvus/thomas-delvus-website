@@ -2521,12 +2521,20 @@
         const screenPts = pts.map(worldToScreen);
         const kind = String(roof && roof.kind ? roof.kind : 'slate');
         const roofColor = FLOOR_COLORS[kind] || FLOOR_COLORS.default;
-        const anchor = pts[0];
-        const fill = getFillStyle(gctx, 'floor', kind, roofColor, anchor, { allowFallback: false });
         const alpha = Number.isFinite(Number(roof && roof.alpha)) ? Number(roof.alpha) : 0.85;
         const polyAlpha = UI.polyAlpha != null ? UI.polyAlpha : 1;
-        const fillPolygon = (polyPoints) => {
-          if (!fill || !Array.isArray(polyPoints) || polyPoints.length < 3) return;
+        const rotFor = (section) => {
+          if (section === 'north') return 180;
+          if (section === 'south') return 0;
+          if (section === 'east') return 90;
+          if (section === 'west') return 270;
+          return 0;
+        };
+        const fillPolygon = (polyPoints, section) => {
+          if (!Array.isArray(polyPoints) || polyPoints.length < 3) return;
+          const anchor = polyPoints[0];
+          const fill = getFillStyle(gctx, 'floor', kind, roofColor, anchor, { allowFallback: false, rotDeg: rotFor(section) });
+          if (!fill) return;
           const polyScreen = polyPoints.map(worldToScreen);
           gctx.save();
           gctx.fillStyle = fill;
@@ -2610,12 +2618,12 @@
             if (topCut && bottomCut) {
               const [topLeft, topRight] = sortByX(topCut);
               const [bottomLeft, bottomRight] = sortByX(bottomCut);
-              fillPolygon([topLeft, bottomLeft, roof.spine.b, roof.spine.a]);
-              fillPolygon([topRight, bottomRight, roof.spine.b, roof.spine.a]);
-              if (aNeg && northPair.length >= 2) fillPolygon([northPair[0], northPair[1], roof.spine.a]);
-              if (bNeg && southPair.length >= 2) fillPolygon([southPair[0], southPair[1], roof.spine.b]);
+              fillPolygon([topLeft, bottomLeft, roof.spine.b, roof.spine.a], 'west');
+              fillPolygon([topRight, bottomRight, roof.spine.b, roof.spine.a], 'east');
+              if (aNeg && northPair.length >= 2) fillPolygon([northPair[0], northPair[1], roof.spine.a], 'north');
+              if (bNeg && southPair.length >= 2) fillPolygon([southPair[0], southPair[1], roof.spine.b], 'south');
             } else {
-              fillPolygon(pts);
+              fillPolygon(pts, 'south');
             }
           } else {
             const westPair = sortByY(pickExtremePair(pts, 'x', 1));
@@ -2625,16 +2633,16 @@
             if (leftCut && rightCut) {
               const [leftTop, leftBottom] = sortByY(leftCut);
               const [rightTop, rightBottom] = sortByY(rightCut);
-              fillPolygon([leftTop, rightTop, roof.spine.b, roof.spine.a]);
-              fillPolygon([leftBottom, rightBottom, roof.spine.b, roof.spine.a]);
-              if (aNeg && westPair.length >= 2) fillPolygon([westPair[0], westPair[1], roof.spine.a]);
-              if (bNeg && eastPair.length >= 2) fillPolygon([eastPair[0], eastPair[1], roof.spine.b]);
+              fillPolygon([leftTop, rightTop, roof.spine.b, roof.spine.a], 'north');
+              fillPolygon([leftBottom, rightBottom, roof.spine.b, roof.spine.a], 'south');
+              if (aNeg && westPair.length >= 2) fillPolygon([westPair[0], westPair[1], roof.spine.a], 'west');
+              if (bNeg && eastPair.length >= 2) fillPolygon([eastPair[0], eastPair[1], roof.spine.b], 'east');
             } else {
-              fillPolygon(pts);
+              fillPolygon(pts, 'south');
             }
           }
         } else {
-          fillPolygon(pts);
+          fillPolygon(pts, 'south');
         }
 
         const spineColor = 'rgb(112,119,126)';
