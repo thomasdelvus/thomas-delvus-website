@@ -580,6 +580,7 @@
             <option value="tokens">tokens</option>
           </select>
           <label class="mini"><input type="checkbox" id="handlesToggle" /> Handles</label>
+          <label class="mini"><input type="checkbox" id="hideRoofsToggle" /> Hide Roofs</label>
           <button id="btnUndo">Undo</button>
           <label class="mini"><input type="checkbox" id="fogToggle" checked /> Fog</label>
           <button id="btnSave">Save</button>
@@ -769,6 +770,7 @@
       const hexGridToggle = document.getElementById('hexGridToggle');
       const labelBoldToggle = document.getElementById('labelBoldToggle');
       const handlesToggle = document.getElementById('handlesToggle');
+      const hideRoofsToggle = document.getElementById('hideRoofsToggle');
       const fogToggle = document.getElementById('fogToggle');
       const videoSelect = document.getElementById('videoQuality');
       const saveButton = document.getElementById('btnSave');
@@ -797,7 +799,7 @@
       };
       const VIEW = { camera: { col: 0, row: 0 }, cameraWorld: { x: 0, y: 0 }, zoom: 1, floorId: '' };
       const STATE = { battle: null, campaign: null, entities: [] };
-      const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true, video: 'medium', polyAlpha: 1, showBackdrop: true };
+      const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true, video: 'medium', polyAlpha: 1, showBackdrop: true, hideRoofs: false };
       const VIDEO_SCALE = { low: 1, medium: 1.5, high: 2, ultra: 3 };
       let renderDpr = window.devicePixelRatio || 1;
       const CHAT = { rows: [], byId: new Map(), lastTs: 0, timer: null };
@@ -1256,6 +1258,7 @@
           const bright = localStorage.getItem('bm_bright_labels');
           const handles = localStorage.getItem('bm_handles');
           const fog = localStorage.getItem('bm_fog');
+          const hideRoofs = localStorage.getItem('bm_hide_roofs');
           const video = localStorage.getItem('bm_video');
           const polyAlpha = localStorage.getItem('bm_poly_alpha');
           const backdrop = localStorage.getItem('bm_backdrop');
@@ -1263,6 +1266,7 @@
           if (bright != null) UI.brightLabels = bright === '1';
           if (handles != null) UI.showHandles = handles === '1';
           if (fog != null) UI.fogEnabled = fog === '1';
+          if (hideRoofs != null) UI.hideRoofs = hideRoofs === '1';
           if (video === 'low' || video === 'medium' || video === 'high' || video === 'ultra') UI.video = video;
           if (polyAlpha != null) {
             const n = Number(polyAlpha);
@@ -1273,6 +1277,7 @@
         if (hexGridToggle) hexGridToggle.checked = UI.hexGrid;
         if (labelBoldToggle) labelBoldToggle.checked = UI.brightLabels;
         if (handlesToggle) handlesToggle.checked = UI.showHandles;
+        if (hideRoofsToggle) hideRoofsToggle.checked = UI.hideRoofs;
         if (fogToggle) fogToggle.checked = UI.fogEnabled;
         if (videoSelect) videoSelect.value = UI.video;
         if (polyAlphaInput) polyAlphaInput.value = String(Math.round(UI.polyAlpha * 100));
@@ -1289,6 +1294,7 @@
           localStorage.setItem('bm_bright_labels', UI.brightLabels ? '1' : '0');
           localStorage.setItem('bm_handles', UI.showHandles ? '1' : '0');
           localStorage.setItem('bm_fog', UI.fogEnabled ? '1' : '0');
+          localStorage.setItem('bm_hide_roofs', UI.hideRoofs ? '1' : '0');
           localStorage.setItem('bm_video', UI.video);
           localStorage.setItem('bm_poly_alpha', String(UI.polyAlpha));
           localStorage.setItem('bm_backdrop', UI.showBackdrop ? '1' : '0');
@@ -2973,6 +2979,7 @@
       }
 
       function drawRoofsLayer(floor, gctx, rooms, roomSets) {
+        if (UI.hideRoofs) return;
         const baseRooms = rooms || filterAlive(floor.rooms || []);
         let list = sortByZ(filterAlive(floor.roofs || []));
         if (UI.fogEnabled && roomSets) {
@@ -5180,6 +5187,13 @@
         if (handlesToggle) {
           handlesToggle.addEventListener('change', () => {
             UI.showHandles = !!handlesToggle.checked;
+            savePrefs();
+            render();
+          });
+        }
+        if (hideRoofsToggle) {
+          hideRoofsToggle.addEventListener('change', () => {
+            UI.hideRoofs = !!hideRoofsToggle.checked;
             savePrefs();
             render();
           });
