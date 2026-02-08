@@ -566,6 +566,7 @@
         <div class="toolbar-row">
           <button id="toolSelect" class="toolBtn active">Select</button>
           <button id="toolPoly" class="toolBtn">Poly</button>
+          <button id="toolRoof" class="toolBtn">Roof</button>
           <button id="toolOpening" class="toolBtn">Opening</button>
           <button id="toolObject" class="toolBtn">Object</button>
           <button id="toolToken" class="toolBtn">Token</button>
@@ -574,6 +575,7 @@
             <option value="all" selected>all</option>
             <option value="floors">floors</option>
             <option value="walls">walls</option>
+            <option value="roofs">roofs</option>
             <option value="objects">objects</option>
             <option value="tokens">tokens</option>
           </select>
@@ -733,6 +735,7 @@
       const toolButtons = {
         select: document.getElementById('toolSelect'),
         poly: document.getElementById('toolPoly'),
+        roof: document.getElementById('toolRoof'),
         opening: document.getElementById('toolOpening'),
         object: document.getElementById('toolObject'),
         token: document.getElementById('toolToken'),
@@ -800,6 +803,7 @@
       const CHAT = { rows: [], byId: new Map(), lastTs: 0, timer: null };
       const EDITOR = {
         tool: 'select',
+        polyMode: 'room',
         selection: null,
         polyPoints: [],
         polyHover: null,
@@ -1312,10 +1316,19 @@
       }
 
       function setTool(tool) {
-        EDITOR.tool = tool;
+        const isRoof = tool === 'roof';
+        const nextTool = isRoof ? 'poly' : tool;
+        if (nextTool === 'poly') {
+          EDITOR.polyMode = isRoof ? 'roof' : 'room';
+        }
+        EDITOR.tool = nextTool;
         Object.entries(toolButtons).forEach(([key, btn]) => {
           if (!btn) return;
-          btn.classList.toggle('active', key === tool);
+          let active = false;
+          if (key === 'poly') active = (nextTool === 'poly' && EDITOR.polyMode === 'room');
+          else if (key === 'roof') active = (nextTool === 'poly' && EDITOR.polyMode === 'roof');
+          else active = (key === nextTool);
+          btn.classList.toggle('active', active);
         });
         EDITOR.roomStart = null;
         EDITOR.polyPoints = [];
@@ -1323,7 +1336,7 @@
         if (openingGroup) openingGroup.style.display = tool === 'opening' ? 'flex' : 'none';
         if (objectGroup) objectGroup.style.display = tool === 'object' ? 'flex' : 'none';
         if (tokenGroup) tokenGroup.style.display = tool === 'token' ? 'flex' : 'none';
-        if (canvasWrap) canvasWrap.style.cursor = tool === 'poly' ? 'crosshair' : 'default';
+        if (canvasWrap) canvasWrap.style.cursor = nextTool === 'poly' ? 'crosshair' : 'default';
       }
 
       function drawHexOutline(gctx, center, size) {
@@ -1432,13 +1445,15 @@
         const show = UI.showHandles || UI.handleHot;
         if (!show || !floor) return;
         const sel = EDITOR.selection;
-        if (!sel || sel.type !== 'room' || !sel.item) return;
+        const isRoom = sel && sel.type === 'room';
+        const isRoof = sel && sel.type === 'roof';
+        if ((!isRoom && !isRoof) || !sel || !sel.item) return;
         if (String(sel.floorId) !== String(floor.id)) return;
         const polyLabels = getPolyPointLabels(sel.item);
         if (polyLabels) {
           const pts = labelsToWorldPoints(polyLabels);
           if (!pts.length) return;
-          const hidden = getPolyEdgeHiddenSet(sel.item);
+          const hidden = isRoom ? getPolyEdgeHiddenSet(sel.item) : new Set();
           const center = polyCenterWorld(pts);
           gctx.save();
           gctx.strokeStyle = 'rgba(255,145,0,0.95)';
@@ -1608,6 +1623,7 @@
           if (!Array.isArray(floor.rooms)) floor.rooms = [];
           if (!Array.isArray(floor.openings)) floor.openings = [];
           if (!Array.isArray(floor.objects)) floor.objects = [];
+          if (!Array.isArray(floor.roofs)) floor.roofs = [];
           for (const obj of floor.objects) {
             if (obj && obj.floorId == null) obj.floorId = floor.id;
           }
@@ -2407,6 +2423,42 @@
         const list = sortByZ(rooms || filterAlive(floor.rooms || []));
         drawBackdrop(gctx);
         list.forEach(room => drawFloorRoom(room, gctx));
+      }
+
+      function roofWorldCenter(roof) {
+        const pts = roomWorldPoints(roof);
+        return pts.length ? polyCenterWorld(pts) : null;
+      }
+
+      function drawRoofPoly(roof, gctx) {
+        const pts = roomWorldPoints(roof);
+        if (pts.length < 3) return;
+        const screenPts = pts.map(worldToScreen);
+        const kind = String(roof && roof.kind ? roof.kind : 'slate');
+        const roofColor = FLOOR_COLORS[kind] || FLOOR_COLORS.default;
+        const anchor = pts[0];
+        const fill = getFillStyle(gctx, 'floor', kind, roofColor, anchor, { allowFallback: false });
+        if (!fill) return;
+        const alpha = Number.isFinite(Number(roof && roof.alpha)) ? Number(roof.alpha) : 0.85;
+        const polyAlpha = UI.polyAlpha != null ? UI.polyAlpha : 1;
+        gctx.save();
+        gctx.fillStyle = fill;
+        gctx.globalAlpha *= Math.max(0, Math.min(1, alpha)) * Math.max(0, Math.min(1, polyAlpha));
+        gctx.beginPath();
+        gctx.moveTo(screenPts[0].x, screenPts[0].y);
+        for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
+        gctx.closePath();
+        gctx.fill();
+        gctx.restore();
+      }
+
+      function drawRoofsLayer(floor, gctx, rooms, roomSets) {
+        const baseRooms = rooms || filterAlive(floor.rooms || []);
+        let list = sortByZ(filterAlive(floor.roofs || []));
+        if (UI.fogEnabled && roomSets) {
+          list = list.filter(roof => itemFogState(roof, floor, baseRooms, roomSets, roofWorldCenter) !== 'hidden');
+        }
+        list.forEach(roof => drawRoofPoly(roof, gctx));
       }
 
       function wallThicknessAtWorld(worldPoint, floor) {
@@ -3334,6 +3386,7 @@
         const layerMode = layerSelect ? layerSelect.value : 'all';
         const floorLayer = getLayerContext('floors', rect, dpr);
         const wallLayer = getLayerContext('walls', rect, dpr);
+        const roofLayer = getLayerContext('roofs', rect, dpr);
         const objectLayer = getLayerContext('objects', rect, dpr);
         const fogLayer = getLayerContext('fog', rect, dpr);
         const gridLayer = getLayerContext('grid', rect, dpr);
@@ -3348,6 +3401,7 @@
 
         drawFloorsLayer(floor, floorLayer.ctx, roomsToDraw);
         drawWallsLayer(floor, wallLayer.ctx, roomsToDraw, fogSets);
+        drawRoofsLayer(floor, roofLayer.ctx, allRooms, fogSets);
         drawGridLayer(gridLayer.ctx);
         drawHandlesLayer(floor, handleLayer.ctx);
         drawRoomEdgeHandles(floor, handleLayer.ctx);
@@ -3393,6 +3447,9 @@
         }
         if (layerMode === 'all' || layerMode === 'walls') {
           ctx.drawImage(wallLayer.canvas, 0, 0, rect.width, rect.height);
+        }
+        if (layerMode === 'all' || layerMode === 'roofs') {
+          ctx.drawImage(roofLayer.canvas, 0, 0, rect.width, rect.height);
         }
         if (layerMode === 'all' || layerMode === 'tokens') {
           ctx.drawImage(tokenLayer.canvas, 0, 0, rect.width, rect.height);
@@ -3505,6 +3562,23 @@
             { value: 'explored', label: 'Always Explored' },
             { value: 'hidden', label: 'Always Hidden' }
           ]);
+          addButtonRow([
+            { label: 'To Front', onClick: () => reorderSelection('front') },
+            { label: 'To Back', onClick: () => reorderSelection('back') },
+          ]);
+          addButtonRow([
+            { label: 'Delete', onClick: () => deleteSelection() },
+          ]);
+        }
+
+        if (sel.type === 'roof') {
+          addField('Type', 'roof', 'type', { readonly: true });
+          addField('ID', sel.item.id, 'id', { readonly: true });
+          addField('Floor', sel.floorId, 'floorId');
+          addField('Points', formatRoomPoints(sel.item), 'points');
+          addField('Kind', sel.item.kind || 'slate', 'kind', { list: 'floorKindList' });
+          addField('Alpha', sel.item.alpha != null ? sel.item.alpha : 0.85, 'alpha', { type: 'number', step: '0.05' });
+          addField('Z', sel.item.z != null ? sel.item.z : '', 'z', { type: 'number', step: '1' });
           addButtonRow([
             { label: 'To Front', onClick: () => reorderSelection('front') },
             { label: 'To Back', onClick: () => reorderSelection('back') },
@@ -3656,6 +3730,21 @@
           if (key === 'z') item.z = num(value, null);
         }
 
+        if (sel.type === 'roof') {
+          if (key === 'floorId') moveRoofToFloor(item, value);
+          if (key === 'points') {
+            const points = parsePointList(value);
+            if (points.length >= 3) {
+              item.points = points;
+            } else {
+              delete item.points;
+            }
+          }
+          if (key === 'kind') item.kind = value;
+          if (key === 'alpha') item.alpha = Math.max(0, Math.min(1, num(value, 0.85)));
+          if (key === 'z') item.z = num(value, null);
+        }
+
         if (sel.type === 'opening') {
           if (key === 'name') item.name = value;
           if (key === 'kind') item.kind = value;
@@ -3761,6 +3850,17 @@
         EDITOR.selection.floorId = floorId;
       }
 
+      function moveRoofToFloor(roof, floorId) {
+        const floors = STATE.battle.floors;
+        const source = floors.find(f => f.roofs && f.roofs.includes(roof));
+        const target = floors.find(f => f.id === floorId);
+        if (!source || !target) return;
+        source.roofs = source.roofs.filter(r => r !== roof);
+        if (!Array.isArray(target.roofs)) target.roofs = [];
+        target.roofs.push(roof);
+        EDITOR.selection.floorId = floorId;
+      }
+
       function reorderSelection(direction) {
         const sel = EDITOR.selection;
         if (!sel || !STATE.battle) return;
@@ -3770,6 +3870,7 @@
 
         let list = null;
         if (sel.type === 'room') list = floor.rooms;
+        if (sel.type === 'roof') list = floor.roofs;
         if (sel.type === 'opening') list = floor.openings;
         if (sel.type === 'object') list = floor.objects;
         if (!Array.isArray(list)) return;
@@ -3821,6 +3922,7 @@
           : null;
         if (!floor) return;
         if (sel.type === 'room') sel.item.deleted = true;
+        if (sel.type === 'roof') sel.item.deleted = true;
         if (sel.type === 'opening') sel.item.deleted = true;
         if (sel.type === 'object') sel.item.deleted = true;
         clearSelection();
@@ -3870,6 +3972,14 @@
           return world ? worldToScreen(world) : null;
         }, 14);
         if (opening) return { type: 'opening', item: opening, floorId: floor.id };
+
+        const roofs = sortByZ(filterAlive(floor.roofs || [])).reverse();
+        for (const roof of roofs) {
+          const pts = roomWorldPoints(roof);
+          if (pts.length >= 3 && pointInPolygon(worldPoint, pts)) {
+            return { type: 'roof', item: roof, floorId: floor.id };
+          }
+        }
 
         for (const room of filterAlive(floor.rooms || [])) {
           const polyLabels = getPolyPointLabels(room);
@@ -3924,6 +4034,7 @@
           const snapWorld = hexToWorld(snap.col, snap.row);
           const label = toHexLabel(snap.col, snap.row);
           const points = Array.isArray(EDITOR.polyPoints) ? EDITOR.polyPoints : [];
+          const polyMode = EDITOR.polyMode || 'room';
           if (!points.length) {
             EDITOR.polyPoints = [{ hex: snap, world: snapWorld, label }];
             return;
@@ -3936,16 +4047,30 @@
           const closeEnough = (dx * dx + dy * dy) <= 144; // 12px radius
           if (closeEnough && points.length >= 3) {
             pushHistory();
-            const room = {
-              id: 'room_' + Date.now().toString(36),
-              shape: 'poly',
-              points: points.map(p => p.label),
-              thickness: 15,
-              floor: { kind: 'wood_oak' },
-              wall: { kind: 'brick' }
-            };
-            floor.rooms.push(room);
-            selectItem('room', room, floor.id);
+            if (polyMode === 'roof') {
+              const roof = {
+                id: 'roof_' + Date.now().toString(36),
+                shape: 'poly',
+                points: points.map(p => p.label),
+                kind: 'slate',
+                alpha: 0.85,
+                z: 0
+              };
+              if (!Array.isArray(floor.roofs)) floor.roofs = [];
+              floor.roofs.push(roof);
+              selectItem('roof', roof, floor.id);
+            } else {
+              const room = {
+                id: 'room_' + Date.now().toString(36),
+                shape: 'poly',
+                points: points.map(p => p.label),
+                thickness: 15,
+                floor: { kind: 'wood_oak' },
+                wall: { kind: 'brick' }
+              };
+              floor.rooms.push(room);
+              selectItem('room', room, floor.id);
+            }
             EDITOR.polyPoints = [];
             EDITOR.polyHover = null;
             EDITOR.dirty = true;
@@ -4096,7 +4221,7 @@
           const labels = base.map(p => toHexLabel(p.col + dCol, p.row + dRow));
           setPolyPoints(drag.item, labels);
         }
-        if (drag.type === 'poly-move') {
+        if (drag.type === 'poly-move' && drag.ownerType === 'room') {
           const openings = Array.isArray(drag.openingsBase) ? drag.openingsBase : null;
           if (openings && openings.length) {
             for (const entry of openings) {
@@ -4122,65 +4247,70 @@
           const screenPoint = { x, y };
           const floor = pickFloor();
           if (EDITOR.tool !== 'select') return;
-        if (floor && EDITOR.selection && EDITOR.selection.type === 'room') {
-          let hit = null;
-          if (UI.showHandles || UI.handleHot) {
-            hit = getPolyHandleHit(EDITOR.selection.item, screenPoint);
-          }
-          if (hit) {
-            if (hit.type === 'poly-edge') {
-              pushHistory();
-              const labels = getPolyPointLabels(EDITOR.selection.item);
-              const count = labels ? labels.length : 0;
-              togglePolyEdgeHidden(EDITOR.selection.item, hit.index, count);
-              updateInspector();
-              render();
-              return;
+          if (floor && EDITOR.selection && (EDITOR.selection.type === 'room' || EDITOR.selection.type === 'roof')) {
+            let hit = null;
+            if (UI.showHandles || UI.handleHot) {
+              hit = getPolyHandleHit(EDITOR.selection.item, screenPoint);
             }
-            const polyLabels = hit.type === 'poly-move' ? getPolyPointLabels(EDITOR.selection.item) : null;
-            const pointsBase = polyLabels
-              ? polyLabels.map(parseHexLabel).filter(p => p && Number.isFinite(p.col) && Number.isFinite(p.row))
-              : null;
-            const openingsBase = (hit.type === 'room-move' || hit.type === 'poly-move')
-              ? openingsForRoomMove(EDITOR.selection.item, floor)
-              : null;
-            EDITOR.drag = {
-              type: hit.type,
-              side: hit.side,
-              index: hit.index,
-              item: EDITOR.selection.item,
-              floorId: EDITOR.selection.floorId,
-              startWorld: world,
-              startHex: worldToHexHalf(world),
-              pointsBase,
-              openingsBase,
-              didMove: false,
-              pushed: false
-            };
-            return;
-          }
-        }
-        const sel = findSelectionAt(world);
-        if (sel && sel.type === 'room') {
-          selectItem(sel.type, sel.item, sel.floorId);
-          const showHandles = UI.showHandles || UI.handleHot;
-          if (showHandles) {
-            const hit = getPolyHandleHit(sel.item, screenPoint);
-              if (hit) {
-                if (hit.type === 'poly-edge') {
+            if (hit) {
+              if (hit.type === 'poly-edge') {
+                if (EDITOR.selection.type === 'room') {
                   pushHistory();
-                  const labels = getPolyPointLabels(sel.item);
+                  const labels = getPolyPointLabels(EDITOR.selection.item);
                   const count = labels ? labels.length : 0;
-                  togglePolyEdgeHidden(sel.item, hit.index, count);
+                  togglePolyEdgeHidden(EDITOR.selection.item, hit.index, count);
                   updateInspector();
                   render();
+                }
+                return;
+              }
+              const polyLabels = hit.type === 'poly-move' ? getPolyPointLabels(EDITOR.selection.item) : null;
+              const pointsBase = polyLabels
+                ? polyLabels.map(parseHexLabel).filter(p => p && Number.isFinite(p.col) && Number.isFinite(p.row))
+                : null;
+              const openingsBase = (EDITOR.selection.type === 'room' && (hit.type === 'room-move' || hit.type === 'poly-move'))
+                ? openingsForRoomMove(EDITOR.selection.item, floor)
+                : null;
+              EDITOR.drag = {
+                type: hit.type,
+                side: hit.side,
+                index: hit.index,
+                item: EDITOR.selection.item,
+                floorId: EDITOR.selection.floorId,
+                startWorld: world,
+                startHex: worldToHexHalf(world),
+                pointsBase,
+                openingsBase,
+                ownerType: EDITOR.selection.type,
+                didMove: false,
+                pushed: false
+              };
+              return;
+            }
+          }
+          const sel = findSelectionAt(world);
+          if (sel && (sel.type === 'room' || sel.type === 'roof')) {
+            selectItem(sel.type, sel.item, sel.floorId);
+            const showHandles = UI.showHandles || UI.handleHot;
+            if (showHandles) {
+              const hit = getPolyHandleHit(sel.item, screenPoint);
+              if (hit) {
+                if (hit.type === 'poly-edge') {
+                  if (sel.type === 'room') {
+                    pushHistory();
+                    const labels = getPolyPointLabels(sel.item);
+                    const count = labels ? labels.length : 0;
+                    togglePolyEdgeHidden(sel.item, hit.index, count);
+                    updateInspector();
+                    render();
+                  }
                   return;
                 }
                 const polyLabels = hit.type === 'poly-move' ? getPolyPointLabels(sel.item) : null;
                 const pointsBase = polyLabels
                   ? polyLabels.map(parseHexLabel).filter(p => p && Number.isFinite(p.col) && Number.isFinite(p.row))
                   : null;
-                const openingsBase = (hit.type === 'room-move' || hit.type === 'poly-move')
+                const openingsBase = (sel.type === 'room' && (hit.type === 'room-move' || hit.type === 'poly-move'))
                   ? openingsForRoomMove(sel.item, floor)
                   : null;
                 EDITOR.drag = {
@@ -4189,18 +4319,19 @@
                   index: hit.index,
                   item: sel.item,
                   floorId: sel.floorId,
-                startWorld: world,
-                startHex: worldToHexHalf(world),
-                pointsBase,
-                openingsBase,
-                didMove: false,
-                pushed: false
-              };
-              return;
+                  startWorld: world,
+                  startHex: worldToHexHalf(world),
+                  pointsBase,
+                  openingsBase,
+                  ownerType: sel.type,
+                  didMove: false,
+                  pushed: false
+                };
+                return;
+              }
             }
+            return;
           }
-          return;
-        }
           if (!sel) return;
           selectItem(sel.type, sel.item, sel.floorId);
           EDITOR.drag = sel;
@@ -4224,16 +4355,16 @@
 
         canvas.addEventListener('mousemove', (ev) => {
           if (EDITOR.drag) return;
-        if (EDITOR.tool !== 'poly') return;
-        const rect = canvas.getBoundingClientRect();
-        const x = ev.clientX - rect.left;
-        const y = ev.clientY - rect.top;
-        const world = screenToWorld(x, y);
-        const hex = worldToHexHalf(world);
-        const snapWorld = hexToWorld(hex.col, hex.row);
-        EDITOR.polyHover = { hex, world: snapWorld };
-        render();
-      });
+          if (EDITOR.tool !== 'poly') return;
+          const rect = canvas.getBoundingClientRect();
+          const x = ev.clientX - rect.left;
+          const y = ev.clientY - rect.top;
+          const world = screenToWorld(x, y);
+          const hex = worldToHexHalf(world);
+          const snapWorld = hexToWorld(hex.col, hex.row);
+          EDITOR.polyHover = { hex, world: snapWorld };
+          render();
+        });
 
         window.addEventListener('mouseup', () => {
           if (!EDITOR.drag) return;
@@ -4242,7 +4373,7 @@
           if (dragged.didMove) {
             EDITOR.ignoreClick = true;
             updateInspector();
-            if (dragged.type === 'poly-point' && dragged.item) {
+            if (dragged.type === 'poly-point' && dragged.item && dragged.ownerType === 'room') {
               const floor = pickFloor();
               if (floor) normalizeRoomOpeningsHexes(dragged.item, floor);
             }
