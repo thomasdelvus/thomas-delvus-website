@@ -2605,17 +2605,28 @@
         const sortByX = (pair) => pair.slice().sort((a, b) => a.x - b.x);
         const sortByY = (pair) => pair.slice().sort((a, b) => a.y - b.y);
         const canSpine = roof && roof.spine && roof.spine.a && roof.spine.b;
-        const aNeg = (Number(roof && roof.spineAdjustA) || 0) < 0;
-        const bNeg = (Number(roof && roof.spineAdjustB) || 0) < 0;
+        const aAdj = Number(roof && roof.spineAdjustA) || 0;
+        const bAdj = Number(roof && roof.spineAdjustB) || 0;
+        const aNeg = aAdj < 0;
+        const bNeg = bAdj < 0;
+        const aPos = aAdj > 0;
+        const bPos = bAdj > 0;
+        let isHorizontal = false;
+        let UL = null;
+        let UR = null;
+        let LL = null;
+        let LR = null;
+        let westPair = null;
+        let eastPair = null;
 
         if (canSpine) {
-          const isHorizontal = !!roof.rot90;
+          isHorizontal = !!roof.rot90;
           const northPair = sortByX(pickExtremePair(pts, 'y', 1));
           const southPair = sortByX(pickExtremePair(pts, 'y', -1));
-          const UL = northPair[0];
-          const UR = northPair[1];
-          const LL = southPair[0];
-          const LR = southPair[1];
+          UL = northPair[0];
+          UR = northPair[1];
+          LL = southPair[0];
+          LR = southPair[1];
           if (!isHorizontal) {
             if (UL && LL) fillPolygon([roof.spine.b, roof.spine.a, UL, LL], 'west');
             if (UR && LR) fillPolygon([roof.spine.b, roof.spine.a, UR, LR], 'east');
@@ -2624,8 +2635,8 @@
           } else {
             if (UL && UR) fillPolygon([roof.spine.b, roof.spine.a, UL, UR], 'north');
             if (LL && LR) fillPolygon([roof.spine.b, roof.spine.a, LL, LR], 'south');
-            const westPair = sortByY(pickExtremePair(pts, 'x', 1));
-            const eastPair = sortByY(pickExtremePair(pts, 'x', -1));
+            westPair = sortByY(pickExtremePair(pts, 'x', 1));
+            eastPair = sortByY(pickExtremePair(pts, 'x', -1));
             if (aNeg && westPair.length >= 2) fillPolygon([westPair[0], westPair[1], roof.spine.a], 'west');
             if (bNeg && eastPair.length >= 2) fillPolygon([eastPair[0], eastPair[1], roof.spine.b], 'east');
           }
@@ -2635,16 +2646,34 @@
 
         const spineColor = 'rgb(112,119,126)';
         const spineWidth = 4;
-        const drawOutline = () => {
+        const samePoint = (p1, p2) => {
+          if (!p1 || !p2) return false;
+          return Math.abs(p1.x - p2.x) < 0.0001 && Math.abs(p1.y - p2.y) < 0.0001;
+        };
+        const shouldSkipEdge = (p1, p2, skipPairs) => {
+          if (!Array.isArray(skipPairs) || !skipPairs.length) return false;
+          return skipPairs.some((pair) => {
+            if (!pair || pair.length < 2) return false;
+            const a = pair[0];
+            const b = pair[1];
+            return (samePoint(p1, a) && samePoint(p2, b)) || (samePoint(p1, b) && samePoint(p2, a));
+          });
+        };
+        const drawOutline = (skipPairs) => {
           gctx.save();
           gctx.strokeStyle = spineColor;
           gctx.lineWidth = spineWidth;
           gctx.lineJoin = 'round';
           gctx.lineCap = 'round';
           gctx.beginPath();
-          gctx.moveTo(screenPts[0].x, screenPts[0].y);
-          for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
-          gctx.closePath();
+          for (let i = 0; i < screenPts.length; i++) {
+            const next = (i + 1) % screenPts.length;
+            const wp1 = pts[i];
+            const wp2 = pts[next];
+            if (shouldSkipEdge(wp1, wp2, skipPairs)) continue;
+            gctx.moveTo(screenPts[i].x, screenPts[i].y);
+            gctx.lineTo(screenPts[next].x, screenPts[next].y);
+          }
           gctx.stroke();
           gctx.restore();
         };
@@ -2654,7 +2683,19 @@
           return sorted.slice(0, 2);
         };
 
-        drawOutline();
+        const skipPairs = [];
+        if (canSpine) {
+          if (!isHorizontal) {
+            if (aPos && UL && UR) skipPairs.push([UL, UR]);
+            if (bPos && LL && LR) skipPairs.push([LL, LR]);
+          } else {
+            if (!westPair) westPair = sortByY(pickExtremePair(pts, 'x', 1));
+            if (!eastPair) eastPair = sortByY(pickExtremePair(pts, 'x', -1));
+            if (aPos && westPair.length >= 2) skipPairs.push([westPair[0], westPair[1]]);
+            if (bPos && eastPair.length >= 2) skipPairs.push([eastPair[0], eastPair[1]]);
+          }
+        }
+        drawOutline(skipPairs);
 
         if (roof && roof.spine && roof.spine.a && roof.spine.b) {
           const a = worldToScreen(roof.spine.a);
