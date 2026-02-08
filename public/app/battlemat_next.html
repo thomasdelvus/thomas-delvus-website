@@ -566,8 +566,6 @@
         <div class="toolbar-row">
           <button id="toolSelect" class="toolBtn active">Select</button>
           <button id="toolPoly" class="toolBtn">Poly</button>
-          <button id="toolRoof" class="toolBtn">Roof</button>
-          <button id="toolRoof2" class="toolBtn">R2</button>
           <button id="toolOpening" class="toolBtn">Opening</button>
           <button id="toolObject" class="toolBtn">Object</button>
           <button id="toolToken" class="toolBtn">Token</button>
@@ -576,7 +574,6 @@
             <option value="all" selected>all</option>
             <option value="floors">floors</option>
             <option value="walls">walls</option>
-            <option value="roofs">roofs</option>
             <option value="objects">objects</option>
             <option value="tokens">tokens</option>
           </select>
@@ -624,27 +621,6 @@
               <option value="monster">monster</option>
               <option value="creature">creature</option>
             </select>
-          </div>
-          <div id="roofGroup" class="toolGroup">
-            <label class="status">Roof</label>
-            <select id="roofTileKind"></select>
-            <label class="mini">Start° <input id="roofStartAngle" type="number" step="1" value="0" style="width:56px" /></label>
-            <label class="mini">End° <input id="roofEndAngle" type="number" step="1" value="0" style="width:56px" /></label>
-            <label class="mini">Rot
-              <select id="roofRot">
-                <option value="0">0</option>
-                <option value="90">90</option>
-                <option value="180">180</option>
-                <option value="270">270</option>
-              </select>
-            </label>
-            <label class="mini">Scale <input id="roofTileScale" type="number" step="0.05" value="0.2" style="width:62px" /></label>
-            <label class="mini">Line <input id="roofLineColor" type="color" value="#70777e" /></label>
-            <label class="mini">W <input id="roofLineWidth" type="number" step="0.5" value="2" style="width:48px" /></label>
-            <label class="mini">Tint <input id="roofTintColor" type="color" value="#000000" /></label>
-            <label class="mini">% <input id="roofTintPct" type="number" step="1" value="0" style="width:48px" /></label>
-            <label class="mini">Shade <input id="roofShadePct" type="number" step="1" value="50" style="width:52px" /></label>
-            <label class="mini">Z <input id="roofZ" type="number" step="1" value="0" style="width:48px" /></label>
           </div>
         </div>
         <div class="toolbar-row">
@@ -743,7 +719,6 @@
     </aside>
   </div>
   <datalist id="floorKindList"></datalist>
-  <datalist id="roofKindList"></datalist>
   <datalist id="wallKindList"></datalist>
   <datalist id="openingKindList"></datalist>
   <datalist id="objectKindList"></datalist>
@@ -758,8 +733,6 @@
       const toolButtons = {
         select: document.getElementById('toolSelect'),
         poly: document.getElementById('toolPoly'),
-        roof: document.getElementById('toolRoof'),
-        roof2: document.getElementById('toolRoof2'),
         opening: document.getElementById('toolOpening'),
         object: document.getElementById('toolObject'),
         token: document.getElementById('toolToken'),
@@ -780,18 +753,6 @@
       const openingGroup = document.getElementById('openingGroup');
       const objectGroup = document.getElementById('objectGroup');
       const tokenGroup = document.getElementById('tokenGroup');
-      const roofGroup = document.getElementById('roofGroup');
-      const roofTileKindSelect = document.getElementById('roofTileKind');
-      const roofStartAngleInput = document.getElementById('roofStartAngle');
-      const roofEndAngleInput = document.getElementById('roofEndAngle');
-      const roofRotSelect = document.getElementById('roofRot');
-      const roofTileScaleInput = document.getElementById('roofTileScale');
-      const roofLineColorInput = document.getElementById('roofLineColor');
-      const roofLineWidthInput = document.getElementById('roofLineWidth');
-      const roofTintColorInput = document.getElementById('roofTintColor');
-      const roofTintPctInput = document.getElementById('roofTintPct');
-      const roofShadePctInput = document.getElementById('roofShadePct');
-      const roofZInput = document.getElementById('roofZ');
       const zoomInput = document.getElementById('zoom');
       const panUp = document.getElementById('panUp');
       const panDown = document.getElementById('panDown');
@@ -819,7 +780,6 @@
       const inspectorEmpty = document.getElementById('inspectorEmpty');
       const inspectorFields = document.getElementById('inspectorFields');
       const floorKindList = document.getElementById('floorKindList');
-      const roofKindList = document.getElementById('roofKindList');
       const wallKindList = document.getElementById('wallKindList');
       const openingKindList = document.getElementById('openingKindList');
       const objectKindList = document.getElementById('objectKindList');
@@ -843,25 +803,13 @@
         selection: null,
         polyPoints: [],
         polyHover: null,
-        roofDraft: null,
         dirty: false,
         drag: null,
         ignoreClick: false,
         openingKind: 'door.wood',
         openingOrientation: 'h',
         objectKind: 'object',
-        tokenKind: 'npc',
-        roofTileKind: 'slate',
-        roofStartAngle: 0,
-        roofEndAngle: 0,
-        roofRot: 0,
-        roofTileScale: 0.2,
-        roofLineColor: '#70777e',
-        roofLineWidth: 2,
-        roofTintColor: '#000000',
-        roofTintPct: 0,
-        roofShadePct: 50,
-        roofZ: 0
+        tokenKind: 'npc'
       };
       const HISTORY = { stack: [], index: -1, limit: 20 };
 
@@ -888,10 +836,6 @@
 
       const DEFAULT_FLOOR_KINDS = [
         'wood_oak', 'wood', 'stone', 'cobble', 'brick', 'brick_dark', 'gravel', 'terracotta', 'thatch', 'slate', 'grass', 'fog'
-      ];
-      const DEFAULT_ROOF_KINDS = [
-        'wood_oak', 'wood', 'stone', 'cobble', 'brick', 'brick_dark', 'gravel', 'terracotta', 'thatch', 'slate', 'grass',
-        'roof01', 'roof02', 'roof03', 'roof04', 'roof05', 'roof06', 'roof07', 'roof08', 'roof09', 'roof10'
       ];
       const DEFAULT_WALL_KINDS = [
         'brick', 'brick_dark', 'wood_dark', 'wood', 'stone', 'cobble', 'none'
@@ -958,16 +902,6 @@
         thatch: '/assets/sprites/thatch.png',
         slate: '/assets/sprites/slate.png',
         grass: '/assets/sprites/grass.png',
-        roof01: '/assets/sprites/roof/roof01.png',
-        roof02: '/assets/sprites/roof/roof02.png',
-        roof03: '/assets/sprites/roof/roof03.png',
-        roof04: '/assets/sprites/roof/roof04.png',
-        roof05: '/assets/sprites/roof/roof05.png',
-        roof06: '/assets/sprites/roof/roof06.png',
-        roof07: '/assets/sprites/roof/roof07.png',
-        roof08: '/assets/sprites/roof/roof08.png',
-        roof09: '/assets/sprites/roof/roof09.png',
-        roof10: '/assets/sprites/roof/roof10.png',
         crosskeys: '/images/the_cross_keys_floor.jpg'
       };
 
@@ -995,41 +929,7 @@
           thatch: 0.2,
           slate: 0.2,
           grass: 0.2,
-          roof01: 1.0,
-          roof02: 1.0,
-          roof03: 1.0,
-          roof04: 1.0,
-          roof05: 1.0,
-          roof06: 1.0,
-          roof07: 1.0,
-          roof08: 1.0,
-          roof09: 1.0,
-          roof10: 1.0,
           crosskeys: 1.0
-        },
-        roof: {
-          wood_oak: 0.2,
-          wood_elm: 0.2,
-          wood_dark: 0.2,
-          stone: 0.2,
-          stone_cobble: 0.2,
-          brick_gray: 0.2,
-          brick_red: 0.2,
-          brick_dark: 0.2,
-          terracotta: 0.2,
-          thatch: 0.2,
-          slate: 0.2,
-          grass: 0.2,
-          roof01: 1.0,
-          roof02: 1.0,
-          roof03: 1.0,
-          roof04: 1.0,
-          roof05: 1.0,
-          roof06: 1.0,
-          roof07: 1.0,
-          roof08: 1.0,
-          roof09: 1.0,
-          roof10: 1.0
         }
       };
 
@@ -1042,13 +942,6 @@
           gravel: 'stone_cobble'
         },
         floor: {
-          wood: 'wood_oak',
-          stone: 'stone',
-          cobble: 'stone_cobble',
-          gravel: 'stone_cobble',
-          brick: 'brick_gray'
-        },
-        roof: {
           wood: 'wood_oak',
           stone: 'stone',
           cobble: 'stone_cobble',
@@ -1427,12 +1320,10 @@
         EDITOR.roomStart = null;
         EDITOR.polyPoints = [];
         EDITOR.polyHover = null;
-        EDITOR.roofDraft = null;
         if (openingGroup) openingGroup.style.display = tool === 'opening' ? 'flex' : 'none';
         if (objectGroup) objectGroup.style.display = tool === 'object' ? 'flex' : 'none';
         if (tokenGroup) tokenGroup.style.display = tool === 'token' ? 'flex' : 'none';
-        if (roofGroup) roofGroup.style.display = (tool === 'roof' || tool === 'roof2') ? 'flex' : 'none';
-        if (canvasWrap) canvasWrap.style.cursor = (tool === 'poly' || tool === 'roof' || tool === 'roof2') ? 'crosshair' : 'default';
+        if (canvasWrap) canvasWrap.style.cursor = tool === 'poly' ? 'crosshair' : 'default';
       }
 
       function drawHexOutline(gctx, center, size) {
@@ -1519,62 +1410,6 @@
         gctx.stroke();
       }
 
-      function roofPartHandlePoints(part, floor) {
-        const cornersWorld = roofPartCornersWorld(part, floor);
-        if (!cornersWorld || cornersWorld.length < 4) return null;
-        const [TL, TR, BR, BL] = cornersWorld;
-        const centerWorld = {
-          x: (TL.x + TR.x + BR.x + BL.x) / 4,
-          y: (TL.y + TR.y + BR.y + BL.y) / 4
-        };
-        const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-        return {
-          center: centerWorld,
-          north: mid(TL, TR),
-          south: mid(BL, BR),
-          west: mid(TL, BL),
-          east: mid(TR, BR)
-        };
-      }
-
-      function getRoofHandleHit(part, floor, screenPoint) {
-        const pts = roofPartHandlePoints(part, floor);
-        if (!pts) return null;
-        const hitR = Math.max(8, Math.min(14, 9 * VIEW.zoom));
-        const hitR2 = hitR * hitR;
-        const keys = ['north', 'east', 'south', 'west', 'center'];
-        for (const key of keys) {
-          const world = pts[key];
-          if (!world) continue;
-          const sp = worldToScreen(world);
-          const dx = sp.x - screenPoint.x;
-          const dy = sp.y - screenPoint.y;
-          if (dx * dx + dy * dy <= hitR2) {
-            return key === 'center' ? { type: 'roof-move' } : { type: 'roof-resize', side: key };
-          }
-        }
-        return null;
-      }
-
-      function drawRoofPartHandles(floor, gctx) {
-        const show = UI.showHandles || UI.handleHot;
-        if (!show || !floor) return;
-        const sel = EDITOR.selection;
-        if (!sel || sel.type !== 'roofPart' || !sel.item) return;
-        const pts = roofPartHandlePoints(sel.item, floor);
-        if (!pts) return;
-        gctx.save();
-        gctx.strokeStyle = 'rgba(255,145,0,0.95)';
-        gctx.lineWidth = 1.6;
-        const size = Math.max(5, Math.min(12, 7 * VIEW.zoom));
-        drawHandle(gctx, worldToScreen(pts.north), size);
-        drawHandle(gctx, worldToScreen(pts.south), size);
-        drawHandle(gctx, worldToScreen(pts.west), size);
-        drawHandle(gctx, worldToScreen(pts.east), size);
-        drawHandle(gctx, worldToScreen(pts.center), Math.max(6, size));
-        gctx.restore();
-      }
-
       function drawHandlesLayer(floor, gctx) {
         const show = UI.showHandles || UI.handleHot;
         if (!show || !floor) return;
@@ -1590,7 +1425,6 @@
           const center = worldToScreen(world);
           drawHandle(gctx, center, size);
         }
-        drawRoofPartHandles(floor, gctx);
         gctx.restore();
       }
 
@@ -1639,12 +1473,12 @@
         const pts = labelsToWorldPoints(labels);
         if (!pts.length) return null;
         const hitR = Math.max(8, Math.min(14, 9 * VIEW.zoom));
-        const hitR2 = hitR * hitR;
+        const hitRadius2 = hitR * hitR;
         for (let i = 0; i < pts.length; i++) {
           const sp = worldToScreen(pts[i]);
           const dx = sp.x - screenPoint.x;
           const dy = sp.y - screenPoint.y;
-          if (dx * dx + dy * dy <= hitR2) {
+          if (dx * dx + dy * dy <= hitRadius2) {
             return { type: 'poly-point', index: i };
           }
         }
@@ -1655,7 +1489,7 @@
           const sp = worldToScreen(mid);
           const dx = sp.x - screenPoint.x;
           const dy = sp.y - screenPoint.y;
-          if (dx * dx + dy * dy <= hitR2) {
+          if (dx * dx + dy * dy <= hitRadius2) {
             return { type: 'poly-edge', index: i };
           }
         }
@@ -1664,7 +1498,7 @@
           const sc = worldToScreen(center);
           const dx = sc.x - screenPoint.x;
           const dy = sc.y - screenPoint.y;
-          if (dx * dx + dy * dy <= hitR2) {
+          if (dx * dx + dy * dy <= hitRadius2) {
             return { type: 'poly-move' };
           }
         }
@@ -1696,32 +1530,6 @@
         gctx.restore();
       }
 
-      function drawRoofPreview(gctx) {
-        const draft = EDITOR.roofDraft;
-        if (EDITOR.tool !== 'roof' || !draft || !draft.startWorld || !draft.currentWorld) return;
-        const floor = pickFloor();
-        if (!floor) return;
-        const temp = roofPartFromDrag(draft.startWorld, draft.currentWorld, floor);
-        const centerWorld = roofPartCenterWorld(temp, floor);
-        if (!centerWorld) return;
-        const geom = buildRoofPartGeomLocal(temp);
-        const outlineWorld = geom.outline.map((p) => roofLocalToWorld(p, centerWorld, Number(temp.rot) || 0));
-        gctx.save();
-        gctx.strokeStyle = 'rgba(88, 220, 120, 0.9)';
-        gctx.lineWidth = 2;
-        gctx.setLineDash([6, 6]);
-        gctx.beginPath();
-        const p0 = worldToScreen(outlineWorld[0]);
-        gctx.moveTo(p0.x, p0.y);
-        for (let i = 1; i < outlineWorld.length; i++) {
-          const pi = worldToScreen(outlineWorld[i]);
-          gctx.lineTo(pi.x, pi.y);
-        }
-        gctx.closePath();
-        gctx.stroke();
-        gctx.restore();
-      }
-
       function roomCornersFromWorld(start, end) {
         const x1 = Math.min(start.x, end.x);
         const x2 = Math.max(start.x, end.x);
@@ -1737,66 +1545,6 @@
           const hex = worldToHexHalf(p);
           return toHexLabel(hex.col, hex.row);
         });
-      }
-
-      function roofRectFromWorld(start, end) {
-        const a = worldToHexHalf(start);
-        const b = worldToHexHalf(end);
-        let minCol = Math.min(a.col, b.col);
-        let maxCol = Math.max(a.col, b.col);
-        let minRow = Math.min(a.row, b.row);
-        let maxRow = Math.max(a.row, b.row);
-        if ((maxCol - minCol) < 1) maxCol = minCol + 1;
-        if ((maxRow - minRow) < 0.5) maxRow = minRow + 0.5;
-        const wCols = Math.max(1, Math.round(maxCol - minCol));
-        const hRows = Math.max(0.5, Math.round((maxRow - minRow) * 2) / 2);
-        maxCol = minCol + wCols;
-        maxRow = minRow + hRows;
-        return {
-          minCol,
-          maxCol,
-          minRow,
-          maxRow,
-          center: { col: (minCol + maxCol) / 2, row: (minRow + maxRow) / 2 },
-          wCols,
-          hRows
-        };
-      }
-
-      function roofPartFromDrag(startWorld, endWorld, floor) {
-        const rect = roofRectFromWorld(startWorld, endWorld);
-        const part = {
-          id: 'roof_' + Date.now().toString(36),
-          floorId: floor && floor.id ? String(floor.id) : '',
-          col: rect.center.col,
-          row: rect.center.row,
-          wCols: rect.wCols,
-          hRows: rect.hRows,
-          corners: [
-            toHexLabel(rect.minCol, rect.maxRow),
-            toHexLabel(rect.maxCol, rect.maxRow),
-            toHexLabel(rect.maxCol, rect.minRow),
-            toHexLabel(rect.minCol, rect.minRow)
-          ],
-          startAngle: Number(EDITOR.roofStartAngle) || 0,
-          endAngle: Number(EDITOR.roofEndAngle) || 0,
-          rot: Number(EDITOR.roofRot) || 0,
-          tileKind: EDITOR.roofTileKind || 'slate',
-          tileScale: Number.isFinite(Number(EDITOR.roofTileScale)) ? Number(EDITOR.roofTileScale) : 0.2,
-          lineColor: EDITOR.roofLineColor || '#70777e',
-          lineWidth: Number.isFinite(Number(EDITOR.roofLineWidth)) ? Number(EDITOR.roofLineWidth) : 2,
-          tintColor: EDITOR.roofTintColor || '#000000',
-          tintPct: Number.isFinite(Number(EDITOR.roofTintPct)) ? Number(EDITOR.roofTintPct) : 0,
-          shadePct: Number.isFinite(Number(EDITOR.roofShadePct)) ? Number(EDITOR.roofShadePct) : 50,
-          z: Number.isFinite(Number(EDITOR.roofZ)) ? Number(EDITOR.roofZ) : 0
-        };
-        const centerWorld = hexToWorld(rect.center.col, rect.center.row);
-        const selectedRoom = EDITOR.selection && EDITOR.selection.type === 'room' && String(EDITOR.selection.floorId) === String(floor.id)
-          ? EDITOR.selection.item
-          : null;
-        const parent = selectedRoom || findRoomForWorldPoint(filterAlive(floor.rooms || []), centerWorld);
-        if (parent && parent.id) bindRoofPartToRoom(part, floor, parent);
-        return part;
       }
 
       function setPolyPoint(room, index, label) {
@@ -1842,105 +1590,8 @@
         render();
       }
 
-      function normalizeRoofPart(part, floorId, index) {
-        const p = (part && typeof part === 'object') ? part : {};
-        const out = { ...p };
-        out.id = String(out.id || `roof_${floorId || 'floor'}_${index || 0}`);
-        out.floorId = String(out.floorId || out.floor_id || floorId || '');
-        const parent = out.parentRoomId || out.parent_room || out.parent_room_id || out.room_id || out.roomId || '';
-        if (parent) out.parentRoomId = String(parent);
-        else delete out.parentRoomId;
-        const n = (v, fb) => {
-          const x = Number(v);
-          return Number.isFinite(x) ? x : fb;
-        };
-        out.col = n(out.col, 0);
-        out.row = n(out.row, 0);
-        out.localCol = n(out.localCol, 0);
-        out.localRow = n(out.localRow, 0);
-        out.wCols = Math.max(1, Math.round(n(out.wCols, 1)));
-        out.hRows = Math.max(0.5, Math.round(n(out.hRows, 1) * 2) / 2);
-        out.startAngle = n(out.startAngle, 0);
-        out.endAngle = n(out.endAngle, 0);
-        out.rot = Math.round(n(out.rot, 0) / 90) * 90;
-        out.tileKind = String(out.tileKind || out.tile || 'slate');
-        out.tileScale = Math.max(0.01, n(out.tileScale, 0.2));
-        out.lineColor = String(out.lineColor || out.line_color || '#70777e');
-        out.lineWidth = Math.max(0.5, n(out.lineWidth || out.line_width, 2));
-        out.tintColor = String(out.tintColor || out.tint_color || '#000000');
-        out.tintPct = Math.max(0, Math.min(100, n(out.tintPct || out.tint_pct, 0)));
-        out.shadePct = Math.max(0, Math.min(100, n(out.shadePct || out.shade_pct, 50)));
-        out.z = n(out.z, 0);
-        return out;
-      }
-
-      function migrateLegacyRoomRoofs(state) {
-        if (!state || !Array.isArray(state.floors)) return;
-        if (!Array.isArray(state.roofParts)) state.roofParts = [];
-        const existingParents = new Set(
-          state.roofParts
-            .map((p) => String(p && (p.parentRoomId || p.parent_room || p.parent_room_id || p.room_id || p.roomId || '')))
-            .filter(Boolean)
-        );
-        let idx = state.roofParts.length;
-        for (const floor of state.floors) {
-          if (!floor || !Array.isArray(floor.rooms)) continue;
-          for (const room of floor.rooms) {
-            if (!room || room.deleted || !room.roof || !room.roof.kind) continue;
-            const rid = String(room.id || '');
-            if (!rid) {
-              delete room.roof;
-              continue;
-            }
-            if (existingParents.has(rid)) {
-              delete room.roof;
-              continue;
-            }
-            const pts = roomWorldPoints(room);
-            if (!pts.length) {
-              delete room.roof;
-              continue;
-            }
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            for (const p of pts) {
-              if (p.x < minX) minX = p.x;
-              if (p.y < minY) minY = p.y;
-              if (p.x > maxX) maxX = p.x;
-              if (p.y > maxY) maxY = p.y;
-            }
-            const center = polyCenterWorld(pts) || { x: (minX + maxX) * 0.5, y: (minY + maxY) * 0.5 };
-            const centerHex = worldToHexHalf(center);
-            const wCols = Math.max(1, roundHalf((maxX - minX) / colStep()));
-            const hRows = Math.max(0.5, roundHalf((maxY - minY) / rowStep()));
-            const legacy = room.roof || {};
-            const part = normalizeRoofPart({
-              id: `roof_${floor.id}_${rid}_${idx++}`,
-              floorId: floor.id,
-              parentRoomId: rid,
-              col: centerHex.col,
-              row: centerHex.row,
-              localCol: 0,
-              localRow: 0,
-              wCols,
-              hRows,
-              startAngle: 0,
-              endAngle: 0,
-              rot: Number(legacy.rot ?? legacy.rotDeg ?? 0),
-              tileKind: String(legacy.kind || 'slate'),
-              tileScale: Number.isFinite(Number(legacy.scale)) ? Number(legacy.scale) : 0.2,
-              z: Number.isFinite(Number(room.z)) ? Number(room.z) : 0,
-              migratedFromRoomRoof: true
-            }, floor.id, idx);
-            state.roofParts.push(part);
-            existingParents.add(rid);
-            delete room.roof;
-          }
-        }
-      }
-
       function normalizeState(state) {
         if (!state || typeof state !== 'object') return { floors: [] };
-        if (!Array.isArray(state.roofParts)) state.roofParts = [];
         if (!Array.isArray(state.floors)) {
           const floorId = state.view && state.view.floorId ? String(state.view.floorId) : 'ground';
           state.floors = [{
@@ -1960,37 +1611,6 @@
           for (const obj of floor.objects) {
             if (obj && obj.floorId == null) obj.floorId = floor.id;
           }
-        }
-        const floorRoofParts = [];
-        if (Array.isArray(state.floors)) {
-          for (const floor of state.floors) {
-            if (!floor || !Array.isArray(floor.roofParts)) continue;
-            for (const part of floor.roofParts) {
-              if (!part) continue;
-              if (!part.floorId && floor.id != null) part.floorId = String(floor.id);
-              floorRoofParts.push(part);
-            }
-          }
-        }
-        if (!state.roofParts.length && floorRoofParts.length) {
-          state.roofParts = floorRoofParts;
-        } else if (floorRoofParts.length) {
-          const seen = new Set(state.roofParts.map(p => String(p && p.id || '')).filter(Boolean));
-          for (const part of floorRoofParts) {
-            const id = String(part && part.id || '');
-            if (id && seen.has(id)) continue;
-            state.roofParts.push(part);
-            if (id) seen.add(id);
-          }
-        }
-        migrateLegacyRoomRoofs(state);
-        state.roofParts = state.roofParts
-          .map((part, idx) => normalizeRoofPart(part, part && (part.floorId || part.floor_id) || '', idx))
-          .filter(Boolean);
-        const floorById = new Map((state.floors || []).map(f => [String(f.id), f]));
-        for (const part of state.roofParts) {
-          const floor = part && part.floorId ? floorById.get(String(part.floorId)) : null;
-          ensureRoofPartCorners(part, floor);
         }
         return state;
       }
@@ -2572,36 +2192,6 @@
         const clean = cloneValue(battle || {});
         delete clean._battle_id;
         delete clean._campaign_id;
-        if (!Array.isArray(clean.roofParts)) clean.roofParts = [];
-        if (Array.isArray(clean.floors)) {
-          const roomToFloor = new Map();
-          for (const floor of clean.floors) {
-            if (!floor || floor.id == null || !Array.isArray(floor.rooms)) continue;
-            const fid = String(floor.id);
-            for (const room of floor.rooms) {
-              if (!room || room.id == null) continue;
-              roomToFloor.set(String(room.id), fid);
-            }
-          }
-          const byFloor = new Map();
-          for (const part of clean.roofParts) {
-            if (!part || part.deleted) continue;
-            let fid = part.floorId || part.floor_id || '';
-            if (!fid) {
-              const parent = part.parentRoomId || part.parent_room || part.parent_room_id || part.room_id || part.roomId || '';
-              if (parent && roomToFloor.has(String(parent))) fid = roomToFloor.get(String(parent));
-            }
-            if (fid) part.floorId = String(fid);
-            const key = fid ? String(fid) : '';
-            if (!byFloor.has(key)) byFloor.set(key, []);
-            byFloor.get(key).push(part);
-          }
-          for (const floor of clean.floors) {
-            if (!floor || floor.id == null) continue;
-            const fid = String(floor.id);
-            floor.roofParts = byFloor.get(fid) || [];
-          }
-        }
         return clean;
       }
 
@@ -2785,405 +2375,6 @@
         return null;
       }
 
-      function roofPartParentRoomId(part) {
-        if (!part) return '';
-        return String(part.parentRoomId || part.parent_room || part.parent_room_id || part.room_id || part.roomId || '');
-      }
-
-      function parseRoofCorners(part) {
-        const raw = part && Array.isArray(part.corners) ? part.corners : null;
-        if (!raw || raw.length < 4) return null;
-        const pts = raw
-          .map((label) => parseHexLabel(label))
-          .filter((p) => p && Number.isFinite(p.col) && Number.isFinite(p.row));
-        return pts.length >= 4 ? pts.slice(0, 4) : null;
-      }
-
-      function roofPartBoundsHex(part, floor) {
-        const corners = parseRoofCorners(part);
-        if (corners && corners.length >= 4) {
-          const cols = corners.map(c => c.col);
-          const rows = corners.map(c => c.row);
-          return {
-            minCol: Math.min(...cols),
-            maxCol: Math.max(...cols),
-            minRow: Math.min(...rows),
-            maxRow: Math.max(...rows)
-          };
-        }
-        const center = roofPartCenterHex(part, floor);
-        if (!center) return null;
-        const wCols = Number(part && (part.wCols ?? part.width_cols ?? part.widthCols));
-        const hRows = Number(part && (part.hRows ?? part.height_rows ?? part.heightRows));
-        const halfW = Math.max(1, Number.isFinite(wCols) ? wCols : 1) / 2;
-        const halfH = Math.max(0.5, Number.isFinite(hRows) ? hRows : 1) / 2;
-        return {
-          minCol: center.col - halfW,
-          maxCol: center.col + halfW,
-          minRow: center.row - halfH,
-          maxRow: center.row + halfH
-        };
-      }
-
-      function roofPartCornersHexFromBounds(bounds) {
-        if (!bounds) return null;
-        const minCol = bounds.minCol;
-        const maxCol = bounds.maxCol;
-        const minRow = bounds.minRow;
-        const maxRow = bounds.maxRow;
-        return [
-          { col: minCol, row: maxRow },
-          { col: maxCol, row: maxRow },
-          { col: maxCol, row: minRow },
-          { col: minCol, row: minRow }
-        ];
-      }
-
-      function setRoofPartCornersFromBounds(part, bounds) {
-        if (!part || !bounds) return;
-        const corners = roofPartCornersHexFromBounds(bounds);
-        if (!corners) return;
-        part.corners = corners.map(c => toHexLabel(c.col, c.row));
-        const wCols = Math.max(1, Math.round(bounds.maxCol - bounds.minCol));
-        const hRows = Math.max(0.5, Math.round((bounds.maxRow - bounds.minRow) * 2) / 2);
-        part.wCols = wCols;
-        part.hRows = hRows;
-        part.col = (bounds.minCol + bounds.maxCol) / 2;
-        part.row = (bounds.minRow + bounds.maxRow) / 2;
-      }
-
-      function roofPartCornersWorld(part, floor) {
-        const bounds = roofPartBoundsHex(part, floor);
-        if (!bounds) return null;
-        const cornersHex = roofPartCornersHexFromBounds(bounds);
-        if (!cornersHex) return null;
-        return cornersHex.map(c => hexToWorld(c.col, c.row));
-      }
-
-      function roofPartCenterWorld(part, floor) {
-        const cornersWorld = roofPartCornersWorld(part, floor);
-        if (cornersWorld && cornersWorld.length) {
-          let sx = 0;
-          let sy = 0;
-          for (const p of cornersWorld) {
-            sx += p.x;
-            sy += p.y;
-          }
-          return { x: sx / cornersWorld.length, y: sy / cornersWorld.length };
-        }
-        const center = roofPartCenterHex(part, floor);
-        return center ? hexToWorld(center.col, center.row) : null;
-      }
-
-      function ensureRoofPartCorners(part, floor) {
-        if (!part) return;
-        if (parseRoofCorners(part)) return;
-        const bounds = roofPartBoundsHex(part, floor);
-        if (bounds) {
-          let minCol = Math.round(bounds.minCol);
-          let minRow = roundHalf(bounds.minRow);
-          const wCols = Math.max(1, Math.round(bounds.maxCol - bounds.minCol));
-          const hRows = Math.max(0.5, Math.round((bounds.maxRow - bounds.minRow) * 2) / 2);
-          const maxCol = minCol + wCols;
-          const maxRow = minRow + hRows;
-          setRoofPartCornersFromBounds(part, { minCol, maxCol, minRow, maxRow });
-        }
-      }
-
-      function roofPartCenterHex(part, floor) {
-        if (!part || typeof part !== 'object') return null;
-        const corners = parseRoofCorners(part);
-        if (corners && corners.length >= 4) {
-          const cols = corners.map(c => c.col);
-          const rows = corners.map(c => c.row);
-          const minCol = Math.min(...cols);
-          const maxCol = Math.max(...cols);
-          const minRow = Math.min(...rows);
-          const maxRow = Math.max(...rows);
-          return {
-            col: (minCol + maxCol) / 2,
-            row: (minRow + maxRow) / 2
-          };
-        }
-        const parentId = roofPartParentRoomId(part);
-        if (parentId && floor) {
-          const room = findRoomById(floor, parentId);
-          if (room) {
-            const roomCenter = roomCenterHexHalf(room);
-            if (roomCenter) {
-              const localCol = Number(part.localCol ?? part.local_col ?? 0);
-              const localRow = Number(part.localRow ?? part.local_row ?? 0);
-              const dCol = Number.isFinite(localCol) ? localCol : 0;
-              const dRow = Number.isFinite(localRow) ? localRow : 0;
-              return { col: roomCenter.col + dCol, row: roomCenter.row + dRow };
-            }
-          }
-        }
-        const col = Number(part.col);
-        const row = Number(part.row);
-        if (Number.isFinite(col) && Number.isFinite(row)) return { col, row };
-        const label = String(part.center_hex || part.centerHex || '').trim();
-        if (!label) return null;
-        if (label.includes(',')) {
-          const bits = label.split(',');
-          const c = Number(bits[0]);
-          const r = Number(bits[1]);
-          if (Number.isFinite(c) && Number.isFinite(r)) return { col: c, row: r };
-        }
-        const parsed = parseHexLabel(label);
-        return parsed || null;
-      }
-
-      function snapRoofCenterToEdges(part, centerHex) {
-        if (!part || !centerHex) return centerHex;
-        const wCols = Number(part && (part.wCols ?? part.width_cols ?? part.widthCols));
-        const hRows = Number(part && (part.hRows ?? part.height_rows ?? part.heightRows));
-        const halfW = (Number.isFinite(wCols) ? wCols : 1) / 2;
-        const halfH = (Number.isFinite(hRows) ? hRows : 1) / 2;
-        const colParity = ((halfW % 1) + 1) % 1;
-        const rowParity = ((halfH % 0.5) + 0.5) % 0.5;
-        const snappedCol = Math.round(centerHex.col - colParity) + colParity;
-        const snappedRow = roundHalf(centerHex.row - rowParity) + rowParity;
-        return { col: snappedCol, row: snappedRow };
-      }
-
-      function setRoofPartCenterHex(part, floor, centerHex) {
-        if (!part || !centerHex) return;
-        if (parseRoofCorners(part)) {
-          const bounds = roofPartBoundsHex(part, floor);
-          if (!bounds) return;
-          const curCenter = {
-            col: (bounds.minCol + bounds.maxCol) / 2,
-            row: (bounds.minRow + bounds.maxRow) / 2
-          };
-          const dCol = centerHex.col - curCenter.col;
-          const dRow = centerHex.row - curCenter.row;
-          const nextBounds = {
-            minCol: bounds.minCol + dCol,
-            maxCol: bounds.maxCol + dCol,
-            minRow: bounds.minRow + dRow,
-            maxRow: bounds.maxRow + dRow
-          };
-          setRoofPartCornersFromBounds(part, nextBounds);
-          return;
-        }
-        const snapped = snapRoofCenterToEdges(part, centerHex);
-        const target = snapped || centerHex;
-        const parentId = roofPartParentRoomId(part);
-        if (parentId && floor) {
-          const room = findRoomById(floor, parentId);
-          const roomCenter = room ? roomCenterHexHalf(room) : null;
-          if (roomCenter) {
-            part.localCol = target.col - roomCenter.col;
-            part.localRow = target.row - roomCenter.row;
-            delete part.col;
-            delete part.row;
-            delete part.center_hex;
-            delete part.centerHex;
-            return;
-          }
-        }
-        part.col = target.col;
-        part.row = target.row;
-      }
-
-      function bindRoofPartToRoom(part, floor, room) {
-        if (!part || !room || !room.id) return;
-        const center = roofPartCenterHex(part, floor);
-        const roomCenter = roomCenterHexHalf(room);
-        if (!center || !roomCenter) return;
-        part.parentRoomId = String(room.id);
-        part.localCol = center.col - roomCenter.col;
-        part.localRow = center.row - roomCenter.row;
-        delete part.parent_room;
-        delete part.parent_room_id;
-        delete part.room_id;
-        delete part.roomId;
-        delete part.col;
-        delete part.row;
-        delete part.center_hex;
-        delete part.centerHex;
-      }
-
-      function roofPartDimsWorld(part, floor = null) {
-        const resolvedFloor = floor || (STATE.battle && Array.isArray(STATE.battle.floors) && part && (part.floorId || part.floor_id)
-          ? STATE.battle.floors.find(f => f && String(f.id) === String(part.floorId || part.floor_id))
-          : null);
-        const bounds = roofPartBoundsHex(part, resolvedFloor);
-        const wCols = bounds ? (bounds.maxCol - bounds.minCol)
-          : Number(part && (part.wCols ?? part.width_cols ?? part.widthCols));
-        const hRows = bounds ? (bounds.maxRow - bounds.minRow)
-          : Number(part && (part.hRows ?? part.height_rows ?? part.heightRows));
-        return {
-          w: Math.max(1, Number.isFinite(wCols) ? wCols : 1) * colStep(),
-          h: Math.max(0.5, Number.isFinite(hRows) ? hRows : 1) * rowStep()
-        };
-      }
-
-      function roofDepthFromAngle(angleDeg, halfW, halfH) {
-        const a = Math.abs(Number(angleDeg) || 0);
-        const t = (a * Math.PI) / 180;
-        return Math.max(0, Math.tan(t) * halfW);
-      }
-
-      function roofRotateLocalPoint(p, rotDeg) {
-        const r = (Number(rotDeg) || 0) * Math.PI / 180;
-        if (!r) return { x: p.x, y: p.y };
-        const c = Math.cos(r);
-        const s = Math.sin(r);
-        return { x: p.x * c - p.y * s, y: p.x * s + p.y * c };
-      }
-
-      function roofLocalToWorld(local, centerWorld, rotDeg) {
-        const r = roofRotateLocalPoint(local, rotDeg);
-        return { x: centerWorld.x + r.x, y: centerWorld.y + r.y };
-      }
-
-      function buildRoofPartGeomLocal(part) {
-        const dims = roofPartDimsWorld(part);
-        const hw = dims.w / 2;
-        const hh = dims.h / 2;
-        const sa = Number(part.startAngle ?? part.start_angle) || 0;
-        const ea = Number(part.endAngle ?? part.end_angle) || 0;
-        const ds = roofDepthFromAngle(sa, hw, hh);
-        const de = roofDepthFromAngle(ea, hw, hh);
-        const topTipY = sa > 0 ? (-hh - ds) : (sa < 0 ? (-hh + ds) : -hh);
-        const botTipY = ea > 0 ? (hh + de) : (ea < 0 ? (hh - de) : hh);
-        const TL = { x: -hw, y: -hh };
-        const TR = { x: hw, y: -hh };
-        const BR = { x: hw, y: hh };
-        const BL = { x: -hw, y: hh };
-        const topTip = { x: 0, y: topTipY };
-        const botTip = { x: 0, y: botTipY };
-        const north = (topTipY !== -hh) ? [TL, TR, topTip] : [];
-        const south = (botTipY !== hh) ? [BL, BR, botTip] : [];
-        const west = [TL, topTip, botTip, BL];
-        const east = [TR, BR, botTip, topTip];
-        const outline = [TL];
-        if (topTipY < -hh) outline.push(topTip);
-        outline.push(TR, BR);
-        if (botTipY > hh) outline.push(botTip);
-        outline.push(BL);
-        const cutLines = [];
-        if (topTipY !== -hh) cutLines.push([TL, topTip], [TR, topTip]);
-        if (botTipY !== hh) cutLines.push([BL, botTip], [BR, botTip]);
-        const spine = [topTip, botTip];
-        return { north, south, west, east, outline, cutLines, spine };
-      }
-
-      function drawRoofPart(part, gctx, floor) {
-        const centerWorld = roofPartCenterWorld(part, floor);
-        if (!centerWorld) return;
-        const spineRot = Number(part.rot) || 0;
-        const shapeRot = 0;
-        const geom = buildRoofPartGeomLocal(part);
-        const tileKind = String(part.tileKind ?? part.tile ?? 'slate');
-        const tex = getTexturePattern(gctx, 'roof', tileKind);
-        const fallback = FLOOR_COLORS[tileKind] || FLOOR_COLORS.default;
-        const tileScale = Number.isFinite(Number(part.tileScale ?? part.tile_scale))
-          ? Number(part.tileScale ?? part.tile_scale)
-          : (tex && Number.isFinite(Number(tex.scale)) ? Number(tex.scale) : 0.2);
-        const tintColor = String(part.tintColor ?? part.tint_color ?? '#000000');
-        const tintPct = Number(part.tintPct ?? part.tint_pct);
-        const tintAlpha = Math.max(0, Math.min(1, Number.isFinite(tintPct) ? (tintPct / 100) : 0));
-        const shadePct = Number(part.shadePct ?? part.shade_pct);
-        const shadeAlpha = Math.max(0, Math.min(1, Number.isFinite(shadePct) ? (shadePct / 100) : 0.5));
-        const segments = [
-          { name: 'north', pts: geom.north, segRot: 180 },
-          { name: 'south', pts: geom.south, segRot: 0 },
-          { name: 'west', pts: geom.west, segRot: 90 },
-          { name: 'east', pts: geom.east, segRot: 270 }
-        ];
-
-        const fillSegment = (segment) => {
-          if (!segment.pts || segment.pts.length < 3) return;
-          const ptsWorld = segment.pts.map((p) => roofLocalToWorld(p, centerWorld, shapeRot));
-          gctx.save();
-          gctx.beginPath();
-          const first = worldToScreen(ptsWorld[0]);
-          gctx.moveTo(first.x, first.y);
-          for (let i = 1; i < ptsWorld.length; i++) {
-            const p = worldToScreen(ptsWorld[i]);
-            gctx.lineTo(p.x, p.y);
-          }
-          gctx.closePath();
-          gctx.clip();
-          if (tex && tex.pattern) {
-            applyPatternTransform(tex.pattern, tileScale, centerWorld, (segment.segRot + spineRot) % 360);
-            gctx.fillStyle = tex.pattern;
-          } else {
-            gctx.fillStyle = fallback;
-          }
-          gctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-          if (tintAlpha > 0) {
-            gctx.globalCompositeOperation = 'multiply';
-            gctx.fillStyle = tintColor;
-            gctx.globalAlpha = tintAlpha;
-            gctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-            gctx.globalAlpha = 1;
-            gctx.globalCompositeOperation = 'source-over';
-          }
-          const side = rotateCardinal(segment.name, spineRot);
-          if (side === 'north' || side === 'east') {
-            gctx.fillStyle = `rgba(0,0,0,${shadeAlpha})`;
-            gctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-          }
-          gctx.restore();
-        };
-
-        segments.forEach(fillSegment);
-
-        const lineColor = String(part.lineColor ?? part.line_color ?? '#70777e');
-        const lineWidth = Number(part.lineWidth ?? part.line_width);
-        const lineW = Math.max(0.5, Number.isFinite(lineWidth) ? lineWidth : 2);
-        gctx.save();
-        gctx.strokeStyle = lineColor;
-        gctx.lineWidth = lineW;
-        gctx.lineJoin = 'round';
-        gctx.lineCap = 'round';
-        const outlineWorld = geom.outline.map((p) => roofLocalToWorld(p, centerWorld, shapeRot));
-        gctx.beginPath();
-        const o0 = worldToScreen(outlineWorld[0]);
-        gctx.moveTo(o0.x, o0.y);
-        for (let i = 1; i < outlineWorld.length; i++) {
-          const p = worldToScreen(outlineWorld[i]);
-          gctx.lineTo(p.x, p.y);
-        }
-        gctx.closePath();
-        gctx.stroke();
-        const spineWorld = geom.spine.map((p) => roofLocalToWorld(p, centerWorld, spineRot));
-        const s0 = worldToScreen(spineWorld[0]);
-        const s1 = worldToScreen(spineWorld[1]);
-        gctx.beginPath();
-        gctx.moveTo(s0.x, s0.y);
-        gctx.lineTo(s1.x, s1.y);
-        gctx.stroke();
-        for (const line of geom.cutLines) {
-          const a = worldToScreen(roofLocalToWorld(line[0], centerWorld, spineRot));
-          const b = worldToScreen(roofLocalToWorld(line[1], centerWorld, spineRot));
-          gctx.beginPath();
-          gctx.moveTo(a.x, a.y);
-          gctx.lineTo(b.x, b.y);
-          gctx.stroke();
-        }
-        gctx.restore();
-      }
-
-      function roofPartsForFloor(floor, rooms) {
-        const all = Array.isArray(STATE.battle && STATE.battle.roofParts) ? STATE.battle.roofParts : [];
-        if (!all.length) return [];
-        const floorId = floor && floor.id != null ? String(floor.id) : '';
-        const roomSet = new Set((rooms || []).filter(Boolean).map((r) => String(r.id || '')));
-        return all.filter((part) => {
-          if (!part || part.deleted) return false;
-          const pf = part.floorId || part.floor_id || '';
-          if (pf && String(pf) !== floorId) return false;
-          const parent = part.parentRoomId || part.parent_room || part.parent_room_id || part.room_id || part.roomId || '';
-          if (!parent || !roomSet.size) return true;
-          return roomSet.has(String(parent));
-        });
-      }
-
       function drawBackdrop(gctx) {
         if (!UI.showBackdrop) return;
         if (!BACKDROP.loaded || !BACKDROP.img) return;
@@ -3216,17 +2407,6 @@
         const list = sortByZ(rooms || filterAlive(floor.rooms || []));
         drawBackdrop(gctx);
         list.forEach(room => drawFloorRoom(room, gctx));
-      }
-
-      function drawRoofsLayer(floor, gctx, rooms, allRooms, roomSets) {
-        const baseRooms = allRooms || rooms || filterAlive(floor.rooms || []);
-        let partList = sortByZ(roofPartsForFloor(floor, baseRooms));
-        if (UI.fogEnabled && roomSets) {
-          partList = partList.filter((part) => {
-            return itemFogState(part, floor, baseRooms, roomSets, roofPartWorldCenter) !== 'hidden';
-          });
-        }
-        partList.forEach((part) => drawRoofPart(part, gctx, floor));
       }
 
       function wallThicknessAtWorld(worldPoint, floor) {
@@ -4091,10 +3271,6 @@
         return hexToWorld(p.col, p.row);
       }
 
-      function roofPartWorldCenter(part, floor) {
-        return roofPartCenterWorld(part, floor);
-      }
-
       function itemFogState(item, floor, rooms, roomSets, getWorld) {
         if (!UI.fogEnabled) return 'visible';
         const parentId = item && (item.parent_room || item.parentRoom || item.parentRoomId || item.room_id || item.roomId);
@@ -4158,7 +3334,6 @@
         const layerMode = layerSelect ? layerSelect.value : 'all';
         const floorLayer = getLayerContext('floors', rect, dpr);
         const wallLayer = getLayerContext('walls', rect, dpr);
-        const roofLayer = getLayerContext('roofs', rect, dpr);
         const objectLayer = getLayerContext('objects', rect, dpr);
         const fogLayer = getLayerContext('fog', rect, dpr);
         const gridLayer = getLayerContext('grid', rect, dpr);
@@ -4173,7 +3348,6 @@
 
         drawFloorsLayer(floor, floorLayer.ctx, roomsToDraw);
         drawWallsLayer(floor, wallLayer.ctx, roomsToDraw, fogSets);
-        drawRoofsLayer(floor, roofLayer.ctx, roomsToDraw, allRooms, fogSets);
         drawGridLayer(gridLayer.ctx);
         drawHandlesLayer(floor, handleLayer.ctx);
         drawRoomEdgeHandles(floor, handleLayer.ctx);
@@ -4220,9 +3394,6 @@
         if (layerMode === 'all' || layerMode === 'walls') {
           ctx.drawImage(wallLayer.canvas, 0, 0, rect.width, rect.height);
         }
-        if (layerMode === 'all' || layerMode === 'roofs') {
-          ctx.drawImage(roofLayer.canvas, 0, 0, rect.width, rect.height);
-        }
         if (layerMode === 'all' || layerMode === 'tokens') {
           ctx.drawImage(tokenLayer.canvas, 0, 0, rect.width, rect.height);
         }
@@ -4234,7 +3405,6 @@
         }
         if (layerMode === 'all') {
           drawPolyPreview(ctx);
-          drawRoofPreview(ctx);
         }
       }
 
@@ -4335,37 +3505,6 @@
             { value: 'explored', label: 'Always Explored' },
             { value: 'hidden', label: 'Always Hidden' }
           ]);
-          addButtonRow([
-            { label: 'To Front', onClick: () => reorderSelection('front') },
-            { label: 'To Back', onClick: () => reorderSelection('back') },
-          ]);
-          addButtonRow([
-            { label: 'Delete', onClick: () => deleteSelection() },
-          ]);
-        }
-
-        if (sel.type === 'roofPart') {
-          const centerHex = roofPartCenterHex(sel.item, pickFloor());
-          addField('Type', 'roofPart', 'type', { readonly: true });
-          addField('ID', sel.item.id, 'id', { readonly: true });
-          addField('Floor', sel.floorId || '', 'floorId');
-          addField('Center Hex', centerHex ? toHexLabel(centerHex.col, centerHex.row) : '', 'center_hex');
-          addField('Parent Room', roofPartParentRoomId(sel.item), 'parent_room');
-          addField('Local Col', sel.item.localCol != null ? sel.item.localCol : '', 'localCol', { type: 'number', step: '0.5' });
-          addField('Local Row', sel.item.localRow != null ? sel.item.localRow : '', 'localRow', { type: 'number', step: '0.5' });
-          addField('Width Cols', sel.item.wCols != null ? sel.item.wCols : 1, 'wCols', { type: 'number', step: '1' });
-          addField('Height Rows', sel.item.hRows != null ? sel.item.hRows : 1, 'hRows', { type: 'number', step: '0.5' });
-          addField('Start°', sel.item.startAngle != null ? sel.item.startAngle : 0, 'startAngle', { type: 'number', step: '1' });
-          addField('End°', sel.item.endAngle != null ? sel.item.endAngle : 0, 'endAngle', { type: 'number', step: '1' });
-          addField('Rot°', sel.item.rot != null ? sel.item.rot : 0, 'rot', { type: 'number', step: '90' });
-          addField('Tile', sel.item.tileKind || 'slate', 'tileKind', { list: 'roofKindList' });
-          addField('Tile Scale', sel.item.tileScale != null ? sel.item.tileScale : 0.2, 'tileScale', { type: 'number', step: '0.05' });
-          addField('Line Color', sel.item.lineColor || '#70777e', 'lineColor', { type: 'color' });
-          addField('Line Width', sel.item.lineWidth != null ? sel.item.lineWidth : 2, 'lineWidth', { type: 'number', step: '0.5' });
-          addField('Tint Color', sel.item.tintColor || '#000000', 'tintColor', { type: 'color' });
-          addField('Tint %', sel.item.tintPct != null ? sel.item.tintPct : 0, 'tintPct', { type: 'number', step: '1' });
-          addField('Shade %', sel.item.shadePct != null ? sel.item.shadePct : 50, 'shadePct', { type: 'number', step: '1' });
-          addField('Z', sel.item.z != null ? sel.item.z : 0, 'z', { type: 'number', step: '1' });
           addButtonRow([
             { label: 'To Front', onClick: () => reorderSelection('front') },
             { label: 'To Back', onClick: () => reorderSelection('back') },
@@ -4517,80 +3656,6 @@
           if (key === 'z') item.z = num(value, null);
         }
 
-        if (sel.type === 'roofPart') {
-          const floor = pickFloor();
-          if (key === 'floorId') {
-            item.floorId = String(value || '');
-            if (EDITOR.selection) EDITOR.selection.floorId = item.floorId;
-          }
-          if (key === 'center_hex') {
-            const parsed = parseHexLabel(value);
-            if (parsed) setRoofPartCenterHex(item, floor, parsed);
-          }
-          if (key === 'parent_room') {
-            const v = String(value || '').trim();
-            if (!v) {
-              const c = roofPartCenterHex(item, floor);
-              delete item.parentRoomId;
-              delete item.parent_room;
-              delete item.parent_room_id;
-              delete item.room_id;
-              delete item.roomId;
-              delete item.localCol;
-              delete item.localRow;
-              if (c) setRoofPartCenterHex(item, floor, c);
-            } else if (floor) {
-              const room = findRoomById(floor, v);
-              if (room) bindRoofPartToRoom(item, floor, room);
-            }
-          }
-          if (key === 'localCol') item.localCol = num(value, 0);
-          if (key === 'localRow') item.localRow = num(value, 0);
-          if (key === 'wCols') {
-            item.wCols = Math.max(1, Math.round(num(value, 1)));
-            const floor = pickFloor();
-            const center = roofPartCenterHex(item, floor);
-            if (center) {
-              const halfW = item.wCols / 2;
-              const halfH = Math.max(0.5, Number(item.hRows ?? 1)) / 2;
-              setRoofPartCornersFromBounds(item, {
-                minCol: center.col - halfW,
-                maxCol: center.col + halfW,
-                minRow: center.row - halfH,
-                maxRow: center.row + halfH
-              });
-            }
-          }
-          if (key === 'hRows') {
-            item.hRows = Math.max(0.5, num(value, 1));
-            const floor = pickFloor();
-            const center = roofPartCenterHex(item, floor);
-            if (center) {
-              const halfW = Math.max(1, Number(item.wCols ?? 1)) / 2;
-              const halfH = item.hRows / 2;
-              setRoofPartCornersFromBounds(item, {
-                minCol: center.col - halfW,
-                maxCol: center.col + halfW,
-                minRow: center.row - halfH,
-                maxRow: center.row + halfH
-              });
-            }
-          }
-          if (key === 'startAngle') item.startAngle = num(value, 0);
-          if (key === 'endAngle') item.endAngle = num(value, 0);
-          if (key === 'rot') {
-            item.rot = Math.round(num(value, 0) / 90) * 90;
-          }
-          if (key === 'tileKind') item.tileKind = String(value || 'slate');
-          if (key === 'tileScale') item.tileScale = Math.max(0.01, num(value, 0.2));
-          if (key === 'lineColor') item.lineColor = String(value || '#70777e');
-          if (key === 'lineWidth') item.lineWidth = Math.max(0.5, num(value, 2));
-          if (key === 'tintColor') item.tintColor = String(value || '#000000');
-          if (key === 'tintPct') item.tintPct = Math.max(0, Math.min(100, num(value, 0)));
-          if (key === 'shadePct') item.shadePct = Math.max(0, Math.min(100, num(value, 50)));
-          if (key === 'z') item.z = num(value, 0);
-        }
-
         if (sel.type === 'opening') {
           if (key === 'name') item.name = value;
           if (key === 'kind') item.kind = value;
@@ -4705,7 +3770,6 @@
 
         let list = null;
         if (sel.type === 'room') list = floor.rooms;
-        if (sel.type === 'roofPart') list = STATE.battle.roofParts;
         if (sel.type === 'opening') list = floor.openings;
         if (sel.type === 'object') list = floor.objects;
         if (!Array.isArray(list)) return;
@@ -4757,7 +3821,6 @@
           : null;
         if (!floor) return;
         if (sel.type === 'room') sel.item.deleted = true;
-        if (sel.type === 'roofPart') sel.item.deleted = true;
         if (sel.type === 'opening') sel.item.deleted = true;
         if (sel.type === 'object') sel.item.deleted = true;
         clearSelection();
@@ -4807,19 +3870,6 @@
           return world ? worldToScreen(world) : null;
         }, 14);
         if (opening) return { type: 'opening', item: opening, floorId: floor.id };
-
-        const roofParts = sortByZ(roofPartsForFloor(floor, floor.rooms || [])).reverse();
-        for (const part of roofParts) {
-          const centerHex = roofPartCenterHex(part, floor);
-          if (!centerHex) continue;
-          const centerWorld = hexToWorld(centerHex.col, centerHex.row);
-          const rot = Number(part.rot) || 0;
-          const geom = buildRoofPartGeomLocal(part);
-          const outlineWorld = geom.outline.map((p) => roofLocalToWorld(p, centerWorld, rot));
-          if (outlineWorld.length >= 3 && pointInPolygon(worldPoint, outlineWorld)) {
-            return { type: 'roofPart', item: part, floorId: floor.id };
-          }
-        }
 
         for (const room of filterAlive(floor.rooms || [])) {
           const polyLabels = getPolyPointLabels(room);
@@ -4904,10 +3954,6 @@
           }
           EDITOR.polyPoints = points.concat({ hex: snap, world: snapWorld, label });
           render();
-          return;
-        }
-
-        if (EDITOR.tool === 'roof') {
           return;
         }
 
@@ -5023,55 +4069,6 @@
           drag.item.hex = hexLabel;
           drag.item.floorId = VIEW.floorId || drag.floorId || drag.item.floorId;
           syncEntityFromToken(drag.item);
-        } else if (drag.type === 'roof-move') {
-          const floor = pickFloor();
-          const startWorld = drag.startWorld || worldPoint;
-          const dx = worldPoint.x - startWorld.x;
-          const dy = worldPoint.y - startWorld.y;
-          const dCol = Math.round(dx / colStep());
-          const dRow = roundHalf(-dy / rowStep());
-          const bounds = roofPartBoundsHex(drag.item, floor);
-          if (bounds) {
-            setRoofPartCornersFromBounds(drag.item, {
-              minCol: bounds.minCol + dCol,
-              maxCol: bounds.maxCol + dCol,
-              minRow: bounds.minRow + dRow,
-              maxRow: bounds.maxRow + dRow
-            });
-          } else {
-            const base = drag.startCenter || roofPartCenterHex(drag.item, floor);
-            if (base) {
-              setRoofPartCenterHex(drag.item, floor, { col: base.col + dCol, row: base.row + dRow });
-            } else {
-              setRoofPartCenterHex(drag.item, floor, worldToHexHalf(worldPoint));
-            }
-          }
-        } else if (drag.type === 'roof-resize') {
-          const floor = pickFloor();
-          const bounds = roofPartBoundsHex(drag.item, floor);
-          if (!bounds) return;
-          let { minCol, maxCol, minRow, maxRow } = bounds;
-          if (drag.side === 'north' || drag.side === 'south') {
-            const snap = worldToHexHalf(worldPoint);
-            let nextRow = snap.row;
-            if (drag.side === 'north') {
-              if (nextRow <= minRow + 0.5) nextRow = minRow + 0.5;
-              maxRow = nextRow;
-            } else {
-              if (nextRow >= maxRow - 0.5) nextRow = maxRow - 0.5;
-              minRow = nextRow;
-            }
-          } else if (drag.side === 'east' || drag.side === 'west') {
-            let nextCol = Math.round(worldPoint.x / colStep());
-            if (drag.side === 'east') {
-              if (nextCol <= minCol + 1) nextCol = minCol + 1;
-              maxCol = nextCol;
-            } else {
-              if (nextCol >= maxCol - 1) nextCol = maxCol - 1;
-              minCol = nextCol;
-            }
-          }
-          setRoofPartCornersFromBounds(drag.item, { minCol, maxCol, minRow, maxRow });
         } else if (drag.type === 'opening') {
           const orient = drag.item && drag.item.orientation === 'v' ? 'v' : 'h';
           const snapped = snapWorldToWall(worldPoint, pickFloor(), orient);
@@ -5124,35 +4121,7 @@
           const world = screenToWorld(x, y);
           const screenPoint = { x, y };
           const floor = pickFloor();
-          if (EDITOR.tool === 'roof') {
-            if (!floor) return;
-            const snap = worldToHexHalf(world);
-            const snapWorld = hexToWorld(snap.col, snap.row);
-            EDITOR.roofDraft = { startWorld: snapWorld, currentWorld: snapWorld };
-            EDITOR.drag = { type: 'roof-create', didMove: false, pushed: false };
-            render();
-            return;
-          }
           if (EDITOR.tool !== 'select') return;
-        if (floor && EDITOR.selection && EDITOR.selection.type === 'roofPart') {
-          let roofHit = null;
-          if (UI.showHandles || UI.handleHot) roofHit = getRoofHandleHit(EDITOR.selection.item, floor, screenPoint);
-          if (roofHit) {
-            const startCenter = roofPartCenterHex(EDITOR.selection.item, floor);
-            EDITOR.drag = {
-              type: roofHit.type,
-              side: roofHit.side,
-              item: EDITOR.selection.item,
-              floorId: EDITOR.selection.floorId,
-              startWorld: world,
-              startHex: worldToHexHalf(world),
-              startCenter,
-              didMove: false,
-              pushed: false
-            };
-            return;
-          }
-        }
         if (floor && EDITOR.selection && EDITOR.selection.type === 'room') {
           let hit = null;
           if (UI.showHandles || UI.handleHot) {
@@ -5192,27 +4161,6 @@
           }
         }
         const sel = findSelectionAt(world);
-        if (sel && sel.type === 'roofPart') {
-          selectItem(sel.type, sel.item, sel.floorId);
-          const showHandles = UI.showHandles || UI.handleHot;
-          if (showHandles) {
-            const hit = getRoofHandleHit(sel.item, floor, screenPoint);
-            if (hit) {
-              EDITOR.drag = {
-                type: hit.type,
-                side: hit.side,
-                item: sel.item,
-                floorId: sel.floorId,
-                startWorld: world,
-                didMove: false,
-                pushed: false
-              };
-              return;
-            }
-          }
-          EDITOR.drag = { type: 'roof-move', item: sel.item, floorId: sel.floorId, startWorld: world, didMove: false, pushed: false };
-          return;
-        }
         if (sel && sel.type === 'room') {
           selectItem(sel.type, sel.item, sel.floorId);
           const showHandles = UI.showHandles || UI.handleHot;
@@ -5266,14 +4214,6 @@
           const x = ev.clientX - rect.left;
           const y = ev.clientY - rect.top;
           const world = screenToWorld(x, y);
-          if (EDITOR.drag.type === 'roof-create') {
-            const snap = worldToHexHalf(world);
-            EDITOR.roofDraft = EDITOR.roofDraft || {};
-            EDITOR.roofDraft.currentWorld = hexToWorld(snap.col, snap.row);
-            EDITOR.drag.didMove = true;
-            render();
-            return;
-          }
           EDITOR.drag.didMove = true;
           if (!EDITOR.drag.pushed) {
             pushHistory();
@@ -5298,28 +4238,6 @@
         window.addEventListener('mouseup', () => {
           if (!EDITOR.drag) return;
           const dragged = EDITOR.drag;
-          if (dragged.type === 'roof-create') {
-            EDITOR.drag = null;
-            const floor = pickFloor();
-            const draft = EDITOR.roofDraft;
-            if (floor && draft && draft.startWorld && draft.currentWorld) {
-              const dx = draft.currentWorld.x - draft.startWorld.x;
-              const dy = draft.currentWorld.y - draft.startWorld.y;
-              if ((dx * dx + dy * dy) > 1) {
-                pushHistory();
-                const part = roofPartFromDrag(draft.startWorld, draft.currentWorld, floor);
-                if (!Array.isArray(STATE.battle.roofParts)) STATE.battle.roofParts = [];
-                STATE.battle.roofParts.push(part);
-                selectItem('roofPart', part, floor.id);
-                EDITOR.dirty = true;
-                setTool('select');
-                EDITOR.ignoreClick = true;
-              }
-            }
-            EDITOR.roofDraft = null;
-            render();
-            return;
-          }
           EDITOR.drag = null;
           if (dragged.didMove) {
             EDITOR.ignoreClick = true;
@@ -5443,77 +4361,6 @@
             EDITOR.tokenKind = tokenKindSelect.value;
           });
           tokenKindSelect.value = EDITOR.tokenKind;
-        }
-        if (roofTileKindSelect) {
-          roofTileKindSelect.addEventListener('change', () => {
-            EDITOR.roofTileKind = roofTileKindSelect.value || 'slate';
-          });
-          roofTileKindSelect.value = EDITOR.roofTileKind;
-        }
-        if (roofStartAngleInput) {
-          roofStartAngleInput.addEventListener('input', () => {
-            EDITOR.roofStartAngle = Number(roofStartAngleInput.value) || 0;
-          });
-          roofStartAngleInput.value = String(EDITOR.roofStartAngle);
-        }
-        if (roofEndAngleInput) {
-          roofEndAngleInput.addEventListener('input', () => {
-            EDITOR.roofEndAngle = Number(roofEndAngleInput.value) || 0;
-          });
-          roofEndAngleInput.value = String(EDITOR.roofEndAngle);
-        }
-        if (roofRotSelect) {
-          roofRotSelect.addEventListener('change', () => {
-            EDITOR.roofRot = Number(roofRotSelect.value) || 0;
-          });
-          roofRotSelect.value = String(EDITOR.roofRot);
-        }
-        if (roofTileScaleInput) {
-          roofTileScaleInput.addEventListener('input', () => {
-            const n = Number(roofTileScaleInput.value);
-            EDITOR.roofTileScale = Number.isFinite(n) ? Math.max(0.01, n) : 0.2;
-          });
-          roofTileScaleInput.value = String(EDITOR.roofTileScale);
-        }
-        if (roofLineColorInput) {
-          roofLineColorInput.addEventListener('input', () => {
-            EDITOR.roofLineColor = roofLineColorInput.value || '#70777e';
-          });
-          roofLineColorInput.value = EDITOR.roofLineColor;
-        }
-        if (roofLineWidthInput) {
-          roofLineWidthInput.addEventListener('input', () => {
-            const n = Number(roofLineWidthInput.value);
-            EDITOR.roofLineWidth = Number.isFinite(n) ? Math.max(0.5, n) : 2;
-          });
-          roofLineWidthInput.value = String(EDITOR.roofLineWidth);
-        }
-        if (roofTintColorInput) {
-          roofTintColorInput.addEventListener('input', () => {
-            EDITOR.roofTintColor = roofTintColorInput.value || '#000000';
-          });
-          roofTintColorInput.value = EDITOR.roofTintColor;
-        }
-        if (roofTintPctInput) {
-          roofTintPctInput.addEventListener('input', () => {
-            const n = Number(roofTintPctInput.value);
-            EDITOR.roofTintPct = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0;
-          });
-          roofTintPctInput.value = String(EDITOR.roofTintPct);
-        }
-        if (roofShadePctInput) {
-          roofShadePctInput.addEventListener('input', () => {
-            const n = Number(roofShadePctInput.value);
-            EDITOR.roofShadePct = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 50;
-          });
-          roofShadePctInput.value = String(EDITOR.roofShadePct);
-        }
-        if (roofZInput) {
-          roofZInput.addEventListener('input', () => {
-            const n = Number(roofZInput.value);
-            EDITOR.roofZ = Number.isFinite(n) ? n : 0;
-          });
-          roofZInput.value = String(EDITOR.roofZ);
         }
         if (hexGridToggle) {
           hexGridToggle.addEventListener('change', () => {
@@ -5735,9 +4582,8 @@
       }
 
       function populateKindLists() {
-        if (!floorKindList || !roofKindList || !wallKindList || !openingKindList || !objectKindList) return;
+        if (!floorKindList || !wallKindList || !openingKindList || !objectKindList) return;
         const floorKinds = new Set(DEFAULT_FLOOR_KINDS);
-        const roofKinds = new Set(DEFAULT_ROOF_KINDS);
         const wallKinds = new Set(DEFAULT_WALL_KINDS);
         const openingKinds = new Set(DEFAULT_OPENING_KINDS);
         const objectKinds = new Set(DEFAULT_OBJECT_KINDS);
@@ -5765,30 +4611,15 @@
             }
           }
         }
-        if (STATE.battle && Array.isArray(STATE.battle.roofParts)) {
-          for (const part of STATE.battle.roofParts) {
-            if (part && part.tileKind) roofKinds.add(String(part.tileKind));
-            if (part && part.tile) roofKinds.add(String(part.tile));
-          }
-        }
 
         const fill = (el, values) => {
           el.innerHTML = Array.from(values).sort().map(v => `<option value="${String(v).replace(/\"/g, '&quot;')}"></option>`).join('');
         };
         fill(floorKindList, floorKinds);
-        fill(roofKindList, roofKinds);
         fill(wallKindList, wallKinds);
         fill(openingKindList, openingKinds);
         fill(objectKindList, objectKinds);
         if (tokenKindList) fill(tokenKindList, tokenKinds);
-        if (roofTileKindSelect) {
-          const current = EDITOR.roofTileKind || 'slate';
-          roofTileKindSelect.innerHTML = Array.from(roofKinds).sort().map((v) => {
-            const safe = String(v).replace(/\"/g, '&quot;');
-            return `<option value="${safe}">${safe}</option>`;
-          }).join('');
-          roofTileKindSelect.value = current;
-        }
       }
 
       async function init() {
