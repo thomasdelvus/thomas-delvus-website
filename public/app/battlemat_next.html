@@ -2494,13 +2494,12 @@
           delete roof.spine;
           return;
         }
-        const clampAdj = (val) => {
+        const safeAdj = (val) => {
           const n = Number(val);
-          if (!Number.isFinite(n)) return 0;
-          return Math.max(-100, Math.min(100, n));
+          return Number.isFinite(n) ? n : 0;
         };
-        const adjA = clampAdj(roof.spineAdjustA);
-        const adjB = clampAdj(roof.spineAdjustB);
+        const adjA = safeAdj(roof.spineAdjustA);
+        const adjB = safeAdj(roof.spineAdjustB);
         if (roof.rot90) {
           spine.a.x += -adjA;
           spine.b.x += adjB;
@@ -2574,8 +2573,15 @@
           gctx.restore();
 
           const isHorizontal = !!roof.rot90;
-          const yellowTargets = isHorizontal ? getExtremePoints(pts, 'x', -1) : getExtremePoints(pts, 'y', 1);
-          const blueTargets = isHorizontal ? getExtremePoints(pts, 'x', 1) : getExtremePoints(pts, 'y', -1);
+          const northTargets = getExtremePoints(pts, 'y', 1);
+          const southTargets = getExtremePoints(pts, 'y', -1);
+          const westTargets = getExtremePoints(pts, 'x', 1);
+          const eastTargets = getExtremePoints(pts, 'x', -1);
+          const spineMid = { x: (roof.spine.a.x + roof.spine.b.x) / 2, y: (roof.spine.a.y + roof.spine.b.y) / 2 };
+          const pickTargets = (endpoint) => {
+            if (isHorizontal) return endpoint.x <= spineMid.x ? westTargets : eastTargets;
+            return endpoint.y <= spineMid.y ? northTargets : southTargets;
+          };
           const drawConnector = (from, targets) => {
             if (!targets || targets.length < 2) return;
             gctx.save();
@@ -2591,8 +2597,8 @@
             }
             gctx.restore();
           };
-          drawConnector(a, yellowTargets);
-          drawConnector(b, blueTargets);
+          drawConnector(a, pickTargets(roof.spine.a));
+          drawConnector(b, pickTargets(roof.spine.b));
         }
       }
 
@@ -3935,12 +3941,12 @@
           }
           if (key === 'spine_adjust_a') {
             const n = num(value, 0);
-            item.spineAdjustA = Math.max(-100, Math.min(100, Number.isFinite(n) ? n : 0));
+            item.spineAdjustA = Number.isFinite(n) ? n : 0;
             updateRoofSpine(item);
           }
           if (key === 'spine_adjust_b') {
             const n = num(value, 0);
-            item.spineAdjustB = Math.max(-100, Math.min(100, Number.isFinite(n) ? n : 0));
+            item.spineAdjustB = Number.isFinite(n) ? n : 0;
             updateRoofSpine(item);
           }
           if (key === 'alpha') item.alpha = Math.max(0, Math.min(1, num(value, 0.85)));
@@ -4437,9 +4443,9 @@
           const axisDelta = drag.rot90 ? (worldPoint.x - drag.startWorld.x) : (worldPoint.y - drag.startWorld.y);
           const dir = drag.endpoint === 'a' ? -1 : 1;
           const next = drag.startAdjust + (dir * axisDelta);
-          const clamped = Math.max(-100, Math.min(100, Number.isFinite(next) ? next : 0));
-          if (drag.endpoint === 'a') drag.item.spineAdjustA = clamped;
-          else drag.item.spineAdjustB = clamped;
+          const value = Number.isFinite(next) ? next : 0;
+          if (drag.endpoint === 'a') drag.item.spineAdjustA = value;
+          else drag.item.spineAdjustB = value;
           updateRoofSpine(drag.item);
         }
         if (drag.type === 'poly-move' && drag.ownerType === 'room') {
