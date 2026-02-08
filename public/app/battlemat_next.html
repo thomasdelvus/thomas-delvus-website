@@ -1627,7 +1627,7 @@
           if (!Array.isArray(floor.objects)) floor.objects = [];
           if (!Array.isArray(floor.roofs)) floor.roofs = [];
           for (const roof of floor.roofs) {
-            if (roof && typeof roof === 'object' && !roof.spine) updateRoofSpine(roof);
+            if (roof && typeof roof === 'object') updateRoofSpine(roof);
           }
           for (const obj of floor.objects) {
             if (obj && obj.floorId == null) obj.floorId = floor.id;
@@ -2430,22 +2430,42 @@
         list.forEach(room => drawFloorRoom(room, gctx));
       }
 
-      function computeRoofSpine(pointsWorld) {
+      function computeRoofSpine(pointsWorld, rot90) {
         if (!Array.isArray(pointsWorld) || pointsWorld.length < 2) return null;
         let minX = Infinity;
         let maxX = -Infinity;
+        let minY = Infinity;
+        let maxY = -Infinity;
         for (const p of pointsWorld) {
           if (!p) continue;
           if (p.x < minX) minX = p.x;
           if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.y > maxY) maxY = p.y;
         }
-        if (!Number.isFinite(minX) || !Number.isFinite(maxX)) return null;
-        const spineX = (minX + maxX) / 2;
+        if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) return null;
         const north = pointsWorld.slice().sort((a, b) => a.y - b.y).slice(0, 2);
         const south = pointsWorld.slice().sort((a, b) => b.y - a.y).slice(0, 2);
         if (north.length < 2 || south.length < 2) return null;
         const northY = Math.max(north[0].y, north[1].y);
         const southY = Math.min(south[0].y, south[1].y);
+        const west = pointsWorld.slice().sort((a, b) => a.x - b.x).slice(0, 2);
+        const east = pointsWorld.slice().sort((a, b) => b.x - a.x).slice(0, 2);
+        if (west.length < 2 || east.length < 2) return null;
+        const westX = Math.max(west[0].x, west[1].x);
+        const eastX = Math.min(east[0].x, east[1].x);
+        if (rot90) {
+          let aX = westX;
+          let bX = eastX;
+          if (aX > bX) {
+            const tmp = aX;
+            aX = bX;
+            bX = tmp;
+          }
+          const spineY = (northY + southY) / 2;
+          return { a: { x: aX, y: spineY }, b: { x: bX, y: spineY } };
+        }
+        const spineX = (minX + maxX) / 2;
         let aY = northY;
         let bY = southY;
         if (aY > bY) {
@@ -2464,7 +2484,7 @@
           return;
         }
         const pts = labelsToWorldPoints(labels);
-        const spine = computeRoofSpine(pts);
+        const spine = computeRoofSpine(pts, !!roof.rot90);
         if (spine) roof.spine = spine;
         else delete roof.spine;
       }
@@ -3574,6 +3594,21 @@
           row.appendChild(select);
           inspectorFields.appendChild(row);
         };
+        const addCheckboxField = (label, checked, key) => {
+          const row = document.createElement('div');
+          row.className = 'row';
+          const lab = document.createElement('label');
+          lab.textContent = label;
+          const input = document.createElement('input');
+          input.type = 'checkbox';
+          input.checked = !!checked;
+          input.addEventListener('change', () => {
+            applyFieldChange(key, input.checked ? '1' : '');
+          });
+          row.appendChild(lab);
+          row.appendChild(input);
+          inspectorFields.appendChild(row);
+        };
         const addButtonRow = (buttons) => {
           const row = document.createElement('div');
           row.className = 'btnRow';
@@ -3635,6 +3670,7 @@
           addField('Floor', sel.floorId, 'floorId');
           addField('Points', formatRoomPoints(sel.item), 'points');
           addField('Kind', sel.item.kind || 'slate', 'kind', { list: 'floorKindList' });
+          addCheckboxField('Rot90', !!sel.item.rot90, 'rot90');
           addField('Alpha', sel.item.alpha != null ? sel.item.alpha : 0.85, 'alpha', { type: 'number', step: '0.05' });
           addField('Z', sel.item.z != null ? sel.item.z : '', 'z', { type: 'number', step: '1' });
           addButtonRow([
@@ -3801,6 +3837,11 @@
             }
           }
           if (key === 'kind') item.kind = value;
+          if (key === 'rot90') {
+            const v = String(value || '').trim().toLowerCase();
+            item.rot90 = v === '1' || v === 'true' || v === 'yes' || v === 'on';
+            updateRoofSpine(item);
+          }
           if (key === 'alpha') item.alpha = Math.max(0, Math.min(1, num(value, 0.85)));
           if (key === 'z') item.z = num(value, null);
         }
@@ -4115,6 +4156,7 @@
                 points: roofPoints,
                 kind: 'slate',
                 alpha: 0.85,
+                rot90: false,
                 z: 0
               };
               updateRoofSpine(roof);
