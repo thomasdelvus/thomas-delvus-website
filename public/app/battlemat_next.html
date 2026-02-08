@@ -1626,6 +1626,9 @@
           if (!Array.isArray(floor.openings)) floor.openings = [];
           if (!Array.isArray(floor.objects)) floor.objects = [];
           if (!Array.isArray(floor.roofs)) floor.roofs = [];
+          for (const roof of floor.roofs) {
+            if (roof && typeof roof === 'object' && !roof.spine) updateRoofSpine(roof);
+          }
           for (const obj of floor.objects) {
             if (obj && obj.floorId == null) obj.floorId = floor.id;
           }
@@ -2425,6 +2428,45 @@
         const list = sortByZ(rooms || filterAlive(floor.rooms || []));
         drawBackdrop(gctx);
         list.forEach(room => drawFloorRoom(room, gctx));
+      }
+
+      function computeRoofSpine(pointsWorld) {
+        if (!Array.isArray(pointsWorld) || pointsWorld.length < 2) return null;
+        let minX = Infinity;
+        let maxX = -Infinity;
+        for (const p of pointsWorld) {
+          if (!p) continue;
+          if (p.x < minX) minX = p.x;
+          if (p.x > maxX) maxX = p.x;
+        }
+        if (!Number.isFinite(minX) || !Number.isFinite(maxX)) return null;
+        const spineX = (minX + maxX) / 2;
+        const north = pointsWorld.slice().sort((a, b) => a.y - b.y).slice(0, 2);
+        const south = pointsWorld.slice().sort((a, b) => b.y - a.y).slice(0, 2);
+        if (north.length < 2 || south.length < 2) return null;
+        const northY = Math.max(north[0].y, north[1].y);
+        const southY = Math.min(south[0].y, south[1].y);
+        let aY = northY;
+        let bY = southY;
+        if (aY > bY) {
+          const tmp = aY;
+          aY = bY;
+          bY = tmp;
+        }
+        return { a: { x: spineX, y: aY }, b: { x: spineX, y: bY } };
+      }
+
+      function updateRoofSpine(roof) {
+        if (!roof || typeof roof !== 'object') return;
+        const labels = roomPointLabels(roof);
+        if (!labels.length) {
+          delete roof.spine;
+          return;
+        }
+        const pts = labelsToWorldPoints(labels);
+        const spine = computeRoofSpine(pts);
+        if (spine) roof.spine = spine;
+        else delete roof.spine;
       }
 
       function roofWorldCenter(roof) {
@@ -3738,8 +3780,10 @@
             const points = parsePointList(value);
             if (points.length >= 3) {
               item.points = points;
+              updateRoofSpine(item);
             } else {
               delete item.points;
+              delete item.spine;
             }
           }
           if (key === 'kind') item.kind = value;
@@ -4050,14 +4094,16 @@
           if (closeEnough && points.length >= 3) {
             pushHistory();
             if (polyMode === 'roof') {
+              const roofPoints = points.map(p => p.label);
               const roof = {
                 id: 'roof_' + Date.now().toString(36),
                 shape: 'poly',
-                points: points.map(p => p.label),
+                points: roofPoints,
                 kind: 'slate',
                 alpha: 0.85,
                 z: 0
               };
+              updateRoofSpine(roof);
               if (!Array.isArray(floor.roofs)) floor.roofs = [];
               floor.roofs.push(roof);
               selectItem('roof', roof, floor.id);
@@ -4217,6 +4263,7 @@
           const snap = worldToHexHalf(worldPoint);
           const label = toHexLabel(snap.col, snap.row);
           setPolyPoint(drag.item, drag.index, label);
+          if (drag.ownerType === 'roof') updateRoofSpine(drag.item);
         } else if (drag.type === 'poly-move') {
           const startHex = drag.startHex || worldToHexHalf(drag.startWorld || worldPoint);
           const curHex = worldToHexHalf(worldPoint);
@@ -4226,6 +4273,7 @@
           if (!base || !base.length) return;
           const labels = base.map(p => toHexLabel(p.col + dCol, p.row + dRow));
           setPolyPoints(drag.item, labels);
+          if (drag.ownerType === 'roof') updateRoofSpine(drag.item);
         }
         if (drag.type === 'poly-move' && drag.ownerType === 'room') {
           const openings = Array.isArray(drag.openingsBase) ? drag.openingsBase : null;
