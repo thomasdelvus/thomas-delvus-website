@@ -2675,6 +2675,10 @@
           const v = Math.round(255 * (1 - shadeValue));
           return `rgb(${v},${v},${v})`;
         })();
+        const tintRaw = roof && typeof roof.tint === 'string' ? roof.tint.trim() : '';
+        const tintColor = /^#[0-9a-f]{6}$/i.test(tintRaw) ? tintRaw : '#ffffff';
+        const tintStrength = Number.isFinite(Number(roof && roof.tintStrength)) ? Number(roof.tintStrength) : 0;
+        const tintValue = Math.max(0, Math.min(1, tintStrength));
         const polyAlpha = UI.polyAlpha != null ? UI.polyAlpha : 1;
         const rotFor = (section) => {
           if (section === 'north') return 180;
@@ -2698,6 +2702,18 @@
           gctx.closePath();
           gctx.fill();
           gctx.restore();
+          if (tintValue > 0) {
+            gctx.save();
+            gctx.globalCompositeOperation = 'multiply';
+            gctx.fillStyle = tintColor;
+            gctx.globalAlpha = tintValue;
+            gctx.beginPath();
+            gctx.moveTo(polyScreen[0].x, polyScreen[0].y);
+            for (let i = 1; i < polyScreen.length; i++) gctx.lineTo(polyScreen[i].x, polyScreen[i].y);
+            gctx.closePath();
+            gctx.fill();
+            gctx.restore();
+          }
           if ((section === 'north' || section === 'east') && shadeColor) {
             gctx.save();
             gctx.globalCompositeOperation = 'multiply';
@@ -4085,6 +4101,8 @@
           addCheckboxField('Rot90', !!sel.item.rot90, 'rot90');
           addField('Yellow', sel.item.spineAdjustA != null ? sel.item.spineAdjustA : 0, 'spine_adjust_a', { type: 'number', step: '1' });
           addField('Blue', sel.item.spineAdjustB != null ? sel.item.spineAdjustB : 0, 'spine_adjust_b', { type: 'number', step: '1' });
+          addField('Tint', sel.item.tint || '#ffffff', 'tint', { type: 'color' });
+          addField('Tint Strength', sel.item.tintStrength != null ? sel.item.tintStrength : 0, 'tint_strength', { type: 'number', step: '0.05' });
           addField('Shade NE', sel.item.shade != null ? sel.item.shade : 0.2, 'shade', { type: 'number', step: '0.05' });
           addField('Z', sel.item.z != null ? sel.item.z : '', 'z', { type: 'number', step: '1' });
           addButtonRow([
@@ -4266,6 +4284,11 @@
             item.spineAdjustB = Number.isFinite(n) ? n : 0;
             updateRoofSpine(item);
           }
+          if (key === 'tint') {
+            const v = String(value || '').trim();
+            item.tint = /^#[0-9a-f]{6}$/i.test(v) ? v : '#ffffff';
+          }
+          if (key === 'tint_strength') item.tintStrength = Math.max(0, Math.min(1, num(value, 0)));
           if (key === 'shade') item.shade = Math.max(0, Math.min(1, num(value, 0.2)));
           if (key === 'z') item.z = num(value, null);
         }
@@ -4580,6 +4603,8 @@
                 points: roofPoints,
                 kind: 'slate',
                 shade: 0.2,
+                tint: '#ffffff',
+                tintStrength: 0,
                 rot90: false,
                 spineAdjustA: 0,
                 spineAdjustB: 0,
