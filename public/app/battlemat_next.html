@@ -2665,6 +2665,7 @@
 
         const spineColor = 'rgb(112,119,126)';
         const spineWidth = 4;
+        const spinePx = spineWidth * Math.max(0.05, Number(VIEW.zoom) || 1);
         const samePoint = (p1, p2) => {
           if (!p1 || !p2) return false;
           return Math.abs(p1.x - p2.x) < 0.0001 && Math.abs(p1.y - p2.y) < 0.0001;
@@ -2681,7 +2682,7 @@
         const drawOutline = (skipPairs) => {
           gctx.save();
           gctx.strokeStyle = spineColor;
-          gctx.lineWidth = spineWidth;
+          gctx.lineWidth = spinePx;
           gctx.lineJoin = 'round';
           gctx.lineCap = 'round';
           gctx.beginPath();
@@ -2721,7 +2722,7 @@
           const b = worldToScreen(roof.spine.b);
           gctx.save();
           gctx.strokeStyle = spineColor;
-          gctx.lineWidth = spineWidth;
+          gctx.lineWidth = spinePx;
           gctx.lineCap = 'round';
           gctx.beginPath();
           gctx.moveTo(a.x, a.y);
@@ -2743,7 +2744,7 @@
             if (!targets || targets.length < 2) return;
             gctx.save();
             gctx.strokeStyle = spineColor;
-            gctx.lineWidth = spineWidth;
+            gctx.lineWidth = spinePx;
             gctx.lineCap = 'round';
             for (const t of targets) {
               const tp = worldToScreen(t);
