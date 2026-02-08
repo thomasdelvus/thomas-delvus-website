@@ -1454,6 +1454,7 @@
           const pts = labelsToWorldPoints(polyLabels);
           if (!pts.length) return;
           const hidden = isRoom ? getPolyEdgeHiddenSet(sel.item) : new Set();
+          const hiddenLines = isRoof ? getRoofLineHiddenSet(sel.item) : new Set();
           const center = polyCenterWorld(pts);
           gctx.save();
           gctx.strokeStyle = 'rgba(255,145,0,0.95)';
@@ -1472,6 +1473,67 @@
               const sp = worldToScreen(mid);
               gctx.strokeStyle = hidden.has(i) ? 'rgba(255,80,80,0.35)' : 'rgba(255,80,80,0.95)';
               drawHandle(gctx, sp, edgeSize);
+            }
+          }
+          if (isRoof) {
+            const edgeSize = Math.max(5, Math.min(11, 6 * VIEW.zoom));
+            const aAdj = Number(sel.item && sel.item.spineAdjustA) || 0;
+            const bAdj = Number(sel.item && sel.item.spineAdjustB) || 0;
+            const aPos = aAdj > 0;
+            const bPos = bAdj > 0;
+            const targetInfo = getRoofConnectorTargets(sel.item, pts);
+            const autoHidePairs = [];
+            if (targetInfo) {
+              if (!targetInfo.isHorizontal) {
+                if (aPos && targetInfo.north.length >= 2) autoHidePairs.push([targetInfo.north[0], targetInfo.north[1]]);
+                if (bPos && targetInfo.south.length >= 2) autoHidePairs.push([targetInfo.south[0], targetInfo.south[1]]);
+              } else {
+                if (aPos && targetInfo.west.length >= 2) autoHidePairs.push([targetInfo.west[0], targetInfo.west[1]]);
+                if (bPos && targetInfo.east.length >= 2) autoHidePairs.push([targetInfo.east[0], targetInfo.east[1]]);
+              }
+            }
+            const samePoint = (p1, p2) => {
+              if (!p1 || !p2) return false;
+              return Math.abs(p1.x - p2.x) < 0.0001 && Math.abs(p1.y - p2.y) < 0.0001;
+            };
+            const edgeMatchesPair = (p1, p2, pair) => {
+              if (!pair || pair.length < 2) return false;
+              const a = pair[0];
+              const b = pair[1];
+              return (samePoint(p1, a) && samePoint(p2, b)) || (samePoint(p1, b) && samePoint(p2, a));
+            };
+            for (let i = 0; i < pts.length; i++) {
+              const a = pts[i];
+              const b = pts[(i + 1) % pts.length];
+              const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+              const sp = worldToScreen(mid);
+              const edgeKey = `edge:${i}`;
+              let isHidden = hiddenLines.has(edgeKey);
+              if (!isHidden && autoHidePairs.length) {
+                isHidden = autoHidePairs.some(pair => edgeMatchesPair(a, b, pair));
+              }
+              gctx.strokeStyle = isHidden ? 'rgba(255,80,80,0.35)' : 'rgba(255,80,80,0.95)';
+              drawHandle(gctx, sp, edgeSize);
+            }
+            if (sel.item && sel.item.spine && targetInfo) {
+              const lineSize = Math.max(5, Math.min(11, 6 * VIEW.zoom));
+              const drawLineHandle = (key, p1, p2) => {
+                if (!p1 || !p2) return;
+                const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+                const sp = worldToScreen(mid);
+                const isHidden = hiddenLines.has(key);
+                gctx.strokeStyle = isHidden ? 'rgba(255,80,80,0.35)' : 'rgba(255,80,80,0.95)';
+                drawHandle(gctx, sp, lineSize);
+              };
+              drawLineHandle('spine', sel.item.spine.a, sel.item.spine.b);
+              const aTargets = targetInfo.targetsA || [];
+              const bTargets = targetInfo.targetsB || [];
+              for (let i = 0; i < aTargets.length; i++) {
+                drawLineHandle(`conn:a:${i}`, sel.item.spine.a, aTargets[i]);
+              }
+              for (let i = 0; i < bTargets.length; i++) {
+                drawLineHandle(`conn:b:${i}`, sel.item.spine.b, bTargets[i]);
+              }
             }
           }
           if (center) {
@@ -2134,6 +2196,91 @@
         setPolyEdgeHiddenArray(room, arr);
       }
 
+      function getRoofLineHiddenArray(roof) {
+        if (!roof || typeof roof !== 'object') return [];
+        const raw = roof.line_hidden ?? roof.lineHidden ?? roof.hidden_lines ?? roof.hiddenLines;
+        if (Array.isArray(raw)) return raw.map(v => String(v).trim()).filter(Boolean);
+        if (typeof raw === 'string') {
+          return raw.split(/[,\s]+/).map(v => String(v).trim()).filter(Boolean);
+        }
+        return [];
+      }
+
+      function getRoofLineHiddenSet(roof) {
+        return new Set(getRoofLineHiddenArray(roof));
+      }
+
+      function setRoofLineHiddenArray(roof, arr) {
+        if (!roof || typeof roof !== 'object') return;
+        const cleaned = Array.isArray(arr)
+          ? arr.map(v => String(v).trim()).filter(Boolean)
+          : [];
+        if (!cleaned.length) {
+          delete roof.line_hidden;
+          delete roof.lineHidden;
+          return;
+        }
+        roof.line_hidden = Array.from(new Set(cleaned)).sort();
+      }
+
+      function toggleRoofLineHidden(roof, key) {
+        if (!roof || !key) return;
+        const nextKey = String(key).trim();
+        if (!nextKey) return;
+        const arr = getRoofLineHiddenArray(roof);
+        const idx = arr.indexOf(nextKey);
+        if (idx === -1) arr.push(nextKey);
+        else arr.splice(idx, 1);
+        setRoofLineHiddenArray(roof, arr);
+      }
+
+      function sortPairByX(pair) {
+        return Array.isArray(pair) ? pair.slice().sort((a, b) => a.x - b.x) : [];
+      }
+
+      function sortPairByY(pair) {
+        return Array.isArray(pair) ? pair.slice().sort((a, b) => a.y - b.y) : [];
+      }
+
+      function pickExtremePair(pointsWorld, axis, dir) {
+        if (!Array.isArray(pointsWorld) || pointsWorld.length < 2) return [];
+        const key = axis === 'y' ? 'y' : 'x';
+        const sorted = pointsWorld.slice().sort((a, b) => {
+          const d = (a[key] - b[key]) * dir;
+          if (Math.abs(d) > 0.0001) return d;
+          return axis === 'y' ? (a.x - b.x) : (a.y - b.y);
+        });
+        return sorted.slice(0, 2);
+      }
+
+      function getRoofConnectorTargets(roof, pointsWorld) {
+        if (!roof || !roof.spine || !roof.spine.a || !roof.spine.b) return null;
+        if (!Array.isArray(pointsWorld) || pointsWorld.length < 2) return null;
+        const north = sortPairByX(pickExtremePair(pointsWorld, 'y', 1));
+        const south = sortPairByX(pickExtremePair(pointsWorld, 'y', -1));
+        const west = sortPairByY(pickExtremePair(pointsWorld, 'x', 1));
+        const east = sortPairByY(pickExtremePair(pointsWorld, 'x', -1));
+        if (north.length < 2 || south.length < 2 || west.length < 2 || east.length < 2) return null;
+        const a = roof.spine.a;
+        const b = roof.spine.b;
+        const spineMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        const isHorizontal = !!roof.rot90;
+        const pickTargets = (endpoint) => {
+          if (isHorizontal) return endpoint.x <= spineMid.x ? west : east;
+          return endpoint.y <= spineMid.y ? north : south;
+        };
+        return {
+          isHorizontal,
+          north,
+          south,
+          west,
+          east,
+          spineMid,
+          targetsA: pickTargets(a),
+          targetsB: pickTargets(b)
+        };
+      }
+
       function labelsToWorldPoints(labels) {
         if (!Array.isArray(labels)) return [];
         const out = [];
@@ -2612,17 +2759,6 @@
           const ys = uniq.sort((p1, p2) => p1.y - p2.y);
           return [ys[0], ys[ys.length - 1]];
         };
-        const pickExtremePair = (pointsWorld, axis, dir) => {
-          const key = axis === 'y' ? 'y' : 'x';
-          const sorted = pointsWorld.slice().sort((a, b) => {
-            const d = (a[key] - b[key]) * dir;
-            if (Math.abs(d) > 0.0001) return d;
-            return axis === 'y' ? (a.x - b.x) : (a.y - b.y);
-          });
-          return sorted.slice(0, 2);
-        };
-        const sortByX = (pair) => pair.slice().sort((a, b) => a.x - b.x);
-        const sortByY = (pair) => pair.slice().sort((a, b) => a.y - b.y);
         const canSpine = roof && roof.spine && roof.spine.a && roof.spine.b;
         const aAdj = Number(roof && roof.spineAdjustA) || 0;
         const bAdj = Number(roof && roof.spineAdjustB) || 0;
@@ -2630,22 +2766,19 @@
         const bNeg = bAdj < 0;
         const aPos = aAdj > 0;
         const bPos = bAdj > 0;
-        let isHorizontal = false;
-        let UL = null;
-        let UR = null;
-        let LL = null;
-        let LR = null;
-        let westPair = null;
-        let eastPair = null;
+        const hiddenLines = canSpine ? getRoofLineHiddenSet(roof) : new Set();
+        const targetInfo = canSpine ? getRoofConnectorTargets(roof, pts) : null;
+        const isHorizontal = targetInfo ? targetInfo.isHorizontal : false;
+        const northPair = targetInfo ? targetInfo.north : [];
+        const southPair = targetInfo ? targetInfo.south : [];
+        const westPair = targetInfo ? targetInfo.west : [];
+        const eastPair = targetInfo ? targetInfo.east : [];
+        const UL = northPair[0] || null;
+        const UR = northPair[1] || null;
+        const LL = southPair[0] || null;
+        const LR = southPair[1] || null;
 
-        if (canSpine) {
-          isHorizontal = !!roof.rot90;
-          const northPair = sortByX(pickExtremePair(pts, 'y', 1));
-          const southPair = sortByX(pickExtremePair(pts, 'y', -1));
-          UL = northPair[0];
-          UR = northPair[1];
-          LL = southPair[0];
-          LR = southPair[1];
+        if (canSpine && targetInfo) {
           if (!isHorizontal) {
             if (UL && LL) fillPolygon([roof.spine.b, roof.spine.a, UL, LL], 'west');
             if (UR && LR) fillPolygon([roof.spine.b, roof.spine.a, UR, LR], 'east');
@@ -2654,8 +2787,6 @@
           } else {
             if (UL && UR) fillPolygon([roof.spine.b, roof.spine.a, UL, UR], 'north');
             if (LL && LR) fillPolygon([roof.spine.b, roof.spine.a, LL, LR], 'south');
-            westPair = sortByY(pickExtremePair(pts, 'x', 1));
-            eastPair = sortByY(pickExtremePair(pts, 'x', -1));
             if (aNeg && westPair.length >= 2) fillPolygon([westPair[0], westPair[1], roof.spine.a], 'west');
             if (bNeg && eastPair.length >= 2) fillPolygon([eastPair[0], eastPair[1], roof.spine.b], 'east');
           }
@@ -2697,22 +2828,21 @@
           gctx.stroke();
           gctx.restore();
         };
-        const getExtremePoints = (pointsWorld, axis, dir) => {
-          const key = axis === 'y' ? 'y' : 'x';
-          const sorted = pointsWorld.slice().sort((a, b) => (a[key] - b[key]) * dir);
-          return sorted.slice(0, 2);
-        };
-
         const skipPairs = [];
-        if (canSpine) {
+        if (canSpine && targetInfo) {
           if (!isHorizontal) {
             if (aPos && UL && UR) skipPairs.push([UL, UR]);
             if (bPos && LL && LR) skipPairs.push([LL, LR]);
           } else {
-            if (!westPair) westPair = sortByY(pickExtremePair(pts, 'x', 1));
-            if (!eastPair) eastPair = sortByY(pickExtremePair(pts, 'x', -1));
             if (aPos && westPair.length >= 2) skipPairs.push([westPair[0], westPair[1]]);
             if (bPos && eastPair.length >= 2) skipPairs.push([eastPair[0], eastPair[1]]);
+          }
+        }
+        if (hiddenLines.size) {
+          for (let i = 0; i < pts.length; i++) {
+            if (!hiddenLines.has(`edge:${i}`)) continue;
+            const next = (i + 1) % pts.length;
+            skipPairs.push([pts[i], pts[next]]);
           }
         }
         drawOutline(skipPairs);
@@ -2720,33 +2850,27 @@
         if (roof && roof.spine && roof.spine.a && roof.spine.b) {
           const a = worldToScreen(roof.spine.a);
           const b = worldToScreen(roof.spine.b);
-          gctx.save();
-          gctx.strokeStyle = spineColor;
-          gctx.lineWidth = spinePx;
-          gctx.lineCap = 'round';
-          gctx.beginPath();
-          gctx.moveTo(a.x, a.y);
-          gctx.lineTo(b.x, b.y);
-          gctx.stroke();
-          gctx.restore();
+          if (!hiddenLines.has('spine')) {
+            gctx.save();
+            gctx.strokeStyle = spineColor;
+            gctx.lineWidth = spinePx;
+            gctx.lineCap = 'round';
+            gctx.beginPath();
+            gctx.moveTo(a.x, a.y);
+            gctx.lineTo(b.x, b.y);
+            gctx.stroke();
+            gctx.restore();
+          }
 
-          const isHorizontal = !!roof.rot90;
-          const northTargets = getExtremePoints(pts, 'y', 1);
-          const southTargets = getExtremePoints(pts, 'y', -1);
-          const westTargets = getExtremePoints(pts, 'x', 1);
-          const eastTargets = getExtremePoints(pts, 'x', -1);
-          const spineMid = { x: (roof.spine.a.x + roof.spine.b.x) / 2, y: (roof.spine.a.y + roof.spine.b.y) / 2 };
-          const pickTargets = (endpoint) => {
-            if (isHorizontal) return endpoint.x <= spineMid.x ? westTargets : eastTargets;
-            return endpoint.y <= spineMid.y ? northTargets : southTargets;
-          };
-          const drawConnector = (from, targets) => {
+          const drawConnector = (from, targets, keyPrefix) => {
             if (!targets || targets.length < 2) return;
             gctx.save();
             gctx.strokeStyle = spineColor;
             gctx.lineWidth = spinePx;
             gctx.lineCap = 'round';
-            for (const t of targets) {
+            for (let i = 0; i < targets.length; i++) {
+              if (hiddenLines.has(`conn:${keyPrefix}:${i}`)) continue;
+              const t = targets[i];
               const tp = worldToScreen(t);
               gctx.beginPath();
               gctx.moveTo(from.x, from.y);
@@ -2755,8 +2879,10 @@
             }
             gctx.restore();
           };
-          drawConnector(a, pickTargets(roof.spine.a));
-          drawConnector(b, pickTargets(roof.spine.b));
+          if (targetInfo) {
+            drawConnector(a, targetInfo.targetsA, 'a');
+            drawConnector(b, targetInfo.targetsB, 'b');
+          }
         }
       }
 
@@ -2780,6 +2906,40 @@
         const dxB = b.x - screenPoint.x;
         const dyB = b.y - screenPoint.y;
         if (dxB * dxB + dyB * dyB <= hitRadius2) return 'b';
+        return null;
+      }
+
+      function getRoofLineHit(roof, screenPoint) {
+        const labels = getPolyPointLabels(roof);
+        if (!labels) return null;
+        const pts = labelsToWorldPoints(labels);
+        if (!pts.length) return null;
+        if (!roof || !roof.spine || !roof.spine.a || !roof.spine.b) return null;
+        const targetInfo = getRoofConnectorTargets(roof, pts);
+        if (!targetInfo) return null;
+        const hitR = Math.max(8, Math.min(14, 9 * VIEW.zoom));
+        const hitRadius2 = hitR * hitR;
+        const testSegment = (key, p1, p2) => {
+          if (!p1 || !p2) return null;
+          const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+          const sp = worldToScreen(mid);
+          const dx = sp.x - screenPoint.x;
+          const dy = sp.y - screenPoint.y;
+          if (dx * dx + dy * dy <= hitRadius2) return { type: 'roof-line', key };
+          return null;
+        };
+        const spineHit = testSegment('spine', roof.spine.a, roof.spine.b);
+        if (spineHit) return spineHit;
+        const aTargets = targetInfo.targetsA || [];
+        const bTargets = targetInfo.targetsB || [];
+        for (let i = 0; i < aTargets.length; i++) {
+          const hit = testSegment(`conn:a:${i}`, roof.spine.a, aTargets[i]);
+          if (hit) return hit;
+        }
+        for (let i = 0; i < bTargets.length; i++) {
+          const hit = testSegment(`conn:b:${i}`, roof.spine.b, bTargets[i]);
+          if (hit) return hit;
+        }
         return null;
       }
 
@@ -4657,8 +4817,24 @@
                 }
               }
               let hit = getPolyHandleHit(EDITOR.selection.item, screenPoint);
-              if (hit && hit.type === 'poly-edge' && EDITOR.selection.type === 'roof') {
-                hit = null;
+              if (EDITOR.selection.type === 'roof') {
+                if (hit && hit.type === 'poly-edge') {
+                  pushHistory();
+                  toggleRoofLineHidden(EDITOR.selection.item, `edge:${hit.index}`);
+                  updateInspector();
+                  render();
+                  return;
+                }
+                if (!hit || hit.type === 'poly-move') {
+                  const roofLineHit = getRoofLineHit(EDITOR.selection.item, screenPoint);
+                  if (roofLineHit) {
+                    pushHistory();
+                    toggleRoofLineHidden(EDITOR.selection.item, roofLineHit.key);
+                    updateInspector();
+                    render();
+                    return;
+                  }
+                }
               }
               if (hit) {
                 if (hit.type === 'poly-edge') {
@@ -4722,8 +4898,24 @@
                 }
               }
               let hit = getPolyHandleHit(sel.item, screenPoint);
-              if (hit && hit.type === 'poly-edge' && sel.type === 'roof') {
-                hit = null;
+              if (sel.type === 'roof') {
+                if (hit && hit.type === 'poly-edge') {
+                  pushHistory();
+                  toggleRoofLineHidden(sel.item, `edge:${hit.index}`);
+                  updateInspector();
+                  render();
+                  return;
+                }
+                if (!hit || hit.type === 'poly-move') {
+                  const roofLineHit = getRoofLineHit(sel.item, screenPoint);
+                  if (roofLineHit) {
+                    pushHistory();
+                    toggleRoofLineHidden(sel.item, roofLineHit.key);
+                    updateInspector();
+                    render();
+                    return;
+                  }
+                }
               }
               if (hit) {
                 if (hit.type === 'poly-edge') {
