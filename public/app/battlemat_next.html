@@ -1463,14 +1463,16 @@
             const sp = worldToScreen(p);
             drawHandle(gctx, sp, size);
           }
-          const edgeSize = Math.max(5, Math.min(11, 6 * VIEW.zoom));
-          for (let i = 0; i < pts.length; i++) {
-            const a = pts[i];
-            const b = pts[(i + 1) % pts.length];
-            const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-            const sp = worldToScreen(mid);
-            gctx.strokeStyle = hidden.has(i) ? 'rgba(255,80,80,0.35)' : 'rgba(255,80,80,0.95)';
-            drawHandle(gctx, sp, edgeSize);
+          if (isRoom) {
+            const edgeSize = Math.max(5, Math.min(11, 6 * VIEW.zoom));
+            for (let i = 0; i < pts.length; i++) {
+              const a = pts[i];
+              const b = pts[(i + 1) % pts.length];
+              const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+              const sp = worldToScreen(mid);
+              gctx.strokeStyle = hidden.has(i) ? 'rgba(255,80,80,0.35)' : 'rgba(255,80,80,0.95)';
+              drawHandle(gctx, sp, edgeSize);
+            }
           }
           if (center) {
             const sc = worldToScreen(center);
@@ -4075,6 +4077,7 @@
             EDITOR.polyHover = null;
             EDITOR.dirty = true;
             render();
+            setTool('select');
             return;
           }
           EDITOR.polyPoints = points.concat({ hex: snap, world: snapWorld, label });
@@ -4098,6 +4101,7 @@
           selectItem('opening', opening, floor.id);
           EDITOR.dirty = true;
           render();
+          setTool('select');
           return;
         }
 
@@ -4113,6 +4117,7 @@
           selectItem('object', obj, floor.id);
           EDITOR.dirty = true;
           render();
+          setTool('select');
           return;
         }
 
@@ -4148,6 +4153,7 @@
           renderStatus();
           EDITOR.dirty = true;
           render();
+          setTool('select');
         }
       }
 
@@ -4249,12 +4255,15 @@
           if (EDITOR.tool !== 'select') return;
           if (floor && EDITOR.selection && (EDITOR.selection.type === 'room' || EDITOR.selection.type === 'roof')) {
             let hit = null;
-            if (UI.showHandles || UI.handleHot) {
-              hit = getPolyHandleHit(EDITOR.selection.item, screenPoint);
-            }
-            if (hit) {
-              if (hit.type === 'poly-edge') {
-                if (EDITOR.selection.type === 'room') {
+          if (UI.showHandles || UI.handleHot) {
+            hit = getPolyHandleHit(EDITOR.selection.item, screenPoint);
+          }
+          if (hit && hit.type === 'poly-edge' && EDITOR.selection.type === 'roof') {
+            hit = null;
+          }
+          if (hit) {
+            if (hit.type === 'poly-edge') {
+              if (EDITOR.selection.type === 'room') {
                   pushHistory();
                   const labels = getPolyPointLabels(EDITOR.selection.item);
                   const count = labels ? labels.length : 0;
@@ -4292,11 +4301,14 @@
           if (sel && (sel.type === 'room' || sel.type === 'roof')) {
             selectItem(sel.type, sel.item, sel.floorId);
             const showHandles = UI.showHandles || UI.handleHot;
-            if (showHandles) {
-              const hit = getPolyHandleHit(sel.item, screenPoint);
-              if (hit) {
-                if (hit.type === 'poly-edge') {
-                  if (sel.type === 'room') {
+          if (showHandles) {
+            let hit = getPolyHandleHit(sel.item, screenPoint);
+            if (hit && hit.type === 'poly-edge' && sel.type === 'roof') {
+              hit = null;
+            }
+            if (hit) {
+              if (hit.type === 'poly-edge') {
+                if (sel.type === 'room') {
                     pushHistory();
                     const labels = getPolyPointLabels(sel.item);
                     const count = labels ? labels.length : 0;
