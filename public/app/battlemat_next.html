@@ -2537,18 +2537,62 @@
         gctx.fill();
         gctx.restore();
 
+        const spineColor = 'rgb(112,119,126)';
+        const spineWidth = 4;
+        const drawOutline = () => {
+          gctx.save();
+          gctx.strokeStyle = spineColor;
+          gctx.lineWidth = spineWidth;
+          gctx.lineJoin = 'round';
+          gctx.lineCap = 'round';
+          gctx.beginPath();
+          gctx.moveTo(screenPts[0].x, screenPts[0].y);
+          for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
+          gctx.closePath();
+          gctx.stroke();
+          gctx.restore();
+        };
+        const getExtremePoints = (pointsWorld, axis, dir) => {
+          const key = axis === 'y' ? 'y' : 'x';
+          const sorted = pointsWorld.slice().sort((a, b) => (a[key] - b[key]) * dir);
+          return sorted.slice(0, 2);
+        };
+
+        drawOutline();
+
         if (roof && roof.spine && roof.spine.a && roof.spine.b) {
           const a = worldToScreen(roof.spine.a);
           const b = worldToScreen(roof.spine.b);
           gctx.save();
-          gctx.strokeStyle = 'rgb(112,119,126)';
-          gctx.lineWidth = 4;
+          gctx.strokeStyle = spineColor;
+          gctx.lineWidth = spineWidth;
           gctx.lineCap = 'round';
           gctx.beginPath();
           gctx.moveTo(a.x, a.y);
           gctx.lineTo(b.x, b.y);
           gctx.stroke();
           gctx.restore();
+
+          const isHorizontal = !!roof.rot90;
+          const yellowTargets = isHorizontal ? getExtremePoints(pts, 'x', -1) : getExtremePoints(pts, 'y', 1);
+          const blueTargets = isHorizontal ? getExtremePoints(pts, 'x', 1) : getExtremePoints(pts, 'y', -1);
+          const drawConnector = (from, targets) => {
+            if (!targets || targets.length < 2) return;
+            gctx.save();
+            gctx.strokeStyle = spineColor;
+            gctx.lineWidth = spineWidth;
+            gctx.lineCap = 'round';
+            for (const t of targets) {
+              const tp = worldToScreen(t);
+              gctx.beginPath();
+              gctx.moveTo(from.x, from.y);
+              gctx.lineTo(tp.x, tp.y);
+              gctx.stroke();
+            }
+            gctx.restore();
+          };
+          drawConnector(a, yellowTargets);
+          drawConnector(b, blueTargets);
         }
       }
 
