@@ -2523,18 +2523,119 @@
         const roofColor = FLOOR_COLORS[kind] || FLOOR_COLORS.default;
         const anchor = pts[0];
         const fill = getFillStyle(gctx, 'floor', kind, roofColor, anchor, { allowFallback: false });
-        if (!fill) return;
         const alpha = Number.isFinite(Number(roof && roof.alpha)) ? Number(roof.alpha) : 0.85;
         const polyAlpha = UI.polyAlpha != null ? UI.polyAlpha : 1;
-        gctx.save();
-        gctx.fillStyle = fill;
-        gctx.globalAlpha *= Math.max(0, Math.min(1, alpha)) * Math.max(0, Math.min(1, polyAlpha));
-        gctx.beginPath();
-        gctx.moveTo(screenPts[0].x, screenPts[0].y);
-        for (let i = 1; i < screenPts.length; i++) gctx.lineTo(screenPts[i].x, screenPts[i].y);
-        gctx.closePath();
-        gctx.fill();
-        gctx.restore();
+        const fillPolygon = (polyPoints) => {
+          if (!fill || !Array.isArray(polyPoints) || polyPoints.length < 3) return;
+          const polyScreen = polyPoints.map(worldToScreen);
+          gctx.save();
+          gctx.fillStyle = fill;
+          gctx.globalAlpha *= Math.max(0, Math.min(1, alpha)) * Math.max(0, Math.min(1, polyAlpha));
+          gctx.beginPath();
+          gctx.moveTo(polyScreen[0].x, polyScreen[0].y);
+          for (let i = 1; i < polyScreen.length; i++) gctx.lineTo(polyScreen[i].x, polyScreen[i].y);
+          gctx.closePath();
+          gctx.fill();
+          gctx.restore();
+        };
+        const uniqueBy = (arr, keyFn) => {
+          const out = [];
+          for (const item of arr) {
+            const key = keyFn(item);
+            if (out.some(o => Math.abs(keyFn(o) - key) < 0.0001)) continue;
+            out.push(item);
+          }
+          return out;
+        };
+        const intersectHorizontal = (pointsWorld, y0) => {
+          const hits = [];
+          for (let i = 0; i < pointsWorld.length; i++) {
+            const a = pointsWorld[i];
+            const b = pointsWorld[(i + 1) % pointsWorld.length];
+            if (!a || !b) continue;
+            if (a.y === b.y) continue;
+            const minY = Math.min(a.y, b.y);
+            const maxY = Math.max(a.y, b.y);
+            if (y0 < minY || y0 > maxY) continue;
+            const t = (y0 - a.y) / (b.y - a.y);
+            const x = a.x + t * (b.x - a.x);
+            hits.push({ x, y: y0 });
+          }
+          const uniq = uniqueBy(hits, p => p.x);
+          if (uniq.length < 2) return null;
+          const xs = uniq.sort((p1, p2) => p1.x - p2.x);
+          return [xs[0], xs[xs.length - 1]];
+        };
+        const intersectVertical = (pointsWorld, x0) => {
+          const hits = [];
+          for (let i = 0; i < pointsWorld.length; i++) {
+            const a = pointsWorld[i];
+            const b = pointsWorld[(i + 1) % pointsWorld.length];
+            if (!a || !b) continue;
+            if (a.x === b.x) continue;
+            const minX = Math.min(a.x, b.x);
+            const maxX = Math.max(a.x, b.x);
+            if (x0 < minX || x0 > maxX) continue;
+            const t = (x0 - a.x) / (b.x - a.x);
+            const y = a.y + t * (b.y - a.y);
+            hits.push({ x: x0, y });
+          }
+          const uniq = uniqueBy(hits, p => p.y);
+          if (uniq.length < 2) return null;
+          const ys = uniq.sort((p1, p2) => p1.y - p2.y);
+          return [ys[0], ys[ys.length - 1]];
+        };
+        const pickExtremePair = (pointsWorld, axis, dir) => {
+          const key = axis === 'y' ? 'y' : 'x';
+          const sorted = pointsWorld.slice().sort((a, b) => {
+            const d = (a[key] - b[key]) * dir;
+            if (Math.abs(d) > 0.0001) return d;
+            return axis === 'y' ? (a.x - b.x) : (a.y - b.y);
+          });
+          return sorted.slice(0, 2);
+        };
+        const sortByX = (pair) => pair.slice().sort((a, b) => a.x - b.x);
+        const sortByY = (pair) => pair.slice().sort((a, b) => a.y - b.y);
+        const canSpine = roof && roof.spine && roof.spine.a && roof.spine.b;
+        const aNeg = (Number(roof && roof.spineAdjustA) || 0) < 0;
+        const bNeg = (Number(roof && roof.spineAdjustB) || 0) < 0;
+
+        if (canSpine) {
+          const isHorizontal = !!roof.rot90;
+          if (!isHorizontal) {
+            const northPair = sortByX(pickExtremePair(pts, 'y', 1));
+            const southPair = sortByX(pickExtremePair(pts, 'y', -1));
+            const topCut = aNeg ? intersectHorizontal(pts, roof.spine.a.y) : northPair;
+            const bottomCut = bNeg ? intersectHorizontal(pts, roof.spine.b.y) : southPair;
+            if (topCut && bottomCut) {
+              const [topLeft, topRight] = sortByX(topCut);
+              const [bottomLeft, bottomRight] = sortByX(bottomCut);
+              fillPolygon([topLeft, bottomLeft, roof.spine.b, roof.spine.a]);
+              fillPolygon([topRight, bottomRight, roof.spine.b, roof.spine.a]);
+              if (aNeg && northPair.length >= 2) fillPolygon([northPair[0], northPair[1], roof.spine.a]);
+              if (bNeg && southPair.length >= 2) fillPolygon([southPair[0], southPair[1], roof.spine.b]);
+            } else {
+              fillPolygon(pts);
+            }
+          } else {
+            const westPair = sortByY(pickExtremePair(pts, 'x', 1));
+            const eastPair = sortByY(pickExtremePair(pts, 'x', -1));
+            const leftCut = aNeg ? intersectVertical(pts, roof.spine.a.x) : westPair;
+            const rightCut = bNeg ? intersectVertical(pts, roof.spine.b.x) : eastPair;
+            if (leftCut && rightCut) {
+              const [leftTop, leftBottom] = sortByY(leftCut);
+              const [rightTop, rightBottom] = sortByY(rightCut);
+              fillPolygon([leftTop, rightTop, roof.spine.b, roof.spine.a]);
+              fillPolygon([leftBottom, rightBottom, roof.spine.b, roof.spine.a]);
+              if (aNeg && westPair.length >= 2) fillPolygon([westPair[0], westPair[1], roof.spine.a]);
+              if (bNeg && eastPair.length >= 2) fillPolygon([eastPair[0], eastPair[1], roof.spine.b]);
+            } else {
+              fillPolygon(pts);
+            }
+          }
+        } else {
+          fillPolygon(pts);
+        }
 
         const spineColor = 'rgb(112,119,126)';
         const spineWidth = 4;
