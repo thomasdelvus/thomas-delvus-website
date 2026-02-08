@@ -567,6 +567,7 @@
           <button id="toolSelect" class="toolBtn active">Select</button>
           <button id="toolPoly" class="toolBtn">Poly</button>
           <button id="toolRoof" class="toolBtn">Roof</button>
+          <button id="toolRoof2" class="toolBtn">R2</button>
           <button id="toolOpening" class="toolBtn">Opening</button>
           <button id="toolObject" class="toolBtn">Object</button>
           <button id="toolToken" class="toolBtn">Token</button>
@@ -758,6 +759,7 @@
         select: document.getElementById('toolSelect'),
         poly: document.getElementById('toolPoly'),
         roof: document.getElementById('toolRoof'),
+        roof2: document.getElementById('toolRoof2'),
         opening: document.getElementById('toolOpening'),
         object: document.getElementById('toolObject'),
         token: document.getElementById('toolToken'),
@@ -1429,8 +1431,8 @@
         if (openingGroup) openingGroup.style.display = tool === 'opening' ? 'flex' : 'none';
         if (objectGroup) objectGroup.style.display = tool === 'object' ? 'flex' : 'none';
         if (tokenGroup) tokenGroup.style.display = tool === 'token' ? 'flex' : 'none';
-        if (roofGroup) roofGroup.style.display = tool === 'roof' ? 'flex' : 'none';
-        if (canvasWrap) canvasWrap.style.cursor = (tool === 'poly' || tool === 'roof') ? 'crosshair' : 'default';
+        if (roofGroup) roofGroup.style.display = (tool === 'roof' || tool === 'roof2') ? 'flex' : 'none';
+        if (canvasWrap) canvasWrap.style.cursor = (tool === 'poly' || tool === 'roof' || tool === 'roof2') ? 'crosshair' : 'default';
       }
 
       function drawHexOutline(gctx, center, size) {
