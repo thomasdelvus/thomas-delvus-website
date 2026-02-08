@@ -2610,36 +2610,24 @@
 
         if (canSpine) {
           const isHorizontal = !!roof.rot90;
+          const northPair = sortByX(pickExtremePair(pts, 'y', 1));
+          const southPair = sortByX(pickExtremePair(pts, 'y', -1));
+          const UL = northPair[0];
+          const UR = northPair[1];
+          const LL = southPair[0];
+          const LR = southPair[1];
           if (!isHorizontal) {
-            const northPair = sortByX(pickExtremePair(pts, 'y', 1));
-            const southPair = sortByX(pickExtremePair(pts, 'y', -1));
-            const topCut = aNeg ? intersectHorizontal(pts, roof.spine.a.y) : northPair;
-            const bottomCut = bNeg ? intersectHorizontal(pts, roof.spine.b.y) : southPair;
-            if (topCut && bottomCut) {
-              const [topLeft, topRight] = sortByX(topCut);
-              const [bottomLeft, bottomRight] = sortByX(bottomCut);
-              fillPolygon([topLeft, bottomLeft, roof.spine.b, roof.spine.a], 'west');
-              fillPolygon([topRight, bottomRight, roof.spine.b, roof.spine.a], 'east');
-              if (aNeg && northPair.length >= 2) fillPolygon([northPair[0], northPair[1], roof.spine.a], 'north');
-              if (bNeg && southPair.length >= 2) fillPolygon([southPair[0], southPair[1], roof.spine.b], 'south');
-            } else {
-              fillPolygon(pts, 'south');
-            }
+            if (UL && LL) fillPolygon([roof.spine.b, roof.spine.a, UL, LL], 'west');
+            if (UR && LR) fillPolygon([roof.spine.b, roof.spine.a, UR, LR], 'east');
+            if (aNeg && UL && UR) fillPolygon([UL, UR, roof.spine.a], 'north');
+            if (bNeg && LL && LR) fillPolygon([LL, LR, roof.spine.b], 'south');
           } else {
+            if (UL && UR) fillPolygon([roof.spine.b, roof.spine.a, UL, UR], 'north');
+            if (LL && LR) fillPolygon([roof.spine.b, roof.spine.a, LL, LR], 'south');
             const westPair = sortByY(pickExtremePair(pts, 'x', 1));
             const eastPair = sortByY(pickExtremePair(pts, 'x', -1));
-            const leftCut = aNeg ? intersectVertical(pts, roof.spine.a.x) : westPair;
-            const rightCut = bNeg ? intersectVertical(pts, roof.spine.b.x) : eastPair;
-            if (leftCut && rightCut) {
-              const [leftTop, leftBottom] = sortByY(leftCut);
-              const [rightTop, rightBottom] = sortByY(rightCut);
-              fillPolygon([leftTop, rightTop, roof.spine.b, roof.spine.a], 'north');
-              fillPolygon([leftBottom, rightBottom, roof.spine.b, roof.spine.a], 'south');
-              if (aNeg && westPair.length >= 2) fillPolygon([westPair[0], westPair[1], roof.spine.a], 'west');
-              if (bNeg && eastPair.length >= 2) fillPolygon([eastPair[0], eastPair[1], roof.spine.b], 'east');
-            } else {
-              fillPolygon(pts, 'south');
-            }
+            if (aNeg && westPair.length >= 2) fillPolygon([westPair[0], westPair[1], roof.spine.a], 'west');
+            if (bNeg && eastPair.length >= 2) fillPolygon([eastPair[0], eastPair[1], roof.spine.b], 'east');
           }
         } else {
           fillPolygon(pts, 'south');
