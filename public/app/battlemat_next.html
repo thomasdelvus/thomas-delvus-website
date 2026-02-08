@@ -2681,6 +2681,7 @@
           const v = Math.round(255 * (1 - shadeValue));
           return `rgb(${v},${v},${v})`;
         })();
+        const southLighten = 0.1;
         const tintRaw = roof && typeof roof.tint === 'string' ? roof.tint.trim() : '';
         const tintColor = /^#[0-9a-f]{6}$/i.test(tintRaw) ? tintRaw : '#ffffff';
         const tintStrength = Number.isFinite(Number(roof && roof.tintStrength)) ? Number(roof.tintStrength) : 0;
@@ -2727,6 +2728,18 @@
             gctx.globalCompositeOperation = 'multiply';
             gctx.fillStyle = shadeColor;
             gctx.globalAlpha = 1;
+            gctx.beginPath();
+            gctx.moveTo(polyScreen[0].x, polyScreen[0].y);
+            for (let i = 1; i < polyScreen.length; i++) gctx.lineTo(polyScreen[i].x, polyScreen[i].y);
+            gctx.closePath();
+            gctx.fill();
+            gctx.restore();
+          }
+          if (section === 'south' && southLighten > 0) {
+            gctx.save();
+            gctx.globalCompositeOperation = 'screen';
+            gctx.fillStyle = 'rgb(255,255,255)';
+            gctx.globalAlpha = Math.max(0, Math.min(1, southLighten));
             gctx.beginPath();
             gctx.moveTo(polyScreen[0].x, polyScreen[0].y);
             for (let i = 1; i < polyScreen.length; i++) gctx.lineTo(polyScreen[i].x, polyScreen[i].y);
@@ -4552,11 +4565,13 @@
         }, 14);
         if (opening) return { type: 'opening', item: opening, floorId: floor.id };
 
-        const roofs = sortByZ(filterAlive(floor.roofs || [])).reverse();
-        for (const roof of roofs) {
-          const pts = roomWorldPoints(roof);
-          if (pts.length >= 3 && pointInPolygon(worldPoint, pts)) {
-            return { type: 'roof', item: roof, floorId: floor.id };
+        if (!UI.hideRoofs) {
+          const roofs = sortByZ(filterAlive(floor.roofs || [])).reverse();
+          for (const roof of roofs) {
+            const pts = roomWorldPoints(roof);
+            if (pts.length >= 3 && pointInPolygon(worldPoint, pts)) {
+              return { type: 'roof', item: roof, floorId: floor.id };
+            }
           }
         }
 
@@ -5194,6 +5209,9 @@
         if (hideRoofsToggle) {
           hideRoofsToggle.addEventListener('change', () => {
             UI.hideRoofs = !!hideRoofsToggle.checked;
+            if (UI.hideRoofs && EDITOR.selection && EDITOR.selection.type === 'roof') {
+              clearSelection();
+            }
             savePrefs();
             render();
           });
