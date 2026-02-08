@@ -2668,7 +2668,6 @@
         const screenPts = pts.map(worldToScreen);
         const kind = String(roof && roof.kind ? roof.kind : 'slate');
         const roofColor = FLOOR_COLORS[kind] || FLOOR_COLORS.default;
-        const alpha = Number.isFinite(Number(roof && roof.alpha)) ? Number(roof.alpha) : 0.85;
         const shadeStrength = Number.isFinite(Number(roof && roof.shade)) ? Number(roof.shade) : 0.2;
         const shadeValue = Math.max(0, Math.min(1, shadeStrength));
         const shadeColor = (() => {
@@ -2692,7 +2691,7 @@
           const polyScreen = polyPoints.map(worldToScreen);
           gctx.save();
           gctx.fillStyle = fill;
-          gctx.globalAlpha *= Math.max(0, Math.min(1, alpha)) * Math.max(0, Math.min(1, polyAlpha));
+          gctx.globalAlpha *= Math.max(0, Math.min(1, polyAlpha));
           gctx.beginPath();
           gctx.moveTo(polyScreen[0].x, polyScreen[0].y);
           for (let i = 1; i < polyScreen.length; i++) gctx.lineTo(polyScreen[i].x, polyScreen[i].y);
@@ -2795,7 +2794,7 @@
         }
 
         const spineColor = 'rgb(112,119,126)';
-        const spineWidth = 4;
+        const spineWidth = 2;
         const spinePx = spineWidth * Math.max(0.05, Number(VIEW.zoom) || 1);
         const samePoint = (p1, p2) => {
           if (!p1 || !p2) return false;
@@ -4086,7 +4085,6 @@
           addCheckboxField('Rot90', !!sel.item.rot90, 'rot90');
           addField('Yellow', sel.item.spineAdjustA != null ? sel.item.spineAdjustA : 0, 'spine_adjust_a', { type: 'number', step: '1' });
           addField('Blue', sel.item.spineAdjustB != null ? sel.item.spineAdjustB : 0, 'spine_adjust_b', { type: 'number', step: '1' });
-          addField('Alpha', sel.item.alpha != null ? sel.item.alpha : 0.85, 'alpha', { type: 'number', step: '0.05' });
           addField('Shade NE', sel.item.shade != null ? sel.item.shade : 0.2, 'shade', { type: 'number', step: '0.05' });
           addField('Z', sel.item.z != null ? sel.item.z : '', 'z', { type: 'number', step: '1' });
           addButtonRow([
@@ -4268,7 +4266,6 @@
             item.spineAdjustB = Number.isFinite(n) ? n : 0;
             updateRoofSpine(item);
           }
-          if (key === 'alpha') item.alpha = Math.max(0, Math.min(1, num(value, 0.85)));
           if (key === 'shade') item.shade = Math.max(0, Math.min(1, num(value, 0.2)));
           if (key === 'z') item.z = num(value, null);
         }
@@ -4582,7 +4579,6 @@
                 shape: 'poly',
                 points: roofPoints,
                 kind: 'slate',
-                alpha: 0.85,
                 shade: 0.2,
                 rot90: false,
                 spineAdjustA: 0,
