@@ -1479,6 +1479,11 @@
             drawHandle(gctx, sc, Math.max(6, size));
           }
           gctx.restore();
+          if (isRoof && sel.item && sel.item.spine) {
+            const handleSize = Math.max(5, Math.min(11, 6 * VIEW.zoom));
+            drawSpineHandle(gctx, worldToScreen(sel.item.spine.a), handleSize, '#f3d04f');
+            drawSpineHandle(gctx, worldToScreen(sel.item.spine.b), handleSize, '#58a8ff');
+          }
           return;
         }
         return;
@@ -2485,8 +2490,25 @@
         }
         const pts = labelsToWorldPoints(labels);
         const spine = computeRoofSpine(pts, !!roof.rot90);
-        if (spine) roof.spine = spine;
-        else delete roof.spine;
+        if (!spine) {
+          delete roof.spine;
+          return;
+        }
+        const clampAdj = (val) => {
+          const n = Number(val);
+          if (!Number.isFinite(n)) return 0;
+          return Math.max(-100, Math.min(100, n));
+        };
+        const adjA = clampAdj(roof.spineAdjustA);
+        const adjB = clampAdj(roof.spineAdjustB);
+        if (roof.rot90) {
+          spine.a.x += -adjA;
+          spine.b.x += adjB;
+        } else {
+          spine.a.y += -adjA;
+          spine.b.y += adjB;
+        }
+        roof.spine = spine;
       }
 
       function roofWorldCenter(roof) {
@@ -2528,6 +2550,29 @@
           gctx.stroke();
           gctx.restore();
         }
+      }
+
+      function drawSpineHandle(gctx, center, size, color) {
+        gctx.save();
+        gctx.strokeStyle = color;
+        gctx.lineWidth = 1.6;
+        drawHandle(gctx, center, size);
+        gctx.restore();
+      }
+
+      function getRoofSpineHandleHit(roof, screenPoint) {
+        if (!roof || !roof.spine || !roof.spine.a || !roof.spine.b) return null;
+        const hitR = Math.max(8, Math.min(14, 9 * VIEW.zoom));
+        const hitRadius2 = hitR * hitR;
+        const a = worldToScreen(roof.spine.a);
+        const b = worldToScreen(roof.spine.b);
+        const dxA = a.x - screenPoint.x;
+        const dyA = a.y - screenPoint.y;
+        if (dxA * dxA + dyA * dyA <= hitRadius2) return 'a';
+        const dxB = b.x - screenPoint.x;
+        const dyB = b.y - screenPoint.y;
+        if (dxB * dxB + dyB * dyB <= hitRadius2) return 'b';
+        return null;
       }
 
       function drawRoofsLayer(floor, gctx, rooms, roomSets) {
@@ -3671,6 +3716,8 @@
           addField('Points', formatRoomPoints(sel.item), 'points');
           addField('Kind', sel.item.kind || 'slate', 'kind', { list: 'floorKindList' });
           addCheckboxField('Rot90', !!sel.item.rot90, 'rot90');
+          addField('Yellow', sel.item.spineAdjustA != null ? sel.item.spineAdjustA : 0, 'spine_adjust_a', { type: 'number', step: '1' });
+          addField('Blue', sel.item.spineAdjustB != null ? sel.item.spineAdjustB : 0, 'spine_adjust_b', { type: 'number', step: '1' });
           addField('Alpha', sel.item.alpha != null ? sel.item.alpha : 0.85, 'alpha', { type: 'number', step: '0.05' });
           addField('Z', sel.item.z != null ? sel.item.z : '', 'z', { type: 'number', step: '1' });
           addButtonRow([
@@ -3840,6 +3887,16 @@
           if (key === 'rot90') {
             const v = String(value || '').trim().toLowerCase();
             item.rot90 = v === '1' || v === 'true' || v === 'yes' || v === 'on';
+            updateRoofSpine(item);
+          }
+          if (key === 'spine_adjust_a') {
+            const n = num(value, 0);
+            item.spineAdjustA = Math.max(-100, Math.min(100, Number.isFinite(n) ? n : 0));
+            updateRoofSpine(item);
+          }
+          if (key === 'spine_adjust_b') {
+            const n = num(value, 0);
+            item.spineAdjustB = Math.max(-100, Math.min(100, Number.isFinite(n) ? n : 0));
             updateRoofSpine(item);
           }
           if (key === 'alpha') item.alpha = Math.max(0, Math.min(1, num(value, 0.85)));
@@ -4157,6 +4214,8 @@
                 kind: 'slate',
                 alpha: 0.85,
                 rot90: false,
+                spineAdjustA: 0,
+                spineAdjustB: 0,
                 z: 0
               };
               updateRoofSpine(roof);
@@ -4330,6 +4389,14 @@
           const labels = base.map(p => toHexLabel(p.col + dCol, p.row + dRow));
           setPolyPoints(drag.item, labels);
           if (drag.ownerType === 'roof') updateRoofSpine(drag.item);
+        } else if (drag.type === 'roof-spine') {
+          const axisDelta = drag.rot90 ? (worldPoint.x - drag.startWorld.x) : (worldPoint.y - drag.startWorld.y);
+          const dir = drag.endpoint === 'a' ? -1 : 1;
+          const next = drag.startAdjust + (dir * axisDelta);
+          const clamped = Math.max(-100, Math.min(100, Number.isFinite(next) ? next : 0));
+          if (drag.endpoint === 'a') drag.item.spineAdjustA = clamped;
+          else drag.item.spineAdjustB = clamped;
+          updateRoofSpine(drag.item);
         }
         if (drag.type === 'poly-move' && drag.ownerType === 'room') {
           const openings = Array.isArray(drag.openingsBase) ? drag.openingsBase : null;
@@ -4358,61 +4425,98 @@
           const floor = pickFloor();
           if (EDITOR.tool !== 'select') return;
           if (floor && EDITOR.selection && (EDITOR.selection.type === 'room' || EDITOR.selection.type === 'roof')) {
-            let hit = null;
-          if (UI.showHandles || UI.handleHot) {
-            hit = getPolyHandleHit(EDITOR.selection.item, screenPoint);
-          }
-          if (hit && hit.type === 'poly-edge' && EDITOR.selection.type === 'roof') {
-            hit = null;
-          }
-          if (hit) {
-            if (hit.type === 'poly-edge') {
-              if (EDITOR.selection.type === 'room') {
-                  pushHistory();
-                  const labels = getPolyPointLabels(EDITOR.selection.item);
-                  const count = labels ? labels.length : 0;
-                  togglePolyEdgeHidden(EDITOR.selection.item, hit.index, count);
-                  updateInspector();
-                  render();
+            if (UI.showHandles || UI.handleHot) {
+              if (EDITOR.selection.type === 'roof') {
+                const spineHit = getRoofSpineHandleHit(EDITOR.selection.item, screenPoint);
+                if (spineHit) {
+                  EDITOR.drag = {
+                    type: 'roof-spine',
+                    endpoint: spineHit,
+                    item: EDITOR.selection.item,
+                    floorId: EDITOR.selection.floorId,
+                    startWorld: world,
+                    startAdjust: spineHit === 'a'
+                      ? (Number(EDITOR.selection.item.spineAdjustA) || 0)
+                      : (Number(EDITOR.selection.item.spineAdjustB) || 0),
+                    rot90: !!EDITOR.selection.item.rot90,
+                    didMove: false,
+                    pushed: false
+                  };
+                  return;
                 }
+              }
+              let hit = getPolyHandleHit(EDITOR.selection.item, screenPoint);
+              if (hit && hit.type === 'poly-edge' && EDITOR.selection.type === 'roof') {
+                hit = null;
+              }
+              if (hit) {
+                if (hit.type === 'poly-edge') {
+                  if (EDITOR.selection.type === 'room') {
+                    pushHistory();
+                    const labels = getPolyPointLabels(EDITOR.selection.item);
+                    const count = labels ? labels.length : 0;
+                    togglePolyEdgeHidden(EDITOR.selection.item, hit.index, count);
+                    updateInspector();
+                    render();
+                  }
+                  return;
+                }
+                const polyLabels = hit.type === 'poly-move' ? getPolyPointLabels(EDITOR.selection.item) : null;
+                const pointsBase = polyLabels
+                  ? polyLabels.map(parseHexLabel).filter(p => p && Number.isFinite(p.col) && Number.isFinite(p.row))
+                  : null;
+                const openingsBase = (EDITOR.selection.type === 'room' && (hit.type === 'room-move' || hit.type === 'poly-move'))
+                  ? openingsForRoomMove(EDITOR.selection.item, floor)
+                  : null;
+                EDITOR.drag = {
+                  type: hit.type,
+                  side: hit.side,
+                  index: hit.index,
+                  item: EDITOR.selection.item,
+                  floorId: EDITOR.selection.floorId,
+                  startWorld: world,
+                  startHex: worldToHexHalf(world),
+                  pointsBase,
+                  openingsBase,
+                  ownerType: EDITOR.selection.type,
+                  didMove: false,
+                  pushed: false
+                };
                 return;
               }
-              const polyLabels = hit.type === 'poly-move' ? getPolyPointLabels(EDITOR.selection.item) : null;
-              const pointsBase = polyLabels
-                ? polyLabels.map(parseHexLabel).filter(p => p && Number.isFinite(p.col) && Number.isFinite(p.row))
-                : null;
-              const openingsBase = (EDITOR.selection.type === 'room' && (hit.type === 'room-move' || hit.type === 'poly-move'))
-                ? openingsForRoomMove(EDITOR.selection.item, floor)
-                : null;
-              EDITOR.drag = {
-                type: hit.type,
-                side: hit.side,
-                index: hit.index,
-                item: EDITOR.selection.item,
-                floorId: EDITOR.selection.floorId,
-                startWorld: world,
-                startHex: worldToHexHalf(world),
-                pointsBase,
-                openingsBase,
-                ownerType: EDITOR.selection.type,
-                didMove: false,
-                pushed: false
-              };
-              return;
             }
           }
           const sel = findSelectionAt(world);
           if (sel && (sel.type === 'room' || sel.type === 'roof')) {
             selectItem(sel.type, sel.item, sel.floorId);
             const showHandles = UI.showHandles || UI.handleHot;
-          if (showHandles) {
-            let hit = getPolyHandleHit(sel.item, screenPoint);
-            if (hit && hit.type === 'poly-edge' && sel.type === 'roof') {
-              hit = null;
-            }
-            if (hit) {
-              if (hit.type === 'poly-edge') {
-                if (sel.type === 'room') {
+            if (showHandles) {
+              if (sel.type === 'roof') {
+                const spineHit = getRoofSpineHandleHit(sel.item, screenPoint);
+                if (spineHit) {
+                  EDITOR.drag = {
+                    type: 'roof-spine',
+                    endpoint: spineHit,
+                    item: sel.item,
+                    floorId: sel.floorId,
+                    startWorld: world,
+                    startAdjust: spineHit === 'a'
+                      ? (Number(sel.item.spineAdjustA) || 0)
+                      : (Number(sel.item.spineAdjustB) || 0),
+                    rot90: !!sel.item.rot90,
+                    didMove: false,
+                    pushed: false
+                  };
+                  return;
+                }
+              }
+              let hit = getPolyHandleHit(sel.item, screenPoint);
+              if (hit && hit.type === 'poly-edge' && sel.type === 'roof') {
+                hit = null;
+              }
+              if (hit) {
+                if (hit.type === 'poly-edge') {
+                  if (sel.type === 'room') {
                     pushHistory();
                     const labels = getPolyPointLabels(sel.item);
                     const count = labels ? labels.length : 0;
