@@ -1843,8 +1843,8 @@
         out.row = n(out.row, 0);
         out.localCol = n(out.localCol, 0);
         out.localRow = n(out.localRow, 0);
-        out.wCols = Math.max(1, n(out.wCols, 1));
-        out.hRows = Math.max(0.5, n(out.hRows, 1));
+        out.wCols = Math.max(1, Math.round(n(out.wCols, 1)));
+        out.hRows = Math.max(0.5, Math.round(n(out.hRows, 1) * 2) / 2);
         out.startAngle = n(out.startAngle, 0);
         out.endAngle = n(out.endAngle, 0);
         out.rot = Math.round(n(out.rot, 0) / 90) * 90;
@@ -2801,15 +2801,30 @@
         return parsed || null;
       }
 
+      function snapRoofCenterToEdges(part, centerHex) {
+        if (!part || !centerHex) return centerHex;
+        const wCols = Number(part && (part.wCols ?? part.width_cols ?? part.widthCols));
+        const hRows = Number(part && (part.hRows ?? part.height_rows ?? part.heightRows));
+        const halfW = (Number.isFinite(wCols) ? wCols : 1) / 2;
+        const halfH = (Number.isFinite(hRows) ? hRows : 1) / 2;
+        const colParity = ((halfW % 1) + 1) % 1;
+        const rowParity = ((halfH % 0.5) + 0.5) % 0.5;
+        const snappedCol = Math.round(centerHex.col - colParity) + colParity;
+        const snappedRow = roundHalf(centerHex.row - rowParity) + rowParity;
+        return { col: snappedCol, row: snappedRow };
+      }
+
       function setRoofPartCenterHex(part, floor, centerHex) {
         if (!part || !centerHex) return;
+        const snapped = snapRoofCenterToEdges(part, centerHex);
+        const target = snapped || centerHex;
         const parentId = roofPartParentRoomId(part);
         if (parentId && floor) {
           const room = findRoomById(floor, parentId);
           const roomCenter = room ? roomCenterHexHalf(room) : null;
           if (roomCenter) {
-            part.localCol = centerHex.col - roomCenter.col;
-            part.localRow = centerHex.row - roomCenter.row;
+            part.localCol = target.col - roomCenter.col;
+            part.localRow = target.row - roomCenter.row;
             delete part.col;
             delete part.row;
             delete part.center_hex;
@@ -2817,8 +2832,8 @@
             return;
           }
         }
-        part.col = centerHex.col;
-        part.row = centerHex.row;
+        part.col = target.col;
+        part.row = target.row;
       }
 
       function bindRoofPartToRoom(part, floor, room) {
@@ -4183,7 +4198,7 @@
           addField('Parent Room', roofPartParentRoomId(sel.item), 'parent_room');
           addField('Local Col', sel.item.localCol != null ? sel.item.localCol : '', 'localCol', { type: 'number', step: '0.5' });
           addField('Local Row', sel.item.localRow != null ? sel.item.localRow : '', 'localRow', { type: 'number', step: '0.5' });
-          addField('Width Cols', sel.item.wCols != null ? sel.item.wCols : 1, 'wCols', { type: 'number', step: '0.5' });
+          addField('Width Cols', sel.item.wCols != null ? sel.item.wCols : 1, 'wCols', { type: 'number', step: '1' });
           addField('Height Rows', sel.item.hRows != null ? sel.item.hRows : 1, 'hRows', { type: 'number', step: '0.5' });
           addField('Start°', sel.item.startAngle != null ? sel.item.startAngle : 0, 'startAngle', { type: 'number', step: '1' });
           addField('End°', sel.item.endAngle != null ? sel.item.endAngle : 0, 'endAngle', { type: 'number', step: '1' });
@@ -4376,7 +4391,7 @@
           }
           if (key === 'localCol') item.localCol = num(value, 0);
           if (key === 'localRow') item.localRow = num(value, 0);
-          if (key === 'wCols') item.wCols = Math.max(1, num(value, 1));
+          if (key === 'wCols') item.wCols = Math.max(1, Math.round(num(value, 1)));
           if (key === 'hRows') item.hRows = Math.max(0.5, num(value, 1));
           if (key === 'startAngle') item.startAngle = num(value, 0);
           if (key === 'endAngle') item.endAngle = num(value, 0);
@@ -4892,7 +4907,7 @@
             const signFixed = fixed >= 0 ? 1 : -1;
             const rawHalf = Math.abs(fixed - local.x) / 2;
             const desiredHalf = Math.max(minHalfW, rawHalf);
-            const wCols = Math.max(1, Math.round((desiredHalf * 2 / colStep()) * 2) / 2);
+            const wCols = Math.max(1, Math.round((desiredHalf * 2 / colStep())));
             const actualHalf = (wCols * colStep()) / 2;
             const centerOffset = fixed - signFixed * actualHalf;
             drag.item.wCols = wCols;
