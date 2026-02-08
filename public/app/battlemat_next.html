@@ -2494,6 +2494,20 @@
         gctx.closePath();
         gctx.fill();
         gctx.restore();
+
+        if (roof && roof.spine && roof.spine.a && roof.spine.b) {
+          const a = worldToScreen(roof.spine.a);
+          const b = worldToScreen(roof.spine.b);
+          gctx.save();
+          gctx.strokeStyle = 'rgb(112,119,126)';
+          gctx.lineWidth = 4;
+          gctx.lineCap = 'round';
+          gctx.beginPath();
+          gctx.moveTo(a.x, a.y);
+          gctx.lineTo(b.x, b.y);
+          gctx.stroke();
+          gctx.restore();
+        }
       }
 
       function drawRoofsLayer(floor, gctx, rooms, roomSets) {
