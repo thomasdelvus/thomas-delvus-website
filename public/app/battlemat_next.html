@@ -2679,6 +2679,8 @@
         const tintColor = /^#[0-9a-f]{6}$/i.test(tintRaw) ? tintRaw : '#ffffff';
         const tintStrength = Number.isFinite(Number(roof && roof.tintStrength)) ? Number(roof.tintStrength) : 0;
         const tintValue = Math.max(0, Math.min(1, tintStrength));
+        const yellowOffset = Number.isFinite(Number(roof && roof.tileOffsetYellow)) ? Number(roof.tileOffsetYellow) : 0;
+        const blueOffset = Number.isFinite(Number(roof && roof.tileOffsetBlue)) ? Number(roof.tileOffsetBlue) : 0;
         const polyAlpha = UI.polyAlpha != null ? UI.polyAlpha : 1;
         const rotFor = (section) => {
           if (section === 'north') return 180;
@@ -2687,9 +2689,9 @@
           if (section === 'west') return 90;
           return 0;
         };
-        const fillPolygon = (polyPoints, section) => {
+        const fillPolygon = (polyPoints, section, anchorOverride) => {
           if (!Array.isArray(polyPoints) || polyPoints.length < 3) return;
-          const anchor = polyPoints[0];
+          const anchor = anchorOverride || polyPoints[0];
           const fill = getFillStyle(gctx, 'floor', kind, roofColor, anchor, { allowFallback: false, rotDeg: rotFor(section) });
           if (!fill) return;
           const polyScreen = polyPoints.map(worldToScreen);
@@ -2797,13 +2799,25 @@
           if (!isHorizontal) {
             if (UL && LL) fillPolygon([roof.spine.b, roof.spine.a, UL, LL], 'west');
             if (UR && LR) fillPolygon([roof.spine.b, roof.spine.a, UR, LR], 'east');
-            if (aNeg && UL && UR) fillPolygon([UL, UR, roof.spine.a], 'north');
-            if (bNeg && LL && LR) fillPolygon([LL, LR, roof.spine.b], 'south');
+            if (aNeg && UL && UR) {
+              const anchor = { x: UL.x, y: UL.y + yellowOffset };
+              fillPolygon([UL, UR, roof.spine.a], 'north', anchor);
+            }
+            if (bNeg && LL && LR) {
+              const anchor = { x: LL.x, y: LL.y - blueOffset };
+              fillPolygon([LL, LR, roof.spine.b], 'south', anchor);
+            }
           } else {
             if (UL && UR) fillPolygon([roof.spine.b, roof.spine.a, UL, UR], 'north');
             if (LL && LR) fillPolygon([roof.spine.b, roof.spine.a, LL, LR], 'south');
-            if (aNeg && westPair.length >= 2) fillPolygon([westPair[0], westPair[1], roof.spine.a], 'west');
-            if (bNeg && eastPair.length >= 2) fillPolygon([eastPair[0], eastPair[1], roof.spine.b], 'east');
+            if (aNeg && westPair.length >= 2) {
+              const anchor = { x: westPair[0].x + yellowOffset, y: westPair[0].y };
+              fillPolygon([westPair[0], westPair[1], roof.spine.a], 'west', anchor);
+            }
+            if (bNeg && eastPair.length >= 2) {
+              const anchor = { x: eastPair[0].x - blueOffset, y: eastPair[0].y };
+              fillPolygon([eastPair[0], eastPair[1], roof.spine.b], 'east', anchor);
+            }
           }
         } else {
           fillPolygon(pts, 'south');
@@ -4101,6 +4115,8 @@
           addCheckboxField('Rot90', !!sel.item.rot90, 'rot90');
           addField('Yellow', sel.item.spineAdjustA != null ? sel.item.spineAdjustA : 0, 'spine_adjust_a', { type: 'number', step: '1' });
           addField('Blue', sel.item.spineAdjustB != null ? sel.item.spineAdjustB : 0, 'spine_adjust_b', { type: 'number', step: '1' });
+          addField('Yellow Tile Offset', sel.item.tileOffsetYellow != null ? sel.item.tileOffsetYellow : 0, 'tile_offset_yellow', { type: 'number', step: '1' });
+          addField('Blue Tile Offset', sel.item.tileOffsetBlue != null ? sel.item.tileOffsetBlue : 0, 'tile_offset_blue', { type: 'number', step: '1' });
           addField('Tint', sel.item.tint || '#ffffff', 'tint', { type: 'color' });
           addField('Tint Strength', sel.item.tintStrength != null ? sel.item.tintStrength : 0, 'tint_strength', { type: 'number', step: '0.05' });
           addField('Shade NE', sel.item.shade != null ? sel.item.shade : 0.2, 'shade', { type: 'number', step: '0.05' });
@@ -4283,6 +4299,14 @@
             const n = num(value, 0);
             item.spineAdjustB = Number.isFinite(n) ? n : 0;
             updateRoofSpine(item);
+          }
+          if (key === 'tile_offset_yellow') {
+            const n = num(value, 0);
+            item.tileOffsetYellow = Number.isFinite(n) ? n : 0;
+          }
+          if (key === 'tile_offset_blue') {
+            const n = num(value, 0);
+            item.tileOffsetBlue = Number.isFinite(n) ? n : 0;
           }
           if (key === 'tint') {
             const v = String(value || '').trim();
@@ -4605,6 +4629,8 @@
                 shade: 0.2,
                 tint: '#ffffff',
                 tintStrength: 0,
+                tileOffsetYellow: 0,
+                tileOffsetBlue: 0,
                 rot90: false,
                 spineAdjustA: 0,
                 spineAdjustB: 0,
