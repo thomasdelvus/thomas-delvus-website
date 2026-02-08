@@ -1518,20 +1518,20 @@
       }
 
       function roofPartHandlePoints(part, floor) {
-        const centerHex = roofPartCenterHex(part, floor);
-        if (!centerHex) return null;
-        const centerWorld = hexToWorld(centerHex.col, centerHex.row);
-        const dims = roofPartDimsWorld(part);
-        const hw = dims.w / 2;
-        const hh = dims.h / 2;
-        const rot = Number(part && part.rot) || 0;
-        const toWorld = (x, y) => roofLocalToWorld({ x, y }, centerWorld, rot);
+        const cornersWorld = roofPartCornersWorld(part, floor);
+        if (!cornersWorld || cornersWorld.length < 4) return null;
+        const [TL, TR, BR, BL] = cornersWorld;
+        const centerWorld = {
+          x: (TL.x + TR.x + BR.x + BL.x) / 4,
+          y: (TL.y + TR.y + BR.y + BL.y) / 4
+        };
+        const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
         return {
           center: centerWorld,
-          north: toWorld(0, -hh),
-          south: toWorld(0, hh),
-          west: toWorld(-hw, 0),
-          east: toWorld(hw, 0)
+          north: mid(TL, TR),
+          south: mid(BL, BR),
+          west: mid(TL, BL),
+          east: mid(TR, BR)
         };
       }
 
@@ -1700,9 +1700,8 @@
         const floor = pickFloor();
         if (!floor) return;
         const temp = roofPartFromDrag(draft.startWorld, draft.currentWorld, floor);
-        const centerHex = roofPartCenterHex(temp, floor);
-        if (!centerHex) return;
-        const centerWorld = hexToWorld(centerHex.col, centerHex.row);
+        const centerWorld = roofPartCenterWorld(temp, floor);
+        if (!centerWorld) return;
         const geom = buildRoofPartGeomLocal(temp);
         const outlineWorld = geom.outline.map((p) => roofLocalToWorld(p, centerWorld, Number(temp.rot) || 0));
         gctx.save();
@@ -1741,14 +1740,22 @@
       function roofRectFromWorld(start, end) {
         const a = worldToHexHalf(start);
         const b = worldToHexHalf(end);
-        const minCol = Math.min(a.col, b.col);
-        const maxCol = Math.max(a.col, b.col);
-        const minRow = Math.min(a.row, b.row);
-        const maxRow = Math.max(a.row, b.row);
-        const wCols = Math.max(1, maxCol - minCol);
-        const hRows = Math.max(0.5, maxRow - minRow);
+        let minCol = Math.min(a.col, b.col);
+        let maxCol = Math.max(a.col, b.col);
+        let minRow = Math.min(a.row, b.row);
+        let maxRow = Math.max(a.row, b.row);
+        if ((maxCol - minCol) < 1) maxCol = minCol + 1;
+        if ((maxRow - minRow) < 0.5) maxRow = minRow + 0.5;
+        const wCols = Math.max(1, Math.round(maxCol - minCol));
+        const hRows = Math.max(0.5, Math.round((maxRow - minRow) * 2) / 2);
+        maxCol = minCol + wCols;
+        maxRow = minRow + hRows;
         return {
-          center: { col: minCol + wCols / 2, row: minRow + hRows / 2 },
+          minCol,
+          maxCol,
+          minRow,
+          maxRow,
+          center: { col: (minCol + maxCol) / 2, row: (minRow + maxRow) / 2 },
           wCols,
           hRows
         };
@@ -1763,6 +1770,12 @@
           row: rect.center.row,
           wCols: rect.wCols,
           hRows: rect.hRows,
+          corners: [
+            toHexLabel(rect.minCol, rect.maxRow),
+            toHexLabel(rect.maxCol, rect.maxRow),
+            toHexLabel(rect.maxCol, rect.minRow),
+            toHexLabel(rect.minCol, rect.minRow)
+          ],
           startAngle: Number(EDITOR.roofStartAngle) || 0,
           endAngle: Number(EDITOR.roofEndAngle) || 0,
           rot: Number(EDITOR.roofRot) || 0,
@@ -1972,6 +1985,11 @@
         state.roofParts = state.roofParts
           .map((part, idx) => normalizeRoofPart(part, part && (part.floorId || part.floor_id) || '', idx))
           .filter(Boolean);
+        const floorById = new Map((state.floors || []).map(f => [String(f.id), f]));
+        for (const part of state.roofParts) {
+          const floor = part && part.floorId ? floorById.get(String(part.floorId)) : null;
+          ensureRoofPartCorners(part, floor);
+        }
         return state;
       }
 
@@ -2770,8 +2788,121 @@
         return String(part.parentRoomId || part.parent_room || part.parent_room_id || part.room_id || part.roomId || '');
       }
 
+      function parseRoofCorners(part) {
+        const raw = part && Array.isArray(part.corners) ? part.corners : null;
+        if (!raw || raw.length < 4) return null;
+        const pts = raw
+          .map((label) => parseHexLabel(label))
+          .filter((p) => p && Number.isFinite(p.col) && Number.isFinite(p.row));
+        return pts.length >= 4 ? pts.slice(0, 4) : null;
+      }
+
+      function roofPartBoundsHex(part, floor) {
+        const corners = parseRoofCorners(part);
+        if (corners && corners.length >= 4) {
+          const cols = corners.map(c => c.col);
+          const rows = corners.map(c => c.row);
+          return {
+            minCol: Math.min(...cols),
+            maxCol: Math.max(...cols),
+            minRow: Math.min(...rows),
+            maxRow: Math.max(...rows)
+          };
+        }
+        const center = roofPartCenterHex(part, floor);
+        if (!center) return null;
+        const wCols = Number(part && (part.wCols ?? part.width_cols ?? part.widthCols));
+        const hRows = Number(part && (part.hRows ?? part.height_rows ?? part.heightRows));
+        const halfW = Math.max(1, Number.isFinite(wCols) ? wCols : 1) / 2;
+        const halfH = Math.max(0.5, Number.isFinite(hRows) ? hRows : 1) / 2;
+        return {
+          minCol: center.col - halfW,
+          maxCol: center.col + halfW,
+          minRow: center.row - halfH,
+          maxRow: center.row + halfH
+        };
+      }
+
+      function roofPartCornersHexFromBounds(bounds) {
+        if (!bounds) return null;
+        const minCol = bounds.minCol;
+        const maxCol = bounds.maxCol;
+        const minRow = bounds.minRow;
+        const maxRow = bounds.maxRow;
+        return [
+          { col: minCol, row: maxRow },
+          { col: maxCol, row: maxRow },
+          { col: maxCol, row: minRow },
+          { col: minCol, row: minRow }
+        ];
+      }
+
+      function setRoofPartCornersFromBounds(part, bounds) {
+        if (!part || !bounds) return;
+        const corners = roofPartCornersHexFromBounds(bounds);
+        if (!corners) return;
+        part.corners = corners.map(c => toHexLabel(c.col, c.row));
+        const wCols = Math.max(1, Math.round(bounds.maxCol - bounds.minCol));
+        const hRows = Math.max(0.5, Math.round((bounds.maxRow - bounds.minRow) * 2) / 2);
+        part.wCols = wCols;
+        part.hRows = hRows;
+        part.col = (bounds.minCol + bounds.maxCol) / 2;
+        part.row = (bounds.minRow + bounds.maxRow) / 2;
+      }
+
+      function roofPartCornersWorld(part, floor) {
+        const bounds = roofPartBoundsHex(part, floor);
+        if (!bounds) return null;
+        const cornersHex = roofPartCornersHexFromBounds(bounds);
+        if (!cornersHex) return null;
+        return cornersHex.map(c => hexToWorld(c.col, c.row));
+      }
+
+      function roofPartCenterWorld(part, floor) {
+        const cornersWorld = roofPartCornersWorld(part, floor);
+        if (cornersWorld && cornersWorld.length) {
+          let sx = 0;
+          let sy = 0;
+          for (const p of cornersWorld) {
+            sx += p.x;
+            sy += p.y;
+          }
+          return { x: sx / cornersWorld.length, y: sy / cornersWorld.length };
+        }
+        const center = roofPartCenterHex(part, floor);
+        return center ? hexToWorld(center.col, center.row) : null;
+      }
+
+      function ensureRoofPartCorners(part, floor) {
+        if (!part) return;
+        if (parseRoofCorners(part)) return;
+        const bounds = roofPartBoundsHex(part, floor);
+        if (bounds) {
+          let minCol = Math.round(bounds.minCol);
+          let minRow = roundHalf(bounds.minRow);
+          const wCols = Math.max(1, Math.round(bounds.maxCol - bounds.minCol));
+          const hRows = Math.max(0.5, Math.round((bounds.maxRow - bounds.minRow) * 2) / 2);
+          const maxCol = minCol + wCols;
+          const maxRow = minRow + hRows;
+          setRoofPartCornersFromBounds(part, { minCol, maxCol, minRow, maxRow });
+        }
+      }
+
       function roofPartCenterHex(part, floor) {
         if (!part || typeof part !== 'object') return null;
+        const corners = parseRoofCorners(part);
+        if (corners && corners.length >= 4) {
+          const cols = corners.map(c => c.col);
+          const rows = corners.map(c => c.row);
+          const minCol = Math.min(...cols);
+          const maxCol = Math.max(...cols);
+          const minRow = Math.min(...rows);
+          const maxRow = Math.max(...rows);
+          return {
+            col: (minCol + maxCol) / 2,
+            row: (minRow + maxRow) / 2
+          };
+        }
         const parentId = roofPartParentRoomId(part);
         if (parentId && floor) {
           const room = findRoomById(floor, parentId);
@@ -2816,6 +2947,24 @@
 
       function setRoofPartCenterHex(part, floor, centerHex) {
         if (!part || !centerHex) return;
+        if (parseRoofCorners(part)) {
+          const bounds = roofPartBoundsHex(part, floor);
+          if (!bounds) return;
+          const curCenter = {
+            col: (bounds.minCol + bounds.maxCol) / 2,
+            row: (bounds.minRow + bounds.maxRow) / 2
+          };
+          const dCol = centerHex.col - curCenter.col;
+          const dRow = centerHex.row - curCenter.row;
+          const nextBounds = {
+            minCol: bounds.minCol + dCol,
+            maxCol: bounds.maxCol + dCol,
+            minRow: bounds.minRow + dRow,
+            maxRow: bounds.maxRow + dRow
+          };
+          setRoofPartCornersFromBounds(part, nextBounds);
+          return;
+        }
         const snapped = snapRoofCenterToEdges(part, centerHex);
         const target = snapped || centerHex;
         const parentId = roofPartParentRoomId(part);
@@ -2854,9 +3003,15 @@
         delete part.centerHex;
       }
 
-      function roofPartDimsWorld(part) {
-        const wCols = Number(part && (part.wCols ?? part.width_cols ?? part.widthCols));
-        const hRows = Number(part && (part.hRows ?? part.height_rows ?? part.heightRows));
+      function roofPartDimsWorld(part, floor = null) {
+        const resolvedFloor = floor || (STATE.battle && Array.isArray(STATE.battle.floors) && part && (part.floorId || part.floor_id)
+          ? STATE.battle.floors.find(f => f && String(f.id) === String(part.floorId || part.floor_id))
+          : null);
+        const bounds = roofPartBoundsHex(part, resolvedFloor);
+        const wCols = bounds ? (bounds.maxCol - bounds.minCol)
+          : Number(part && (part.wCols ?? part.width_cols ?? part.widthCols));
+        const hRows = bounds ? (bounds.maxRow - bounds.minRow)
+          : Number(part && (part.hRows ?? part.height_rows ?? part.heightRows));
         return {
           w: Math.max(1, Number.isFinite(wCols) ? wCols : 1) * colStep(),
           h: Math.max(0.5, Number.isFinite(hRows) ? hRows : 1) * rowStep()
@@ -2915,10 +3070,10 @@
       }
 
       function drawRoofPart(part, gctx, floor) {
-        const centerHex = roofPartCenterHex(part, floor);
-        if (!centerHex) return;
-        const centerWorld = hexToWorld(centerHex.col, centerHex.row);
-        const rot = Number(part.rot) || 0;
+        const centerWorld = roofPartCenterWorld(part, floor);
+        if (!centerWorld) return;
+        const spineRot = Number(part.rot) || 0;
+        const shapeRot = 0;
         const geom = buildRoofPartGeomLocal(part);
         const tileKind = String(part.tileKind ?? part.tile ?? 'slate');
         const tex = getTexturePattern(gctx, 'roof', tileKind);
@@ -2940,7 +3095,7 @@
 
         const fillSegment = (segment) => {
           if (!segment.pts || segment.pts.length < 3) return;
-          const ptsWorld = segment.pts.map((p) => roofLocalToWorld(p, centerWorld, rot));
+          const ptsWorld = segment.pts.map((p) => roofLocalToWorld(p, centerWorld, shapeRot));
           gctx.save();
           gctx.beginPath();
           const first = worldToScreen(ptsWorld[0]);
@@ -2952,7 +3107,7 @@
           gctx.closePath();
           gctx.clip();
           if (tex && tex.pattern) {
-            applyPatternTransform(tex.pattern, tileScale, centerWorld, (segment.segRot + rot) % 360);
+            applyPatternTransform(tex.pattern, tileScale, centerWorld, (segment.segRot + spineRot) % 360);
             gctx.fillStyle = tex.pattern;
           } else {
             gctx.fillStyle = fallback;
@@ -2966,7 +3121,7 @@
             gctx.globalAlpha = 1;
             gctx.globalCompositeOperation = 'source-over';
           }
-          const side = rotateCardinal(segment.name, rot);
+          const side = rotateCardinal(segment.name, spineRot);
           if (side === 'north' || side === 'east') {
             gctx.fillStyle = `rgba(0,0,0,${shadeAlpha})`;
             gctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
@@ -2984,7 +3139,7 @@
         gctx.lineWidth = lineW;
         gctx.lineJoin = 'round';
         gctx.lineCap = 'round';
-        const outlineWorld = geom.outline.map((p) => roofLocalToWorld(p, centerWorld, rot));
+        const outlineWorld = geom.outline.map((p) => roofLocalToWorld(p, centerWorld, shapeRot));
         gctx.beginPath();
         const o0 = worldToScreen(outlineWorld[0]);
         gctx.moveTo(o0.x, o0.y);
@@ -2994,7 +3149,7 @@
         }
         gctx.closePath();
         gctx.stroke();
-        const spineWorld = geom.spine.map((p) => roofLocalToWorld(p, centerWorld, rot));
+        const spineWorld = geom.spine.map((p) => roofLocalToWorld(p, centerWorld, spineRot));
         const s0 = worldToScreen(spineWorld[0]);
         const s1 = worldToScreen(spineWorld[1]);
         gctx.beginPath();
@@ -3002,8 +3157,8 @@
         gctx.lineTo(s1.x, s1.y);
         gctx.stroke();
         for (const line of geom.cutLines) {
-          const a = worldToScreen(roofLocalToWorld(line[0], centerWorld, rot));
-          const b = worldToScreen(roofLocalToWorld(line[1], centerWorld, rot));
+          const a = worldToScreen(roofLocalToWorld(line[0], centerWorld, spineRot));
+          const b = worldToScreen(roofLocalToWorld(line[1], centerWorld, spineRot));
           gctx.beginPath();
           gctx.moveTo(a.x, a.y);
           gctx.lineTo(b.x, b.y);
@@ -3935,9 +4090,7 @@
       }
 
       function roofPartWorldCenter(part, floor) {
-        const c = roofPartCenterHex(part, floor);
-        if (!c) return null;
-        return hexToWorld(c.col, c.row);
+        return roofPartCenterWorld(part, floor);
       }
 
       function itemFogState(item, floor, rooms, roomSets, getWorld) {
@@ -4391,18 +4544,40 @@
           }
           if (key === 'localCol') item.localCol = num(value, 0);
           if (key === 'localRow') item.localRow = num(value, 0);
-          if (key === 'wCols') item.wCols = Math.max(1, Math.round(num(value, 1)));
-          if (key === 'hRows') item.hRows = Math.max(0.5, num(value, 1));
+          if (key === 'wCols') {
+            item.wCols = Math.max(1, Math.round(num(value, 1)));
+            const floor = pickFloor();
+            const center = roofPartCenterHex(item, floor);
+            if (center) {
+              const halfW = item.wCols / 2;
+              const halfH = Math.max(0.5, Number(item.hRows ?? 1)) / 2;
+              setRoofPartCornersFromBounds(item, {
+                minCol: center.col - halfW,
+                maxCol: center.col + halfW,
+                minRow: center.row - halfH,
+                maxRow: center.row + halfH
+              });
+            }
+          }
+          if (key === 'hRows') {
+            item.hRows = Math.max(0.5, num(value, 1));
+            const floor = pickFloor();
+            const center = roofPartCenterHex(item, floor);
+            if (center) {
+              const halfW = Math.max(1, Number(item.wCols ?? 1)) / 2;
+              const halfH = item.hRows / 2;
+              setRoofPartCornersFromBounds(item, {
+                minCol: center.col - halfW,
+                maxCol: center.col + halfW,
+                minRow: center.row - halfH,
+                maxRow: center.row + halfH
+              });
+            }
+          }
           if (key === 'startAngle') item.startAngle = num(value, 0);
           if (key === 'endAngle') item.endAngle = num(value, 0);
           if (key === 'rot') {
             item.rot = Math.round(num(value, 0) / 90) * 90;
-            const floor = pickFloor();
-            const center = roofPartCenterHex(item, floor);
-            if (center) {
-              const snapped = { col: Math.round(center.col), row: roundHalf(center.row) };
-              setRoofPartCenterHex(item, floor, snapped);
-            }
           }
           if (key === 'tileKind') item.tileKind = String(value || 'slate');
           if (key === 'tileScale') item.tileScale = Math.max(0.01, num(value, 0.2));
@@ -4853,86 +5028,48 @@
           const dy = worldPoint.y - startWorld.y;
           const dCol = Math.round(dx / colStep());
           const dRow = roundHalf(-dy / rowStep());
-          const base = drag.startCenter || roofPartCenterHex(drag.item, floor);
-          if (base) {
-            setRoofPartCenterHex(drag.item, floor, { col: base.col + dCol, row: base.row + dRow });
+          const bounds = roofPartBoundsHex(drag.item, floor);
+          if (bounds) {
+            setRoofPartCornersFromBounds(drag.item, {
+              minCol: bounds.minCol + dCol,
+              maxCol: bounds.maxCol + dCol,
+              minRow: bounds.minRow + dRow,
+              maxRow: bounds.maxRow + dRow
+            });
           } else {
-            setRoofPartCenterHex(drag.item, floor, worldToHexHalf(worldPoint));
+            const base = drag.startCenter || roofPartCenterHex(drag.item, floor);
+            if (base) {
+              setRoofPartCenterHex(drag.item, floor, { col: base.col + dCol, row: base.row + dRow });
+            } else {
+              setRoofPartCenterHex(drag.item, floor, worldToHexHalf(worldPoint));
+            }
           }
         } else if (drag.type === 'roof-resize') {
           const floor = pickFloor();
-          const centerHex = roofPartCenterHex(drag.item, floor);
-          if (!centerHex) return;
-          const centerWorld = hexToWorld(centerHex.col, centerHex.row);
-          const rot = Number(drag.item.rot) || 0;
-          const rel = { x: worldPoint.x - centerWorld.x, y: worldPoint.y - centerWorld.y };
-          const local = roofRotateLocalPoint(rel, -rot);
-          const dims = roofPartDimsWorld(drag.item);
-          const oldHalfW = dims.w / 2;
-          const oldHalfH = dims.h / 2;
-          const minHalfW = colStep() * 0.5;
-          const minHalfH = rowStep() * 0.25;
+          const bounds = roofPartBoundsHex(drag.item, floor);
+          if (!bounds) return;
+          let { minCol, maxCol, minRow, maxRow } = bounds;
           if (drag.side === 'north' || drag.side === 'south') {
-            const fixed = drag.side === 'north' ? oldHalfH : -oldHalfH;
-            const signFixed = fixed >= 0 ? 1 : -1;
-            const rawHalf = Math.abs(fixed - local.y) / 2;
-            const desiredHalf = Math.max(minHalfH, rawHalf);
-            const hRows = Math.max(0.5, Math.round((desiredHalf * 2 / rowStep()) * 2) / 2);
-            const actualHalf = (hRows * rowStep()) / 2;
-            const centerOffset = fixed - signFixed * actualHalf;
-            drag.item.hRows = hRows;
-            if (Number.isFinite(centerOffset) && centerOffset !== 0) {
-              const offsetWorld = roofRotateLocalPoint({ x: 0, y: centerOffset }, rot);
-              const deltaCol = offsetWorld.x / colStep();
-              const deltaRow = -offsetWorld.y / rowStep();
-              const parentId = roofPartParentRoomId(drag.item);
-              if (parentId) {
-                const baseCol = Number(drag.item.localCol ?? drag.item.local_col ?? 0);
-                const baseRow = Number(drag.item.localRow ?? drag.item.local_row ?? 0);
-                drag.item.localCol = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
-                drag.item.localRow = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
-                delete drag.item.col;
-                delete drag.item.row;
-                delete drag.item.center_hex;
-                delete drag.item.centerHex;
-              } else {
-                const baseCol = Number(drag.item.col ?? 0);
-                const baseRow = Number(drag.item.row ?? 0);
-                drag.item.col = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
-                drag.item.row = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
-              }
+            const snap = worldToHexHalf(worldPoint);
+            let nextRow = snap.row;
+            if (drag.side === 'north') {
+              if (nextRow <= minRow + 0.5) nextRow = minRow + 0.5;
+              maxRow = nextRow;
+            } else {
+              if (nextRow >= maxRow - 0.5) nextRow = maxRow - 0.5;
+              minRow = nextRow;
             }
           } else if (drag.side === 'east' || drag.side === 'west') {
-            const fixed = drag.side === 'east' ? -oldHalfW : oldHalfW;
-            const signFixed = fixed >= 0 ? 1 : -1;
-            const rawHalf = Math.abs(fixed - local.x) / 2;
-            const desiredHalf = Math.max(minHalfW, rawHalf);
-            const wCols = Math.max(1, Math.round((desiredHalf * 2 / colStep())));
-            const actualHalf = (wCols * colStep()) / 2;
-            const centerOffset = fixed - signFixed * actualHalf;
-            drag.item.wCols = wCols;
-            if (Number.isFinite(centerOffset) && centerOffset !== 0) {
-              const offsetWorld = roofRotateLocalPoint({ x: centerOffset, y: 0 }, rot);
-              const deltaCol = offsetWorld.x / colStep();
-              const deltaRow = -offsetWorld.y / rowStep();
-              const parentId = roofPartParentRoomId(drag.item);
-              if (parentId) {
-                const baseCol = Number(drag.item.localCol ?? drag.item.local_col ?? 0);
-                const baseRow = Number(drag.item.localRow ?? drag.item.local_row ?? 0);
-                drag.item.localCol = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
-                drag.item.localRow = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
-                delete drag.item.col;
-                delete drag.item.row;
-                delete drag.item.center_hex;
-                delete drag.item.centerHex;
-              } else {
-                const baseCol = Number(drag.item.col ?? 0);
-                const baseRow = Number(drag.item.row ?? 0);
-                drag.item.col = (Number.isFinite(baseCol) ? baseCol : 0) + deltaCol;
-                drag.item.row = (Number.isFinite(baseRow) ? baseRow : 0) + deltaRow;
-              }
+            let nextCol = Math.round(worldPoint.x / colStep());
+            if (drag.side === 'east') {
+              if (nextCol <= minCol + 1) nextCol = minCol + 1;
+              maxCol = nextCol;
+            } else {
+              if (nextCol >= maxCol - 1) nextCol = maxCol - 1;
+              minCol = nextCol;
             }
           }
+          setRoofPartCornersFromBounds(drag.item, { minCol, maxCol, minRow, maxRow });
         } else if (drag.type === 'opening') {
           const orient = drag.item && drag.item.orientation === 'v' ? 'v' : 'h';
           const snapped = snapWorldToWall(worldPoint, pickFloor(), orient);
