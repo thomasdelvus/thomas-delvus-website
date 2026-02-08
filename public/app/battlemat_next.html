@@ -2526,8 +2526,8 @@
         const rotFor = (section) => {
           if (section === 'north') return 180;
           if (section === 'south') return 0;
-          if (section === 'east') return 90;
-          if (section === 'west') return 270;
+          if (section === 'east') return 270;
+          if (section === 'west') return 90;
           return 0;
         };
         const fillPolygon = (polyPoints, section) => {
@@ -2555,6 +2555,56 @@
           }
           return out;
         };
+        const clipPoly = (poly, isInside, intersect) => {
+          if (!Array.isArray(poly) || poly.length < 3) return [];
+          const out = [];
+          let prev = poly[poly.length - 1];
+          let prevInside = isInside(prev);
+          for (const curr of poly) {
+            const currInside = isInside(curr);
+            if (currInside) {
+              if (!prevInside) out.push(intersect(prev, curr));
+              out.push(curr);
+            } else if (prevInside) {
+              out.push(intersect(prev, curr));
+            }
+            prev = curr;
+            prevInside = currInside;
+          }
+          return out;
+        };
+        const clipXMax = (poly, x0) => clipPoly(
+          poly,
+          p => p.x <= x0 + 0.0001,
+          (a, b) => {
+            const t = (x0 - a.x) / (b.x - a.x || 1);
+            return { x: x0, y: a.y + t * (b.y - a.y) };
+          }
+        );
+        const clipXMin = (poly, x0) => clipPoly(
+          poly,
+          p => p.x >= x0 - 0.0001,
+          (a, b) => {
+            const t = (x0 - a.x) / (b.x - a.x || 1);
+            return { x: x0, y: a.y + t * (b.y - a.y) };
+          }
+        );
+        const clipYMax = (poly, y0) => clipPoly(
+          poly,
+          p => p.y <= y0 + 0.0001,
+          (a, b) => {
+            const t = (y0 - a.y) / (b.y - a.y || 1);
+            return { x: a.x + t * (b.x - a.x), y: y0 };
+          }
+        );
+        const clipYMin = (poly, y0) => clipPoly(
+          poly,
+          p => p.y >= y0 - 0.0001,
+          (a, b) => {
+            const t = (y0 - a.y) / (b.y - a.y || 1);
+            return { x: a.x + t * (b.x - a.x), y: y0 };
+          }
+        );
         const intersectHorizontal = (pointsWorld, y0) => {
           const hits = [];
           for (let i = 0; i < pointsWorld.length; i++) {
@@ -2613,33 +2663,35 @@
           if (!isHorizontal) {
             const northPair = sortByX(pickExtremePair(pts, 'y', 1));
             const southPair = sortByX(pickExtremePair(pts, 'y', -1));
-            const topCut = aNeg ? intersectHorizontal(pts, roof.spine.a.y) : northPair;
-            const bottomCut = bNeg ? intersectHorizontal(pts, roof.spine.b.y) : southPair;
-            if (topCut && bottomCut) {
-              const [topLeft, topRight] = sortByX(topCut);
-              const [bottomLeft, bottomRight] = sortByX(bottomCut);
-              fillPolygon([topLeft, bottomLeft, roof.spine.b, roof.spine.a], 'west');
-              fillPolygon([topRight, bottomRight, roof.spine.b, roof.spine.a], 'east');
-              if (aNeg && northPair.length >= 2) fillPolygon([northPair[0], northPair[1], roof.spine.a], 'north');
-              if (bNeg && southPair.length >= 2) fillPolygon([southPair[0], southPair[1], roof.spine.b], 'south');
-            } else {
-              fillPolygon(pts, 'south');
-            }
+            const topY = aNeg ? roof.spine.a.y : (northPair.length ? Math.max(northPair[0].y, northPair[1].y) : roof.spine.a.y);
+            const bottomY = bNeg ? roof.spine.b.y : (southPair.length ? Math.min(southPair[0].y, southPair[1].y) : roof.spine.b.y);
+            const spineX = roof.spine.a.x;
+            let leftPoly = clipYMin(pts, topY);
+            leftPoly = clipYMax(leftPoly, bottomY);
+            leftPoly = clipXMax(leftPoly, spineX);
+            let rightPoly = clipYMin(pts, topY);
+            rightPoly = clipYMax(rightPoly, bottomY);
+            rightPoly = clipXMin(rightPoly, spineX);
+            if (leftPoly.length >= 3) fillPolygon(leftPoly, 'west');
+            if (rightPoly.length >= 3) fillPolygon(rightPoly, 'east');
+            if (aNeg && northPair.length >= 2) fillPolygon([northPair[0], northPair[1], roof.spine.a], 'north');
+            if (bNeg && southPair.length >= 2) fillPolygon([southPair[0], southPair[1], roof.spine.b], 'south');
           } else {
             const westPair = sortByY(pickExtremePair(pts, 'x', 1));
             const eastPair = sortByY(pickExtremePair(pts, 'x', -1));
-            const leftCut = aNeg ? intersectVertical(pts, roof.spine.a.x) : westPair;
-            const rightCut = bNeg ? intersectVertical(pts, roof.spine.b.x) : eastPair;
-            if (leftCut && rightCut) {
-              const [leftTop, leftBottom] = sortByY(leftCut);
-              const [rightTop, rightBottom] = sortByY(rightCut);
-              fillPolygon([leftTop, rightTop, roof.spine.b, roof.spine.a], 'north');
-              fillPolygon([leftBottom, rightBottom, roof.spine.b, roof.spine.a], 'south');
-              if (aNeg && westPair.length >= 2) fillPolygon([westPair[0], westPair[1], roof.spine.a], 'west');
-              if (bNeg && eastPair.length >= 2) fillPolygon([eastPair[0], eastPair[1], roof.spine.b], 'east');
-            } else {
-              fillPolygon(pts, 'south');
-            }
+            const leftX = aNeg ? roof.spine.a.x : (westPair.length ? Math.max(westPair[0].x, westPair[1].x) : roof.spine.a.x);
+            const rightX = bNeg ? roof.spine.b.x : (eastPair.length ? Math.min(eastPair[0].x, eastPair[1].x) : roof.spine.b.x);
+            const spineY = roof.spine.a.y;
+            let northPoly = clipXMin(pts, leftX);
+            northPoly = clipXMax(northPoly, rightX);
+            northPoly = clipYMax(northPoly, spineY);
+            let southPoly = clipXMin(pts, leftX);
+            southPoly = clipXMax(southPoly, rightX);
+            southPoly = clipYMin(southPoly, spineY);
+            if (northPoly.length >= 3) fillPolygon(northPoly, 'north');
+            if (southPoly.length >= 3) fillPolygon(southPoly, 'south');
+            if (aNeg && westPair.length >= 2) fillPolygon([westPair[0], westPair[1], roof.spine.a], 'west');
+            if (bNeg && eastPair.length >= 2) fillPolygon([eastPair[0], eastPair[1], roof.spine.b], 'east');
           }
         } else {
           fillPolygon(pts, 'south');
