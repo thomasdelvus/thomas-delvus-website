@@ -581,6 +581,8 @@
           </select>
           <label class="mini"><input type="checkbox" id="handlesToggle" /> Handles</label>
           <label class="mini"><input type="checkbox" id="hideRoofsToggle" /> Hide Roofs</label>
+          <label class="mini">Roof Line <input id="roofLineColor" type="color" value="#70777e" /></label>
+          <label class="mini">Line W <input id="roofLineWidth" class="mapInput" type="number" step="0.5" value="2" /></label>
           <button id="btnUndo">Undo</button>
           <label class="mini"><input type="checkbox" id="fogToggle" checked /> Fog</label>
           <button id="btnSave">Save</button>
@@ -771,6 +773,8 @@
       const labelBoldToggle = document.getElementById('labelBoldToggle');
       const handlesToggle = document.getElementById('handlesToggle');
       const hideRoofsToggle = document.getElementById('hideRoofsToggle');
+      const roofLineColorInput = document.getElementById('roofLineColor');
+      const roofLineWidthInput = document.getElementById('roofLineWidth');
       const fogToggle = document.getElementById('fogToggle');
       const videoSelect = document.getElementById('videoQuality');
       const saveButton = document.getElementById('btnSave');
@@ -799,7 +803,7 @@
       };
       const VIEW = { camera: { col: 0, row: 0 }, cameraWorld: { x: 0, y: 0 }, zoom: 1, floorId: '' };
       const STATE = { battle: null, campaign: null, entities: [] };
-      const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true, video: 'medium', polyAlpha: 1, showBackdrop: true, hideRoofs: false };
+      const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true, video: 'medium', polyAlpha: 1, showBackdrop: true, hideRoofs: false, roofLineColor: '#70777e', roofLineWidth: 2 };
       const VIDEO_SCALE = { low: 1, medium: 1.5, high: 2, ultra: 3 };
       let renderDpr = window.devicePixelRatio || 1;
       const CHAT = { rows: [], byId: new Map(), lastTs: 0, timer: null };
@@ -1259,6 +1263,8 @@
           const handles = localStorage.getItem('bm_handles');
           const fog = localStorage.getItem('bm_fog');
           const hideRoofs = localStorage.getItem('bm_hide_roofs');
+          const roofLineColor = localStorage.getItem('bm_roof_line_color');
+          const roofLineWidth = localStorage.getItem('bm_roof_line_width');
           const video = localStorage.getItem('bm_video');
           const polyAlpha = localStorage.getItem('bm_poly_alpha');
           const backdrop = localStorage.getItem('bm_backdrop');
@@ -1267,6 +1273,11 @@
           if (handles != null) UI.showHandles = handles === '1';
           if (fog != null) UI.fogEnabled = fog === '1';
           if (hideRoofs != null) UI.hideRoofs = hideRoofs === '1';
+          if (roofLineColor != null && /^#[0-9a-f]{6}$/i.test(roofLineColor)) UI.roofLineColor = roofLineColor;
+          if (roofLineWidth != null) {
+            const n = Number(roofLineWidth);
+            if (Number.isFinite(n) && n > 0) UI.roofLineWidth = n;
+          }
           if (video === 'low' || video === 'medium' || video === 'high' || video === 'ultra') UI.video = video;
           if (polyAlpha != null) {
             const n = Number(polyAlpha);
@@ -1278,6 +1289,8 @@
         if (labelBoldToggle) labelBoldToggle.checked = UI.brightLabels;
         if (handlesToggle) handlesToggle.checked = UI.showHandles;
         if (hideRoofsToggle) hideRoofsToggle.checked = UI.hideRoofs;
+        if (roofLineColorInput) roofLineColorInput.value = UI.roofLineColor;
+        if (roofLineWidthInput) roofLineWidthInput.value = String(UI.roofLineWidth);
         if (fogToggle) fogToggle.checked = UI.fogEnabled;
         if (videoSelect) videoSelect.value = UI.video;
         if (polyAlphaInput) polyAlphaInput.value = String(Math.round(UI.polyAlpha * 100));
@@ -1295,6 +1308,8 @@
           localStorage.setItem('bm_handles', UI.showHandles ? '1' : '0');
           localStorage.setItem('bm_fog', UI.fogEnabled ? '1' : '0');
           localStorage.setItem('bm_hide_roofs', UI.hideRoofs ? '1' : '0');
+          localStorage.setItem('bm_roof_line_color', UI.roofLineColor);
+          localStorage.setItem('bm_roof_line_width', String(UI.roofLineWidth));
           localStorage.setItem('bm_video', UI.video);
           localStorage.setItem('bm_poly_alpha', String(UI.polyAlpha));
           localStorage.setItem('bm_backdrop', UI.showBackdrop ? '1' : '0');
@@ -2842,8 +2857,12 @@
           fillPolygon(pts, 'south');
         }
 
-        const spineColor = 'rgb(112,119,126)';
-        const spineWidth = 2;
+        const spineColor = /^#[0-9a-f]{6}$/i.test(UI.roofLineColor || '')
+          ? UI.roofLineColor
+          : 'rgb(112,119,126)';
+        const spineWidth = Number.isFinite(Number(UI.roofLineWidth)) && Number(UI.roofLineWidth) > 0
+          ? Number(UI.roofLineWidth)
+          : 2;
         const spinePx = spineWidth * Math.max(0.05, Number(VIEW.zoom) || 1);
         const samePoint = (p1, p2) => {
           if (!p1 || !p2) return false;
@@ -5214,6 +5233,26 @@
             }
             savePrefs();
             render();
+          });
+        }
+        if (roofLineColorInput) {
+          roofLineColorInput.addEventListener('input', () => {
+            const val = String(roofLineColorInput.value || '').trim();
+            if (/^#[0-9a-f]{6}$/i.test(val)) {
+              UI.roofLineColor = val;
+              savePrefs();
+              render();
+            }
+          });
+        }
+        if (roofLineWidthInput) {
+          roofLineWidthInput.addEventListener('input', () => {
+            const n = Number(roofLineWidthInput.value);
+            if (Number.isFinite(n) && n > 0) {
+              UI.roofLineWidth = n;
+              savePrefs();
+              render();
+            }
           });
         }
         if (fogToggle) {
