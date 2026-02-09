@@ -2955,7 +2955,7 @@
         }
       }
 
-      function drawRoofShadowsLayer(floor, gctx, rooms, roomSets) {
+      function drawRoofShadowsLayer(floor, gctx, rooms, roomSets, rect, dpr) {
         if (UI.hideRoofs) return;
         if (!floor) return;
         const baseRooms = rooms || filterAlive(floor.rooms || []);
@@ -2963,7 +2963,41 @@
         if (UI.fogEnabled && roomSets) {
           list = list.filter(roof => itemFogState(roof, floor, baseRooms, roomSets, roofWorldCenter) !== 'hidden');
         }
-        list.forEach(roof => drawRoofShadow(roof, gctx));
+        if (!list.length) return;
+        const tempLayer = (rect && dpr) ? getLayerContext('roofShadowTemp', rect, dpr) : null;
+        const entries = list.map((roof) => {
+          const pts = roomWorldPoints(roof);
+          const z = Number.isFinite(Number(roof && roof.z)) ? Number(roof.z) : 0;
+          return { roof, pts, z };
+        }).filter(entry => entry.pts.length >= 3);
+        const drawRoofPolyMask = (ctx, pts) => {
+          if (!ctx || !pts || pts.length < 3) return;
+          const screenPts = pts.map(worldToScreen);
+          ctx.beginPath();
+          ctx.moveTo(screenPts[0].x, screenPts[0].y);
+          for (let i = 1; i < screenPts.length; i++) ctx.lineTo(screenPts[i].x, screenPts[i].y);
+          ctx.closePath();
+          ctx.fill();
+        };
+        const drawTempMask = (caster, casterZ, ctx) => {
+          ctx.clearRect(0, 0, rect.width, rect.height);
+          ctx.save();
+          ctx.fillStyle = '#000';
+          ctx.globalAlpha = 1;
+          drawRoofShadow(caster, ctx);
+          ctx.globalCompositeOperation = 'destination-out';
+          for (const entry of entries) {
+            if (entry.z >= casterZ) {
+              drawRoofPolyMask(ctx, entry.pts);
+            }
+          }
+          ctx.restore();
+        };
+        entries.forEach(entry => {
+          if (!tempLayer) return;
+          drawTempMask(entry.roof, entry.z, tempLayer.ctx);
+          gctx.drawImage(tempLayer.canvas, 0, 0, rect.width, rect.height);
+        });
       }
 
       function drawRoofShadow(roof, gctx) {
@@ -4021,7 +4055,7 @@
         drawFloorsLayer(floor, floorLayer.ctx, roomsToDraw);
         drawWallsLayer(floor, wallLayer.ctx, roomsToDraw, fogSets);
         drawRoofsLayer(floor, roofLayer.ctx, allRooms, fogSets);
-        drawRoofShadowsLayer(floor, shadowLayer.ctx, allRooms, fogSets);
+        drawRoofShadowsLayer(floor, shadowLayer.ctx, allRooms, fogSets, rect, dpr);
         drawGridLayer(gridLayer.ctx);
         drawHandlesLayer(floor, handleLayer.ctx);
         drawRoomEdgeHandles(floor, handleLayer.ctx);
