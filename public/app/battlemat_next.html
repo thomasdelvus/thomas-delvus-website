@@ -801,6 +801,7 @@
         labelAlpha: 0.38,
         labelFont: '600 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif'
       };
+      const ROOF_SHADOW_ALPHA = 0.25;
       const VIEW = { camera: { col: 0, row: 0 }, cameraWorld: { x: 0, y: 0 }, zoom: 1, floorId: '' };
       const STATE = { battle: null, campaign: null, entities: [] };
       const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true, video: 'medium', polyAlpha: 1, showBackdrop: true, hideRoofs: false, roofLineColor: '#464a4f', roofLineWidth: 1.5 };
@@ -2703,8 +2704,6 @@
         const tintValue = Math.max(0, Math.min(1, tintStrength));
         const yellowOffset = Number.isFinite(Number(roof && roof.tileOffsetYellow)) ? Number(roof.tileOffsetYellow) : 0;
         const blueOffset = Number.isFinite(Number(roof && roof.tileOffsetBlue)) ? Number(roof.tileOffsetBlue) : 0;
-        const shadowDepth = Number.isFinite(Number(roof && roof.shadowDepth)) ? Number(roof.shadowDepth) : 16;
-        const shadowStrength = Number.isFinite(Number(roof && roof.shadowStrength)) ? Number(roof.shadowStrength) : 0.25;
         const polyAlpha = UI.polyAlpha != null ? UI.polyAlpha : 1;
         const rotFor = (section) => {
           if (section === 'north') return 180;
@@ -2831,41 +2830,6 @@
         const LL = southPair[0] || null;
         const LR = southPair[1] || null;
 
-        const drawShadowPolygon = (polyPoints) => {
-          if (!Array.isArray(polyPoints) || polyPoints.length < 3) return;
-          const polyScreen = polyPoints.map(worldToScreen);
-          gctx.save();
-          gctx.fillStyle = '#000';
-          gctx.globalAlpha = Math.max(0, Math.min(1, shadowStrength));
-          gctx.beginPath();
-          gctx.moveTo(polyScreen[0].x, polyScreen[0].y);
-          for (let i = 1; i < polyScreen.length; i++) gctx.lineTo(polyScreen[i].x, polyScreen[i].y);
-          gctx.closePath();
-          gctx.fill();
-          gctx.restore();
-        };
-        const drawShadowEdge = (p1, p2, peak) => {
-          if (!p1 || !p2) return;
-          if (!Number.isFinite(shadowDepth) || shadowDepth === 0) return;
-          if (!Number.isFinite(shadowStrength) || shadowStrength <= 0) return;
-          const v = { x: shadowDepth, y: -shadowDepth };
-          const p1s = { x: p1.x + v.x, y: p1.y + v.y };
-          const p2s = { x: p2.x + v.x, y: p2.y + v.y };
-          if (peak) {
-            const ps = { x: peak.x + v.x, y: peak.y + v.y };
-            drawShadowPolygon([p1, p2, p2s, ps, p1s]);
-          } else {
-            drawShadowPolygon([p1, p2, p2s, p1s]);
-          }
-        };
-
-        if (Number.isFinite(shadowStrength) && shadowStrength > 0 && Number.isFinite(shadowDepth) && shadowDepth !== 0) {
-          const northPeak = (!isHorizontal && aNeg && canSpine) ? roof.spine.a : null;
-          const eastPeak = (isHorizontal && bNeg && canSpine) ? roof.spine.b : null;
-          if (northPair.length >= 2) drawShadowEdge(northPair[0], northPair[1], northPeak);
-          if (eastPair.length >= 2) drawShadowEdge(eastPair[0], eastPair[1], eastPeak);
-        }
-
         if (canSpine && targetInfo) {
           if (!isHorizontal) {
             if (UL && LL) fillPolygon([roof.spine.b, roof.spine.a, UL, LL], 'west');
@@ -2988,6 +2952,63 @@
             drawConnector(b, targetInfo.targetsB, 'b');
           }
         }
+      }
+
+      function drawRoofShadowsLayer(floor, gctx, rooms, roomSets) {
+        if (UI.hideRoofs) return;
+        if (!floor) return;
+        const baseRooms = rooms || filterAlive(floor.rooms || []);
+        let list = sortByZ(filterAlive(floor.roofs || []));
+        if (UI.fogEnabled && roomSets) {
+          list = list.filter(roof => itemFogState(roof, floor, baseRooms, roomSets, roofWorldCenter) !== 'hidden');
+        }
+        list.forEach(roof => drawRoofShadow(roof, gctx));
+      }
+
+      function drawRoofShadow(roof, gctx) {
+        if (!roof || !gctx) return;
+        const pts = roomWorldPoints(roof);
+        if (pts.length < 3) return;
+        const shadowDepth = Number.isFinite(Number(roof && roof.shadowDepth)) ? Number(roof.shadowDepth) : 16;
+        if (!Number.isFinite(shadowDepth) || shadowDepth === 0) return;
+        const canSpine = roof && roof.spine && roof.spine.a && roof.spine.b;
+        const aAdj = Number(roof && roof.spineAdjustA) || 0;
+        const bAdj = Number(roof && roof.spineAdjustB) || 0;
+        const aNeg = aAdj < 0;
+        const bNeg = bAdj < 0;
+        const targetInfo = canSpine ? getRoofConnectorTargets(roof, pts) : null;
+        const isHorizontal = targetInfo ? targetInfo.isHorizontal : false;
+        const northPair = targetInfo ? targetInfo.north : sortPairByX(pickExtremePair(pts, 'y', 1));
+        const eastPair = targetInfo ? targetInfo.east : sortPairByY(pickExtremePair(pts, 'x', -1));
+        const northPeak = (!isHorizontal && aNeg && canSpine) ? roof.spine.a : null;
+        const eastPeak = (isHorizontal && bNeg && canSpine) ? roof.spine.b : null;
+        const v = { x: shadowDepth, y: -shadowDepth };
+        const drawShadowPolygon = (polyPoints) => {
+          if (!Array.isArray(polyPoints) || polyPoints.length < 3) return;
+          const polyScreen = polyPoints.map(worldToScreen);
+          gctx.beginPath();
+          gctx.moveTo(polyScreen[0].x, polyScreen[0].y);
+          for (let i = 1; i < polyScreen.length; i++) gctx.lineTo(polyScreen[i].x, polyScreen[i].y);
+          gctx.closePath();
+          gctx.fill();
+        };
+        const drawShadowEdge = (p1, p2, peak) => {
+          if (!p1 || !p2) return;
+          const p1s = { x: p1.x + v.x, y: p1.y + v.y };
+          const p2s = { x: p2.x + v.x, y: p2.y + v.y };
+          if (peak) {
+            const ps = { x: peak.x + v.x, y: peak.y + v.y };
+            drawShadowPolygon([p1, p2, p2s, ps, p1s]);
+          } else {
+            drawShadowPolygon([p1, p2, p2s, p1s]);
+          }
+        };
+        gctx.save();
+        gctx.fillStyle = '#000';
+        gctx.globalAlpha = 1;
+        if (northPair.length >= 2) drawShadowEdge(northPair[0], northPair[1], northPeak);
+        if (eastPair.length >= 2) drawShadowEdge(eastPair[0], eastPair[1], eastPeak);
+        gctx.restore();
       }
 
       function drawSpineHandle(gctx, center, size, color) {
@@ -3983,6 +4004,7 @@
         const floorLayer = getLayerContext('floors', rect, dpr);
         const wallLayer = getLayerContext('walls', rect, dpr);
         const roofLayer = getLayerContext('roofs', rect, dpr);
+        const shadowLayer = getLayerContext('roofShadows', rect, dpr);
         const objectLayer = getLayerContext('objects', rect, dpr);
         const fogLayer = getLayerContext('fog', rect, dpr);
         const gridLayer = getLayerContext('grid', rect, dpr);
@@ -3998,6 +4020,7 @@
         drawFloorsLayer(floor, floorLayer.ctx, roomsToDraw);
         drawWallsLayer(floor, wallLayer.ctx, roomsToDraw, fogSets);
         drawRoofsLayer(floor, roofLayer.ctx, allRooms, fogSets);
+        drawRoofShadowsLayer(floor, shadowLayer.ctx, allRooms, fogSets);
         drawGridLayer(gridLayer.ctx);
         drawHandlesLayer(floor, handleLayer.ctx);
         drawRoomEdgeHandles(floor, handleLayer.ctx);
@@ -4046,6 +4069,13 @@
         }
         if (layerMode === 'all' || layerMode === 'roofs') {
           ctx.drawImage(roofLayer.canvas, 0, 0, rect.width, rect.height);
+        }
+        if (layerMode === 'all') {
+          ctx.save();
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.globalAlpha = Math.max(0, Math.min(1, ROOF_SHADOW_ALPHA));
+          ctx.drawImage(shadowLayer.canvas, 0, 0, rect.width, rect.height);
+          ctx.restore();
         }
         if (layerMode === 'all' || layerMode === 'tokens') {
           ctx.drawImage(tokenLayer.canvas, 0, 0, rect.width, rect.height);
@@ -4192,7 +4222,6 @@
           addField('Yellow', sel.item.spineAdjustA != null ? sel.item.spineAdjustA : 0, 'spine_adjust_a', { type: 'number', step: '1' });
           addField('Blue', sel.item.spineAdjustB != null ? sel.item.spineAdjustB : 0, 'spine_adjust_b', { type: 'number', step: '1' });
           addField('Shadow Depth', sel.item.shadowDepth != null ? sel.item.shadowDepth : 16, 'shadow_depth', { type: 'number', step: '1' });
-          addField('Shadow Strength', sel.item.shadowStrength != null ? sel.item.shadowStrength : 0.25, 'shadow_strength', { type: 'number', step: '0.05' });
           addField('Yellow Tile Offset', sel.item.tileOffsetYellow != null ? sel.item.tileOffsetYellow : 0, 'tile_offset_yellow', { type: 'number', step: '1' });
           addField('Blue Tile Offset', sel.item.tileOffsetBlue != null ? sel.item.tileOffsetBlue : 0, 'tile_offset_blue', { type: 'number', step: '1' });
           addField('Tint', sel.item.tint || '#ffffff', 'tint', { type: 'color' });
@@ -4381,10 +4410,6 @@
           if (key === 'shadow_depth') {
             const n = num(value, 16);
             item.shadowDepth = Number.isFinite(n) ? n : 16;
-          }
-          if (key === 'shadow_strength') {
-            const n = num(value, 0.25);
-            item.shadowStrength = Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0.25));
           }
           if (key === 'tile_offset_yellow') {
             const n = num(value, 0);
@@ -4720,7 +4745,6 @@
                 tileOffsetYellow: 0,
                 tileOffsetBlue: 0,
                 shadowDepth: 16,
-                shadowStrength: 0.25,
                 rot90: false,
                 spineAdjustA: 0,
                 spineAdjustB: 0,
