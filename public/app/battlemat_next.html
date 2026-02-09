@@ -582,6 +582,7 @@
           </select>
           <label class="mini"><input type="checkbox" id="handlesToggle" /> Handles</label>
           <label class="mini"><input type="checkbox" id="hideRoofsToggle" /> Hide Roofs</label>
+          <label class="mini"><input type="checkbox" id="streetViewToggle" /> Street View</label>
           <label class="mini">Roof Line <input id="roofLineColor" type="color" value="#464a4f" /></label>
           <label class="mini">Line W <input id="roofLineWidth" class="mapInput" type="number" step="0.5" value="1.5" /></label>
           <button id="btnUndo">Undo</button>
@@ -774,6 +775,7 @@
       const labelBoldToggle = document.getElementById('labelBoldToggle');
       const handlesToggle = document.getElementById('handlesToggle');
       const hideRoofsToggle = document.getElementById('hideRoofsToggle');
+      const streetViewToggle = document.getElementById('streetViewToggle');
       const roofLineColorInput = document.getElementById('roofLineColor');
       const roofLineWidthInput = document.getElementById('roofLineWidth');
       const fogToggle = document.getElementById('fogToggle');
@@ -805,7 +807,7 @@
       const ROOF_SHADOW_ALPHA = 0.25;
       const VIEW = { camera: { col: 0, row: 0 }, cameraWorld: { x: 0, y: 0 }, zoom: 1, floorId: '' };
       const STATE = { battle: null, campaign: null, entities: [] };
-      const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true, video: 'medium', polyAlpha: 1, showBackdrop: true, hideRoofs: false, roofLineColor: '#464a4f', roofLineWidth: 1.5 };
+      const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true, video: 'medium', polyAlpha: 1, showBackdrop: true, hideRoofs: false, streetView: false, roofLineColor: '#464a4f', roofLineWidth: 1.5 };
       const VIDEO_SCALE = { low: 1, medium: 1.5, high: 2, ultra: 3 };
       let renderDpr = window.devicePixelRatio || 1;
       const CHAT = { rows: [], byId: new Map(), lastTs: 0, timer: null };
@@ -1265,6 +1267,7 @@
           const handles = localStorage.getItem('bm_handles');
           const fog = localStorage.getItem('bm_fog');
           const hideRoofs = localStorage.getItem('bm_hide_roofs');
+          const streetView = localStorage.getItem('bm_street_view');
           const roofLineColor = localStorage.getItem('bm_roof_line_color');
           const roofLineWidth = localStorage.getItem('bm_roof_line_width');
           const video = localStorage.getItem('bm_video');
@@ -1275,6 +1278,7 @@
           if (handles != null) UI.showHandles = handles === '1';
           if (fog != null) UI.fogEnabled = fog === '1';
           if (hideRoofs != null) UI.hideRoofs = hideRoofs === '1';
+          if (streetView != null) UI.streetView = streetView === '1';
           if (roofLineColor != null && /^#[0-9a-f]{6}$/i.test(roofLineColor)) UI.roofLineColor = roofLineColor;
           if (roofLineWidth != null) {
             const n = Number(roofLineWidth);
@@ -1291,6 +1295,7 @@
         if (labelBoldToggle) labelBoldToggle.checked = UI.brightLabels;
         if (handlesToggle) handlesToggle.checked = UI.showHandles;
         if (hideRoofsToggle) hideRoofsToggle.checked = UI.hideRoofs;
+        if (streetViewToggle) streetViewToggle.checked = UI.streetView;
         if (roofLineColorInput) roofLineColorInput.value = UI.roofLineColor;
         if (roofLineWidthInput) roofLineWidthInput.value = String(UI.roofLineWidth);
         if (fogToggle) fogToggle.checked = UI.fogEnabled;
@@ -1310,6 +1315,7 @@
           localStorage.setItem('bm_handles', UI.showHandles ? '1' : '0');
           localStorage.setItem('bm_fog', UI.fogEnabled ? '1' : '0');
           localStorage.setItem('bm_hide_roofs', UI.hideRoofs ? '1' : '0');
+          localStorage.setItem('bm_street_view', UI.streetView ? '1' : '0');
           localStorage.setItem('bm_roof_line_color', UI.roofLineColor);
           localStorage.setItem('bm_roof_line_width', String(UI.roofLineWidth));
           localStorage.setItem('bm_video', UI.video);
@@ -3004,7 +3010,7 @@
         if (!roof || !gctx) return;
         const pts = roomWorldPoints(roof);
         if (pts.length < 3) return;
-        const shadowDepth = Number.isFinite(Number(roof && roof.shadowDepth)) ? Number(roof.shadowDepth) : 16;
+        const shadowDepth = Number.isFinite(Number(roof && roof.shadowDepth)) ? Number(roof.shadowDepth) : 32;
         if (!Number.isFinite(shadowDepth) || shadowDepth === 0) return;
         const canSpine = roof && roof.spine && roof.spine.a && roof.spine.b;
         const aAdj = Number(roof && roof.spineAdjustA) || 0;
@@ -3169,6 +3175,7 @@
       }
 
       function drawWallsLayer(floor, gctx, rooms, roomSets) {
+        if (UI.streetView) return;
         const list = sortByZ(rooms || filterAlive(floor.rooms || []));
         const drawWallStroke = (ctx, screenPts, lineW, hiddenSet, erasePass) => {
           const cornerPads = screenPts.map((pt, i) => {
@@ -4264,7 +4271,7 @@
           addCheckboxField('Rot90', !!sel.item.rot90, 'rot90');
           addField('Yellow', sel.item.spineAdjustA != null ? sel.item.spineAdjustA : 0, 'spine_adjust_a', { type: 'number', step: '1' });
           addField('Blue', sel.item.spineAdjustB != null ? sel.item.spineAdjustB : 0, 'spine_adjust_b', { type: 'number', step: '1' });
-          addField('Shadow Depth', sel.item.shadowDepth != null ? sel.item.shadowDepth : 16, 'shadow_depth', { type: 'number', step: '1' });
+          addField('Shadow Depth', sel.item.shadowDepth != null ? sel.item.shadowDepth : 32, 'shadow_depth', { type: 'number', step: '1' });
           addField('Yellow Tile Offset', sel.item.tileOffsetYellow != null ? sel.item.tileOffsetYellow : 0, 'tile_offset_yellow', { type: 'number', step: '1' });
           addField('Blue Tile Offset', sel.item.tileOffsetBlue != null ? sel.item.tileOffsetBlue : 0, 'tile_offset_blue', { type: 'number', step: '1' });
           addField('Tint', sel.item.tint || '#ffffff', 'tint', { type: 'color' });
@@ -4442,17 +4449,17 @@
           }
           if (key === 'spine_adjust_a') {
             const n = num(value, 0);
-            item.spineAdjustA = Number.isFinite(n) ? n : 0;
+            item.spineAdjustA = Number.isFinite(n) ? Math.round(n) : 0;
             updateRoofSpine(item);
           }
           if (key === 'spine_adjust_b') {
             const n = num(value, 0);
-            item.spineAdjustB = Number.isFinite(n) ? n : 0;
+            item.spineAdjustB = Number.isFinite(n) ? Math.round(n) : 0;
             updateRoofSpine(item);
           }
           if (key === 'shadow_depth') {
-            const n = num(value, 16);
-            item.shadowDepth = Number.isFinite(n) ? n : 16;
+            const n = num(value, 32);
+            item.shadowDepth = Number.isFinite(n) ? n : 32;
           }
           if (key === 'tile_offset_yellow') {
             const n = num(value, 0);
@@ -4787,7 +4794,7 @@
                 tintStrength: 0,
                 tileOffsetYellow: 0,
                 tileOffsetBlue: 0,
-                shadowDepth: 16,
+                shadowDepth: 32,
                 rot90: false,
                 spineAdjustA: 0,
                 spineAdjustB: 0,
@@ -4968,7 +4975,7 @@
           const axisDelta = drag.rot90 ? (worldPoint.x - drag.startWorld.x) : (worldPoint.y - drag.startWorld.y);
           const dir = drag.endpoint === 'a' ? -1 : 1;
           const next = drag.startAdjust + (dir * axisDelta);
-          const value = Number.isFinite(next) ? next : 0;
+          const value = Number.isFinite(next) ? Math.round(next) : 0;
           if (drag.endpoint === 'a') drag.item.spineAdjustA = value;
           else drag.item.spineAdjustB = value;
           updateRoofSpine(drag.item);
@@ -5347,6 +5354,13 @@
             if (UI.hideRoofs && EDITOR.selection && EDITOR.selection.type === 'roof') {
               clearSelection();
             }
+            savePrefs();
+            render();
+          });
+        }
+        if (streetViewToggle) {
+          streetViewToggle.addEventListener('change', () => {
+            UI.streetView = !!streetViewToggle.checked;
             savePrefs();
             render();
           });
