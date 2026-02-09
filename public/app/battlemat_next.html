@@ -3015,8 +3015,8 @@
         const canSpine = roof && roof.spine && roof.spine.a && roof.spine.b;
         const aAdj = Number(roof && roof.spineAdjustA) || 0;
         const bAdj = Number(roof && roof.spineAdjustB) || 0;
-        const aZero = Math.abs(aAdj) < 0.0001;
-        const bZero = Math.abs(bAdj) < 0.0001;
+        const aPos = aAdj > 0;
+        const bPos = bAdj > 0;
         const targetInfo = canSpine ? getRoofConnectorTargets(roof, pts) : null;
         const isHorizontal = targetInfo ? targetInfo.isHorizontal : false;
         const northPair = targetInfo ? targetInfo.north : sortPairByX(pickExtremePair(pts, 'y', 1));
@@ -3048,11 +3048,11 @@
         gctx.fillStyle = '#000';
         gctx.globalAlpha = 1;
         if (!isHorizontal) {
-          if (aZero && northPair.length >= 2) drawShadowEdge(northPair[0], northPair[1], northPeak);
+          if (!aPos && northPair.length >= 2) drawShadowEdge(northPair[0], northPair[1], northPeak);
           if (eastPair.length >= 2) drawShadowEdge(eastPair[0], eastPair[1], eastPeak);
         } else {
           if (northPair.length >= 2) drawShadowEdge(northPair[0], northPair[1], northPeak);
-          if (bZero && eastPair.length >= 2) drawShadowEdge(eastPair[0], eastPair[1], eastPeak);
+          if (!bPos && eastPair.length >= 2) drawShadowEdge(eastPair[0], eastPair[1], eastPeak);
         }
         gctx.restore();
       }
@@ -3135,7 +3135,12 @@
             best = seg;
           }
         }
-        return best && Number.isFinite(best.thickness) ? best.thickness : 0;
+        if (!best || !Number.isFinite(best.thickness)) return 0;
+        if (UI.streetView) {
+          const kind = String(best.room && best.room.floor && best.room.floor.kind ? best.room.floor.kind : '');
+          if (kind.toLowerCase() === 'wood_oak' && best.thickness > 0) return 1;
+        }
+        return best.thickness;
       }
 
       function openingCutoutRectsForFloor(floor, rooms, roomSets) {
@@ -3175,7 +3180,6 @@
       }
 
       function drawWallsLayer(floor, gctx, rooms, roomSets) {
-        if (UI.streetView) return;
         const list = sortByZ(rooms || filterAlive(floor.rooms || []));
         const drawWallStroke = (ctx, screenPts, lineW, hiddenSet, erasePass) => {
           const cornerPads = screenPts.map((pt, i) => {
@@ -3247,7 +3251,11 @@
           const wallAnchor = pts[0];
           const fill = getFillStyle(gctx, 'wall', wk, wallColor, wallAnchor, { allowFallback: false });
           if (!fill) continue;
-          const thickness = Number(room.thickness || 0);
+          let thickness = Number(room.thickness || 0);
+          if (UI.streetView) {
+            const fk = String(room.floor && room.floor.kind ? room.floor.kind : '').toLowerCase();
+            if (fk === 'wood_oak' && thickness > 0) thickness = 1;
+          }
           const lineW = Math.max(1, thickness * VIEW.zoom);
           const hidden = getPolyEdgeHiddenSet(room);
           gctx.save();
