@@ -576,6 +576,7 @@
             <option value="floors">floors</option>
             <option value="walls">walls</option>
             <option value="roofs">roofs</option>
+            <option value="roof_shadows">roof_shadows</option>
             <option value="objects">objects</option>
             <option value="tokens">tokens</option>
           </select>
@@ -4076,6 +4077,9 @@
           ctx.globalAlpha = Math.max(0, Math.min(1, ROOF_SHADOW_ALPHA));
           ctx.drawImage(shadowLayer.canvas, 0, 0, rect.width, rect.height);
           ctx.restore();
+        }
+        if (layerMode === 'roof_shadows') {
+          ctx.drawImage(shadowLayer.canvas, 0, 0, rect.width, rect.height);
         }
         if (layerMode === 'all' || layerMode === 'tokens') {
           ctx.drawImage(tokenLayer.canvas, 0, 0, rect.width, rect.height);
