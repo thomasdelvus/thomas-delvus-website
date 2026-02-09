@@ -3041,8 +3041,13 @@
         gctx.save();
         gctx.fillStyle = '#000';
         gctx.globalAlpha = 1;
-        if (aZero && northPair.length >= 2) drawShadowEdge(northPair[0], northPair[1], northPeak);
-        if (bZero && eastPair.length >= 2) drawShadowEdge(eastPair[0], eastPair[1], eastPeak);
+        if (!isHorizontal) {
+          if (aZero && northPair.length >= 2) drawShadowEdge(northPair[0], northPair[1], northPeak);
+          if (eastPair.length >= 2) drawShadowEdge(eastPair[0], eastPair[1], eastPeak);
+        } else {
+          if (northPair.length >= 2) drawShadowEdge(northPair[0], northPair[1], northPeak);
+          if (bZero && eastPair.length >= 2) drawShadowEdge(eastPair[0], eastPair[1], eastPeak);
+        }
         gctx.restore();
       }
 
