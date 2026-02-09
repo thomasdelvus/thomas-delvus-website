@@ -2284,29 +2284,22 @@
 
       function getRoofConnectorTargets(roof, pointsWorld) {
         if (!roof || !roof.spine || !roof.spine.a || !roof.spine.b) return null;
-        if (!Array.isArray(pointsWorld) || pointsWorld.length < 2) return null;
-        const north = sortPairByX(pickExtremePair(pointsWorld, 'y', 1));
-        const south = sortPairByX(pickExtremePair(pointsWorld, 'y', -1));
-        const west = sortPairByY(pickExtremePair(pointsWorld, 'x', 1));
-        const east = sortPairByY(pickExtremePair(pointsWorld, 'x', -1));
-        if (north.length < 2 || south.length < 2 || west.length < 2 || east.length < 2) return null;
-        const a = roof.spine.a;
-        const b = roof.spine.b;
-        const spineMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        const extremes = getRoofLocalExtremes(roof, pointsWorld);
+        if (!extremes) return null;
+        const aLocal = toLocalPoint(roof.spine.a, extremes.origin, extremes.rotDeg);
+        const bLocal = toLocalPoint(roof.spine.b, extremes.origin, extremes.rotDeg);
+        const spineMidLocal = { x: (aLocal.x + bLocal.x) / 2, y: (aLocal.y + bLocal.y) / 2 };
         const isHorizontal = !!roof.rot90;
-        const pickTargets = (endpoint) => {
-          if (isHorizontal) return endpoint.x <= spineMid.x ? west : east;
-          return endpoint.y <= spineMid.y ? north : south;
+        const pickTargets = (endpointLocal) => {
+          if (isHorizontal) return endpointLocal.x <= spineMidLocal.x ? extremes.west : extremes.east;
+          return endpointLocal.y <= spineMidLocal.y ? extremes.north : extremes.south;
         };
         return {
+          ...extremes,
           isHorizontal,
-          north,
-          south,
-          west,
-          east,
-          spineMid,
-          targetsA: pickTargets(a),
-          targetsB: pickTargets(b)
+          spineMidLocal,
+          targetsA: pickTargets(aLocal),
+          targetsB: pickTargets(bLocal)
         };
       }
 
@@ -2334,6 +2327,81 @@
           sy += p.y;
         }
         return { x: sx / pointsWorld.length, y: sy / pointsWorld.length };
+      }
+
+      function rotatePointAround(p, origin, deg) {
+        if (!p) return null;
+        const angle = Number(deg) || 0;
+        if (!origin || Math.abs(angle) < 0.0001) return { x: p.x, y: p.y };
+        const rad = angle * Math.PI / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        const dx = p.x - origin.x;
+        const dy = p.y - origin.y;
+        return {
+          x: origin.x + (dx * cos - dy * sin),
+          y: origin.y + (dx * sin + dy * cos)
+        };
+      }
+
+      function toLocalPoint(p, origin, deg) {
+        return rotatePointAround(p, origin, -(Number(deg) || 0));
+      }
+
+      function toWorldPoint(p, origin, deg) {
+        return rotatePointAround(p, origin, Number(deg) || 0);
+      }
+
+      function buildRoofLocalPoints(pointsWorld, origin, deg) {
+        return pointsWorld.map(p => ({
+          world: p,
+          local: toLocalPoint(p, origin, deg)
+        }));
+      }
+
+      function pickExtremePairLocal(points, axis, dir) {
+        if (!Array.isArray(points) || points.length < 2) return [];
+        const key = axis === 'y' ? 'y' : 'x';
+        const sorted = points.slice().sort((a, b) => {
+          const d = (a.local[key] - b.local[key]) * dir;
+          if (Math.abs(d) > 0.0001) return d;
+          return axis === 'y' ? (a.local.x - b.local.x) : (a.local.y - b.local.y);
+        });
+        return sorted.slice(0, 2);
+      }
+
+      function sortLocalPairByX(pair) {
+        return Array.isArray(pair) ? pair.slice().sort((a, b) => a.local.x - b.local.x) : [];
+      }
+
+      function sortLocalPairByY(pair) {
+        return Array.isArray(pair) ? pair.slice().sort((a, b) => a.local.y - b.local.y) : [];
+      }
+
+      function getRoofLocalExtremes(roof, pointsWorld) {
+        if (!Array.isArray(pointsWorld) || pointsWorld.length < 2) return null;
+        const origin = polyCenterWorld(pointsWorld);
+        if (!origin) return null;
+        const rotDeg = Number(roof && roof.rotDeg) || 0;
+        const locals = buildRoofLocalPoints(pointsWorld, origin, rotDeg);
+        const northLocal = sortLocalPairByX(pickExtremePairLocal(locals, 'y', 1));
+        const southLocal = sortLocalPairByX(pickExtremePairLocal(locals, 'y', -1));
+        const westLocal = sortLocalPairByY(pickExtremePairLocal(locals, 'x', 1));
+        const eastLocal = sortLocalPairByY(pickExtremePairLocal(locals, 'x', -1));
+        if (northLocal.length < 2 || southLocal.length < 2 || westLocal.length < 2 || eastLocal.length < 2) return null;
+        return {
+          origin,
+          rotDeg,
+          locals,
+          northLocal,
+          southLocal,
+          westLocal,
+          eastLocal,
+          north: northLocal.map(p => p.world),
+          south: southLocal.map(p => p.world),
+          west: westLocal.map(p => p.world),
+          east: eastLocal.map(p => p.world)
+        };
       }
 
       function isPolyRoom(room) {
@@ -2611,13 +2679,16 @@
         list.forEach(room => drawFloorRoom(room, gctx));
       }
 
-      function computeRoofSpine(pointsWorld, rot90) {
+      function computeRoofSpine(pointsWorld, rot90, rotDeg) {
         if (!Array.isArray(pointsWorld) || pointsWorld.length < 2) return null;
+        const origin = polyCenterWorld(pointsWorld);
+        if (!origin) return null;
+        const localPoints = pointsWorld.map(p => toLocalPoint(p, origin, rotDeg));
         let minX = Infinity;
         let maxX = -Infinity;
         let minY = Infinity;
         let maxY = -Infinity;
-        for (const p of pointsWorld) {
+        for (const p of localPoints) {
           if (!p) continue;
           if (p.x < minX) minX = p.x;
           if (p.x > maxX) maxX = p.x;
@@ -2625,13 +2696,13 @@
           if (p.y > maxY) maxY = p.y;
         }
         if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) return null;
-        const north = pointsWorld.slice().sort((a, b) => a.y - b.y).slice(0, 2);
-        const south = pointsWorld.slice().sort((a, b) => b.y - a.y).slice(0, 2);
+        const north = localPoints.slice().sort((a, b) => a.y - b.y).slice(0, 2);
+        const south = localPoints.slice().sort((a, b) => b.y - a.y).slice(0, 2);
         if (north.length < 2 || south.length < 2) return null;
         const northY = Math.max(north[0].y, north[1].y);
         const southY = Math.min(south[0].y, south[1].y);
-        const west = pointsWorld.slice().sort((a, b) => a.x - b.x).slice(0, 2);
-        const east = pointsWorld.slice().sort((a, b) => b.x - a.x).slice(0, 2);
+        const west = localPoints.slice().sort((a, b) => a.x - b.x).slice(0, 2);
+        const east = localPoints.slice().sort((a, b) => b.x - a.x).slice(0, 2);
         if (west.length < 2 || east.length < 2) return null;
         const westX = Math.max(west[0].x, west[1].x);
         const eastX = Math.min(east[0].x, east[1].x);
@@ -2644,7 +2715,10 @@
             bX = tmp;
           }
           const spineY = (northY + southY) / 2;
-          return { a: { x: aX, y: spineY }, b: { x: bX, y: spineY } };
+          return {
+            a: toWorldPoint({ x: aX, y: spineY }, origin, rotDeg),
+            b: toWorldPoint({ x: bX, y: spineY }, origin, rotDeg)
+          };
         }
         const spineX = (minX + maxX) / 2;
         let aY = northY;
@@ -2654,7 +2728,10 @@
           aY = bY;
           bY = tmp;
         }
-        return { a: { x: spineX, y: aY }, b: { x: spineX, y: bY } };
+        return {
+          a: toWorldPoint({ x: spineX, y: aY }, origin, rotDeg),
+          b: toWorldPoint({ x: spineX, y: bY }, origin, rotDeg)
+        };
       }
 
       function updateRoofSpine(roof) {
@@ -2665,8 +2742,14 @@
           return;
         }
         const pts = labelsToWorldPoints(labels);
-        const spine = computeRoofSpine(pts, !!roof.rot90);
+        const rotDeg = Number(roof && roof.rotDeg) || 0;
+        const spine = computeRoofSpine(pts, !!roof.rot90, rotDeg);
         if (!spine) {
+          delete roof.spine;
+          return;
+        }
+        const origin = polyCenterWorld(pts);
+        if (!origin) {
           delete roof.spine;
           return;
         }
@@ -2676,13 +2759,17 @@
         };
         const adjA = safeAdj(roof.spineAdjustA);
         const adjB = safeAdj(roof.spineAdjustB);
+        const aLocal = toLocalPoint(spine.a, origin, rotDeg);
+        const bLocal = toLocalPoint(spine.b, origin, rotDeg);
         if (roof.rot90) {
-          spine.a.x += -adjA;
-          spine.b.x += adjB;
+          aLocal.x += -adjA;
+          bLocal.x += adjB;
         } else {
-          spine.a.y += -adjA;
-          spine.b.y += adjB;
+          aLocal.y += -adjA;
+          bLocal.y += adjB;
         }
+        spine.a = toWorldPoint(aLocal, origin, rotDeg);
+        spine.b = toWorldPoint(bLocal, origin, rotDeg);
         roof.spine = spine;
       }
 
@@ -2705,6 +2792,7 @@
           return `rgb(${v},${v},${v})`;
         })();
         const southLighten = 0.1;
+        const roofRot = Number(roof && roof.rotDeg) || 0;
         const tintRaw = roof && typeof roof.tint === 'string' ? roof.tint.trim() : '';
         const tintColor = /^#[0-9a-f]{6}$/i.test(tintRaw) ? tintRaw : '#ffffff';
         const tintStrength = Number.isFinite(Number(roof && roof.tintStrength)) ? Number(roof.tintStrength) : 0;
@@ -2722,7 +2810,7 @@
         const fillPolygon = (polyPoints, section, anchorOverride) => {
           if (!Array.isArray(polyPoints) || polyPoints.length < 3) return;
           const anchor = anchorOverride || polyPoints[0];
-          const fill = getFillStyle(gctx, 'floor', kind, roofColor, anchor, { allowFallback: false, rotDeg: rotFor(section) });
+          const fill = getFillStyle(gctx, 'floor', kind, roofColor, anchor, { allowFallback: false, rotDeg: rotFor(section) + roofRot });
           if (!fill) return;
           const polyScreen = polyPoints.map(worldToScreen);
           gctx.save();
@@ -2827,11 +2915,12 @@
         const bPos = bAdj > 0;
         const hiddenLines = canSpine ? getRoofLineHiddenSet(roof) : new Set();
         const targetInfo = canSpine ? getRoofConnectorTargets(roof, pts) : null;
-        const isHorizontal = targetInfo ? targetInfo.isHorizontal : false;
-        const northPair = targetInfo ? targetInfo.north : sortPairByX(pickExtremePair(pts, 'y', 1));
-        const southPair = targetInfo ? targetInfo.south : sortPairByX(pickExtremePair(pts, 'y', -1));
-        const westPair = targetInfo ? targetInfo.west : sortPairByY(pickExtremePair(pts, 'x', 1));
-        const eastPair = targetInfo ? targetInfo.east : sortPairByY(pickExtremePair(pts, 'x', -1));
+        const extremes = targetInfo || getRoofLocalExtremes(roof, pts);
+        const isHorizontal = targetInfo ? targetInfo.isHorizontal : !!roof.rot90;
+        const northPair = extremes ? extremes.north : sortPairByX(pickExtremePair(pts, 'y', 1));
+        const southPair = extremes ? extremes.south : sortPairByX(pickExtremePair(pts, 'y', -1));
+        const westPair = extremes ? extremes.west : sortPairByY(pickExtremePair(pts, 'x', 1));
+        const eastPair = extremes ? extremes.east : sortPairByY(pickExtremePair(pts, 'x', -1));
         const UL = northPair[0] || null;
         const UR = northPair[1] || null;
         const LL = southPair[0] || null;
@@ -2842,22 +2931,38 @@
             if (UL && LL) fillPolygon([roof.spine.b, roof.spine.a, UL, LL], 'west');
             if (UR && LR) fillPolygon([roof.spine.b, roof.spine.a, UR, LR], 'east');
             if (aNeg && UL && UR) {
-              const anchor = { x: UL.x, y: UL.y + yellowOffset };
+              const origin = extremes ? extremes.origin : polyCenterWorld(pts);
+              const rotDeg = extremes ? extremes.rotDeg : (Number(roof && roof.rotDeg) || 0);
+              const ulLocal = toLocalPoint(UL, origin, rotDeg);
+              const anchorLocal = { x: ulLocal.x, y: ulLocal.y + yellowOffset };
+              const anchor = toWorldPoint(anchorLocal, origin, rotDeg);
               fillPolygon([UL, UR, roof.spine.a], 'north', anchor);
             }
             if (bNeg && LL && LR) {
-              const anchor = { x: LL.x, y: LL.y - blueOffset };
+              const origin = extremes ? extremes.origin : polyCenterWorld(pts);
+              const rotDeg = extremes ? extremes.rotDeg : (Number(roof && roof.rotDeg) || 0);
+              const llLocal = toLocalPoint(LL, origin, rotDeg);
+              const anchorLocal = { x: llLocal.x, y: llLocal.y - blueOffset };
+              const anchor = toWorldPoint(anchorLocal, origin, rotDeg);
               fillPolygon([LL, LR, roof.spine.b], 'south', anchor);
             }
           } else {
             if (UL && UR) fillPolygon([roof.spine.b, roof.spine.a, UL, UR], 'north');
             if (LL && LR) fillPolygon([roof.spine.b, roof.spine.a, LL, LR], 'south');
             if (aNeg && westPair.length >= 2) {
-              const anchor = { x: westPair[0].x + yellowOffset, y: westPair[0].y };
+              const origin = extremes ? extremes.origin : polyCenterWorld(pts);
+              const rotDeg = extremes ? extremes.rotDeg : (Number(roof && roof.rotDeg) || 0);
+              const wLocal = toLocalPoint(westPair[0], origin, rotDeg);
+              const anchorLocal = { x: wLocal.x + yellowOffset, y: wLocal.y };
+              const anchor = toWorldPoint(anchorLocal, origin, rotDeg);
               fillPolygon([westPair[0], westPair[1], roof.spine.a], 'west', anchor);
             }
             if (bNeg && eastPair.length >= 2) {
-              const anchor = { x: eastPair[0].x - blueOffset, y: eastPair[0].y };
+              const origin = extremes ? extremes.origin : polyCenterWorld(pts);
+              const rotDeg = extremes ? extremes.rotDeg : (Number(roof && roof.rotDeg) || 0);
+              const eLocal = toLocalPoint(eastPair[0], origin, rotDeg);
+              const anchorLocal = { x: eLocal.x - blueOffset, y: eLocal.y };
+              const anchor = toWorldPoint(anchorLocal, origin, rotDeg);
               fillPolygon([eastPair[0], eastPair[1], roof.spine.b], 'east', anchor);
             }
           }
@@ -3018,9 +3123,11 @@
         const aPos = aAdj > 0;
         const bPos = bAdj > 0;
         const targetInfo = canSpine ? getRoofConnectorTargets(roof, pts) : null;
-        const isHorizontal = targetInfo ? targetInfo.isHorizontal : false;
-        const northPair = targetInfo ? targetInfo.north : sortPairByX(pickExtremePair(pts, 'y', 1));
-        const eastPair = targetInfo ? targetInfo.east : sortPairByY(pickExtremePair(pts, 'x', -1));
+        const extremes = targetInfo || getRoofLocalExtremes(roof, pts);
+        if (!extremes) return;
+        const isHorizontal = targetInfo ? targetInfo.isHorizontal : !!roof.rot90;
+        const northPair = extremes.north || [];
+        const eastPair = extremes.east || [];
         const northPeak = null;
         const eastPeak = null;
         const v = { x: shadowDepth, y: -shadowDepth };
@@ -4277,6 +4384,7 @@
           addField('Points', formatRoomPoints(sel.item), 'points');
           addField('Kind', sel.item.kind || 'slate', 'kind', { list: 'floorKindList' });
           addCheckboxField('Rot90', !!sel.item.rot90, 'rot90');
+          addField('Roof Rot', sel.item.rotDeg != null ? sel.item.rotDeg : 0, 'roof_rot', { type: 'number', step: '1' });
           addField('Yellow', sel.item.spineAdjustA != null ? sel.item.spineAdjustA : 0, 'spine_adjust_a', { type: 'number', step: '1' });
           addField('Blue', sel.item.spineAdjustB != null ? sel.item.spineAdjustB : 0, 'spine_adjust_b', { type: 'number', step: '1' });
           addField('Shadow Depth', sel.item.shadowDepth != null ? sel.item.shadowDepth : 32, 'shadow_depth', { type: 'number', step: '1' });
@@ -4453,6 +4561,11 @@
           if (key === 'rot90') {
             const v = String(value || '').trim().toLowerCase();
             item.rot90 = v === '1' || v === 'true' || v === 'yes' || v === 'on';
+            updateRoofSpine(item);
+          }
+          if (key === 'roof_rot') {
+            const n = num(value, 0);
+            item.rotDeg = Number.isFinite(n) ? n : 0;
             updateRoofSpine(item);
           }
           if (key === 'spine_adjust_a') {
@@ -4803,6 +4916,7 @@
                 tileOffsetYellow: 0,
                 tileOffsetBlue: 0,
                 shadowDepth: 32,
+                rotDeg: 0,
                 rot90: false,
                 spineAdjustA: 0,
                 spineAdjustB: 0,
