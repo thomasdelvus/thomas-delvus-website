@@ -2827,8 +2827,7 @@
         })();
         const southLighten = 0.1;
         const roofRot = Number(roof && roof.rotDeg) || 0;
-        const fullRot = getRoofFullRot(roof);
-        const totalRot = roofRot + fullRot;
+        const totalRot = roofRot;
         const tintRaw = roof && typeof roof.tint === 'string' ? roof.tint.trim() : '';
         const tintColor = /^#[0-9a-f]{6}$/i.test(tintRaw) ? tintRaw : '#ffffff';
         const tintStrength = Number.isFinite(Number(roof && roof.tintStrength)) ? Number(roof.tintStrength) : 0;
