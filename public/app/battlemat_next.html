@@ -3009,14 +3009,14 @@
         const canSpine = roof && roof.spine && roof.spine.a && roof.spine.b;
         const aAdj = Number(roof && roof.spineAdjustA) || 0;
         const bAdj = Number(roof && roof.spineAdjustB) || 0;
-        const aPos = aAdj > 0;
-        const bPos = bAdj > 0;
+        const aZero = Math.abs(aAdj) < 0.0001;
+        const bZero = Math.abs(bAdj) < 0.0001;
         const targetInfo = canSpine ? getRoofConnectorTargets(roof, pts) : null;
         const isHorizontal = targetInfo ? targetInfo.isHorizontal : false;
         const northPair = targetInfo ? targetInfo.north : sortPairByX(pickExtremePair(pts, 'y', 1));
         const eastPair = targetInfo ? targetInfo.east : sortPairByY(pickExtremePair(pts, 'x', -1));
-        const northPeak = (!isHorizontal && aPos && canSpine) ? roof.spine.a : null;
-        const eastPeak = (isHorizontal && bPos && canSpine) ? roof.spine.b : null;
+        const northPeak = null;
+        const eastPeak = null;
         const v = { x: shadowDepth, y: -shadowDepth };
         const drawShadowPolygon = (polyPoints) => {
           if (!Array.isArray(polyPoints) || polyPoints.length < 3) return;
@@ -3041,8 +3041,8 @@
         gctx.save();
         gctx.fillStyle = '#000';
         gctx.globalAlpha = 1;
-        if (northPair.length >= 2) drawShadowEdge(northPair[0], northPair[1], northPeak);
-        if (eastPair.length >= 2) drawShadowEdge(eastPair[0], eastPair[1], eastPeak);
+        if (aZero && northPair.length >= 2) drawShadowEdge(northPair[0], northPair[1], northPeak);
+        if (bZero && eastPair.length >= 2) drawShadowEdge(eastPair[0], eastPair[1], eastPeak);
         gctx.restore();
       }
 
