@@ -2815,8 +2815,8 @@
         const canSpine = roof && roof.spine && roof.spine.a && roof.spine.b;
         const aAdj = Number(roof && roof.spineAdjustA) || 0;
         const bAdj = Number(roof && roof.spineAdjustB) || 0;
-        const aNeg = aAdj < 0;
-        const bNeg = bAdj < 0;
+        const aPos = aAdj > 0;
+        const bPos = bAdj > 0;
         const aPos = aAdj > 0;
         const bPos = bAdj > 0;
         const hiddenLines = canSpine ? getRoofLineHiddenSet(roof) : new Set();
@@ -3015,8 +3015,8 @@
         const isHorizontal = targetInfo ? targetInfo.isHorizontal : false;
         const northPair = targetInfo ? targetInfo.north : sortPairByX(pickExtremePair(pts, 'y', 1));
         const eastPair = targetInfo ? targetInfo.east : sortPairByY(pickExtremePair(pts, 'x', -1));
-        const northPeak = (!isHorizontal && aNeg && canSpine) ? roof.spine.a : null;
-        const eastPeak = (isHorizontal && bNeg && canSpine) ? roof.spine.b : null;
+        const northPeak = (!isHorizontal && aPos && canSpine) ? roof.spine.a : null;
+        const eastPeak = (isHorizontal && bPos && canSpine) ? roof.spine.b : null;
         const v = { x: shadowDepth, y: -shadowDepth };
         const drawShadowPolygon = (polyPoints) => {
           if (!Array.isArray(polyPoints) || polyPoints.length < 3) return;
