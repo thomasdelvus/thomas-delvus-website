@@ -1480,7 +1480,7 @@
         if (String(sel.floorId) !== String(floor.id)) return;
         const polyLabels = getPolyPointLabels(sel.item);
         if (polyLabels) {
-          const pts = labelsToWorldPoints(polyLabels);
+          const pts = isRoof ? roofWorldPoints(sel.item) : labelsToWorldPoints(polyLabels);
           if (!pts.length) return;
           const hidden = isRoom ? getPolyEdgeHiddenSet(sel.item) : new Set();
           const hiddenLines = isRoof ? getRoofLineHiddenSet(sel.item) : new Set();
@@ -1583,7 +1583,7 @@
       function getPolyHandleHit(room, screenPoint) {
         const labels = getPolyPointLabels(room);
         if (!labels) return null;
-        const pts = labelsToWorldPoints(labels);
+        const pts = room && room.fullRotOn ? roofWorldPoints(room) : labelsToWorldPoints(labels);
         if (!pts.length) return null;
         const hitR = Math.max(8, Math.min(14, 9 * VIEW.zoom));
         const hitRadius2 = hitR * hitR;
@@ -2426,6 +2426,40 @@
         return pts;
       }
 
+      function getRoofFullRot(roof) {
+        if (!roof || !roof.fullRotOn) return 0;
+        const n = Number(roof.fullRot);
+        return Number.isFinite(n) ? n : 0;
+      }
+
+      function roofBaseWorldPoints(roof) {
+        return roomWorldPoints(roof);
+      }
+
+      function roofRotationOrigin(roof) {
+        const base = roofBaseWorldPoints(roof);
+        return base.length ? polyCenterWorld(base) : null;
+      }
+
+      function roofWorldPoints(roof) {
+        const base = roofBaseWorldPoints(roof);
+        if (!base.length) return base;
+        const rot = getRoofFullRot(roof);
+        if (!rot) return base;
+        const origin = polyCenterWorld(base);
+        if (!origin) return base;
+        return base.map(p => rotatePointAround(p, origin, rot));
+      }
+
+      function unrotateRoofWorldPoint(roof, worldPoint) {
+        if (!worldPoint) return worldPoint;
+        const rot = getRoofFullRot(roof);
+        if (!rot) return worldPoint;
+        const origin = roofRotationOrigin(roof);
+        if (!origin) return worldPoint;
+        return rotatePointAround(worldPoint, origin, -rot);
+      }
+
       function roomPolygonScreen(room) {
         const pts = roomWorldPoints(room);
         if (pts.length < 3) return null;
@@ -2741,7 +2775,7 @@
           delete roof.spine;
           return;
         }
-        const pts = labelsToWorldPoints(labels);
+        const pts = roofWorldPoints(roof);
         const rotDeg = Number(roof && roof.rotDeg) || 0;
         const spine = computeRoofSpine(pts, !!roof.rot90, rotDeg);
         if (!spine) {
@@ -2774,12 +2808,12 @@
       }
 
       function roofWorldCenter(roof) {
-        const pts = roomWorldPoints(roof);
+        const pts = roofWorldPoints(roof);
         return pts.length ? polyCenterWorld(pts) : null;
       }
 
       function drawRoofPoly(roof, gctx) {
-        const pts = roomWorldPoints(roof);
+        const pts = roofWorldPoints(roof);
         if (pts.length < 3) return;
         const screenPts = pts.map(worldToScreen);
         const kind = String(roof && roof.kind ? roof.kind : 'slate');
@@ -2793,6 +2827,8 @@
         })();
         const southLighten = 0.1;
         const roofRot = Number(roof && roof.rotDeg) || 0;
+        const fullRot = getRoofFullRot(roof);
+        const totalRot = roofRot + fullRot;
         const tintRaw = roof && typeof roof.tint === 'string' ? roof.tint.trim() : '';
         const tintColor = /^#[0-9a-f]{6}$/i.test(tintRaw) ? tintRaw : '#ffffff';
         const tintStrength = Number.isFinite(Number(roof && roof.tintStrength)) ? Number(roof.tintStrength) : 0;
@@ -2810,7 +2846,7 @@
         const fillPolygon = (polyPoints, section, anchorOverride) => {
           if (!Array.isArray(polyPoints) || polyPoints.length < 3) return;
           const anchor = anchorOverride || polyPoints[0];
-          const fill = getFillStyle(gctx, 'floor', kind, roofColor, anchor, { allowFallback: false, rotDeg: rotFor(section) + roofRot });
+          const fill = getFillStyle(gctx, 'floor', kind, roofColor, anchor, { allowFallback: false, rotDeg: rotFor(section) + totalRot });
           if (!fill) return;
           const polyScreen = polyPoints.map(worldToScreen);
           gctx.save();
@@ -3077,7 +3113,7 @@
         if (!list.length) return;
         const tempLayer = (rect && dpr) ? getLayerContext('roofShadowTemp', rect, dpr) : null;
         const entries = list.map((roof) => {
-          const pts = roomWorldPoints(roof);
+          const pts = roofWorldPoints(roof);
           const z = Number.isFinite(Number(roof && roof.z)) ? Number(roof.z) : 0;
           return { roof, pts, z };
         }).filter(entry => entry.pts.length >= 3);
@@ -3113,7 +3149,7 @@
 
       function drawRoofShadow(roof, gctx) {
         if (!roof || !gctx) return;
-        const pts = roomWorldPoints(roof);
+        const pts = roofWorldPoints(roof);
         if (pts.length < 3) return;
         const shadowDepth = Number.isFinite(Number(roof && roof.shadowDepth)) ? Number(roof.shadowDepth) : 32;
         if (!Number.isFinite(shadowDepth) || shadowDepth === 0) return;
@@ -3190,7 +3226,7 @@
       function getRoofLineHit(roof, screenPoint) {
         const labels = getPolyPointLabels(roof);
         if (!labels) return null;
-        const pts = labelsToWorldPoints(labels);
+        const pts = roofWorldPoints(roof);
         if (!pts.length) return null;
         if (!roof || !roof.spine || !roof.spine.a || !roof.spine.b) return null;
         const targetInfo = getRoofConnectorTargets(roof, pts);
@@ -4385,6 +4421,8 @@
           addField('Kind', sel.item.kind || 'slate', 'kind', { list: 'floorKindList' });
           addCheckboxField('Rot90', !!sel.item.rot90, 'rot90');
           addField('Roof Rot', sel.item.rotDeg != null ? sel.item.rotDeg : 0, 'roof_rot', { type: 'number', step: '1' });
+          addCheckboxField('Full Rot', !!sel.item.fullRotOn, 'full_rot_on');
+          addField('Full Roof Rot', sel.item.fullRot != null ? sel.item.fullRot : 0, 'full_rot', { type: 'number', step: '1' });
           addField('Yellow', sel.item.spineAdjustA != null ? sel.item.spineAdjustA : 0, 'spine_adjust_a', { type: 'number', step: '1' });
           addField('Blue', sel.item.spineAdjustB != null ? sel.item.spineAdjustB : 0, 'spine_adjust_b', { type: 'number', step: '1' });
           addField('Shadow Depth', sel.item.shadowDepth != null ? sel.item.shadowDepth : 32, 'shadow_depth', { type: 'number', step: '1' });
@@ -4566,6 +4604,16 @@
           if (key === 'roof_rot') {
             const n = num(value, 0);
             item.rotDeg = Number.isFinite(n) ? n : 0;
+            updateRoofSpine(item);
+          }
+          if (key === 'full_rot_on') {
+            const v = String(value || '').trim().toLowerCase();
+            item.fullRotOn = v === '1' || v === 'true' || v === 'yes' || v === 'on';
+            updateRoofSpine(item);
+          }
+          if (key === 'full_rot') {
+            const n = num(value, 0);
+            item.fullRot = Number.isFinite(n) ? n : 0;
             updateRoofSpine(item);
           }
           if (key === 'spine_adjust_a') {
@@ -4830,7 +4878,7 @@
         if (!UI.hideRoofs) {
           const roofs = sortByZ(filterAlive(floor.roofs || [])).reverse();
           for (const roof of roofs) {
-            const pts = roomWorldPoints(roof);
+          const pts = roofWorldPoints(roof);
             if (pts.length >= 3 && pointInPolygon(worldPoint, pts)) {
               return { type: 'roof', item: roof, floorId: floor.id };
             }
@@ -4917,6 +4965,8 @@
                 tileOffsetBlue: 0,
                 shadowDepth: 32,
                 rotDeg: 0,
+                fullRot: 0,
+                fullRotOn: false,
                 rot90: false,
                 spineAdjustA: 0,
                 spineAdjustB: 0,
@@ -5079,13 +5129,18 @@
           drag.item.ox = Math.round(ox * 100) / 100;
           drag.item.oy = Math.round(oy * 100) / 100;
         } else if (drag.type === 'poly-point') {
-          const snap = worldToHexHalf(worldPoint);
+          const snapWorld = (drag.ownerType === 'roof') ? unrotateRoofWorldPoint(drag.item, worldPoint) : worldPoint;
+          const snap = worldToHexHalf(snapWorld);
           const label = toHexLabel(snap.col, snap.row);
           setPolyPoint(drag.item, drag.index, label);
           if (drag.ownerType === 'roof') updateRoofSpine(drag.item);
         } else if (drag.type === 'poly-move') {
-          const startHex = drag.startHex || worldToHexHalf(drag.startWorld || worldPoint);
-          const curHex = worldToHexHalf(worldPoint);
+          const baseWorld = (drag.ownerType === 'roof') ? unrotateRoofWorldPoint(drag.item, worldPoint) : worldPoint;
+          const startWorld = drag.startWorld
+            ? ((drag.ownerType === 'roof') ? unrotateRoofWorldPoint(drag.item, drag.startWorld) : drag.startWorld)
+            : baseWorld;
+          const startHex = drag.startHex || worldToHexHalf(startWorld);
+          const curHex = worldToHexHalf(baseWorld);
           const dCol = curHex.col - startHex.col;
           const dRow = curHex.row - startHex.row;
           const base = Array.isArray(drag.pointsBase) ? drag.pointsBase : null;
@@ -5195,7 +5250,9 @@
                   item: EDITOR.selection.item,
                   floorId: EDITOR.selection.floorId,
                   startWorld: world,
-                  startHex: worldToHexHalf(world),
+                  startHex: (EDITOR.selection.type === 'roof' && EDITOR.selection.item && EDITOR.selection.item.fullRotOn)
+                    ? worldToHexHalf(unrotateRoofWorldPoint(EDITOR.selection.item, world))
+                    : worldToHexHalf(world),
                   pointsBase,
                   openingsBase,
                   ownerType: EDITOR.selection.type,
@@ -5276,7 +5333,9 @@
                   item: sel.item,
                   floorId: sel.floorId,
                   startWorld: world,
-                  startHex: worldToHexHalf(world),
+                  startHex: (sel.type === 'roof' && sel.item && sel.item.fullRotOn)
+                    ? worldToHexHalf(unrotateRoofWorldPoint(sel.item, world))
+                    : worldToHexHalf(world),
                   pointsBase,
                   openingsBase,
                   ownerType: sel.type,
