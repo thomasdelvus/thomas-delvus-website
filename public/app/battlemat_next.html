@@ -2815,8 +2815,8 @@
         const canSpine = roof && roof.spine && roof.spine.a && roof.spine.b;
         const aAdj = Number(roof && roof.spineAdjustA) || 0;
         const bAdj = Number(roof && roof.spineAdjustB) || 0;
-        const aPos = aAdj > 0;
-        const bPos = bAdj > 0;
+        const aNeg = aAdj < 0;
+        const bNeg = bAdj < 0;
         const aPos = aAdj > 0;
         const bPos = bAdj > 0;
         const hiddenLines = canSpine ? getRoofLineHiddenSet(roof) : new Set();
