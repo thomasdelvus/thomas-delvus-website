@@ -30,7 +30,8 @@
 		"check": "astro build && tsc && wrangler deploy --dry-run",
 		"deploy": "wrangler deploy",
 		"dev": "astro dev",
-		"preview": "astro build && wrangler dev"
+		"preview": "astro build && wrangler dev",
+		"test:battlemat3": "node src/test/battlemat3/run.mjs"
 	},
 	"type": "module"
 }
