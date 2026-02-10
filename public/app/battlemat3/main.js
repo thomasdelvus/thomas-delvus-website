@@ -914,18 +914,8 @@ import { createApiController } from './modules/api.js';
                 }
               }
               return state;
-            }
-            function applyViewFromState(scene) {
-              const view = scene && scene.view ? scene.view : {};
-              const floorId = view.floorId || view.floor_id || view.floor || null;
-              if (floorId) VIEW.floorId = String(floorId);
-              const camHex = view.camera_hex || view.cameraHex || null;
-              if (camHex) {
-                const p = parseHexLabel(camHex);
-                if (p) setCameraFromHex(p);
-              }
-            }
-            const { resolveBattleId, getCampaignId, resolvePoiId, buildMapOptionsFromMeta, extractScene } = createApiController({
+            }
+            const { resolveBattleId, getCampaignId, resolvePoiId, buildMapOptionsFromMeta, extractScene, applyViewFromState } = createApiController({
               STATE,
               VIEW,
               mapSelect,
@@ -4953,6 +4943,8 @@ import { createApiController } from './modules/api.js';
         console.error(err);
       });
     })();
+
+
 
 
 
