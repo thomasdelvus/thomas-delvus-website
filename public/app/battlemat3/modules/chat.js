@@ -82,7 +82,7 @@ export function createChatController({
     const res = await fetch(`/api/messages?${qs.toString()}`, {
       headers: { accept: "application/json", ...getAuthHeaders() },
     });
-    if (!res.ok) throw new Error("Chat fetch failed");
+    if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data && data.rows) ? data.rows : [];
   }
@@ -146,4 +146,3 @@ export function createChatController({
     sendChatMessage,
   };
 }
-
