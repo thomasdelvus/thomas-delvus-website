@@ -914,27 +914,7 @@ import { createApiController } from './modules/api.js';
                 }
               }
               return state;
-            }
-
-            function extractScene(raw) {
-              if (!raw || typeof raw !== 'object') return { scene: { floors: [] }, wrapper: null, recordId: '' };
-              if (raw.records && typeof raw.records === 'object') {
-                const activeId = raw.active && raw.active.recordId ? String(raw.active.recordId) : '';
-                let recordId = activeId;
-                let scene = recordId && raw.records[recordId] ? raw.records[recordId] : null;
-                if (!scene) {
-                  const keys = Object.keys(raw.records);
-                  if (keys.length) {
-                    recordId = keys[0];
-                    scene = raw.records[recordId];
-                  }
-                }
-                if (!scene || typeof scene !== 'object') return { scene: { floors: [] }, wrapper: raw, recordId: recordId || '' };
-                return { scene, wrapper: raw, recordId: recordId || '' };
-              }
-              return { scene: raw, wrapper: null, recordId: '' };
-            }
-
+            }
             function applyViewFromState(scene) {
               const view = scene && scene.view ? scene.view : {};
               const floorId = view.floorId || view.floor_id || view.floor || null;
@@ -945,7 +925,7 @@ import { createApiController } from './modules/api.js';
                 if (p) setCameraFromHex(p);
               }
             }
-            const { resolveBattleId, getCampaignId, resolvePoiId, buildMapOptionsFromMeta } = createApiController({
+            const { resolveBattleId, getCampaignId, resolvePoiId, buildMapOptionsFromMeta, extractScene } = createApiController({
               STATE,
               VIEW,
               mapSelect,
@@ -4973,6 +4953,8 @@ import { createApiController } from './modules/api.js';
         console.error(err);
       });
     })();
+
+
 
 
 
