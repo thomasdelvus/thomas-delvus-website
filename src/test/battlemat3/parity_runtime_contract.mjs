@@ -4,6 +4,7 @@ import path from "node:path";
 const root = process.cwd();
 const nextHtmlPath = path.join(root, "public", "app", "battlemat_next.html");
 const v3JsPath = path.join(root, "public", "app", "battlemat3", "main.js");
+const v3ModulesDir = path.join(root, "public", "app", "battlemat3", "modules");
 
 function fail(message) {
   console.error(`[parity_runtime_contract] FAIL: ${message}`);
@@ -31,16 +32,26 @@ function extractSet(text, regex, group = 1) {
 
 const nextHtml = read(nextHtmlPath);
 const nextJs = extractInlineScript(nextHtml);
-const v3Js = read(v3JsPath);
+const v3RuntimeParts = [read(v3JsPath)];
+if (fs.existsSync(v3ModulesDir)) {
+  const moduleFiles = fs
+    .readdirSync(v3ModulesDir)
+    .filter((name) => name.endsWith(".js"))
+    .sort();
+  for (const name of moduleFiles) {
+    v3RuntimeParts.push(read(path.join(v3ModulesDir, name)));
+  }
+}
+const v3Js = v3RuntimeParts.join("\n");
 
-const lsRegex = /localStorage\.(?:getItem|setItem)\('([^']+)'\)/g;
-const qpRegex = /(?:qp\.get|getQueryParams\(\)\.get)\('([^']+)'\)/g;
+const lsRegex = /localStorage\.(?:getItem|setItem)\((['"])([^'"]+)\1\)/g;
+const qpRegex = /(?:qp\.get|getQueryParams\(\)\.get)\((['"])([^'"]+)\1\)/g;
 const fetchRegex = /fetch\(([^)]+)\)/g;
 
-const nextLs = extractSet(nextJs, lsRegex);
-const v3Ls = extractSet(v3Js, lsRegex);
-const nextQp = extractSet(nextJs, qpRegex);
-const v3Qp = extractSet(v3Js, qpRegex);
+const nextLs = extractSet(nextJs, lsRegex, 2);
+const v3Ls = extractSet(v3Js, lsRegex, 2);
+const nextQp = extractSet(nextJs, qpRegex, 2);
+const v3Qp = extractSet(v3Js, qpRegex, 2);
 const nextFetch = extractSet(nextJs, fetchRegex, 1);
 const v3Fetch = extractSet(v3Js, fetchRegex, 1);
 
@@ -56,7 +67,9 @@ assertSetParity("localStorage keys", nextLs, v3Ls);
 assertSetParity("query params", nextQp, v3Qp);
 assertSetParity("fetch call sites", nextFetch, v3Fetch);
 
-if (!/method:\s*'PUT'[\s\S]*?\/api\/battles\/\$\{encodeURIComponent\(battleId\)\}/.test(v3Js)) {
+const hasBattlePutEndpoint = /\/api\/battles\/\$\{encodeURIComponent\(battleId\)\}/.test(v3Js);
+const hasBattlePutMethod = /method:\s*['"]PUT['"]/.test(v3Js);
+if (!hasBattlePutEndpoint || !hasBattlePutMethod) {
   fail("Full-state battle PUT contract not found");
 }
 pass("Full-state battle PUT contract present");
@@ -66,7 +79,9 @@ if (!/setInterval\(pollChat,\s*3000\)/.test(v3Js)) {
 }
 pass("Chat polling interval contract present");
 
-if (!/PATCH[\s\S]*\/api\/campaigns\/\$\{encodeURIComponent\(cid\)\}\/entities/.test(v3Js)) {
+const hasEntityPatchEndpoint = /\/api\/campaigns\/\$\{encodeURIComponent\(cid\)\}\/entities/.test(v3Js);
+const hasEntityPatchMethod = /method:\s*['"]PATCH['"]/.test(v3Js);
+if (!hasEntityPatchEndpoint || !hasEntityPatchMethod) {
   fail("Campaign entity PATCH contract not found");
 }
 pass("Campaign entity PATCH contract present");
