@@ -945,7 +945,7 @@ import { createApiController } from './modules/api.js';
                 if (p) setCameraFromHex(p);
               }
             }
-            const { resolveBattleId, getCampaignId, resolvePoiId } = createApiController({
+            const { resolveBattleId, getCampaignId, resolvePoiId, buildMapOptionsFromMeta } = createApiController({
               STATE,
               VIEW,
               mapSelect,
@@ -1005,32 +1005,7 @@ import { createApiController } from './modules/api.js';
               STATE.entities = (STATE.campaign.world && Array.isArray(STATE.campaign.world.entities))
                 ? STATE.campaign.world.entities
                 : [];
-            }
-
-            function buildMapOptionsFromMeta(meta) {
-              if (!meta) return [];
-              const world = meta.world || meta;
-              const map =
-                (world && (world.poi_index || world.poiIndex || world.poi_to_battle || world.poiToBattle || world.pois)) ||
-                (meta.poi_index || meta.poiIndex);
-              if (!map || typeof map !== 'object') return [];
-              const out = [];
-              for (const [poiId, entry] of Object.entries(map)) {
-                if (!entry) continue;
-                if (typeof entry === 'string') {
-                  out.push({ id: entry, label: poiId });
-                  continue;
-                }
-                if (typeof entry === 'object') {
-                  const id = entry.battle_id || entry.battleId || entry.id || entry.value;
-                  if (!id) continue;
-                  const label = entry.title || entry.name || entry.label || entry.poi_name || entry.poiName || poiId;
-                  out.push({ id, label });
-                }
-              }
-              return out;
-            }
-
+            }
             async function loadMapOptions() {
               if (!mapSelect) return;
               const battleId = STATE.battle && STATE.battle._battle_id;
@@ -4998,6 +4973,8 @@ import { createApiController } from './modules/api.js';
         console.error(err);
       });
     })();
+
+
 
 
 
