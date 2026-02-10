@@ -30,7 +30,8 @@ This map links prior source material in `src/docs` to the new consolidated docs 
 6. `public/app/battlemat3/modules/api.js`
 7. `public/app/battlemat3/modules/chat.js`
 8. `public/app/battlemat3/modules/history.js`
-9. `src/pages/play3/[battle_id].astro`
+9. `public/app/battlemat3/modules/controls.js`
+10. `src/pages/play3/[battle_id].astro`
 
 ## Test Inputs
 

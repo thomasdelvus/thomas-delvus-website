@@ -23,8 +23,9 @@ Updated: 2026-02-10
    1. `public/app/battlemat3/modules/contracts.js`
    2. `public/app/battlemat3/modules/prefs.js`
    3. `public/app/battlemat3/modules/api.js`
-   4. `public/app/battlemat3/modules/chat.js`
-   5. `public/app/battlemat3/modules/history.js`
+4. `public/app/battlemat3/modules/chat.js`
+5. `public/app/battlemat3/modules/history.js`
+6. `public/app/battlemat3/modules/controls.js`
 
 ## Data and API Dependencies
 
@@ -54,4 +55,3 @@ Updated: 2026-02-10
    1. `src/test/battlemat3/run.mjs`
 3. Package command:
    1. `npm run test:battlemat3`
-

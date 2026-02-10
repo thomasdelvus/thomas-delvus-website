@@ -3,6 +3,7 @@ import { createPrefsController } from './modules/prefs.js';
 import { createApiController } from './modules/api.js';
 import { createChatController } from './modules/chat.js';
 import { createHistoryController } from './modules/history.js';
+import { createControlsController } from './modules/controls.js';
 
 (() => {
       const canvas = document.getElementById('map');
@@ -1385,6 +1386,14 @@ import { createHistoryController } from './modules/history.js';
         setFloorOptions,
         renderStatus,
         render,
+      });
+
+      const { bindPanZoomHoldControls } = createControlsController({
+        VIEW,
+        rowStep,
+        colStep,
+        nudgeCamera,
+        setZoom,
       });
 
       function parsePointList(text) {
@@ -4502,76 +4511,14 @@ import { createHistoryController } from './modules/history.js';
             setZoom(VIEW.zoom + delta);
           }, { passive: false });
         }
-        const nudgeStep = 1;
-        const panScale = () => {
-          const z = Number(VIEW.zoom) || 1;
-          return Math.min(6, Math.max(0.25, 1 / z));
-        };
-        const setupPanHold = (btn, dxFn, dyFn) => {
-          if (!btn) return;
-          let timer = null;
-          let active = false;
-          const step = () => nudgeCamera(dxFn(), dyFn());
-          const stop = () => {
-            active = false;
-            if (timer) {
-              clearInterval(timer);
-              timer = null;
-            }
-          };
-          const start = (ev) => {
-            ev.preventDefault();
-            if (active) return;
-            active = true;
-            step();
-            timer = setInterval(step, 60);
-          };
-          btn.addEventListener('mousedown', start);
-          btn.addEventListener('touchstart', start, { passive: false });
-          btn.addEventListener('mouseup', stop);
-          btn.addEventListener('mouseleave', stop);
-          btn.addEventListener('touchend', stop);
-          btn.addEventListener('touchcancel', stop);
-        };
-        const setupHold = (btn, stepFn) => {
-          if (!btn) return;
-          let timer = null;
-          let active = false;
-          const step = () => stepFn();
-          const stop = () => {
-            active = false;
-            if (timer) {
-              clearInterval(timer);
-              timer = null;
-            }
-          };
-          const start = (ev) => {
-            ev.preventDefault();
-            if (active) return;
-            active = true;
-            step();
-            timer = setInterval(step, 60);
-          };
-          btn.addEventListener('mousedown', start);
-          btn.addEventListener('touchstart', start, { passive: false });
-          btn.addEventListener('mouseup', stop);
-          btn.addEventListener('mouseleave', stop);
-          btn.addEventListener('touchend', stop);
-          btn.addEventListener('touchcancel', stop);
-        };
-        setupPanHold(panUp, () => 0, () => -rowStep() * nudgeStep * panScale());
-        setupPanHold(panDown, () => 0, () => rowStep() * nudgeStep * panScale());
-        setupPanHold(panLeft, () => -colStep() * nudgeStep * panScale(), () => 0);
-        setupPanHold(panRight, () => colStep() * nudgeStep * panScale(), () => 0);
-        const zoomStep = () => {
-          const pct = (Number(VIEW.zoom) || 1) * 100;
-          if (pct < 25) return 0.01;
-          if (pct < 100) return 0.05;
-          if (pct < 200) return 0.1;
-          return 0.2;
-        };
-        setupHold(zoomOutButton, () => setZoom(VIEW.zoom - zoomStep()));
-        setupHold(zoomInButton, () => setZoom(VIEW.zoom + zoomStep()));
+        bindPanZoomHoldControls({
+          panUp,
+          panDown,
+          panLeft,
+          panRight,
+          zoomOutButton,
+          zoomInButton,
+        });
         bindUndoControls(window);
         saveButton.addEventListener('click', () => saveState());
         if (chatSend) chatSend.addEventListener('click', () => sendChatMessage());

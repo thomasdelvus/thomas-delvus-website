@@ -15,12 +15,14 @@ Phase 7 modular hardening was executed by splitting high-risk functional blocks 
    3. `public/app/battlemat3/modules/api.js`
    4. `public/app/battlemat3/modules/chat.js`
    5. `public/app/battlemat3/modules/history.js`
+   6. `public/app/battlemat3/modules/controls.js`
 2. Replaced in-file implementations with controller wiring for:
    1. query/auth utilities
    2. local preferences and section collapse persistence
    3. battle/campaign/map loading helpers
    4. chat fetch/render/send/poll loop
    5. history snapshot/undo helpers
+   6. pan/zoom hold setup helpers
 3. Kept all existing user-visible controls and runtime host page unchanged:
    1. `public/app/battlemat3.html` still loads `/app/battlemat3/main.js`
    2. `public/app/battlemat_next.html` remained untouched

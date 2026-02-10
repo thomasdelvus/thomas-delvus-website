@@ -14,6 +14,7 @@ Updated: 2026-02-10
    3. API load helpers
    4. chat controller
    5. history/undo controller
+   6. pan/zoom hold setup controller
 
 ## Current Runtime Snapshot
 
@@ -55,4 +56,3 @@ Updated: 2026-02-10
 2. Save/chat/entity operations stable on production backend.
 3. Undo behavior acceptable in both button and keyboard paths.
 4. Stakeholder signoff after parity walkthrough.
-

@@ -38,6 +38,10 @@ The runtime remains behavior-compatible with `battlemat_next`, but code ownershi
    1. snapshot/restore/undo stack
    2. save payload cleanup helper
    3. undo button + keyboard binding
+6. `modules/controls.js`
+   1. pan hold bindings
+   2. zoom hold bindings
+   3. shared hold/touch-repeat handler
 
 ## Runtime Lifecycle
 
@@ -85,4 +89,3 @@ The runtime remains behavior-compatible with `battlemat_next`, but code ownershi
 2. `battlemat3.html` DOM ID surface stays parity-compatible.
 3. API endpoint and query-key usage remains contract-compatible.
 4. Side effects remain explicit in event handlers and save/poll paths.
-

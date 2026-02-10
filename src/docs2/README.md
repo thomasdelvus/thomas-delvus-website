@@ -45,3 +45,4 @@ It is intended to replace ad-hoc discovery across `src/docs/*` with one coherent
 6. `public/app/battlemat3/modules/api.js`
 7. `public/app/battlemat3/modules/chat.js`
 8. `public/app/battlemat3/modules/history.js`
+9. `public/app/battlemat3/modules/controls.js`
