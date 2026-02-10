@@ -888,7 +888,7 @@ import { createApiController } from './modules/api.js';
         render();
       }
       
-      const { resolveBattleId, getCampaignId, resolvePoiId, buildMapOptionsFromMeta, extractScene, applyViewFromState, normalizeState, loadCampaign } = createApiController({
+      const { resolveBattleId, getCampaignId, resolvePoiId, buildMapOptionsFromMeta, extractScene, applyViewFromState, normalizeState, loadCampaign, loadMapOptions, loadBattle } = createApiController({
               STATE,
               VIEW,
               mapSelect,
@@ -898,80 +898,8 @@ import { createApiController } from './modules/api.js';
               getQueryParams,
               getAuthHeaders,
             });
-            async function loadBattle() {
-              const battleId = resolveBattleId();
-              if (!battleId) throw new Error('Missing battle_id');
-
-              const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-              const qp = getQueryParams();
-              const devStateUrl = isLocal ? (qp.get('dev_state') || qp.get('state_url') || '') : '';
-              if (devStateUrl) {
-                const res = await fetch(devStateUrl, { cache: 'no-store' });
-                if (!res.ok) throw new Error('Dev state load failed');
-                const raw = await res.json();
-                const extracted = extractScene(raw);
-                STATE.wrapper = extracted.wrapper;
-                STATE.recordId = extracted.recordId;
-              STATE.battle = normalizeState(extracted.scene);
-              applyViewFromState(STATE.battle);
-              STATE.battle._battle_id = battleId;
-              return;
-            }
-
-              const res = await fetch(`/api/battles/${encodeURIComponent(battleId)}`, {
-                headers: { 'accept': 'application/json', ...getAuthHeaders() }
-              });
-              if (!res.ok) throw new Error('Battle load failed');
-              const data = await res.json();
-              const raw = data && data.state_json ? JSON.parse(data.state_json) : data;
-              const extracted = extractScene(raw);
-              STATE.wrapper = extracted.wrapper;
-              STATE.recordId = extracted.recordId;
-              STATE.battle = normalizeState(extracted.scene);
-              applyViewFromState(STATE.battle);
-              STATE.battle._battle_id = data.battle_id || battleId;
-              STATE.battle._campaign_id = data.campaign_id || data.campaignId || null;
-            }
             
-            async function loadMapOptions() {
-              if (!mapSelect) return;
-              const battleId = STATE.battle && STATE.battle._battle_id;
-              let options = [];
-              const cid = getCampaignId();
-              if (cid) {
-                try {
-                  const res = await fetch(`/api/battles?campaign_id=${encodeURIComponent(cid)}`, {
-                    headers: { 'accept': 'application/json', ...getAuthHeaders() }
-                  });
-                  if (res.ok) {
-                    const data = await res.json();
-                    const rows = Array.isArray(data.rows) ? data.rows : [];
-                    options = rows.map(row => ({
-                      id: row.battle_id || row.battleId || row.id,
-                      label: row.name || row.title || row.battle_id || row.battleId || row.id
-                    })).filter(opt => opt.id);
-                  }
-                } catch {}
-              }
-              if (!options.length) {
-                options = buildMapOptionsFromMeta(STATE.campaign || {});
-              }
-              mapSelect.innerHTML = '';
-              if (!options.length) {
-                const opt = document.createElement('option');
-                opt.value = battleId || '';
-                opt.textContent = battleId || 'No maps';
-                mapSelect.appendChild(opt);
-                return;
-              }
-              for (const optData of options) {
-                const opt = document.createElement('option');
-                opt.value = optData.id;
-                opt.textContent = optData.label || optData.id;
-                if (battleId && String(optData.id) === String(battleId)) opt.selected = true;
-                mapSelect.appendChild(opt);
-              }
-            }
+
       function buildTokens() {
         const poiId = resolvePoiId();
         const entities = Array.isArray(STATE.entities) ? STATE.entities : [];
@@ -4900,6 +4828,7 @@ import { createApiController } from './modules/api.js';
         console.error(err);
       });
     })();
+
 
 
 
