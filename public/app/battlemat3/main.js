@@ -887,35 +887,8 @@ import { createApiController } from './modules/api.js';
         if (zoomLevel) zoomLevel.textContent = `${Math.round(next * 100)}%`;
         render();
       }
-      function normalizeState(state) {
-              if (!state || typeof state !== 'object') return { floors: [] };
-              if (!Array.isArray(state.floors)) {
-                const floorId = state.view && state.view.floorId ? String(state.view.floorId) : 'ground';
-                state.floors = [{
-                  id: floorId,
-                  name: floorId,
-                  rooms: Array.isArray(state.rooms) ? state.rooms : [],
-                  openings: Array.isArray(state.openings) ? state.openings : [],
-                  objects: Array.isArray(state.objects) ? state.objects : []
-                }];
-              }
-              for (const floor of state.floors) {
-                if (!floor || typeof floor !== 'object') continue;
-                floor.id = String(floor.id || 'floor');
-                if (!Array.isArray(floor.rooms)) floor.rooms = [];
-                if (!Array.isArray(floor.openings)) floor.openings = [];
-                if (!Array.isArray(floor.objects)) floor.objects = [];
-                if (!Array.isArray(floor.roofs)) floor.roofs = [];
-                for (const roof of floor.roofs) {
-                  if (roof && typeof roof === 'object') updateRoofSpine(roof);
-                }
-                for (const obj of floor.objects) {
-                  if (obj && obj.floorId == null) obj.floorId = floor.id;
-                }
-              }
-              return state;
-            }
-            const { resolveBattleId, getCampaignId, resolvePoiId, buildMapOptionsFromMeta, extractScene, applyViewFromState } = createApiController({
+      
+      const { resolveBattleId, getCampaignId, resolvePoiId, buildMapOptionsFromMeta, extractScene, applyViewFromState, normalizeState } = createApiController({
               STATE,
               VIEW,
               mapSelect,
@@ -4943,6 +4916,8 @@ import { createApiController } from './modules/api.js';
         console.error(err);
       });
     })();
+
+
 
 
 
