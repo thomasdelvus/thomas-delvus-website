@@ -934,6 +934,10 @@ import { createChatController } from './modules/chat.js';
         populateChatSpeakerSelect,
         renderChat,
         mergeChatRows,
+        fetchChat,
+        pollChat,
+        startChatPolling,
+        sendChatMessage,
       } = createChatController({
         CHAT,
         chatLog,
@@ -1049,69 +1053,6 @@ import { createChatController } from './modules/chat.js';
             }
 
             
-            async function fetchChat(sinceTs = null) {
-              const cid = getCampaignId();
-              if (!cid) return [];
-              const qs = new URLSearchParams();
-              qs.set('campaign_id', cid);
-              if (sinceTs && Number.isFinite(Number(sinceTs))) qs.set('since_ts', String(Math.floor(sinceTs)));
-              qs.set('limit', '200');
-              const res = await fetch('/api/messages?' + qs.toString(), {
-                headers: { 'accept': 'application/json', ...getAuthHeaders() }
-              });
-              if (!res.ok) throw new Error('Chat fetch failed');
-              const data = await res.json();
-              return Array.isArray(data && data.rows) ? data.rows : [];
-            }
-
-            async function pollChat() {
-              try {
-                const rows = await fetchChat(CHAT.lastTs || null);
-                if (rows && rows.length) {
-                  mergeChatRows(rows);
-                  renderChat();
-                }
-              } catch (err) {
-                console.warn('[Battlemat] chat fetch failed:', err);
-              }
-            }
-
-            function startChatPolling() {
-              if (CHAT.timer) clearInterval(CHAT.timer);
-              CHAT.timer = setInterval(pollChat, 3000);
-              pollChat();
-            }
-
-            async function sendChatMessage() {
-              if (!chatInput) return;
-              const text = normStr(chatInput.value);
-              if (!text) return;
-              const speaker = chatSpeaker ? normStr(chatSpeaker.value) || 'Player' : 'Player';
-              const cid = getCampaignId();
-              if (!cid) return;
-              try {
-                const res = await fetch('/api/messages', {
-                  method: 'POST',
-                  headers: {
-                    'content-type': 'application/json',
-                    ...getAuthHeaders()
-                  },
-                  body: JSON.stringify({
-                    campaign_id: cid,
-                    speaker,
-                    text,
-                    type: 'player',
-                    status: 'new'
-                  })
-                });
-                if (!res.ok) throw new Error('Chat send failed');
-                chatInput.value = '';
-                pollChat();
-              } catch (err) {
-                console.warn('[Battlemat] chat send failed:', err);
-              }
-            }
-
             
       function roomWallKind(room) {
         const wall = room && room.wall && typeof room.wall === 'object' ? room.wall : null;
@@ -4783,6 +4724,7 @@ import { createChatController } from './modules/chat.js';
         console.error(err);
       });
     })();
+
 
 
 
