@@ -945,7 +945,7 @@ import { createApiController } from './modules/api.js';
                 if (p) setCameraFromHex(p);
               }
             }
-            const { resolveBattleId } = createApiController({
+            const { resolveBattleId, getCampaignId } = createApiController({
               STATE,
               VIEW,
               mapSelect,
@@ -988,12 +988,7 @@ import { createApiController } from './modules/api.js';
               applyViewFromState(STATE.battle);
               STATE.battle._battle_id = data.battle_id || battleId;
               STATE.battle._campaign_id = data.campaign_id || data.campaignId || null;
-            }
-
-            function getCampaignId() {
-              return STATE.battle && (STATE.battle._campaign_id || STATE.battle.campaign_id || STATE.battle.campaignId) || null;
-            }
-
+            }
             async function loadCampaign() {
               const cid = getCampaignId();
               if (!cid) return;
@@ -5016,6 +5011,7 @@ import { createApiController } from './modules/api.js';
         console.error(err);
       });
     })();
+
 
 
 
