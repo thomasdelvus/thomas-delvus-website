@@ -1,10 +1,4 @@
-﻿import { createApiController } from './modules/api.js';
-import { createChatController } from './modules/chat.js';
-import { createContracts } from './modules/contracts.js';
-import { createHistoryController } from './modules/history.js';
-import { createPrefsController } from './modules/prefs.js';
-
-(() => {
+﻿(() => {
       const canvas = document.getElementById('map');
       const canvasWrap = document.getElementById('canvasWrap');
       const ctx = canvas.getContext('2d');
@@ -82,15 +76,6 @@ import { createPrefsController } from './modules/prefs.js';
       const UI = { hexGrid: true, brightLabels: false, showHandles: false, handleHot: false, fogEnabled: true, video: 'medium', polyAlpha: 1, showBackdrop: true, hideRoofs: false, streetView: false, roofLineColor: '#464a4f', roofLineWidth: 1.5 };
       const VIDEO_SCALE = { low: 1, medium: 1.5, high: 2, ultra: 3 };
       let renderDpr = window.devicePixelRatio || 1;
-      let renderQueued = false;
-      function scheduleRender() {
-        if (renderQueued) return;
-        renderQueued = true;
-        requestAnimationFrame(() => {
-          renderQueued = false;
-          render();
-        });
-      }
       const CHAT = { rows: [], byId: new Map(), lastTs: 0, timer: null };
       const EDITOR = {
         tool: 'select',
@@ -125,7 +110,7 @@ import { createPrefsController } from './modules/prefs.js';
       BACKDROP.img = new Image();
       BACKDROP.img.onload = () => {
         BACKDROP.loaded = true;
-        scheduleRender();
+        render();
       };
       BACKDROP.img.src = BACKDROP.src;
 
@@ -517,29 +502,114 @@ import { createPrefsController } from './modules/prefs.js';
         return { col, row };
       }
 
-      const { getQueryParams, escapeHtml, normStr, getAuthHeaders } = createContracts();
+      function getQueryParams() {
+        return new URLSearchParams(window.location.search || '');
+      }
 
-      const { loadPrefs, savePrefs, initSectionCollapse } = createPrefsController({
-        UI,
-        BACKDROP,
-        elements: {
-          hexGridToggle,
-          labelBoldToggle,
-          handlesToggle,
-          hideRoofsToggle,
-          streetViewToggle,
-          roofLineColorInput,
-          roofLineWidthInput,
-          fogToggle,
-          videoSelect,
-          polyAlphaInput,
-          backdropToggle,
-          mapOffsetXInput,
-          mapOffsetYInput,
-          mapScaleInput,
-          mapRotInput,
-        },
-      });
+      function escapeHtml(text) {
+        return String(text ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function normStr(value) {
+        return String(value ?? '').trim();
+      }
+
+      function getAuthHeaders() {
+        const qp = getQueryParams();
+        const token = (qp.get('token') || qp.get('auth') || qp.get('bearer') || '').trim();
+        if (!token) return {};
+        return { Authorization: 'Bearer ' + token };
+      }
+
+      function loadPrefs() {
+        try {
+          const grid = localStorage.getItem('bm_hexgrid');
+          const bright = localStorage.getItem('bm_bright_labels');
+          const handles = localStorage.getItem('bm_handles');
+          const fog = localStorage.getItem('bm_fog');
+          const hideRoofs = localStorage.getItem('bm_hide_roofs');
+          const streetView = localStorage.getItem('bm_street_view');
+          const roofLineColor = localStorage.getItem('bm_roof_line_color');
+          const roofLineWidth = localStorage.getItem('bm_roof_line_width');
+          const video = localStorage.getItem('bm_video');
+          const polyAlpha = localStorage.getItem('bm_poly_alpha');
+          const backdrop = localStorage.getItem('bm_backdrop');
+          if (grid != null) UI.hexGrid = grid === '1';
+          if (bright != null) UI.brightLabels = bright === '1';
+          if (handles != null) UI.showHandles = handles === '1';
+          if (fog != null) UI.fogEnabled = fog === '1';
+          if (hideRoofs != null) UI.hideRoofs = hideRoofs === '1';
+          if (streetView != null) UI.streetView = streetView === '1';
+          if (roofLineColor != null && /^#[0-9a-f]{6}$/i.test(roofLineColor)) UI.roofLineColor = roofLineColor;
+          if (roofLineWidth != null) {
+            const n = Number(roofLineWidth);
+            if (Number.isFinite(n) && n > 0) UI.roofLineWidth = n;
+          }
+          if (video === 'low' || video === 'medium' || video === 'high' || video === 'ultra') UI.video = video;
+          if (polyAlpha != null) {
+            const n = Number(polyAlpha);
+            if (Number.isFinite(n)) UI.polyAlpha = Math.max(0, Math.min(1, n));
+          }
+          if (backdrop != null) UI.showBackdrop = backdrop === '1';
+        } catch {}
+        if (hexGridToggle) hexGridToggle.checked = UI.hexGrid;
+        if (labelBoldToggle) labelBoldToggle.checked = UI.brightLabels;
+        if (handlesToggle) handlesToggle.checked = UI.showHandles;
+        if (hideRoofsToggle) hideRoofsToggle.checked = UI.hideRoofs;
+        if (streetViewToggle) streetViewToggle.checked = UI.streetView;
+        if (roofLineColorInput) roofLineColorInput.value = UI.roofLineColor;
+        if (roofLineWidthInput) roofLineWidthInput.value = String(UI.roofLineWidth);
+        if (fogToggle) fogToggle.checked = UI.fogEnabled;
+        if (videoSelect) videoSelect.value = UI.video;
+        if (polyAlphaInput) polyAlphaInput.value = String(Math.round(UI.polyAlpha * 100));
+        if (backdropToggle) backdropToggle.checked = UI.showBackdrop;
+        if (mapOffsetXInput) mapOffsetXInput.value = String(BACKDROP.offsetHex.x);
+        if (mapOffsetYInput) mapOffsetYInput.value = String(BACKDROP.offsetHex.y);
+        if (mapScaleInput) mapScaleInput.value = String(Math.round(BACKDROP.scale * 100));
+        if (mapRotInput) mapRotInput.value = String(BACKDROP.rotDeg || 0);
+      }
+
+      function savePrefs() {
+        try {
+          localStorage.setItem('bm_hexgrid', UI.hexGrid ? '1' : '0');
+          localStorage.setItem('bm_bright_labels', UI.brightLabels ? '1' : '0');
+          localStorage.setItem('bm_handles', UI.showHandles ? '1' : '0');
+          localStorage.setItem('bm_fog', UI.fogEnabled ? '1' : '0');
+          localStorage.setItem('bm_hide_roofs', UI.hideRoofs ? '1' : '0');
+          localStorage.setItem('bm_street_view', UI.streetView ? '1' : '0');
+          localStorage.setItem('bm_roof_line_color', UI.roofLineColor);
+          localStorage.setItem('bm_roof_line_width', String(UI.roofLineWidth));
+          localStorage.setItem('bm_video', UI.video);
+          localStorage.setItem('bm_poly_alpha', String(UI.polyAlpha));
+          localStorage.setItem('bm_backdrop', UI.showBackdrop ? '1' : '0');
+        } catch {}
+      }
+
+      function initSectionCollapse() {
+        const sections = document.querySelectorAll('section[data-section]');
+        sections.forEach(section => {
+          const name = section.dataset.section || '';
+          const btn = section.querySelector('.collapseBtn');
+          if (!btn) return;
+          const key = `bm_section_${name}`;
+          try {
+            const saved = localStorage.getItem(key);
+            if (saved === '1') section.classList.add('collapsed');
+          } catch {}
+          btn.addEventListener('click', () => {
+            section.classList.toggle('collapsed');
+            try {
+              localStorage.setItem(key, section.classList.contains('collapsed') ? '1' : '0');
+            } catch {}
+          });
+        });
+      }
+
       function setTool(tool) {
         const isRoof = tool === 'roof';
         const nextTool = isRoof ? 'poly' : tool;
@@ -899,27 +969,202 @@ import { createPrefsController } from './modules/prefs.js';
         render();
       }
 
-      const {
-        normalizeState,
-        extractScene,
-        applyViewFromState,
-        resolveBattleId,
-        loadBattle,
-        getCampaignId,
-        loadCampaign,
-        buildMapOptionsFromMeta,
-        loadMapOptions,
-        resolvePoiId,
-      } = createApiController({
-        STATE,
-        VIEW,
-        mapSelect,
-        updateRoofSpine,
-        parseHexLabel,
-        setCameraFromHex,
-        getQueryParams,
-        getAuthHeaders,
-      });
+      function normalizeState(state) {
+        if (!state || typeof state !== 'object') return { floors: [] };
+        if (!Array.isArray(state.floors)) {
+          const floorId = state.view && state.view.floorId ? String(state.view.floorId) : 'ground';
+          state.floors = [{
+            id: floorId,
+            name: floorId,
+            rooms: Array.isArray(state.rooms) ? state.rooms : [],
+            openings: Array.isArray(state.openings) ? state.openings : [],
+            objects: Array.isArray(state.objects) ? state.objects : []
+          }];
+        }
+        for (const floor of state.floors) {
+          if (!floor || typeof floor !== 'object') continue;
+          floor.id = String(floor.id || 'floor');
+          if (!Array.isArray(floor.rooms)) floor.rooms = [];
+          if (!Array.isArray(floor.openings)) floor.openings = [];
+          if (!Array.isArray(floor.objects)) floor.objects = [];
+          if (!Array.isArray(floor.roofs)) floor.roofs = [];
+          for (const roof of floor.roofs) {
+            if (roof && typeof roof === 'object') updateRoofSpine(roof);
+          }
+          for (const obj of floor.objects) {
+            if (obj && obj.floorId == null) obj.floorId = floor.id;
+          }
+        }
+        return state;
+      }
+
+      function extractScene(raw) {
+        if (!raw || typeof raw !== 'object') return { scene: { floors: [] }, wrapper: null, recordId: '' };
+        if (raw.records && typeof raw.records === 'object') {
+          const activeId = raw.active && raw.active.recordId ? String(raw.active.recordId) : '';
+          let recordId = activeId;
+          let scene = recordId && raw.records[recordId] ? raw.records[recordId] : null;
+          if (!scene) {
+            const keys = Object.keys(raw.records);
+            if (keys.length) {
+              recordId = keys[0];
+              scene = raw.records[recordId];
+            }
+          }
+          if (!scene || typeof scene !== 'object') return { scene: { floors: [] }, wrapper: raw, recordId: recordId || '' };
+          return { scene, wrapper: raw, recordId: recordId || '' };
+        }
+        return { scene: raw, wrapper: null, recordId: '' };
+      }
+
+      function applyViewFromState(scene) {
+        const view = scene && scene.view ? scene.view : {};
+        const floorId = view.floorId || view.floor_id || view.floor || null;
+        if (floorId) VIEW.floorId = String(floorId);
+        const camHex = view.camera_hex || view.cameraHex || null;
+        if (camHex) {
+          const p = parseHexLabel(camHex);
+          if (p) setCameraFromHex(p);
+        }
+      }
+
+      function resolveBattleId() {
+        const qp = getQueryParams();
+        return qp.get('battle_id') || qp.get('battleId') || qp.get('id');
+      }
+
+      async function loadBattle() {
+        const battleId = resolveBattleId();
+        if (!battleId) throw new Error('Missing battle_id');
+
+        const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+        const qp = getQueryParams();
+        const devStateUrl = isLocal ? (qp.get('dev_state') || qp.get('state_url') || '') : '';
+        if (devStateUrl) {
+          const res = await fetch(devStateUrl, { cache: 'no-store' });
+          if (!res.ok) throw new Error('Dev state load failed');
+          const raw = await res.json();
+          const extracted = extractScene(raw);
+          STATE.wrapper = extracted.wrapper;
+          STATE.recordId = extracted.recordId;
+        STATE.battle = normalizeState(extracted.scene);
+        applyViewFromState(STATE.battle);
+        STATE.battle._battle_id = battleId;
+        return;
+      }
+
+        const res = await fetch(`/api/battles/${encodeURIComponent(battleId)}`, {
+          headers: { 'accept': 'application/json', ...getAuthHeaders() }
+        });
+        if (!res.ok) throw new Error('Battle load failed');
+        const data = await res.json();
+        const raw = data && data.state_json ? JSON.parse(data.state_json) : data;
+        const extracted = extractScene(raw);
+        STATE.wrapper = extracted.wrapper;
+        STATE.recordId = extracted.recordId;
+        STATE.battle = normalizeState(extracted.scene);
+        applyViewFromState(STATE.battle);
+        STATE.battle._battle_id = data.battle_id || battleId;
+        STATE.battle._campaign_id = data.campaign_id || data.campaignId || null;
+      }
+
+      function getCampaignId() {
+        return STATE.battle && (STATE.battle._campaign_id || STATE.battle.campaign_id || STATE.battle.campaignId) || null;
+      }
+
+      async function loadCampaign() {
+        const cid = getCampaignId();
+        if (!cid) return;
+        const res = await fetch(`/api/campaigns/${encodeURIComponent(cid)}`, {
+          headers: { 'accept': 'application/json', ...getAuthHeaders() }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        let meta = data.meta_json || data.metaJson || null;
+        if (typeof meta === 'string') {
+          try { meta = JSON.parse(meta); } catch { meta = null; }
+        }
+        STATE.campaign = meta || {};
+        STATE.entities = (STATE.campaign.world && Array.isArray(STATE.campaign.world.entities))
+          ? STATE.campaign.world.entities
+          : [];
+      }
+
+      function buildMapOptionsFromMeta(meta) {
+        if (!meta) return [];
+        const world = meta.world || meta;
+        const map =
+          (world && (world.poi_index || world.poiIndex || world.poi_to_battle || world.poiToBattle || world.pois)) ||
+          (meta.poi_index || meta.poiIndex);
+        if (!map || typeof map !== 'object') return [];
+        const out = [];
+        for (const [poiId, entry] of Object.entries(map)) {
+          if (!entry) continue;
+          if (typeof entry === 'string') {
+            out.push({ id: entry, label: poiId });
+            continue;
+          }
+          if (typeof entry === 'object') {
+            const id = entry.battle_id || entry.battleId || entry.id || entry.value;
+            if (!id) continue;
+            const label = entry.title || entry.name || entry.label || entry.poi_name || entry.poiName || poiId;
+            out.push({ id, label });
+          }
+        }
+        return out;
+      }
+
+      async function loadMapOptions() {
+        if (!mapSelect) return;
+        const battleId = STATE.battle && STATE.battle._battle_id;
+        let options = [];
+        const cid = getCampaignId();
+        if (cid) {
+          try {
+            const res = await fetch(`/api/battles?campaign_id=${encodeURIComponent(cid)}`, {
+              headers: { 'accept': 'application/json', ...getAuthHeaders() }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const rows = Array.isArray(data.rows) ? data.rows : [];
+              options = rows.map(row => ({
+                id: row.battle_id || row.battleId || row.id,
+                label: row.name || row.title || row.battle_id || row.battleId || row.id
+              })).filter(opt => opt.id);
+            }
+          } catch {}
+        }
+        if (!options.length) {
+          options = buildMapOptionsFromMeta(STATE.campaign || {});
+        }
+        mapSelect.innerHTML = '';
+        if (!options.length) {
+          const opt = document.createElement('option');
+          opt.value = battleId || '';
+          opt.textContent = battleId || 'No maps';
+          mapSelect.appendChild(opt);
+          return;
+        }
+        for (const optData of options) {
+          const opt = document.createElement('option');
+          opt.value = optData.id;
+          opt.textContent = optData.label || optData.id;
+          if (battleId && String(optData.id) === String(battleId)) opt.selected = true;
+          mapSelect.appendChild(opt);
+        }
+      }
+
+      function resolvePoiId() {
+        const campaign = STATE.campaign || {};
+        const index = campaign.poi_index || (campaign.world && campaign.world.poi_index) || null;
+        const bid = STATE.battle && STATE.battle._battle_id;
+        if (!index || !bid) return '';
+        for (const [poi, battleId] of Object.entries(index)) {
+          if (String(battleId) === String(bid)) return String(poi);
+        }
+        return '';
+      }
+
       function buildTokens() {
         const poiId = resolvePoiId();
         const entities = Array.isArray(STATE.entities) ? STATE.entities : [];
@@ -949,26 +1194,235 @@ import { createPrefsController } from './modules/prefs.js';
           });
       }
 
-      const {
-        chatStatusClass,
-        populateChatSpeakerSelect,
-        renderChat,
-        mergeChatRows,
-        fetchChat,
-        pollChat,
-        startChatPolling,
-        sendChatMessage,
-      } = createChatController({
-        CHAT,
-        chatLog,
-        chatSpeaker,
-        chatInput,
-        getCampaignId,
-        getAuthHeaders,
-        escapeHtml,
-        normStr,
-        buildTokens,
-      });
+      function populateChatSpeakerSelect() {
+        if (!chatSpeaker) return;
+        const tokens = buildTokens();
+        const names = [];
+        for (const t of tokens) {
+          const name = normStr(t.name || t.id);
+          if (name && !names.includes(name)) names.push(name);
+        }
+        if (!names.includes('DM')) names.unshift('DM');
+        if (!names.includes('Player')) names.push('Player');
+        const active = document.activeElement === chatSpeaker;
+        if (!active) {
+          chatSpeaker.innerHTML = names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+        }
+      }
+
+      function renderStatus() {
+        if (!statusBody || !statusMeta) return;
+        const tokens = buildTokens();
+        const turn = (STATE.battle && (STATE.battle.turn || STATE.battle.meta && STATE.battle.meta.turn)) || {};
+        const round = turn.round ?? (STATE.battle && STATE.battle.meta && STATE.battle.meta.round);
+        const activeId = turn.activeTokenId || turn.active_token_id || turn.activeToken || turn.active_token || '';
+        const activeToken = tokens.find(t => String(t.id) === String(activeId) || String(t.characterId || '') === String(activeId));
+        const activeName = activeToken ? activeToken.name : (turn.activeName || turn.active_name || '');
+
+        statusMeta.innerHTML = [
+          `<div class="statusPill">Round <strong>${round != null ? round : 'â€“'}</strong></div>`,
+          `<div class="statusPill">Active <strong>${activeName || 'â€“'}</strong></div>`
+        ].join('');
+
+        const sorted = tokens.slice().sort((a, b) => {
+          const ai = Number.isFinite(Number(a.init)) ? Number(a.init) : -9999;
+          const bi = Number.isFinite(Number(b.init)) ? Number(b.init) : -9999;
+          if (ai !== bi) return bi - ai;
+          return String(a.name || a.id).localeCompare(String(b.name || b.id));
+        });
+
+        statusBody.innerHTML = sorted.map(t => {
+          const isActive = activeId && (String(t.id) === String(activeId) || String(t.characterId || '') === String(activeId));
+          const hostilityRaw = String((t.__entity && t.__entity.hostility) || t.hostility || '').toLowerCase();
+          const isFriendly = String(t.kind || '').toLowerCase() === 'pc' || String(t.side || '').toUpperCase() === 'PC';
+          const isHostile = hostilityRaw === 'hostile' || String(t.kind || '').toLowerCase() === 'monster';
+          const hostility = isHostile ? 'hostile' : (isFriendly ? 'friendly' : 'neutral');
+          const nameClass = `statusName status-${hostility}`;
+          const markerClass = `statusTurnMarker${isActive ? '' : ' inactive'}`;
+          const initText = Number.isFinite(Number(t.init)) ? String(t.init) : 'â€“';
+          const hpCur = Number.isFinite(Number(t.hp)) ? Number(t.hp) : null;
+          const hpMax = Number.isFinite(Number(t.hp_max)) ? Number(t.hp_max) : null;
+          const hpText = hpCur != null ? (hpMax != null ? `${hpCur}/${hpMax}` : String(hpCur)) : 'â€“';
+          const conditions = Array.isArray(t.conditions) ? t.conditions : (t.cond ? [t.cond] : []);
+          const hasIntent = !!(t.__entity && (t.__entity.intent || t.__entity.intent_text || t.__entity.intentText));
+          const intentClass = `statusIntent${hasIntent ? ' on' : ''}`;
+          const condHtml = conditions.length ? conditions.map(c => `<span>${String(c)}</span>`).join(' ') : '';
+          const intentHtml = `<span class="${intentClass}" title="Intent">${hasIntent ? 'âœ“' : ''}</span>`;
+          return `
+            <tr class="statusRow${isActive ? ' active' : ''}">
+              <td class="statusNameCell">
+                <span class="${markerClass}" aria-hidden="true"></span>
+                <span class="${nameClass}">${t.name || t.id}</span>
+              </td>
+              <td class="statusNum">${initText}</td>
+              <td class="statusNum">${hpText}</td>
+              <td><div class="statusCond">${condHtml}${intentHtml}</div></td>
+            </tr>
+          `;
+        }).join('');
+        populateChatSpeakerSelect();
+      }
+
+      function setFloorOptions() {
+        floorSelect.innerHTML = '';
+        const floors = STATE.battle ? STATE.battle.floors : [];
+        floors.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.id;
+          opt.textContent = f.name || f.id;
+          floorSelect.appendChild(opt);
+        });
+        if (!VIEW.floorId && floors[0]) VIEW.floorId = floors[0].id;
+        floorSelect.value = VIEW.floorId;
+      }
+
+      function pickFloor() {
+        const floors = STATE.battle ? STATE.battle.floors : [];
+        return floors.find(f => f.id === VIEW.floorId) || floors[0];
+      }
+
+      function autoCenterCamera() {
+        if (!STATE.battle) return;
+        const view = STATE.battle.view || {};
+        if (view.camera_hex || view.cameraHex) return;
+        const floor = pickFloor();
+        if (!floor) return;
+        let target = null;
+        if (Array.isArray(floor.rooms) && floor.rooms.length) {
+          const labels = roomPointLabels(floor.rooms[0]);
+          const pts = labels.map(parseHexLabel).filter(Boolean);
+          if (pts.length) {
+            const avg = pts.reduce((acc, p) => ({ col: acc.col + p.col, row: acc.row + p.row }), { col: 0, row: 0 });
+            target = { col: avg.col / pts.length, row: avg.row / pts.length };
+          }
+        }
+        if (!target && Array.isArray(floor.objects) && floor.objects.length) {
+          target = parseHexLabel(floor.objects[0].hex);
+        }
+        if (!target) {
+          const tokens = buildTokens();
+          if (tokens.length) target = parseHexLabel(tokens[0].hex);
+        }
+        if (target) setCameraFromHex({ col: Math.round(target.col), row: Math.round(target.row) });
+      }
+
+      function nudgeCamera(dxWorld, dyWorld) {
+        const cam = getCameraWorld();
+        const next = { x: cam.x + dxWorld, y: cam.y + dyWorld };
+        setCameraWorld(next);
+        render();
+      }
+
+      function chatStatusClass(status) {
+        const raw = String(status || '').toLowerCase();
+        if (raw === 'canceled') return 'canceled';
+        if (raw === 'processed') return 'processed';
+        if (raw === 'ack') return 'ack';
+        return '';
+      }
+
+      function renderChat() {
+        if (!chatLog) return;
+        if (!CHAT.rows.length) {
+          chatLog.innerHTML = '<div class="mini" style="opacity:0.7;">No chat yet.</div>';
+          return;
+        }
+        chatLog.innerHTML = CHAT.rows.map(entry => {
+          const speaker = normStr(entry.speaker || 'Player');
+          const speakerKey = speaker.toLowerCase();
+          const speakerClass = 'chatSpeaker' + (speakerKey === 'dm' ? ' dm' : '');
+          const statusClass = chatStatusClass(entry.status);
+          const text = escapeHtml(entry.text || '');
+          return `<div class="chatEntry ${statusClass}">` +
+            `<span class="${speakerClass}">${escapeHtml(speaker)}</span>` +
+            `<span class="chatText">${text}</span>` +
+          `</div>`;
+        }).join('');
+        chatLog.scrollTop = chatLog.scrollHeight;
+      }
+
+      function mergeChatRows(rows) {
+        if (!Array.isArray(rows)) return;
+        for (const entry of rows) {
+          const id = entry.chat_id || entry.id || entry.chatId || entry.message_id || entry.messageId || null;
+          if (!id) continue;
+          if (CHAT.byId.has(id)) {
+            const existing = CHAT.byId.get(id);
+            Object.assign(existing, entry);
+          } else {
+            const row = { ...entry, chat_id: id };
+            CHAT.byId.set(id, row);
+            CHAT.rows.push(row);
+          }
+          const created = Number(entry.created_at || entry.createdAt || 0);
+          if (Number.isFinite(created) && created > CHAT.lastTs) CHAT.lastTs = created;
+        }
+        CHAT.rows.sort((a, b) => (Number(a.created_at || 0) - Number(b.created_at || 0)));
+      }
+
+      async function fetchChat(sinceTs = null) {
+        const cid = getCampaignId();
+        if (!cid) return [];
+        const qs = new URLSearchParams();
+        qs.set('campaign_id', cid);
+        if (sinceTs && Number.isFinite(Number(sinceTs))) qs.set('since_ts', String(Math.floor(sinceTs)));
+        qs.set('limit', '200');
+        const res = await fetch('/api/messages?' + qs.toString(), {
+          headers: { 'accept': 'application/json', ...getAuthHeaders() }
+        });
+        if (!res.ok) throw new Error('Chat fetch failed');
+        const data = await res.json();
+        return Array.isArray(data && data.rows) ? data.rows : [];
+      }
+
+      async function pollChat() {
+        try {
+          const rows = await fetchChat(CHAT.lastTs || null);
+          if (rows && rows.length) {
+            mergeChatRows(rows);
+            renderChat();
+          }
+        } catch (err) {
+          console.warn('[Battlemat] chat fetch failed:', err);
+        }
+      }
+
+      function startChatPolling() {
+        if (CHAT.timer) clearInterval(CHAT.timer);
+        CHAT.timer = setInterval(pollChat, 3000);
+        pollChat();
+      }
+
+      async function sendChatMessage() {
+        if (!chatInput) return;
+        const text = normStr(chatInput.value);
+        if (!text) return;
+        const speaker = chatSpeaker ? normStr(chatSpeaker.value) || 'Player' : 'Player';
+        const cid = getCampaignId();
+        if (!cid) return;
+        try {
+          const res = await fetch('/api/messages', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              ...getAuthHeaders()
+            },
+            body: JSON.stringify({
+              campaign_id: cid,
+              speaker,
+              text,
+              type: 'player',
+              status: 'new'
+            })
+          });
+          if (!res.ok) throw new Error('Chat send failed');
+          chatInput.value = '';
+          pollChat();
+        } catch (err) {
+          console.warn('[Battlemat] chat send failed:', err);
+        }
+      }
+
       function roomWallKind(room) {
         const wall = room && room.wall && typeof room.wall === 'object' ? room.wall : null;
         const kind = wall && wall.kind != null ? String(wall.kind) : '';
@@ -1283,24 +1737,63 @@ import { createPrefsController } from './modules/prefs.js';
         return labels.map(l => String(l).trim()).filter(Boolean).join(', ');
       }
 
-      const {
-        cloneValue,
-        snapshotState,
-        restoreState,
-        prepareBattleForSave,
-        pushHistory,
-        canUndo,
-        undo,
-        updateUndoButton,
-      } = createHistoryController({
-        STATE,
-        HISTORY,
-        undoButton,
-        saveStatus,
-        setFloorOptions,
-        renderStatus,
-        render,
-      });
+      function cloneValue(value) {
+        if (typeof structuredClone === 'function') return structuredClone(value);
+        return JSON.parse(JSON.stringify(value));
+      }
+
+      function snapshotState() {
+        return {
+          battle: cloneValue(STATE.battle),
+          entities: cloneValue(STATE.entities)
+        };
+      }
+
+      function restoreState(snapshot) {
+        if (!snapshot) return;
+        STATE.battle = snapshot.battle ? cloneValue(snapshot.battle) : STATE.battle;
+        STATE.entities = snapshot.entities ? cloneValue(snapshot.entities) : STATE.entities;
+        setFloorOptions();
+        renderStatus();
+        render();
+      }
+
+      function prepareBattleForSave(battle) {
+        const clean = cloneValue(battle || {});
+        delete clean._battle_id;
+        delete clean._campaign_id;
+        return clean;
+      }
+
+      function pushHistory() {
+        const snap = snapshotState();
+        if (HISTORY.index < HISTORY.stack.length - 1) {
+          HISTORY.stack = HISTORY.stack.slice(0, HISTORY.index + 1);
+        }
+        HISTORY.stack.push(snap);
+        if (HISTORY.stack.length > HISTORY.limit) {
+          HISTORY.stack.shift();
+        }
+        HISTORY.index = HISTORY.stack.length - 1;
+        updateUndoButton();
+      }
+
+      function canUndo() {
+        return HISTORY.index > 0;
+      }
+
+      function undo() {
+        if (!canUndo()) return;
+        HISTORY.index -= 1;
+        restoreState(HISTORY.stack[HISTORY.index]);
+        if (saveStatus) saveStatus.textContent = 'DB: idle';
+        updateUndoButton();
+      }
+
+      function updateUndoButton() {
+        if (undoButton) undoButton.disabled = !canUndo();
+      }
+
       function parsePointList(text) {
         const raw = String(text || '')
           .split(',')
@@ -2406,11 +2899,11 @@ import { createPrefsController } from './modules/prefs.js';
         img.src = url;
         img.onload = () => {
           img.__bmStatus = 'ready';
-          scheduleRender();
+          render();
         };
         img.onerror = () => {
           img.__bmStatus = 'error';
-          scheduleRender();
+          render();
         };
         spriteCache.set(url, img);
         return img;
@@ -2425,12 +2918,8 @@ import { createPrefsController } from './modules/prefs.js';
           layer = { canvas, ctx: gctx };
           LAYER_CANVASES.set(name, layer);
         }
-        const widthPx = Math.max(1, Math.round(rect.width * dpr));
-        const heightPx = Math.max(1, Math.round(rect.height * dpr));
-        if (layer.canvas.width !== widthPx || layer.canvas.height !== heightPx) {
-          layer.canvas.width = widthPx;
-          layer.canvas.height = heightPx;
-        }
+        layer.canvas.width = rect.width * dpr;
+        layer.canvas.height = rect.height * dpr;
         layer.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         layer.ctx.clearRect(0, 0, rect.width, rect.height);
         return layer;
@@ -3947,7 +4436,7 @@ import { createPrefsController } from './modules/prefs.js';
           }
         }
         EDITOR.dirty = true;
-        scheduleRender();
+        render();
       }
 
       function attachDragHandlers() {
@@ -4154,7 +4643,7 @@ import { createPrefsController } from './modules/prefs.js';
           const hex = worldToHexHalf(world);
           const snapWorld = hexToWorld(hex.col, hex.row);
           EDITOR.polyHover = { hex, world: snapWorld };
-          scheduleRender();
+          render();
         });
 
         window.addEventListener('mouseup', () => {
@@ -4604,6 +5093,3 @@ import { createPrefsController } from './modules/prefs.js';
         console.error(err);
       });
     })();
-
-
-

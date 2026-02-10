@@ -4,7 +4,6 @@ import path from "node:path";
 const root = process.cwd();
 const nextHtmlPath = path.join(root, "public", "app", "battlemat_next.html");
 const v3JsPath = path.join(root, "public", "app", "battlemat3", "main.js");
-const v3ModulesDir = path.join(root, "public", "app", "battlemat3", "modules");
 
 function fail(message) {
   console.error(`[parity_runtime_contract] FAIL: ${message}`);
@@ -32,15 +31,14 @@ function extractSet(text, regex, group = 1) {
 
 const nextHtml = read(nextHtmlPath);
 const nextJs = extractInlineScript(nextHtml);
-const v3RuntimeParts = [read(v3JsPath)];
-if (fs.existsSync(v3ModulesDir)) {
-  const moduleFiles = fs
-    .readdirSync(v3ModulesDir)
-    .filter((name) => name.endsWith(".js"))
-    .sort();
-  for (const name of moduleFiles) {
-    v3RuntimeParts.push(read(path.join(v3ModulesDir, name)));
-  }
+const v3MainJs = read(v3JsPath);
+const v3RuntimeParts = [v3MainJs];
+const importedModuleRegex = /from\s+['"]\.\/modules\/([^'"]+)['"]/g;
+for (const match of v3MainJs.matchAll(importedModuleRegex)) {
+  const rel = match[1];
+  const abs = path.join(root, "public", "app", "battlemat3", "modules", rel);
+  if (!fs.existsSync(abs)) fail(`Missing imported module: ${abs}`);
+  v3RuntimeParts.push(read(abs));
 }
 const v3Js = v3RuntimeParts.join("\n");
 
