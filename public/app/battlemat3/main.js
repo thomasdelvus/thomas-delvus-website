@@ -945,7 +945,7 @@ import { createApiController } from './modules/api.js';
                 if (p) setCameraFromHex(p);
               }
             }
-            const { resolveBattleId, getCampaignId } = createApiController({
+            const { resolveBattleId, getCampaignId, resolvePoiId } = createApiController({
               STATE,
               VIEW,
               mapSelect,
@@ -1069,20 +1069,7 @@ import { createApiController } from './modules/api.js';
                 if (battleId && String(optData.id) === String(battleId)) opt.selected = true;
                 mapSelect.appendChild(opt);
               }
-            }
-
-            function resolvePoiId() {
-              const campaign = STATE.campaign || {};
-              const index = campaign.poi_index || (campaign.world && campaign.world.poi_index) || null;
-              const bid = STATE.battle && STATE.battle._battle_id;
-              if (!index || !bid) return '';
-              for (const [poi, battleId] of Object.entries(index)) {
-                if (String(battleId) === String(bid)) return String(poi);
-              }
-              return '';
-            }
-
-            
+            }
       function buildTokens() {
         const poiId = resolvePoiId();
         const entities = Array.isArray(STATE.entities) ? STATE.entities : [];
@@ -5011,6 +4998,7 @@ import { createApiController } from './modules/api.js';
         console.error(err);
       });
     })();
+
 
 
 
