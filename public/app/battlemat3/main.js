@@ -1,6 +1,7 @@
 ﻿import { createContracts } from './modules/contracts.js';
 import { createPrefsController } from './modules/prefs.js';
 import { createApiController } from './modules/api.js';
+import { createChatController } from './modules/chat.js';
 
 (() => {
       const canvas = document.getElementById('map');
@@ -938,235 +939,26 @@ import { createApiController } from './modules/api.js';
           });
       }
 
-      function populateChatSpeakerSelect() {
-        if (!chatSpeaker) return;
-        const tokens = buildTokens();
-        const names = [];
-        for (const t of tokens) {
-          const name = normStr(t.name || t.id);
-          if (name && !names.includes(name)) names.push(name);
-        }
-        if (!names.includes('DM')) names.unshift('DM');
-        if (!names.includes('Player')) names.push('Player');
-        const active = document.activeElement === chatSpeaker;
-        if (!active) {
-          chatSpeaker.innerHTML = names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
-        }
-      }
-
-      function renderStatus() {
-        if (!statusBody || !statusMeta) return;
-        const tokens = buildTokens();
-        const turn = (STATE.battle && (STATE.battle.turn || STATE.battle.meta && STATE.battle.meta.turn)) || {};
-        const round = turn.round ?? (STATE.battle && STATE.battle.meta && STATE.battle.meta.round);
-        const activeId = turn.activeTokenId || turn.active_token_id || turn.activeToken || turn.active_token || '';
-        const activeToken = tokens.find(t => String(t.id) === String(activeId) || String(t.characterId || '') === String(activeId));
-        const activeName = activeToken ? activeToken.name : (turn.activeName || turn.active_name || '');
-
-        statusMeta.innerHTML = [
-          `<div class="statusPill">Round <strong>${round != null ? round : 'â€“'}</strong></div>`,
-          `<div class="statusPill">Active <strong>${activeName || 'â€“'}</strong></div>`
-        ].join('');
-
-        const sorted = tokens.slice().sort((a, b) => {
-          const ai = Number.isFinite(Number(a.init)) ? Number(a.init) : -9999;
-          const bi = Number.isFinite(Number(b.init)) ? Number(b.init) : -9999;
-          if (ai !== bi) return bi - ai;
-          return String(a.name || a.id).localeCompare(String(b.name || b.id));
-        });
-
-        statusBody.innerHTML = sorted.map(t => {
-          const isActive = activeId && (String(t.id) === String(activeId) || String(t.characterId || '') === String(activeId));
-          const hostilityRaw = String((t.__entity && t.__entity.hostility) || t.hostility || '').toLowerCase();
-          const isFriendly = String(t.kind || '').toLowerCase() === 'pc' || String(t.side || '').toUpperCase() === 'PC';
-          const isHostile = hostilityRaw === 'hostile' || String(t.kind || '').toLowerCase() === 'monster';
-          const hostility = isHostile ? 'hostile' : (isFriendly ? 'friendly' : 'neutral');
-          const nameClass = `statusName status-${hostility}`;
-          const markerClass = `statusTurnMarker${isActive ? '' : ' inactive'}`;
-          const initText = Number.isFinite(Number(t.init)) ? String(t.init) : 'â€“';
-          const hpCur = Number.isFinite(Number(t.hp)) ? Number(t.hp) : null;
-          const hpMax = Number.isFinite(Number(t.hp_max)) ? Number(t.hp_max) : null;
-          const hpText = hpCur != null ? (hpMax != null ? `${hpCur}/${hpMax}` : String(hpCur)) : 'â€“';
-          const conditions = Array.isArray(t.conditions) ? t.conditions : (t.cond ? [t.cond] : []);
-          const hasIntent = !!(t.__entity && (t.__entity.intent || t.__entity.intent_text || t.__entity.intentText));
-          const intentClass = `statusIntent${hasIntent ? ' on' : ''}`;
-          const condHtml = conditions.length ? conditions.map(c => `<span>${String(c)}</span>`).join(' ') : '';
-          const intentHtml = `<span class="${intentClass}" title="Intent">${hasIntent ? 'âœ“' : ''}</span>`;
-          return `
-            <tr class="statusRow${isActive ? ' active' : ''}">
-              <td class="statusNameCell">
-                <span class="${markerClass}" aria-hidden="true"></span>
-                <span class="${nameClass}">${t.name || t.id}</span>
-              </td>
-              <td class="statusNum">${initText}</td>
-              <td class="statusNum">${hpText}</td>
-              <td><div class="statusCond">${condHtml}${intentHtml}</div></td>
-            </tr>
-          `;
-        }).join('');
-        populateChatSpeakerSelect();
-      }
-
-      function setFloorOptions() {
-        floorSelect.innerHTML = '';
-        const floors = STATE.battle ? STATE.battle.floors : [];
-        floors.forEach(f => {
-          const opt = document.createElement('option');
-          opt.value = f.id;
-          opt.textContent = f.name || f.id;
-          floorSelect.appendChild(opt);
-        });
-        if (!VIEW.floorId && floors[0]) VIEW.floorId = floors[0].id;
-        floorSelect.value = VIEW.floorId;
-      }
-
-      function pickFloor() {
-        const floors = STATE.battle ? STATE.battle.floors : [];
-        return floors.find(f => f.id === VIEW.floorId) || floors[0];
-      }
-
-      function autoCenterCamera() {
-        if (!STATE.battle) return;
-        const view = STATE.battle.view || {};
-        if (view.camera_hex || view.cameraHex) return;
-        const floor = pickFloor();
-        if (!floor) return;
-        let target = null;
-        if (Array.isArray(floor.rooms) && floor.rooms.length) {
-          const labels = roomPointLabels(floor.rooms[0]);
-          const pts = labels.map(parseHexLabel).filter(Boolean);
-          if (pts.length) {
-            const avg = pts.reduce((acc, p) => ({ col: acc.col + p.col, row: acc.row + p.row }), { col: 0, row: 0 });
-            target = { col: avg.col / pts.length, row: avg.row / pts.length };
-          }
-        }
-        if (!target && Array.isArray(floor.objects) && floor.objects.length) {
-          target = parseHexLabel(floor.objects[0].hex);
-        }
-        if (!target) {
-          const tokens = buildTokens();
-          if (tokens.length) target = parseHexLabel(tokens[0].hex);
-        }
-        if (target) setCameraFromHex({ col: Math.round(target.col), row: Math.round(target.row) });
-      }
-
-      function nudgeCamera(dxWorld, dyWorld) {
-        const cam = getCameraWorld();
-        const next = { x: cam.x + dxWorld, y: cam.y + dyWorld };
-        setCameraWorld(next);
-        render();
-      }
-
-      function chatStatusClass(status) {
-        const raw = String(status || '').toLowerCase();
-        if (raw === 'canceled') return 'canceled';
-        if (raw === 'processed') return 'processed';
-        if (raw === 'ack') return 'ack';
-        return '';
-      }
-
-      function renderChat() {
-        if (!chatLog) return;
-        if (!CHAT.rows.length) {
-          chatLog.innerHTML = '<div class="mini" style="opacity:0.7;">No chat yet.</div>';
-          return;
-        }
-        chatLog.innerHTML = CHAT.rows.map(entry => {
-          const speaker = normStr(entry.speaker || 'Player');
-          const speakerKey = speaker.toLowerCase();
-          const speakerClass = 'chatSpeaker' + (speakerKey === 'dm' ? ' dm' : '');
-          const statusClass = chatStatusClass(entry.status);
-          const text = escapeHtml(entry.text || '');
-          return `<div class="chatEntry ${statusClass}">` +
-            `<span class="${speakerClass}">${escapeHtml(speaker)}</span>` +
-            `<span class="chatText">${text}</span>` +
-          `</div>`;
-        }).join('');
-        chatLog.scrollTop = chatLog.scrollHeight;
-      }
-
-      function mergeChatRows(rows) {
-        if (!Array.isArray(rows)) return;
-        for (const entry of rows) {
-          const id = entry.chat_id || entry.id || entry.chatId || entry.message_id || entry.messageId || null;
-          if (!id) continue;
-          if (CHAT.byId.has(id)) {
-            const existing = CHAT.byId.get(id);
-            Object.assign(existing, entry);
-          } else {
-            const row = { ...entry, chat_id: id };
-            CHAT.byId.set(id, row);
-            CHAT.rows.push(row);
-          }
-          const created = Number(entry.created_at || entry.createdAt || 0);
-          if (Number.isFinite(created) && created > CHAT.lastTs) CHAT.lastTs = created;
-        }
-        CHAT.rows.sort((a, b) => (Number(a.created_at || 0) - Number(b.created_at || 0)));
-      }
-
-      async function fetchChat(sinceTs = null) {
-        const cid = getCampaignId();
-        if (!cid) return [];
-        const qs = new URLSearchParams();
-        qs.set('campaign_id', cid);
-        if (sinceTs && Number.isFinite(Number(sinceTs))) qs.set('since_ts', String(Math.floor(sinceTs)));
-        qs.set('limit', '200');
-        const res = await fetch('/api/messages?' + qs.toString(), {
-          headers: { 'accept': 'application/json', ...getAuthHeaders() }
-        });
-        if (!res.ok) throw new Error('Chat fetch failed');
-        const data = await res.json();
-        return Array.isArray(data && data.rows) ? data.rows : [];
-      }
-
-      async function pollChat() {
-        try {
-          const rows = await fetchChat(CHAT.lastTs || null);
-          if (rows && rows.length) {
-            mergeChatRows(rows);
-            renderChat();
-          }
-        } catch (err) {
-          console.warn('[Battlemat] chat fetch failed:', err);
-        }
-      }
-
-      function startChatPolling() {
-        if (CHAT.timer) clearInterval(CHAT.timer);
-        CHAT.timer = setInterval(pollChat, 3000);
-        pollChat();
-      }
-
-      async function sendChatMessage() {
-        if (!chatInput) return;
-        const text = normStr(chatInput.value);
-        if (!text) return;
-        const speaker = chatSpeaker ? normStr(chatSpeaker.value) || 'Player' : 'Player';
-        const cid = getCampaignId();
-        if (!cid) return;
-        try {
-          const res = await fetch('/api/messages', {
-            method: 'POST',
-            headers: {
-              'content-type': 'application/json',
-              ...getAuthHeaders()
-            },
-            body: JSON.stringify({
-              campaign_id: cid,
-              speaker,
-              text,
-              type: 'player',
-              status: 'new'
-            })
-          });
-          if (!res.ok) throw new Error('Chat send failed');
-          chatInput.value = '';
-          pollChat();
-        } catch (err) {
-          console.warn('[Battlemat] chat send failed:', err);
-        }
-      }
-
+      const {
+        chatStatusClass,
+        populateChatSpeakerSelect,
+        renderChat,
+        mergeChatRows,
+        fetchChat,
+        pollChat,
+        startChatPolling,
+        sendChatMessage,
+      } = createChatController({
+        CHAT,
+        chatLog,
+        chatSpeaker,
+        chatInput,
+        getCampaignId,
+        getAuthHeaders,
+        escapeHtml,
+        normStr,
+        buildTokens,
+      });
       function roomWallKind(room) {
         const wall = room && room.wall && typeof room.wall === 'object' ? room.wall : null;
         const kind = wall && wall.kind != null ? String(wall.kind) : '';
@@ -4837,6 +4629,8 @@ import { createApiController } from './modules/api.js';
         console.error(err);
       });
     })();
+
+
 
 
 
