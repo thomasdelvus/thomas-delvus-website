@@ -1,5 +1,6 @@
 ﻿import { createContracts } from './modules/contracts.js';
 import { createPrefsController } from './modules/prefs.js';
+import { createApiController } from './modules/api.js';
 
 (() => {
       const canvas = document.getElementById('map');
@@ -944,12 +945,16 @@ import { createPrefsController } from './modules/prefs.js';
                 if (p) setCameraFromHex(p);
               }
             }
-
-            function resolveBattleId() {
-              const qp = getQueryParams();
-              return qp.get('battle_id') || qp.get('battleId') || qp.get('id');
-            }
-
+            const { resolveBattleId } = createApiController({
+              STATE,
+              VIEW,
+              mapSelect,
+              updateRoofSpine,
+              parseHexLabel,
+              setCameraFromHex,
+              getQueryParams,
+              getAuthHeaders,
+            });
             async function loadBattle() {
               const battleId = resolveBattleId();
               if (!battleId) throw new Error('Missing battle_id');
@@ -5011,6 +5016,7 @@ import { createPrefsController } from './modules/prefs.js';
         console.error(err);
       });
     })();
+
 
 
 
