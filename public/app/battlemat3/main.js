@@ -1,6 +1,7 @@
 ﻿import { createContracts } from './modules/contracts.js';
 import { createPrefsController } from './modules/prefs.js';
 import { createApiController } from './modules/api.js';
+import { createChatController } from './modules/chat.js';
 
 (() => {
       const canvas = document.getElementById('map');
@@ -928,22 +929,22 @@ import { createApiController } from './modules/api.js';
             };
           });
       }
-      function populateChatSpeakerSelect() {
-              if (!chatSpeaker) return;
-              const tokens = buildTokens();
-              const names = [];
-              for (const t of tokens) {
-                const name = normStr(t.name || t.id);
-                if (name && !names.includes(name)) names.push(name);
-              }
-              if (!names.includes('DM')) names.unshift('DM');
-              if (!names.includes('Player')) names.push('Player');
-              const active = document.activeElement === chatSpeaker;
-              if (!active) {
-                chatSpeaker.innerHTML = names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
-              }
-            }
-
+            const {
+        chatStatusClass,
+        populateChatSpeakerSelect,
+        renderChat,
+        mergeChatRows,
+      } = createChatController({
+        CHAT,
+        chatLog,
+        chatSpeaker,
+        chatInput,
+        getCampaignId,
+        getAuthHeaders,
+        escapeHtml,
+        normStr,
+        buildTokens,
+      });
             function renderStatus() {
               if (!statusBody || !statusMeta) return;
               const tokens = buildTokens();
@@ -1047,53 +1048,7 @@ import { createApiController } from './modules/api.js';
               render();
             }
 
-            function chatStatusClass(status) {
-              const raw = String(status || '').toLowerCase();
-              if (raw === 'canceled') return 'canceled';
-              if (raw === 'processed') return 'processed';
-              if (raw === 'ack') return 'ack';
-              return '';
-            }
-
-            function renderChat() {
-              if (!chatLog) return;
-              if (!CHAT.rows.length) {
-                chatLog.innerHTML = '<div class="mini" style="opacity:0.7;">No chat yet.</div>';
-                return;
-              }
-              chatLog.innerHTML = CHAT.rows.map(entry => {
-                const speaker = normStr(entry.speaker || 'Player');
-                const speakerKey = speaker.toLowerCase();
-                const speakerClass = 'chatSpeaker' + (speakerKey === 'dm' ? ' dm' : '');
-                const statusClass = chatStatusClass(entry.status);
-                const text = escapeHtml(entry.text || '');
-                return `<div class="chatEntry ${statusClass}">` +
-                  `<span class="${speakerClass}">${escapeHtml(speaker)}</span>` +
-                  `<span class="chatText">${text}</span>` +
-                `</div>`;
-              }).join('');
-              chatLog.scrollTop = chatLog.scrollHeight;
-            }
-
-            function mergeChatRows(rows) {
-              if (!Array.isArray(rows)) return;
-              for (const entry of rows) {
-                const id = entry.chat_id || entry.id || entry.chatId || entry.message_id || entry.messageId || null;
-                if (!id) continue;
-                if (CHAT.byId.has(id)) {
-                  const existing = CHAT.byId.get(id);
-                  Object.assign(existing, entry);
-                } else {
-                  const row = { ...entry, chat_id: id };
-                  CHAT.byId.set(id, row);
-                  CHAT.rows.push(row);
-                }
-                const created = Number(entry.created_at || entry.createdAt || 0);
-                if (Number.isFinite(created) && created > CHAT.lastTs) CHAT.lastTs = created;
-              }
-              CHAT.rows.sort((a, b) => (Number(a.created_at || 0) - Number(b.created_at || 0)));
-            }
-
+            
             async function fetchChat(sinceTs = null) {
               const cid = getCampaignId();
               if (!cid) return [];
@@ -4828,6 +4783,8 @@ import { createApiController } from './modules/api.js';
         console.error(err);
       });
     })();
+
+
 
 
 
