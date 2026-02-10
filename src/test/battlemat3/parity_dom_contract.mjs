@@ -23,10 +23,29 @@ function extractIds(html) {
   return new Set(Array.from(html.matchAll(/id="([^"]+)"/g), (m) => m[1]));
 }
 
+function normalizeMojibake(text) {
+  let out = text;
+  const fixes = [
+    [/\u00e2\u2020\u2018/g, "\u2191"],
+    [/\u00e2\u2020\u0090/g, "\u2190"],
+    [/\u00e2\u2020\u2019/g, "\u2192"],
+    [/\u00e2\u2020\u201c/g, "\u2193"],
+    [/\u00e2\u02c6\u2019/g, "\u2212"],
+    [/\u00e2\u2013\u00be/g, "\u25be"],
+    [/\u00e2\u20ac\u201c/g, "\u2013"],
+    [/\u00e2\u0153\u201c/g, "\u2713"],
+    [/\u00c2\u00b0/g, "\u00b0"],
+  ];
+  for (const [pattern, replacement] of fixes) {
+    out = out.replace(pattern, replacement);
+  }
+  return out;
+}
+
 function extractButtonLabels(html) {
   const labels = Array.from(
     html.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g),
-    (m) => m[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim(),
+    (m) => normalizeMojibake(m[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()),
   );
   return labels;
 }

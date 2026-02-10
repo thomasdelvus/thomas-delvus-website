@@ -961,8 +961,8 @@ import { createControlsController } from './modules/controls.js';
               const activeName = activeToken ? activeToken.name : (turn.activeName || turn.active_name || '');
 
               statusMeta.innerHTML = [
-                `<div class="statusPill">Round <strong>${round != null ? round : 'â€“'}</strong></div>`,
-                `<div class="statusPill">Active <strong>${activeName || 'â€“'}</strong></div>`
+                `<div class="statusPill">Round <strong>${round != null ? round : '–'}</strong></div>`,
+                `<div class="statusPill">Active <strong>${activeName || '–'}</strong></div>`
               ].join('');
 
               const sorted = tokens.slice().sort((a, b) => {
@@ -980,15 +980,15 @@ import { createControlsController } from './modules/controls.js';
                 const hostility = isHostile ? 'hostile' : (isFriendly ? 'friendly' : 'neutral');
                 const nameClass = `statusName status-${hostility}`;
                 const markerClass = `statusTurnMarker${isActive ? '' : ' inactive'}`;
-                const initText = Number.isFinite(Number(t.init)) ? String(t.init) : 'â€“';
+                const initText = Number.isFinite(Number(t.init)) ? String(t.init) : '–';
                 const hpCur = Number.isFinite(Number(t.hp)) ? Number(t.hp) : null;
                 const hpMax = Number.isFinite(Number(t.hp_max)) ? Number(t.hp_max) : null;
-                const hpText = hpCur != null ? (hpMax != null ? `${hpCur}/${hpMax}` : String(hpCur)) : 'â€“';
+                const hpText = hpCur != null ? (hpMax != null ? `${hpCur}/${hpMax}` : String(hpCur)) : '–';
                 const conditions = Array.isArray(t.conditions) ? t.conditions : (t.cond ? [t.cond] : []);
                 const hasIntent = !!(t.__entity && (t.__entity.intent || t.__entity.intent_text || t.__entity.intentText));
                 const intentClass = `statusIntent${hasIntent ? ' on' : ''}`;
                 const condHtml = conditions.length ? conditions.map(c => `<span>${String(c)}</span>`).join(' ') : '';
-                const intentHtml = `<span class="${intentClass}" title="Intent">${hasIntent ? 'âœ“' : ''}</span>`;
+                const intentHtml = `<span class="${intentClass}" title="Intent">${hasIntent ? '✓' : ''}</span>`;
                 return `
                   <tr class="statusRow${isActive ? ' active' : ''}">
                     <td class="statusNameCell">

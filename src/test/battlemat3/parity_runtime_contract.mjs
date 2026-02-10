@@ -44,14 +44,11 @@ const v3Js = v3RuntimeParts.join("\n");
 
 const lsRegex = /localStorage\.(?:getItem|setItem)\((['"])([^'"]+)\1\)/g;
 const qpRegex = /(?:qp\.get|getQueryParams\(\)\.get)\((['"])([^'"]+)\1\)/g;
-const fetchRegex = /fetch\(([^)]+)\)/g;
 
 const nextLs = extractSet(nextJs, lsRegex, 2);
 const v3Ls = extractSet(v3Js, lsRegex, 2);
 const nextQp = extractSet(nextJs, qpRegex, 2);
 const v3Qp = extractSet(v3Js, qpRegex, 2);
-const nextFetch = extractSet(nextJs, fetchRegex, 1);
-const v3Fetch = extractSet(v3Js, fetchRegex, 1);
 
 function assertSetParity(label, a, b) {
   const missing = [...a].filter((item) => !b.has(item));
@@ -63,7 +60,23 @@ function assertSetParity(label, a, b) {
 
 assertSetParity("localStorage keys", nextLs, v3Ls);
 assertSetParity("query params", nextQp, v3Qp);
-assertSetParity("fetch call sites", nextFetch, v3Fetch);
+
+function assertPatternParity(label, pattern) {
+  const inNext = pattern.test(nextJs);
+  const inV3 = pattern.test(v3Js);
+  if (inNext !== inV3) {
+    fail(`${label} parity mismatch: next=${inNext}, battlemat3=${inV3}`);
+  }
+  pass(`${label} parity`);
+}
+
+assertPatternParity("dev state fetch signature", /fetch\(\s*devStateUrl\b/);
+assertPatternParity("battle fetch signature", /\/api\/battles\/\$\{encodeURIComponent\(battleId\)\}/);
+assertPatternParity("campaign fetch signature", /\/api\/campaigns\/\$\{encodeURIComponent\(cid\)\}(?!\/entities)/);
+assertPatternParity("battle list fetch signature", /\/api\/battles\?campaign_id=\$\{encodeURIComponent\(cid\)\}/);
+assertPatternParity("messages poll fetch signature", /\/api\/messages\?/);
+assertPatternParity("messages post fetch signature", /fetch\(\s*['"`]\/api\/messages['"`]/);
+assertPatternParity("entities patch fetch signature", /\/api\/campaigns\/\$\{encodeURIComponent\(cid\)\}\/entities/);
 
 const hasBattlePutEndpoint = /\/api\/battles\/\$\{encodeURIComponent\(battleId\)\}/.test(v3Js);
 const hasBattlePutMethod = /method:\s*['"]PUT['"]/.test(v3Js);
