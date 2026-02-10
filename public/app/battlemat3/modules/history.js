@@ -64,6 +64,18 @@ export function createHistoryController({
     if (undoButton) undoButton.disabled = !canUndo();
   }
 
+  function bindUndoControls(globalWindow) {
+    if (undoButton) undoButton.addEventListener("click", () => undo());
+    if (!globalWindow || typeof globalWindow.addEventListener !== "function") return;
+    globalWindow.addEventListener("keydown", (ev) => {
+      if (!((ev.ctrlKey || ev.metaKey) && String(ev.key || "").toLowerCase() === "z")) return;
+      ev.preventDefault();
+      // Ignore OS key repeat so one long press does not consume multiple snapshots.
+      if (ev.repeat) return;
+      undo();
+    });
+  }
+
   return {
     cloneValue,
     snapshotState,
@@ -73,6 +85,6 @@ export function createHistoryController({
     canUndo,
     undo,
     updateUndoButton,
+    bindUndoControls,
   };
 }
-

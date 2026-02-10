@@ -1375,8 +1375,8 @@ import { createHistoryController } from './modules/history.js';
         restoreState,
         prepareBattleForSave,
         pushHistory,
-        undo,
         updateUndoButton,
+        bindUndoControls,
       } = createHistoryController({
         STATE,
         HISTORY,
@@ -4572,7 +4572,7 @@ import { createHistoryController } from './modules/history.js';
         };
         setupHold(zoomOutButton, () => setZoom(VIEW.zoom - zoomStep()));
         setupHold(zoomInButton, () => setZoom(VIEW.zoom + zoomStep()));
-        if (undoButton) undoButton.addEventListener('click', () => undo());
+        bindUndoControls(window);
         saveButton.addEventListener('click', () => saveState());
         if (chatSend) chatSend.addEventListener('click', () => sendChatMessage());
         if (chatInput) {
@@ -4586,11 +4586,6 @@ import { createHistoryController } from './modules/history.js';
         canvas.addEventListener('click', handleCanvasClick);
         attachDragHandlers();
         window.addEventListener('keydown', (ev) => {
-          if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') {
-            ev.preventDefault();
-            undo();
-            return;
-          }
           if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
           const el = document.activeElement;
           if (el && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) return;
