@@ -888,7 +888,7 @@ import { createApiController } from './modules/api.js';
         render();
       }
       
-      const { resolveBattleId, getCampaignId, resolvePoiId, buildMapOptionsFromMeta, extractScene, applyViewFromState, normalizeState } = createApiController({
+      const { resolveBattleId, getCampaignId, resolvePoiId, buildMapOptionsFromMeta, extractScene, applyViewFromState, normalizeState, loadCampaign } = createApiController({
               STATE,
               VIEW,
               mapSelect,
@@ -932,23 +932,7 @@ import { createApiController } from './modules/api.js';
               STATE.battle._battle_id = data.battle_id || battleId;
               STATE.battle._campaign_id = data.campaign_id || data.campaignId || null;
             }
-            async function loadCampaign() {
-              const cid = getCampaignId();
-              if (!cid) return;
-              const res = await fetch(`/api/campaigns/${encodeURIComponent(cid)}`, {
-                headers: { 'accept': 'application/json', ...getAuthHeaders() }
-              });
-              if (!res.ok) return;
-              const data = await res.json();
-              let meta = data.meta_json || data.metaJson || null;
-              if (typeof meta === 'string') {
-                try { meta = JSON.parse(meta); } catch { meta = null; }
-              }
-              STATE.campaign = meta || {};
-              STATE.entities = (STATE.campaign.world && Array.isArray(STATE.campaign.world.entities))
-                ? STATE.campaign.world.entities
-                : [];
-            }
+            
             async function loadMapOptions() {
               if (!mapSelect) return;
               const battleId = STATE.battle && STATE.battle._battle_id;
@@ -4916,6 +4900,8 @@ import { createApiController } from './modules/api.js';
         console.error(err);
       });
     })();
+
+
 
 
 
