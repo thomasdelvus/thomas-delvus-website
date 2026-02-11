@@ -1702,7 +1702,6 @@ import { createControlsController } from './modules/controls.js';
         const tintValue = Math.max(0, Math.min(1, tintStrength));
         const yellowOffset = Number.isFinite(Number(roof && roof.tileOffsetYellow)) ? Number(roof.tileOffsetYellow) : 0;
         const blueOffset = Number.isFinite(Number(roof && roof.tileOffsetBlue)) ? Number(roof.tileOffsetBlue) : 0;
-        const polyAlpha = UI.polyAlpha != null ? UI.polyAlpha : 1;
         const rotFor = (section) => {
           if (section === 'north') return 180;
           if (section === 'south') return 0;
@@ -1718,7 +1717,6 @@ import { createControlsController } from './modules/controls.js';
           const polyScreen = polyPoints.map(worldToScreen);
           gctx.save();
           gctx.fillStyle = fill;
-          gctx.globalAlpha *= Math.max(0, Math.min(1, polyAlpha));
           gctx.beginPath();
           gctx.moveTo(polyScreen[0].x, polyScreen[0].y);
           for (let i = 1; i < polyScreen.length; i++) gctx.lineTo(polyScreen[i].x, polyScreen[i].y);
@@ -3132,18 +3130,25 @@ import { createControlsController } from './modules/controls.js';
         if (layerMode === 'all' || layerMode === 'walls') {
           ctx.drawImage(wallLayer.canvas, 0, 0, rect.width, rect.height);
         }
+        const roofCompositeAlpha = Math.max(0, Math.min(1, UI.polyAlpha != null ? UI.polyAlpha : 1));
         if (layerMode === 'all' || layerMode === 'roofs') {
+          ctx.save();
+          ctx.globalAlpha = roofCompositeAlpha;
           ctx.drawImage(roofLayer.canvas, 0, 0, rect.width, rect.height);
+          ctx.restore();
         }
         if (layerMode === 'all') {
           ctx.save();
           ctx.globalCompositeOperation = 'multiply';
-          ctx.globalAlpha = Math.max(0, Math.min(1, ROOF_SHADOW_ALPHA));
+          ctx.globalAlpha = Math.max(0, Math.min(1, ROOF_SHADOW_ALPHA * roofCompositeAlpha));
           ctx.drawImage(shadowLayer.canvas, 0, 0, rect.width, rect.height);
           ctx.restore();
         }
         if (layerMode === 'roof_shadows') {
+          ctx.save();
+          ctx.globalAlpha = roofCompositeAlpha;
           ctx.drawImage(shadowLayer.canvas, 0, 0, rect.width, rect.height);
+          ctx.restore();
         }
         if (layerMode === 'all' || layerMode === 'tokens') {
           ctx.drawImage(tokenLayer.canvas, 0, 0, rect.width, rect.height);
