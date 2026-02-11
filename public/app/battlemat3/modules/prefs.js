@@ -17,6 +17,14 @@ export function createPrefsController({ UI, BACKDROP, elements }) {
     mapRotInput,
   } = elements;
 
+  function parseStoredBool(value) {
+    if (value == null) return null;
+    const normalized = String(value).trim().toLowerCase();
+    if (normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on") return true;
+    if (normalized === "0" || normalized === "false" || normalized === "no" || normalized === "off") return false;
+    return null;
+  }
+
   function loadPrefs() {
     try {
       const grid = localStorage.getItem("bm_hexgrid");
@@ -30,12 +38,19 @@ export function createPrefsController({ UI, BACKDROP, elements }) {
       const video = localStorage.getItem("bm_video");
       const polyAlpha = localStorage.getItem("bm_poly_alpha");
       const backdrop = localStorage.getItem("bm_backdrop");
-      if (grid != null) UI.hexGrid = grid === "1";
-      if (bright != null) UI.brightLabels = bright === "1";
-      if (handles != null) UI.showHandles = handles === "1";
-      if (fog != null) UI.fogEnabled = fog === "1";
-      if (hideRoofs != null) UI.hideRoofs = hideRoofs === "1";
-      if (streetView != null) UI.streetView = streetView === "1";
+      const parsedGrid = parseStoredBool(grid);
+      const parsedBright = parseStoredBool(bright);
+      const parsedHandles = parseStoredBool(handles);
+      const parsedFog = parseStoredBool(fog);
+      const parsedHideRoofs = parseStoredBool(hideRoofs);
+      const parsedStreetView = parseStoredBool(streetView);
+      const parsedBackdrop = parseStoredBool(backdrop);
+      if (parsedGrid != null) UI.hexGrid = parsedGrid;
+      if (parsedBright != null) UI.brightLabels = parsedBright;
+      if (parsedHandles != null) UI.showHandles = parsedHandles;
+      if (parsedFog != null) UI.fogEnabled = parsedFog;
+      if (parsedHideRoofs != null) UI.hideRoofs = parsedHideRoofs;
+      if (parsedStreetView != null) UI.streetView = parsedStreetView;
       if (roofLineColor != null && /^#[0-9a-f]{6}$/i.test(roofLineColor)) UI.roofLineColor = roofLineColor;
       if (roofLineWidth != null) {
         const n = Number(roofLineWidth);
@@ -46,7 +61,7 @@ export function createPrefsController({ UI, BACKDROP, elements }) {
         const n = Number(polyAlpha);
         if (Number.isFinite(n)) UI.polyAlpha = Math.max(0, Math.min(1, n));
       }
-      if (backdrop != null) UI.showBackdrop = backdrop === "1";
+      if (parsedBackdrop != null) UI.showBackdrop = parsedBackdrop;
     } catch {}
     if (hexGridToggle) hexGridToggle.checked = UI.hexGrid;
     if (labelBoldToggle) labelBoldToggle.checked = UI.brightLabels;
@@ -103,4 +118,3 @@ export function createPrefsController({ UI, BACKDROP, elements }) {
 
   return { loadPrefs, savePrefs, initSectionCollapse };
 }
-
