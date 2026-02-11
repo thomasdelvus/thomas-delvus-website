@@ -154,6 +154,15 @@ import { createControlsController } from './modules/controls.js';
         portal: { len: 1.3, thick: 0.22, color: '#6fd3ff' },
         gate: { len: 2.5, thick: 0.3, color: '#8a6f4a' }
       };
+      const ROOF_WEATHERING_KEYS = ['aging', 'moss', 'mottling', 'streaks', 'repairs', 'contrast'];
+      const ROOF_WEATHERING_DEFAULTS = Object.freeze({
+        aging: 0,
+        moss: 0,
+        mottling: 0,
+        streaks: 0,
+        repairs: 0,
+        contrast: 0
+      });
 
       const FLOOR_COLORS = {
         fog: '#0e1117',
@@ -896,6 +905,7 @@ import { createControlsController } from './modules/controls.js';
               VIEW,
               mapSelect,
               updateRoofSpine,
+              normalizeRoofWeathering,
               parseHexLabel,
               setCameraFromHex,
               getQueryParams,
@@ -1122,6 +1132,28 @@ import { createControlsController } from './modules/controls.js';
         if (idx === -1) arr.push(index);
         else arr.splice(idx, 1);
         setPolyEdgeHiddenArray(room, arr);
+      }
+
+      function clampUnitInterval(value) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return 0;
+        return Math.max(0, Math.min(1, num));
+      }
+
+      function normalizeRoofWeathering(roof) {
+        if (!roof || typeof roof !== 'object') return null;
+        const raw = (roof.weathering && typeof roof.weathering === 'object') ? roof.weathering : {};
+        const next = {};
+        for (const key of ROOF_WEATHERING_KEYS) {
+          const value = raw[key];
+          next[key] = (value == null) ? ROOF_WEATHERING_DEFAULTS[key] : clampUnitInterval(value);
+        }
+        const rawSeed = raw.seed != null ? String(raw.seed).trim() : '';
+        const idSeed = roof.id != null ? String(roof.id).trim() : '';
+        if (rawSeed) next.seed = rawSeed;
+        else if (idSeed) next.seed = idSeed;
+        roof.weathering = next;
+        return next;
       }
 
       function getRoofLineHiddenArray(roof) {
@@ -3844,6 +3876,7 @@ import { createControlsController } from './modules/controls.js';
                 spineAdjustB: 0,
                 z: 0
               };
+              normalizeRoofWeathering(roof);
               updateRoofSpine(roof);
               if (!Array.isArray(floor.roofs)) floor.roofs = [];
               floor.roofs.push(roof);

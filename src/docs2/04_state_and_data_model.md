@@ -44,8 +44,16 @@ Performed by `normalizeState()` in `modules/api.js`.
    3. `openings`
    4. `objects`
    5. `roofs`
-3. Rebuilds roof spine metadata (`updateRoofSpine` callback).
-4. Backfills object `floorId` where missing.
+3. Normalizes roof weathering payload (`roof.weathering`) with clamped `0..1` controls:
+   1. `aging`
+   2. `moss`
+   3. `mottling`
+   4. `streaks`
+   5. `repairs`
+   6. `contrast`
+   7. stable `seed` (defaults to `roof.id` if absent)
+4. Rebuilds roof spine metadata (`updateRoofSpine` callback).
+5. Backfills object `floorId` where missing.
 
 ## Wrapper Record Support
 
@@ -97,4 +105,3 @@ Undo restoration rehydrates both and triggers:
 1. floor selector refresh
 2. status refresh
 3. full render
-

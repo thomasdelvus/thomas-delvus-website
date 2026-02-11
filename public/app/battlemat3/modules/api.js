@@ -3,6 +3,7 @@ export function createApiController({
   VIEW,
   mapSelect,
   updateRoofSpine,
+  normalizeRoofWeathering,
   parseHexLabel,
   setCameraFromHex,
   getQueryParams,
@@ -28,7 +29,10 @@ export function createApiController({
       if (!Array.isArray(floor.objects)) floor.objects = [];
       if (!Array.isArray(floor.roofs)) floor.roofs = [];
       for (const roof of floor.roofs) {
-        if (roof && typeof roof === "object") updateRoofSpine(roof);
+        if (roof && typeof roof === "object") {
+          if (typeof normalizeRoofWeathering === "function") normalizeRoofWeathering(roof);
+          updateRoofSpine(roof);
+        }
       }
       for (const obj of floor.objects) {
         if (obj && obj.floorId == null) obj.floorId = floor.id;
@@ -217,4 +221,3 @@ export function createApiController({
     resolvePoiId,
   };
 }
-
