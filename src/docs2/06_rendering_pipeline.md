@@ -1,7 +1,7 @@
 # Battlemat3 Rendering Pipeline
 
-Version: v1.00  
-Updated: 2026-02-10
+Version: v1.01  
+Updated: 2026-02-11
 
 ## Overview
 
@@ -60,6 +60,23 @@ Street-segment rooms can auto-reveal adjacent rooms based on active PC positions
 2. Loading/error triggers rerender.
 3. Unknown or failed assets fall back to primitive rendering behavior already defined in runtime.
 
+## Roof Weathering Pass (Phase 2)
+
+`drawRoofPoly()` now supports deterministic weathering overlays driven by `roof.weathering`.
+
+1. `roof.weathering.seed` (fallback: `roof.id`) is hashed to generate stable noise maps.
+2. Generated roof weather maps are cached (`ROOF_WEATHER_MAP_CACHE`) and reused.
+3. Per-render canvas patterns are cached per context (`ROOF_WEATHER_PATTERN_CACHE`).
+4. Overlay channels:
+   1. `aging`
+   2. `moss`
+   3. `mottlingDark`
+   4. `mottlingLight`
+   5. `streaks`
+   6. `repairs`
+5. Channel strength is controlled by normalized `roof.weathering` values (0..1).
+6. With all controls at `0`, behavior is visually unchanged (no-op weathering pass).
+
 ## Performance Characteristics
 
 Current behavior:
@@ -71,4 +88,3 @@ Current behavior:
 Refactor objective:
 
 1. keep behavior parity while reducing redundant render/canvas churn where safe.
-

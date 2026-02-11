@@ -163,6 +163,15 @@ import { createControlsController } from './modules/controls.js';
         repairs: 0,
         contrast: 0
       });
+      const ROOF_WEATHER_TEXTURE_SIZE = 256;
+      const ROOF_WEATHER_PATTERN_SCALE = Object.freeze({
+        aging: 0.2,
+        moss: 0.2,
+        mottlingDark: 0.24,
+        mottlingLight: 0.24,
+        streaks: 0.2,
+        repairs: 0.2
+      });
 
       const FLOOR_COLORS = {
         fog: '#0e1117',
@@ -1156,6 +1165,291 @@ import { createControlsController } from './modules/controls.js';
         return next;
       }
 
+      const ROOF_WEATHER_MAP_CACHE = new Map();
+      const ROOF_WEATHER_PATTERN_CACHE = new WeakMap();
+
+      function seedHash32(value) {
+        const text = String(value == null ? '' : value);
+        let h = 2166136261;
+        for (let i = 0; i < text.length; i++) {
+          h ^= text.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        return h >>> 0;
+      }
+
+      function createSeededRng(seedValue) {
+        let state = (seedValue >>> 0) || 1;
+        return () => {
+          state += 0x6D2B79F5;
+          let t = state;
+          t = Math.imul(t ^ (t >>> 15), t | 1);
+          t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function createWeatherLayerCanvas(size) {
+        const canvasEl = document.createElement('canvas');
+        canvasEl.width = size;
+        canvasEl.height = size;
+        const gctx = canvasEl.getContext('2d');
+        gctx.clearRect(0, 0, size, size);
+        return { canvas: canvasEl, gctx };
+      }
+
+      function paintSoftBlob(gctx, x, y, radius, rgb, alpha) {
+        if (!gctx || !Number.isFinite(radius) || radius <= 0 || alpha <= 0) return;
+        const c0 = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${Math.max(0, Math.min(1, alpha))})`;
+        const c1 = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`;
+        const grad = gctx.createRadialGradient(x, y, radius * 0.2, x, y, radius);
+        grad.addColorStop(0, c0);
+        grad.addColorStop(1, c1);
+        gctx.fillStyle = grad;
+        gctx.beginPath();
+        gctx.arc(x, y, radius, 0, Math.PI * 2);
+        gctx.fill();
+      }
+
+      function paintBlobLayer(gctx, rng, options) {
+        if (!gctx || !rng || !options) return;
+        const size = Number(options.size) || ROOF_WEATHER_TEXTURE_SIZE;
+        const count = Math.max(0, Number(options.count) || 0);
+        const minR = Math.max(0.5, Number(options.minR) || 1);
+        const maxR = Math.max(minR, Number(options.maxR) || minR);
+        const alphaMin = Math.max(0, Number(options.alphaMin) || 0);
+        const alphaMax = Math.max(alphaMin, Number(options.alphaMax) || alphaMin);
+        const colorFn = typeof options.colorFn === 'function'
+          ? options.colorFn
+          : (() => [0, 0, 0]);
+        const yFn = typeof options.yFn === 'function'
+          ? options.yFn
+          : (() => rng() * size);
+        for (let i = 0; i < count; i++) {
+          const x = rng() * size;
+          const y = yFn(rng, size, i);
+          const radius = minR + (maxR - minR) * rng();
+          const alpha = alphaMin + (alphaMax - alphaMin) * rng();
+          const rgb = colorFn(rng, i);
+          paintSoftBlob(gctx, x, y, radius, rgb, alpha);
+        }
+      }
+
+      function buildRoofWeatherMaps(seedKey) {
+        const size = ROOF_WEATHER_TEXTURE_SIZE;
+        const keyBase = String(seedKey || 'roof-weather');
+
+        const aging = createWeatherLayerCanvas(size);
+        const moss = createWeatherLayerCanvas(size);
+        const mottlingDark = createWeatherLayerCanvas(size);
+        const mottlingLight = createWeatherLayerCanvas(size);
+        const streaks = createWeatherLayerCanvas(size);
+        const repairs = createWeatherLayerCanvas(size);
+
+        const agingRng = createSeededRng(seedHash32(`${keyBase}:aging`));
+        const mossRng = createSeededRng(seedHash32(`${keyBase}:moss`));
+        const darkRng = createSeededRng(seedHash32(`${keyBase}:mottling-dark`));
+        const lightRng = createSeededRng(seedHash32(`${keyBase}:mottling-light`));
+        const streakRng = createSeededRng(seedHash32(`${keyBase}:streaks`));
+        const repairRng = createSeededRng(seedHash32(`${keyBase}:repairs`));
+
+        paintBlobLayer(aging.gctx, agingRng, {
+          size,
+          count: 240,
+          minR: 8,
+          maxR: 42,
+          alphaMin: 0.02,
+          alphaMax: 0.08,
+          colorFn: () => [0, 0, 0]
+        });
+
+        paintBlobLayer(moss.gctx, mossRng, {
+          size,
+          count: 220,
+          minR: 6,
+          maxR: 28,
+          alphaMin: 0.03,
+          alphaMax: 0.14,
+          colorFn: (rng) => {
+            const hueOffset = Math.round(rng() * 20);
+            return [70 + hueOffset, 95 + hueOffset, 58 + Math.round(rng() * 10)];
+          },
+          yFn: (rng, s) => {
+            const topBias = Math.pow(rng(), 1.85);
+            return topBias * s * 0.78;
+          }
+        });
+
+        paintBlobLayer(mottlingDark.gctx, darkRng, {
+          size,
+          count: 820,
+          minR: 1,
+          maxR: 5,
+          alphaMin: 0.015,
+          alphaMax: 0.08,
+          colorFn: () => [0, 0, 0]
+        });
+        paintBlobLayer(mottlingLight.gctx, lightRng, {
+          size,
+          count: 620,
+          minR: 1,
+          maxR: 4,
+          alphaMin: 0.012,
+          alphaMax: 0.07,
+          colorFn: () => [255, 255, 255]
+        });
+
+        const strokeColor = [40, 43, 49];
+        streaks.gctx.lineCap = 'round';
+        streaks.gctx.lineJoin = 'round';
+        for (let i = 0; i < 110; i++) {
+          const x = streakRng() * size;
+          const y = -size * 0.05 + streakRng() * size * 0.55;
+          const len = size * (0.2 + streakRng() * 0.95);
+          const drift = (streakRng() - 0.5) * size * 0.2;
+          const width = 0.6 + streakRng() * 2.1;
+          const a = 0.05 + streakRng() * 0.17;
+          const grad = streaks.gctx.createLinearGradient(x, y, x + drift, y + len);
+          grad.addColorStop(0, `rgba(${strokeColor[0]},${strokeColor[1]},${strokeColor[2]},${a})`);
+          grad.addColorStop(0.65, `rgba(${strokeColor[0]},${strokeColor[1]},${strokeColor[2]},${a * 0.52})`);
+          grad.addColorStop(1, `rgba(${strokeColor[0]},${strokeColor[1]},${strokeColor[2]},0)`);
+          streaks.gctx.strokeStyle = grad;
+          streaks.gctx.lineWidth = width;
+          streaks.gctx.beginPath();
+          streaks.gctx.moveTo(x, y);
+          streaks.gctx.quadraticCurveTo(x + drift * 0.25, y + len * 0.45, x + drift, y + len);
+          streaks.gctx.stroke();
+        }
+
+        for (let i = 0; i < 38; i++) {
+          const w = size * (0.03 + repairRng() * 0.12);
+          const h = size * (0.02 + repairRng() * 0.06);
+          const x = repairRng() * size;
+          const y = repairRng() * size;
+          const rot = (repairRng() - 0.5) * 0.8;
+          const alpha = 0.09 + repairRng() * 0.2;
+          const dark = 80 + Math.round(repairRng() * 45);
+          const mid = dark + 8 + Math.round(repairRng() * 28);
+          repairs.gctx.save();
+          repairs.gctx.translate(x, y);
+          repairs.gctx.rotate(rot);
+          repairs.gctx.fillStyle = `rgba(${dark},${dark},${mid},${alpha})`;
+          repairs.gctx.fillRect(-w / 2, -h / 2, w, h);
+          repairs.gctx.strokeStyle = `rgba(${Math.max(30, dark - 28)},${Math.max(30, dark - 28)},${Math.max(40, mid - 30)},${Math.max(0.08, alpha * 0.55)})`;
+          repairs.gctx.lineWidth = 1;
+          repairs.gctx.strokeRect(-w / 2, -h / 2, w, h);
+          repairs.gctx.restore();
+        }
+
+        return {
+          aging: aging.canvas,
+          moss: moss.canvas,
+          mottlingDark: mottlingDark.canvas,
+          mottlingLight: mottlingLight.canvas,
+          streaks: streaks.canvas,
+          repairs: repairs.canvas
+        };
+      }
+
+      function getRoofWeatherMaps(seedKey) {
+        const key = String(seedKey || 'roof-weather');
+        const cached = ROOF_WEATHER_MAP_CACHE.get(key);
+        if (cached) return cached;
+        const maps = buildRoofWeatherMaps(key);
+        ROOF_WEATHER_MAP_CACHE.set(key, maps);
+        return maps;
+      }
+
+      function getRoofWeatherPatternCache(gctx) {
+        const cache = ROOF_WEATHER_PATTERN_CACHE.get(gctx);
+        if (cache) return cache;
+        const created = new Map();
+        ROOF_WEATHER_PATTERN_CACHE.set(gctx, created);
+        return created;
+      }
+
+      function getRoofWeatherPattern(gctx, seedKey, layerName) {
+        if (!gctx || !layerName) return null;
+        const cache = getRoofWeatherPatternCache(gctx);
+        const cacheKey = `${seedKey}:${layerName}`;
+        const cached = cache.get(cacheKey);
+        if (cached && cached.pattern) return cached.pattern;
+        const maps = getRoofWeatherMaps(seedKey);
+        const source = maps && maps[layerName];
+        if (!source) return null;
+        const pattern = gctx.createPattern(source, 'repeat');
+        if (!pattern) return null;
+        cache.set(cacheKey, { pattern });
+        return pattern;
+      }
+
+      function traceScreenPolygonPath(gctx, polyScreen) {
+        if (!gctx || !Array.isArray(polyScreen) || polyScreen.length < 3) return false;
+        gctx.beginPath();
+        gctx.moveTo(polyScreen[0].x, polyScreen[0].y);
+        for (let i = 1; i < polyScreen.length; i++) gctx.lineTo(polyScreen[i].x, polyScreen[i].y);
+        gctx.closePath();
+        return true;
+      }
+
+      function roofMossSectionBias(section) {
+        if (section === 'north') return 1.1;
+        if (section === 'south') return 0.72;
+        return 0.9;
+      }
+
+      function applyRoofWeatheringToPolygon(roof, gctx, polyScreen, anchorWorld, section, rotDeg, weathering) {
+        if (!roof || !gctx || !Array.isArray(polyScreen) || polyScreen.length < 3) return;
+        const w = weathering && typeof weathering === 'object' ? weathering : normalizeRoofWeathering(roof);
+        if (!w) return;
+
+        const aging = clampUnitInterval(w.aging);
+        const moss = clampUnitInterval(w.moss);
+        const mottling = clampUnitInterval(w.mottling);
+        const streaks = clampUnitInterval(w.streaks);
+        const repairs = clampUnitInterval(w.repairs);
+        const contrast = clampUnitInterval(w.contrast);
+        if (aging <= 0 && moss <= 0 && mottling <= 0 && streaks <= 0 && repairs <= 0 && contrast <= 0) return;
+
+        const seed = String((w.seed || roof.id || 'roof-weather')).trim() || 'roof-weather';
+        const contrastBoost = 1 + contrast * 0.85;
+        const mossBias = roofMossSectionBias(section);
+        const rotate = Number.isFinite(Number(rotDeg)) ? Number(rotDeg) : 0;
+        const anchor = anchorWorld || { x: 0, y: 0 };
+
+        const paintLayer = (layerName, composite, rawAlpha) => {
+          const alpha = Math.max(0, Math.min(1, Number(rawAlpha) || 0));
+          if (alpha <= 0.0001) return;
+          const pattern = getRoofWeatherPattern(gctx, seed, layerName);
+          if (!pattern) return;
+          const scale = ROOF_WEATHER_PATTERN_SCALE[layerName] || 0.2;
+          applyPatternTransform(pattern, scale, anchor, rotate);
+          gctx.save();
+          gctx.globalCompositeOperation = composite || 'source-over';
+          gctx.globalAlpha = alpha;
+          gctx.fillStyle = pattern;
+          if (!traceScreenPolygonPath(gctx, polyScreen)) {
+            gctx.restore();
+            return;
+          }
+          gctx.fill();
+          gctx.restore();
+        };
+
+        paintLayer('aging', 'multiply', 0.42 * aging * (0.9 + contrast * 0.2));
+        paintLayer('moss', 'multiply', 0.5 * moss * mossBias * (0.85 + contrast * 0.25));
+        paintLayer('mottlingDark', 'multiply', 0.3 * mottling * contrastBoost);
+        paintLayer('mottlingLight', 'screen', 0.22 * mottling * (0.65 + contrast * 0.55));
+        paintLayer('streaks', 'multiply', 0.36 * streaks * (0.75 + contrast * 0.35));
+        paintLayer('repairs', 'source-over', 0.26 * repairs * (0.9 + contrast * 0.25));
+        paintLayer('repairs', 'multiply', 0.16 * repairs * contrastBoost);
+
+        if (contrast > 0.001) {
+          paintLayer('aging', 'multiply', 0.08 * contrast);
+          paintLayer('mottlingLight', 'screen', 0.05 * contrast);
+        }
+      }
+
       function getRoofLineHiddenArray(roof) {
         if (!roof || typeof roof !== 'object') return [];
         const raw = roof.line_hidden ?? roof.lineHidden ?? roof.hidden_lines ?? roof.hiddenLines;
@@ -1716,6 +2010,7 @@ import { createControlsController } from './modules/controls.js';
         const pts = roofWorldPoints(roof);
         if (pts.length < 3) return;
         const screenPts = pts.map(worldToScreen);
+        const weathering = normalizeRoofWeathering(roof);
         const kind = String(roof && roof.kind ? roof.kind : 'slate');
         const roofColor = FLOOR_COLORS[kind] || FLOOR_COLORS.default;
         const shadeStrength = Number.isFinite(Number(roof && roof.shade)) ? Number(roof.shade) : 0.2;
@@ -1749,10 +2044,10 @@ import { createControlsController } from './modules/controls.js';
           const polyScreen = polyPoints.map(worldToScreen);
           gctx.save();
           gctx.fillStyle = fill;
-          gctx.beginPath();
-          gctx.moveTo(polyScreen[0].x, polyScreen[0].y);
-          for (let i = 1; i < polyScreen.length; i++) gctx.lineTo(polyScreen[i].x, polyScreen[i].y);
-          gctx.closePath();
+          if (!traceScreenPolygonPath(gctx, polyScreen)) {
+            gctx.restore();
+            return;
+          }
           gctx.fill();
           gctx.restore();
           if (tintValue > 0) {
@@ -1760,10 +2055,10 @@ import { createControlsController } from './modules/controls.js';
             gctx.globalCompositeOperation = 'multiply';
             gctx.fillStyle = tintColor;
             gctx.globalAlpha = tintValue;
-            gctx.beginPath();
-            gctx.moveTo(polyScreen[0].x, polyScreen[0].y);
-            for (let i = 1; i < polyScreen.length; i++) gctx.lineTo(polyScreen[i].x, polyScreen[i].y);
-            gctx.closePath();
+            if (!traceScreenPolygonPath(gctx, polyScreen)) {
+              gctx.restore();
+              return;
+            }
             gctx.fill();
             gctx.restore();
           }
@@ -1772,10 +2067,10 @@ import { createControlsController } from './modules/controls.js';
             gctx.globalCompositeOperation = 'multiply';
             gctx.fillStyle = shadeColor;
             gctx.globalAlpha = 1;
-            gctx.beginPath();
-            gctx.moveTo(polyScreen[0].x, polyScreen[0].y);
-            for (let i = 1; i < polyScreen.length; i++) gctx.lineTo(polyScreen[i].x, polyScreen[i].y);
-            gctx.closePath();
+            if (!traceScreenPolygonPath(gctx, polyScreen)) {
+              gctx.restore();
+              return;
+            }
             gctx.fill();
             gctx.restore();
           }
@@ -1784,13 +2079,14 @@ import { createControlsController } from './modules/controls.js';
             gctx.globalCompositeOperation = 'screen';
             gctx.fillStyle = 'rgb(255,255,255)';
             gctx.globalAlpha = Math.max(0, Math.min(1, southLighten));
-            gctx.beginPath();
-            gctx.moveTo(polyScreen[0].x, polyScreen[0].y);
-            for (let i = 1; i < polyScreen.length; i++) gctx.lineTo(polyScreen[i].x, polyScreen[i].y);
-            gctx.closePath();
+            if (!traceScreenPolygonPath(gctx, polyScreen)) {
+              gctx.restore();
+              return;
+            }
             gctx.fill();
             gctx.restore();
           }
+          applyRoofWeatheringToPolygon(roof, gctx, polyScreen, anchor, section, rotFor(section) + totalRot, weathering);
         };
         const uniqueBy = (arr, keyFn) => {
           const out = [];
