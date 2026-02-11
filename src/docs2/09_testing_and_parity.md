@@ -1,7 +1,7 @@
 # Battlemat3 Testing and Parity Guide
 
-Version: v1.00  
-Updated: 2026-02-10
+Version: v1.01  
+Updated: 2026-02-11
 
 ## Testing Strategy
 
@@ -61,6 +61,11 @@ Run these on each meaningful change set:
    1. change toggles
    2. reload
    3. confirm persistence
+9. roof weathering (Phase 3):
+   1. select a roof and adjust `Aging/Moss/Mottling/Streaks/Repairs/Contrast`
+   2. verify deterministic look after pan/zoom
+   3. verify persistence after Save + reload
+   4. verify `Reset Weather` returns the roof to baseline weathering
 
 ## Micro-Batch Validation Pattern
 
@@ -79,4 +84,3 @@ For risky refactors:
 3. Backend endpoints reachable for integration tests.
 
 If Node is unavailable, rely on manual parity checks and direct grep-based signature checks.
-

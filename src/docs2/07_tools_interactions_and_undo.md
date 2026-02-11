@@ -1,7 +1,7 @@
 # Battlemat3 Tools, Interactions, and Undo
 
-Version: v1.00  
-Updated: 2026-02-10
+Version: v1.01  
+Updated: 2026-02-11
 
 ## Tool Surface
 
@@ -43,6 +43,22 @@ Most editing operations follow:
 
 This ordering is required for predictable undo.
 
+## Roof Inspector Weathering Controls (Phase 3)
+
+Roof selection now exposes per-roof weathering controls in inspector:
+
+1. `Weather Seed` (deterministic texture seed)
+2. sliders in `0..1` range:
+   1. `Aging`
+   2. `Moss`
+   3. `Mottling`
+   4. `Streaks`
+   5. `Repairs`
+   6. `Contrast`
+3. `Reset Weather` action:
+   1. resets all weathering sliders to `0`
+   2. preserves seed value
+
 ## Undo Architecture
 
 Undo logic lives in `public/app/battlemat3/modules/history.js`.
@@ -75,4 +91,3 @@ Intent:
 4. token drag with entity sync and status refresh
 
 When touching these areas, always run manual parity checks before continuing.
-

@@ -3558,6 +3558,62 @@ import { createControlsController } from './modules/controls.js';
           row.appendChild(input);
           inspectorFields.appendChild(row);
         };
+        const addSliderField = (label, value, key, opts = {}) => {
+          const row = document.createElement('div');
+          row.className = 'row';
+          const lab = document.createElement('label');
+          lab.textContent = label;
+          const wrap = document.createElement('div');
+          wrap.style.display = 'grid';
+          wrap.style.gridTemplateColumns = '1fr 58px';
+          wrap.style.gap = '6px';
+          wrap.style.alignItems = 'center';
+
+          const min = Number.isFinite(Number(opts.min)) ? Number(opts.min) : 0;
+          const max = Number.isFinite(Number(opts.max)) ? Number(opts.max) : 1;
+          const step = Number.isFinite(Number(opts.step)) ? Number(opts.step) : 0.01;
+          const val = Number.isFinite(Number(value)) ? Number(value) : min;
+
+          const range = document.createElement('input');
+          range.type = 'range';
+          range.min = String(min);
+          range.max = String(max);
+          range.step = String(step);
+          range.value = String(Math.max(min, Math.min(max, val)));
+
+          const number = document.createElement('input');
+          number.type = 'number';
+          number.min = String(min);
+          number.max = String(max);
+          number.step = String(step);
+          number.value = String(Math.max(min, Math.min(max, val)));
+
+          const syncFromRange = () => {
+            number.value = range.value;
+          };
+          const syncFromNumber = () => {
+            const n = Number(number.value);
+            const clamped = Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : min;
+            range.value = String(clamped);
+            number.value = String(clamped);
+          };
+
+          range.addEventListener('input', syncFromRange);
+          range.addEventListener('change', () => {
+            syncFromRange();
+            applyFieldChange(key, range.value);
+          });
+          number.addEventListener('change', () => {
+            syncFromNumber();
+            applyFieldChange(key, number.value);
+          });
+
+          wrap.appendChild(range);
+          wrap.appendChild(number);
+          row.appendChild(lab);
+          row.appendChild(wrap);
+          inspectorFields.appendChild(row);
+        };
         const addButtonRow = (buttons) => {
           const row = document.createElement('div');
           row.className = 'btnRow';
@@ -3614,6 +3670,7 @@ import { createControlsController } from './modules/controls.js';
         }
 
         if (sel.type === 'roof') {
+          const weather = normalizeRoofWeathering(sel.item);
           addField('Type', 'roof', 'type', { readonly: true });
           addField('ID', sel.item.id, 'id', { readonly: true });
           addField('Floor', sel.floorId, 'floorId');
@@ -3631,7 +3688,23 @@ import { createControlsController } from './modules/controls.js';
           addField('Tint', sel.item.tint || '#ffffff', 'tint', { type: 'color' });
           addField('Tint Strength', sel.item.tintStrength != null ? sel.item.tintStrength : 0, 'tint_strength', { type: 'number', step: '0.05' });
           addField('Shade NE', sel.item.shade != null ? sel.item.shade : 0.2, 'shade', { type: 'number', step: '0.05' });
+          addField('Weather Seed', weather && weather.seed ? weather.seed : (sel.item.id || ''), 'weather_seed');
+          addSliderField('Aging', weather ? weather.aging : 0, 'weather_aging', { min: 0, max: 1, step: 0.01 });
+          addSliderField('Moss', weather ? weather.moss : 0, 'weather_moss', { min: 0, max: 1, step: 0.01 });
+          addSliderField('Mottling', weather ? weather.mottling : 0, 'weather_mottling', { min: 0, max: 1, step: 0.01 });
+          addSliderField('Streaks', weather ? weather.streaks : 0, 'weather_streaks', { min: 0, max: 1, step: 0.01 });
+          addSliderField('Repairs', weather ? weather.repairs : 0, 'weather_repairs', { min: 0, max: 1, step: 0.01 });
+          addSliderField('Contrast', weather ? weather.contrast : 0, 'weather_contrast', { min: 0, max: 1, step: 0.01 });
           addField('Z', sel.item.z != null ? sel.item.z : '', 'z', { type: 'number', step: '1' });
+          addButtonRow([
+            {
+              label: 'Reset Weather',
+              onClick: () => {
+                applyFieldChange('weather_reset', '1');
+                updateInspector();
+              }
+            },
+          ]);
           addButtonRow([
             { label: 'To Front', onClick: () => reorderSelection('front') },
             { label: 'To Back', onClick: () => reorderSelection('back') },
@@ -3784,6 +3857,7 @@ import { createControlsController } from './modules/controls.js';
         }
 
         if (sel.type === 'roof') {
+          const weather = normalizeRoofWeathering(item);
           if (key === 'floorId') moveRoofToFloor(item, value);
           if (key === 'points') {
             const points = parsePointList(value);
@@ -3844,6 +3918,24 @@ import { createControlsController } from './modules/controls.js';
           }
           if (key === 'tint_strength') item.tintStrength = Math.max(0, Math.min(1, num(value, 0)));
           if (key === 'shade') item.shade = Math.max(0, Math.min(1, num(value, 0.2)));
+          if (key === 'weather_seed') {
+            const v = String(value || '').trim();
+            weather.seed = v || String(item.id || 'roof-weather');
+          }
+          if (key === 'weather_aging') weather.aging = clampUnitInterval(num(value, 0));
+          if (key === 'weather_moss') weather.moss = clampUnitInterval(num(value, 0));
+          if (key === 'weather_mottling') weather.mottling = clampUnitInterval(num(value, 0));
+          if (key === 'weather_streaks') weather.streaks = clampUnitInterval(num(value, 0));
+          if (key === 'weather_repairs') weather.repairs = clampUnitInterval(num(value, 0));
+          if (key === 'weather_contrast') weather.contrast = clampUnitInterval(num(value, 0));
+          if (key === 'weather_reset') {
+            weather.aging = 0;
+            weather.moss = 0;
+            weather.mottling = 0;
+            weather.streaks = 0;
+            weather.repairs = 0;
+            weather.contrast = 0;
+          }
           if (key === 'z') item.z = num(value, null);
         }
 
