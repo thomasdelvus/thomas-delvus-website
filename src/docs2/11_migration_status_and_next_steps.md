@@ -1,7 +1,7 @@
 # Battlemat3 Migration Status and Next Steps
 
-Version: v1.00  
-Updated: 2026-02-10
+Version: v1.01  
+Updated: 2026-02-11
 
 ## Completed Milestones
 
@@ -15,6 +15,11 @@ Updated: 2026-02-10
    4. chat controller
    5. history/undo controller
    6. pan/zoom hold setup controller
+5. Roof weathering workstream Phase 1-4 completed:
+   1. state model normalization
+   2. deterministic seeded render maps
+   3. roof inspector controls
+   4. cache/performance hardening
 
 ## Current Runtime Snapshot
 
@@ -37,6 +42,9 @@ Updated: 2026-02-10
    1. roof/room handle workflows
    2. token drag + entity patch
    3. chat poll/send under intermittent backend latency
+4. Roof weathering visual QA:
+   1. deterministic appearance under pan/zoom
+   2. slider persistence across save/reload
 
 ## Recommended Next Work (Post-Docs)
 

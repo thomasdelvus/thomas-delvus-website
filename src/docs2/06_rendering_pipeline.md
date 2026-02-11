@@ -1,6 +1,6 @@
 # Battlemat3 Rendering Pipeline
 
-Version: v1.01  
+Version: v1.02  
 Updated: 2026-02-11
 
 ## Overview
@@ -76,6 +76,14 @@ Street-segment rooms can auto-reveal adjacent rooms based on active PC positions
    6. `repairs`
 5. Channel strength is controlled by normalized `roof.weathering` values (0..1).
 6. With all controls at `0`, behavior is visually unchanged (no-op weathering pass).
+
+## Roof Weathering Hardening (Phase 4)
+
+Performance safeguards added for weathering runtime:
+
+1. weather map cache uses LRU eviction (`ROOF_WEATHER_MAP_CACHE_LIMIT`)
+2. per-context pattern cache uses LRU eviction (`ROOF_WEATHER_PATTERN_CACHE_LIMIT`)
+3. roof draw path now skips weathering overlay pass entirely when all weathering controls are `0`
 
 ## Performance Characteristics
 

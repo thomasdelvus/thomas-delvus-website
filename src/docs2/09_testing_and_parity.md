@@ -1,6 +1,6 @@
 # Battlemat3 Testing and Parity Guide
 
-Version: v1.01  
+Version: v1.02  
 Updated: 2026-02-11
 
 ## Testing Strategy
@@ -66,6 +66,10 @@ Run these on each meaningful change set:
    2. verify deterministic look after pan/zoom
    3. verify persistence after Save + reload
    4. verify `Reset Weather` returns the roof to baseline weathering
+10. roof weathering perf (Phase 4):
+   1. pan across map with multiple weathered roofs visible
+   2. confirm no stutter spike after first render warm-up
+   3. confirm no blackout/errors in console
 
 ## Micro-Batch Validation Pattern
 

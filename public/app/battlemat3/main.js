@@ -164,6 +164,8 @@ import { createControlsController } from './modules/controls.js';
         contrast: 0
       });
       const ROOF_WEATHER_TEXTURE_SIZE = 256;
+      const ROOF_WEATHER_MAP_CACHE_LIMIT = 96;
+      const ROOF_WEATHER_PATTERN_CACHE_LIMIT = 320;
       const ROOF_WEATHER_PATTERN_SCALE = Object.freeze({
         aging: 0.2,
         moss: 0.2,
@@ -1168,6 +1170,19 @@ import { createControlsController } from './modules/controls.js';
       const ROOF_WEATHER_MAP_CACHE = new Map();
       const ROOF_WEATHER_PATTERN_CACHE = new WeakMap();
 
+      function touchLruCacheEntry(cache, key, value, limit) {
+        if (!cache || key == null) return;
+        if (cache.has(key)) cache.delete(key);
+        cache.set(key, value);
+        const max = Number.isFinite(Number(limit)) ? Math.max(1, Math.floor(Number(limit))) : 0;
+        if (!max) return;
+        while (cache.size > max) {
+          const oldestKey = cache.keys().next().value;
+          if (oldestKey == null) break;
+          cache.delete(oldestKey);
+        }
+      }
+
       function seedHash32(value) {
         const text = String(value == null ? '' : value);
         let h = 2166136261;
@@ -1354,9 +1369,12 @@ import { createControlsController } from './modules/controls.js';
       function getRoofWeatherMaps(seedKey) {
         const key = String(seedKey || 'roof-weather');
         const cached = ROOF_WEATHER_MAP_CACHE.get(key);
-        if (cached) return cached;
+        if (cached) {
+          touchLruCacheEntry(ROOF_WEATHER_MAP_CACHE, key, cached, ROOF_WEATHER_MAP_CACHE_LIMIT);
+          return cached;
+        }
         const maps = buildRoofWeatherMaps(key);
-        ROOF_WEATHER_MAP_CACHE.set(key, maps);
+        touchLruCacheEntry(ROOF_WEATHER_MAP_CACHE, key, maps, ROOF_WEATHER_MAP_CACHE_LIMIT);
         return maps;
       }
 
@@ -1373,14 +1391,25 @@ import { createControlsController } from './modules/controls.js';
         const cache = getRoofWeatherPatternCache(gctx);
         const cacheKey = `${seedKey}:${layerName}`;
         const cached = cache.get(cacheKey);
-        if (cached && cached.pattern) return cached.pattern;
+        if (cached && cached.pattern) {
+          touchLruCacheEntry(cache, cacheKey, cached, ROOF_WEATHER_PATTERN_CACHE_LIMIT);
+          return cached.pattern;
+        }
         const maps = getRoofWeatherMaps(seedKey);
         const source = maps && maps[layerName];
         if (!source) return null;
         const pattern = gctx.createPattern(source, 'repeat');
         if (!pattern) return null;
-        cache.set(cacheKey, { pattern });
+        touchLruCacheEntry(cache, cacheKey, { pattern }, ROOF_WEATHER_PATTERN_CACHE_LIMIT);
         return pattern;
+      }
+
+      function hasRoofWeatheringEffect(weathering) {
+        if (!weathering || typeof weathering !== 'object') return false;
+        for (const key of ROOF_WEATHERING_KEYS) {
+          if (clampUnitInterval(weathering[key]) > 0) return true;
+        }
+        return false;
       }
 
       function traceScreenPolygonPath(gctx, polyScreen) {
@@ -2011,6 +2040,7 @@ import { createControlsController } from './modules/controls.js';
         if (pts.length < 3) return;
         const screenPts = pts.map(worldToScreen);
         const weathering = normalizeRoofWeathering(roof);
+        const weatheringActive = hasRoofWeatheringEffect(weathering);
         const kind = String(roof && roof.kind ? roof.kind : 'slate');
         const roofColor = FLOOR_COLORS[kind] || FLOOR_COLORS.default;
         const shadeStrength = Number.isFinite(Number(roof && roof.shade)) ? Number(roof.shade) : 0.2;
@@ -2086,7 +2116,9 @@ import { createControlsController } from './modules/controls.js';
             gctx.fill();
             gctx.restore();
           }
-          applyRoofWeatheringToPolygon(roof, gctx, polyScreen, anchor, section, rotFor(section) + totalRot, weathering);
+          if (weatheringActive) {
+            applyRoofWeatheringToPolygon(roof, gctx, polyScreen, anchor, section, rotFor(section) + totalRot, weathering);
+          }
         };
         const uniqueBy = (arr, keyFn) => {
           const out = [];
