@@ -1270,21 +1270,21 @@ import { createControlsController } from './modules/controls.js';
 
         paintBlobLayer(aging.gctx, agingRng, {
           size,
-          count: 240,
+          count: 300,
           minR: 8,
-          maxR: 42,
-          alphaMin: 0.02,
-          alphaMax: 0.08,
+          maxR: 44,
+          alphaMin: 0.05,
+          alphaMax: 0.18,
           colorFn: () => [0, 0, 0]
         });
 
         paintBlobLayer(moss.gctx, mossRng, {
           size,
-          count: 220,
+          count: 300,
           minR: 6,
-          maxR: 28,
-          alphaMin: 0.03,
-          alphaMax: 0.14,
+          maxR: 32,
+          alphaMin: 0.08,
+          alphaMax: 0.26,
           colorFn: (rng) => {
             const hueOffset = Math.round(rng() * 20);
             return [70 + hueOffset, 95 + hueOffset, 58 + Math.round(rng() * 10)];
@@ -1297,33 +1297,33 @@ import { createControlsController } from './modules/controls.js';
 
         paintBlobLayer(mottlingDark.gctx, darkRng, {
           size,
-          count: 820,
+          count: 1200,
           minR: 1,
           maxR: 5,
-          alphaMin: 0.015,
-          alphaMax: 0.08,
+          alphaMin: 0.035,
+          alphaMax: 0.16,
           colorFn: () => [0, 0, 0]
         });
         paintBlobLayer(mottlingLight.gctx, lightRng, {
           size,
-          count: 620,
+          count: 980,
           minR: 1,
           maxR: 4,
-          alphaMin: 0.012,
-          alphaMax: 0.07,
+          alphaMin: 0.03,
+          alphaMax: 0.13,
           colorFn: () => [255, 255, 255]
         });
 
         const strokeColor = [40, 43, 49];
         streaks.gctx.lineCap = 'round';
         streaks.gctx.lineJoin = 'round';
-        for (let i = 0; i < 110; i++) {
+        for (let i = 0; i < 160; i++) {
           const x = streakRng() * size;
           const y = -size * 0.05 + streakRng() * size * 0.55;
           const len = size * (0.2 + streakRng() * 0.95);
           const drift = (streakRng() - 0.5) * size * 0.2;
-          const width = 0.6 + streakRng() * 2.1;
-          const a = 0.05 + streakRng() * 0.17;
+          const width = 0.9 + streakRng() * 2.8;
+          const a = 0.1 + streakRng() * 0.28;
           const grad = streaks.gctx.createLinearGradient(x, y, x + drift, y + len);
           grad.addColorStop(0, `rgba(${strokeColor[0]},${strokeColor[1]},${strokeColor[2]},${a})`);
           grad.addColorStop(0.65, `rgba(${strokeColor[0]},${strokeColor[1]},${strokeColor[2]},${a * 0.52})`);
@@ -1336,13 +1336,13 @@ import { createControlsController } from './modules/controls.js';
           streaks.gctx.stroke();
         }
 
-        for (let i = 0; i < 38; i++) {
+        for (let i = 0; i < 52; i++) {
           const w = size * (0.03 + repairRng() * 0.12);
           const h = size * (0.02 + repairRng() * 0.06);
           const x = repairRng() * size;
           const y = repairRng() * size;
           const rot = (repairRng() - 0.5) * 0.8;
-          const alpha = 0.09 + repairRng() * 0.2;
+          const alpha = 0.18 + repairRng() * 0.34;
           const dark = 80 + Math.round(repairRng() * 45);
           const mid = dark + 8 + Math.round(repairRng() * 28);
           repairs.gctx.save();
@@ -1432,12 +1432,13 @@ import { createControlsController } from './modules/controls.js';
         const w = weathering && typeof weathering === 'object' ? weathering : normalizeRoofWeathering(roof);
         if (!w) return;
 
-        const aging = clampUnitInterval(w.aging);
-        const moss = clampUnitInterval(w.moss);
-        const mottling = clampUnitInterval(w.mottling);
-        const streaks = clampUnitInterval(w.streaks);
-        const repairs = clampUnitInterval(w.repairs);
-        const contrast = clampUnitInterval(w.contrast);
+        const intensity = (value) => Math.pow(clampUnitInterval(value), 0.78);
+        const aging = intensity(w.aging);
+        const moss = intensity(w.moss);
+        const mottling = intensity(w.mottling);
+        const streaks = intensity(w.streaks);
+        const repairs = intensity(w.repairs);
+        const contrast = intensity(w.contrast);
         if (aging <= 0 && moss <= 0 && mottling <= 0 && streaks <= 0 && repairs <= 0 && contrast <= 0) return;
 
         const seed = String((w.seed || roof.id || 'roof-weather')).trim() || 'roof-weather';
@@ -1465,17 +1466,18 @@ import { createControlsController } from './modules/controls.js';
           gctx.restore();
         };
 
-        paintLayer('aging', 'multiply', 0.42 * aging * (0.9 + contrast * 0.2));
-        paintLayer('moss', 'multiply', 0.5 * moss * mossBias * (0.85 + contrast * 0.25));
-        paintLayer('mottlingDark', 'multiply', 0.3 * mottling * contrastBoost);
-        paintLayer('mottlingLight', 'screen', 0.22 * mottling * (0.65 + contrast * 0.55));
-        paintLayer('streaks', 'multiply', 0.36 * streaks * (0.75 + contrast * 0.35));
-        paintLayer('repairs', 'source-over', 0.26 * repairs * (0.9 + contrast * 0.25));
-        paintLayer('repairs', 'multiply', 0.16 * repairs * contrastBoost);
+        paintLayer('aging', 'multiply', 0.95 * aging * (0.95 + contrast * 0.25));
+        paintLayer('moss', 'multiply', 0.95 * moss * mossBias * (0.9 + contrast * 0.35));
+        paintLayer('mottlingDark', 'multiply', 0.72 * mottling * contrastBoost);
+        paintLayer('mottlingLight', 'screen', 0.62 * mottling * (0.7 + contrast * 0.6));
+        paintLayer('streaks', 'multiply', 0.82 * streaks * (0.8 + contrast * 0.4));
+        paintLayer('repairs', 'source-over', 0.58 * repairs * (0.95 + contrast * 0.25));
+        paintLayer('repairs', 'multiply', 0.42 * repairs * contrastBoost);
 
         if (contrast > 0.001) {
-          paintLayer('aging', 'multiply', 0.08 * contrast);
-          paintLayer('mottlingLight', 'screen', 0.05 * contrast);
+          paintLayer('aging', 'multiply', 0.22 * contrast);
+          paintLayer('mottlingLight', 'screen', 0.16 * contrast);
+          paintLayer('streaks', 'multiply', 0.1 * contrast);
         }
       }
 
