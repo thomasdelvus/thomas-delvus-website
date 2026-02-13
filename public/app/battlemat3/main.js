@@ -986,27 +986,64 @@ import { createControlsController } from './modules/controls.js';
               if (!Number.isFinite(col) || !Number.isFinite(row)) return '';
               return toHexLabel(col, row);
             };
+            const normalizeHexString = (value) => {
+              if (typeof value !== 'string') return '';
+              const raw = value.trim().toUpperCase();
+              if (!raw) return '';
+              if (parseHexLabel(raw)) return raw;
+              const compact = raw.replace(/\s+/g, '');
+              if (parseHexLabel(compact)) return compact;
+              const joined = raw.match(/^([A-Z]+)[\s:_-]+(-?\d+(?:\.\d+)?)$/);
+              if (joined && parseHexLabel(`${joined[1]}${joined[2]}`)) return `${joined[1]}${joined[2]}`;
+              const csv = raw.match(/^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/);
+              if (csv) return toHexLabelFromCoords(csv[1], csv[2]);
+              return '';
+            };
+            const hexFromXY = (xRaw, yRaw) => {
+              const x = Number(xRaw);
+              const y = Number(yRaw);
+              if (!Number.isFinite(x) || !Number.isFinite(y)) return '';
+              if (Math.abs(x) > 500 || Math.abs(y) > 500) {
+                const h = worldToHex({ x, y });
+                return h ? toHexLabel(h.col, h.row) : '';
+              }
+              return toHexLabelFromCoords(x, y);
+            };
             const normalizeHex = (value) => {
-              if (typeof value === 'string') return value.trim().toUpperCase();
+              if (typeof value === 'string') return normalizeHexString(value);
               if (value && typeof value === 'object') {
-                const col = value.col ?? value.q ?? value.x;
-                const row = value.row ?? value.r ?? value.y;
-                return toHexLabelFromCoords(col, row);
+                const col = value.col ?? value.q;
+                const row = value.row ?? value.r;
+                const direct = toHexLabelFromCoords(col, row);
+                if (direct) return direct;
+                const nested = normalizeHexString(value.hex ?? value.hex_label ?? value.hexLabel ?? '');
+                if (nested) return nested;
+                return hexFromXY(value.x, value.y);
               }
               return '';
             };
             const hex = normalizeHex(
               e.hex ||
+              e.hex_label ||
+              e.hexLabel ||
               loc.hex ||
               loc.hex_label ||
               loc.hexLabel ||
               toHexLabelFromCoords(
-                e.col ?? loc.col ?? loc.q ?? loc.x,
-                e.row ?? loc.row ?? loc.r ?? loc.y
+                e.col ?? loc.col ?? loc.q,
+                e.row ?? loc.row ?? loc.r
               )
+            ) || normalizeHexString(
+              loc.tile_hex || loc.tileHex || loc.tile || e.tile_hex || e.tileHex || e.tile || ''
+            ) || hexFromXY(
+              e.world_x ?? e.worldX ?? loc.world_x ?? loc.worldX ?? e.x ?? loc.x,
+              e.world_y ?? e.worldY ?? loc.world_y ?? loc.worldY ?? e.y ?? loc.y
             );
-            const floorRaw = e.floorId ?? loc.floorId ?? loc.floor_id ?? loc.floor ?? e.floor_id ?? '';
+            const floorRaw = e.floorId ?? loc.floorId ?? loc.floor_id ?? loc.floor ?? loc.level ?? e.floor_id ?? e.level ?? '';
             const floorId = floorRaw == null ? '' : String(floorRaw);
+            const spriteScaleRaw = (e.appearance && (e.appearance.sprite_scale ?? e.appearance.spriteScale)) ?? e.spriteScale ?? null;
+            const spriteScaleNum = Number(spriteScaleRaw);
+            const spriteScale = Number.isFinite(spriteScaleNum) && spriteScaleNum > 0 ? spriteScaleNum : null;
             return {
               id: String(e.id || e.character_id || ''),
               characterId: e.character_id || e.characterId || '',
@@ -1015,7 +1052,7 @@ import { createControlsController } from './modules/controls.js';
               floorId,
               kind: e.kind || 'pc',
               sprite: e.sprite || (e.appearance && e.appearance.sprite) || '',
-              spriteScale: (e.appearance && (e.appearance.sprite_scale ?? e.appearance.spriteScale)) ?? e.spriteScale ?? null,
+              spriteScale,
               hp: e.hp || (e.stats && e.stats.hp) || null,
               hp_max: e.hp_max || (e.stats && e.stats.hp_max) || null,
               init: e.init || (e.stats && e.stats.init) || null,
@@ -3106,7 +3143,8 @@ import { createControlsController } from './modules/controls.js';
         const center = worldToScreen(hexToWorld(p.col, p.row));
         const url = token.sprite || token.spriteFile || resolveSpriteUrl(token.kind) ||
           resolveSpriteUrl(token.side === 'NPC' ? 'token.npc' : 'token.pc');
-        const scale = Number.isFinite(Number(token.spriteScale)) ? Number(token.spriteScale) : tokenDefaultScale(token);
+        const rawScale = Number.isFinite(Number(token.spriteScale)) ? Number(token.spriteScale) : tokenDefaultScale(token);
+        const scale = Math.max(0.25, rawScale);
         const base = GRID.size * 0.9 * scale;
         if (url) {
           const img = loadSprite(url);
@@ -3117,7 +3155,7 @@ import { createControlsController } from './modules/controls.js';
             gctx.drawImage(img, center.x - sizeW / 2, center.y - sizeH / 2, sizeW, sizeH);
             return;
           }
-          if (img && img.__bmStatus !== 'error') return;
+          // Keep tokens visible while custom portraits are loading/failing.
         }
         const r = GRID.size * 0.35 * VIEW.zoom * scale;
         gctx.fillStyle = token.side === 'NPC' ? '#c95c5c' : '#5ca9c9';
