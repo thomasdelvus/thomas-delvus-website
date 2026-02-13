@@ -954,20 +954,34 @@ import { createControlsController } from './modules/controls.js';
             
 
       function buildTokens() {
+        const pickEntityList = () => {
+          if (Array.isArray(STATE.entities) && STATE.entities.length) return STATE.entities;
+          const candidates = [
+            STATE && STATE.campaign && STATE.campaign.world && STATE.campaign.world.entities,
+            STATE && STATE.campaign && STATE.campaign.entities,
+            STATE && STATE.battle && STATE.battle.world && STATE.battle.world.entities,
+            STATE && STATE.battle && STATE.battle.entities
+          ];
+          for (const list of candidates) {
+            if (Array.isArray(list) && list.length) return list;
+          }
+          return [];
+        };
         const poiId = String(resolvePoiId() || '').trim();
-        const entities = Array.isArray(STATE.entities) ? STATE.entities : [];
+        const entities = pickEntityList();
         return entities
           .filter(e => {
             if (!e || e.deleted) return false;
-            const entityPoi = String(e.poi_id ?? e.poiId ?? '').trim();
+            const loc = (e.location && typeof e.location === 'object') ? e.location : {};
+            const entityPoi = String(e.poi_id ?? e.poiId ?? loc.poi_id ?? loc.poiId ?? '').trim();
             // If current map has no POI mapping, do not discard POI-bound entities.
             if (!entityPoi || !poiId) return true;
             return entityPoi === poiId;
           })
           .map(e => {
             const loc = e.location || e.position || {};
-            const hex = e.hex || loc.hex || '';
-            const floorRaw = e.floorId ?? loc.floorId ?? loc.floor_id ?? e.floor_id ?? '';
+            const hex = e.hex || loc.hex || loc.hex_label || loc.hexLabel || '';
+            const floorRaw = e.floorId ?? loc.floorId ?? loc.floor_id ?? loc.floor ?? e.floor_id ?? '';
             const floorId = floorRaw == null ? '' : String(floorRaw);
             return {
               id: String(e.id || e.character_id || ''),
@@ -3276,8 +3290,7 @@ import { createControlsController } from './modules/controls.js';
         const streetRooms = roomList.filter(roomIsStreetSegment);
         if (!streetRooms.length) return none;
         const streetById = new Map(streetRooms.map((r) => [String(r.id || ''), r]).filter(([id]) => !!id));
-        const playerTokens = buildTokens().filter((t) => {
-          if (t && t.floorId && String(t.floorId) !== String(floor.id)) return false;
+        const playerTokens = tokensForFloor(floor.id, { allowFallback: true }).filter((t) => {
           const kind = String(t && t.kind || '').toLowerCase();
           const side = String(t && t.side || '').toUpperCase();
           return kind === 'pc' || side === 'PC';
@@ -3401,6 +3414,21 @@ import { createControlsController } from './modules/controls.js';
         return hexToWorld(p.col, p.row);
       }
 
+      function tokenMatchesFloor(token, floorId) {
+        if (!token) return false;
+        const tokenFloor = token.floorId == null ? '' : String(token.floorId).trim();
+        if (!tokenFloor) return true;
+        return tokenFloor.toLowerCase() === String(floorId == null ? '' : floorId).trim().toLowerCase();
+      }
+
+      function tokensForFloor(floorId, opts = {}) {
+        const allowFallback = !!(opts && opts.allowFallback);
+        const all = buildTokens();
+        const matched = all.filter(t => tokenMatchesFloor(t, floorId));
+        if (matched.length || !allowFallback) return matched;
+        return all;
+      }
+
       function itemFogState(item, floor, rooms, roomSets, getWorld) {
         if (!UI.fogEnabled) return 'visible';
         const parentId = item && (item.parent_room || item.parentRoom || item.parentRoomId || item.room_id || item.roomId);
@@ -3495,8 +3523,7 @@ import { createControlsController } from './modules/controls.js';
         });
         const poiObjects = objects.filter(o => String(o.kind || '').toLowerCase().startsWith('the.'));
         const normalObjects = objects.filter(o => !String(o.kind || '').toLowerCase().startsWith('the.'));
-        const tokens = buildTokens()
-          .filter(t => !t.floorId || String(t.floorId) === String(floor.id))
+        const tokens = tokensForFloor(floor.id, { allowFallback: true })
           .filter(t => itemFogState(t, floor, allRooms, fogSets, tokenWorldCenter) !== 'hidden');
         const objectOpenings = [];
         const tokenOpenings = [];
@@ -4216,7 +4243,7 @@ import { createControlsController } from './modules/controls.js';
         if (!floor) return null;
         const screenPoint = worldToScreen(worldPoint);
 
-        const tokens = buildTokens().filter(t => !t.floorId || String(t.floorId) === String(floor.id));
+        const tokens = tokensForFloor(floor.id, { allowFallback: true });
         const token = nearestItem(tokens, screenPoint, t => {
           const pos = parseHexLabel(t.hex);
           return pos ? worldToScreen(hexToWorld(pos.col, pos.row)) : null;
