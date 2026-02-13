@@ -36,55 +36,12 @@
       "name": "Ground",
       "rooms": [
         {
-          "id": "room_mkli30iq_2yw",
-          "corners": [
-            "DO105.5",
-            "EL105",
-            "EL96.5",
-            "DO96.75"
-          ],
-          "thickness": 15,
-          "floor": {
-            "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          },
-          "fog_mode": "explored",
-          "points": [
-            "DO105.5",
-            "EQ105.5",
-            "EQ97",
-            "DO97"
-          ]
-        },
-        {
-          "id": "room_ml81s06b",
-          "shape": "poly",
-          "points": [
-            "FA105.5",
-            "FC105.5",
-            "FC97",
-            "FA97"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "stone"
-          },
-          "wall": {
-            "kind": "brick"
-          },
-          "edge_hidden": [
-            0
-          ]
-        },
-        {
           "id": "room_ml81u2az",
           "shape": "poly",
           "points": [
             "FO97",
-            "FO118",
-            "FW118",
+            "FO124",
+            "FW124",
             "FW97"
           ],
           "thickness": 15,
@@ -99,65 +56,14 @@
           "id": "room_ml81z1x0",
           "shape": "poly",
           "points": [
-            "JV107.5",
-            "IX107.5",
+            "JS105",
+            "IX104.5",
             "IX119",
-            "JV119"
+            "JS119.5"
           ],
-          "thickness": 4,
+          "thickness": 15,
           "floor": {
             "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml822kxh",
-          "shape": "poly",
-          "points": [
-            "IX107.5",
-            "IX119",
-            "IN119",
-            "IN107"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml823t2d",
-          "shape": "poly",
-          "points": [
-            "IN107",
-            "IN119",
-            "IH119",
-            "IH107"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml824esu",
-          "shape": "poly",
-          "points": [
-            "IH107",
-            "IH119",
-            "IA119.5",
-            "IA107"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
           },
           "wall": {
             "kind": "brick"
@@ -167,82 +73,14 @@
           "id": "room_ml826jt1",
           "shape": "poly",
           "points": [
-            "HY124",
-            "HY106.5",
-            "HS106.5",
-            "HS124"
+            "HY119.5",
+            "HY105",
+            "HR104.5",
+            "HR119"
           ],
-          "thickness": 4,
+          "thickness": 15,
           "floor": {
             "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml82lp5x",
-          "shape": "poly",
-          "points": [
-            "DL65",
-            "DX65",
-            "DX60",
-            "DK60.5"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml82lwxx",
-          "shape": "poly",
-          "points": [
-            "DK60.5",
-            "DK55",
-            "DR54.5",
-            "DR60"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml82m7pa",
-          "shape": "poly",
-          "points": [
-            "DK46",
-            "DK50",
-            "DR49.5",
-            "DR45.5"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml82mfph",
-          "shape": "poly",
-          "points": [
-            "DK55",
-            "DK50",
-            "DR49.5",
-            "DR54.5"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
           },
           "wall": {
             "kind": "brick"
@@ -264,265 +102,6 @@
           "thickness": 15,
           "floor": {
             "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml82tx5q",
-          "shape": "poly",
-          "points": [
-            "LQ111",
-            "LQ132",
-            "MF131.5",
-            "MF126.5",
-            "MO127",
-            "MO113.5",
-            "ME113.5",
-            "ME111"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml82u7lp",
-          "shape": "poly",
-          "points": [
-            "LQ109",
-            "ME109",
-            "ME104",
-            "LQ104"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml82ur84",
-          "shape": "poly",
-          "points": [
-            "LQ132",
-            "LQ138.5",
-            "MC138.5",
-            "MC132"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml82v5pg",
-          "shape": "poly",
-          "points": [
-            "LQ138.5",
-            "LR142",
-            "MC142.5",
-            "MC138.5"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml82zac5",
-          "shape": "poly",
-          "points": [
-            "LN132",
-            "LN141",
-            "LI141.5",
-            "LI132.5"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml82zo5p",
-          "shape": "poly",
-          "points": [
-            "LI132.5",
-            "LD132",
-            "LD141",
-            "LI141.5"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml82zxx0",
-          "shape": "poly",
-          "points": [
-            "LD132",
-            "KW132",
-            "KW141.5",
-            "LD141"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml8306n9",
-          "shape": "poly",
-          "points": [
-            "KW132",
-            "KQ131.5",
-            "KQ141.5",
-            "KW141.5"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml830erx",
-          "shape": "poly",
-          "points": [
-            "KQ131.5",
-            "KK131",
-            "KK141.5",
-            "KQ141.5"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml830lat",
-          "shape": "poly",
-          "points": [
-            "KK131",
-            "KF130.5",
-            "KF141",
-            "KK141.5"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml831ylp",
-          "shape": "poly",
-          "points": [
-            "KF148",
-            "KF141",
-            "KL141",
-            "KL148"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml832b99",
-          "shape": "poly",
-          "points": [
-            "KL148",
-            "KR148",
-            "KR141",
-            "KL141"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml832hk5",
-          "shape": "poly",
-          "points": [
-            "KR148",
-            "KY149",
-            "KY141.5",
-            "KR141"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml832mvi",
-          "shape": "poly",
-          "points": [
-            "KY149",
-            "LE149",
-            "LE141.5",
-            "KY141.5"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml832uwd",
-          "shape": "poly",
-          "points": [
-            "LE149",
-            "LK149",
-            "LK141.5",
-            "LE141.5"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
           },
           "wall": {
             "kind": "brick"
@@ -567,8 +146,8 @@
           "shape": "poly",
           "points": [
             "HA96.5",
-            "HA87.5",
-            "HK87.5",
+            "HA88.5",
+            "HK88.5",
             "HK85",
             "HX84.5",
             "HX96"
@@ -585,286 +164,13 @@
           }
         },
         {
-          "id": "room_ml83insm",
-          "shape": "poly",
-          "points": [
-            "IM96.5",
-            "IM88.5",
-            "IE88.5",
-            "IE96.5"
-          ],
-          "thickness": 15,
-          "floor": {
-            "kind": "Wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml83kuhy",
-          "shape": "poly",
-          "points": [
-            "DR45.5",
-            "DY46",
-            "DY53.5",
-            "DR53"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml83l25p",
-          "shape": "poly",
-          "points": [
-            "EH53",
-            "DY53.5",
-            "DY46",
-            "EH45.5"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml83li0d",
-          "shape": "poly",
-          "points": [
-            "EH45.5",
-            "ER45",
-            "ER50.5",
-            "EH51"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml83lwpp",
-          "shape": "poly",
-          "points": [
-            "ER45",
-            "FA45.5",
-            "FA51",
-            "ER50.5"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml83m6cv",
-          "shape": "poly",
-          "points": [
-            "FA45.5",
-            "FN45",
-            "FN50.5",
-            "FA51"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml83moxx",
-          "shape": "poly",
-          "points": [
-            "FJ50.5",
-            "FJ56",
-            "EY56.5",
-            "EY51"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml83my7y",
-          "shape": "poly",
-          "points": [
-            "FN56",
-            "EY56.5",
-            "EY64.5",
-            "FN64"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "slate"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml84mzqe",
-          "shape": "poly",
-          "points": [
-            "GG91.5",
-            "GG103.5",
-            "GO103.5",
-            "GU103.5",
-            "HB103",
-            "HO103.5",
-            "HO96.5",
-            "HA96.5",
-            "HA91.5",
-            "GW91.5"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "stone"
-          },
-          "wall": {
-            "kind": "brick"
-          },
-          "edge_hidden": [
-            0,
-            5,
-            8
-          ],
-          "z": -2
-        },
-        {
-          "id": "room_ml84lfgu",
-          "shape": "poly",
-          "points": [
-            "DO97",
-            "DN91",
-            "GG91.5",
-            "GG97"
-          ],
-          "thickness": 15,
-          "floor": {
-            "kind": "stone"
-          },
-          "wall": {
-            "kind": "brick"
-          },
-          "edge_hidden": [
-            0,
-            1,
-            2,
-            3
-          ],
-          "z": -1
-        },
-        {
-          "id": "room_ml84of06",
-          "shape": "poly",
-          "points": [
-            "FW107.5",
-            "FY107.5",
-            "FY97",
-            "FW97"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "stone"
-          },
-          "wall": {
-            "kind": "brick"
-          },
-          "z": -3,
-          "edge_hidden": [
-            0
-          ]
-        },
-        {
-          "id": "room_ml84qmf2",
-          "shape": "poly",
-          "points": [
-            "FL91",
-            "FP91",
-            "FP83",
-            "FL83"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "stone"
-          },
-          "wall": {
-            "kind": "brick"
-          },
-          "edge_hidden": [
-            2
-          ]
-        },
-        {
-          "id": "room_ml84rt6m",
-          "shape": "poly",
-          "points": [
-            "DX91",
-            "DZ91",
-            "DZ83",
-            "DX83"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "grass"
-          },
-          "wall": {
-            "kind": "brick"
-          },
-          "edge_hidden": [
-            2
-          ]
-        },
-        {
-          "id": "room_ml853nbc",
-          "shape": "poly",
-          "points": [
-            "FQ45",
-            "FN45",
-            "FN50.5",
-            "FJ50.5",
-            "FJ56",
-            "FN56",
-            "FQ56.5"
-          ],
-          "thickness": 4,
-          "floor": {
-            "kind": "stone"
-          },
-          "wall": {
-            "kind": "brick"
-          },
-          "edge_hidden": [
-            5
-          ]
-        },
-        {
           "id": "room_ml854kj4",
           "shape": "poly",
           "points": [
             "DL69.5",
             "DL65",
-            "DX65",
-            "DX69.5"
+            "EY65.5",
+            "EY70"
           ],
           "thickness": 4,
           "floor": {
@@ -874,7 +180,8 @@
             "kind": "brick"
           },
           "edge_hidden": [
-            2
+            2,
+            3
           ]
         },
         {
@@ -1787,7 +1094,11 @@
           },
           "wall": {
             "kind": "brick"
-          }
+          },
+          "edge_hidden": [
+            2,
+            3
+          ]
         },
         {
           "id": "room_ml9j7mhp",
@@ -1838,14 +1149,15 @@
           },
           "wall": {
             "kind": "brick"
-          }
+          },
+          "z": 228
         },
         {
           "id": "room_ml9jbjuo",
           "shape": "poly",
           "points": [
-            "FY97",
-            "GG97",
+            "FY103.5",
+            "GG103.5",
             "GG118",
             "FY118"
           ],
@@ -1863,8 +1175,8 @@
           "points": [
             "GG103.5",
             "GR103",
-            "GR110",
-            "GG110.5"
+            "GR111.5",
+            "GG112"
           ],
           "thickness": 15,
           "floor": {
@@ -1880,8 +1192,8 @@
           "points": [
             "HO103.5",
             "HE103.5",
-            "HE115",
-            "HO115"
+            "HE119.5",
+            "HO119.5"
           ],
           "thickness": 15,
           "floor": {
@@ -1895,8 +1207,8 @@
           "id": "room_ml9jkiv5",
           "shape": "poly",
           "points": [
-            "GR110",
-            "HE110.5",
+            "GR111.5",
+            "HE112",
             "HE103.5",
             "GR103"
           ],
@@ -1934,7 +1246,7 @@
             "FO104",
             "FC104"
           ],
-          "thickness": 15,
+          "thickness": 0,
           "floor": {
             "kind": "wood_oak"
           },
@@ -1980,46 +1292,12 @@
           "id": "room_ml9jo7g1",
           "shape": "poly",
           "points": [
-            "EQ105.5",
-            "FA105.5",
+            "EQ105",
+            "FA105",
             "FA97",
             "EQ97"
           ],
-          "thickness": 15,
-          "floor": {
-            "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml9jqukg",
-          "shape": "poly",
-          "points": [
-            "DO105.5",
-            "DO116",
-            "ED115.5",
-            "ED105"
-          ],
-          "thickness": 15,
-          "floor": {
-            "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
-          "id": "room_ml9jrh5d",
-          "shape": "poly",
-          "points": [
-            "DO165.5",
-            "DO155.5",
-            "EB155",
-            "EA167"
-          ],
-          "thickness": 15,
+          "thickness": 4,
           "floor": {
             "kind": "wood_oak"
           },
@@ -2132,23 +1410,6 @@
           }
         },
         {
-          "id": "room_ml9k1k08",
-          "shape": "poly",
-          "points": [
-            "FL91",
-            "FL85.5",
-            "FF85.5",
-            "FF91"
-          ],
-          "thickness": 15,
-          "floor": {
-            "kind": "wood_oak"
-          },
-          "wall": {
-            "kind": "brick"
-          }
-        },
-        {
           "id": "room_ml9k1s2o",
           "shape": "poly",
           "points": [
@@ -2171,8 +1432,8 @@
           "points": [
             "EY91.5",
             "EU91.5",
-            "EU87.5",
-            "EY87.5"
+            "EU89",
+            "EY89"
           ],
           "thickness": 15,
           "floor": {
@@ -2197,7 +1458,8 @@
           },
           "wall": {
             "kind": "brick"
-          }
+          },
+          "z": 226
         },
         {
           "id": "room_ml9k3v7t",
@@ -2242,13 +1504,3333 @@
             "EI91.5",
             "DZ91",
             "DZ83",
-            "EM83.5",
-            "EM87",
+            "EI83.5",
+            "EI87",
             "EI87"
           ],
           "thickness": 15,
           "floor": {
             "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kch41",
+          "shape": "poly",
+          "points": [
+            "IB104.5",
+            "IB114",
+            "IJ114",
+            "IJ104.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kclxm",
+          "shape": "poly",
+          "points": [
+            "IJ104.5",
+            "IO105",
+            "IO114.5",
+            "IJ114"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kcse2",
+          "shape": "poly",
+          "points": [
+            "IO110.5",
+            "IX110",
+            "IX104.5",
+            "IO105"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kd0x5",
+          "shape": "poly",
+          "points": [
+            "IO110.5",
+            "IO119.5",
+            "IU119.5",
+            "IU110.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kfsbu",
+          "shape": "poly",
+          "points": [
+            "IB114",
+            "IB120.5",
+            "IH120.5",
+            "IH114"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kfyy1",
+          "shape": "poly",
+          "points": [
+            "IB120.5",
+            "IB127",
+            "IH127",
+            "IH120.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9khad6",
+          "shape": "poly",
+          "points": [
+            "IH127",
+            "IH132.5",
+            "IX132.5",
+            "IX127"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9ki9wi",
+          "shape": "poly",
+          "points": [
+            "IH132.5",
+            "IH127",
+            "IB127",
+            "IB132.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kkmbl",
+          "shape": "poly",
+          "points": [
+            "JV142",
+            "JV134",
+            "JH134",
+            "JH142"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kkzk9",
+          "shape": "poly",
+          "points": [
+            "JV119",
+            "JV134",
+            "JH134",
+            "JH119"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9klyx6",
+          "shape": "poly",
+          "points": [
+            "IU119.5",
+            "IX119",
+            "IX110",
+            "IU110.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kmke2",
+          "shape": "poly",
+          "points": [
+            "JS188",
+            "JS180.5",
+            "JL180",
+            "JL187.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kp3aa",
+          "shape": "poly",
+          "points": [
+            "LM131.5",
+            "KG131.5",
+            "KG147.5",
+            "KW147.5",
+            "KW136.5",
+            "LM136.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kpeqq",
+          "shape": "poly",
+          "points": [
+            "KW147.5",
+            "LM147.5",
+            "LM136.5",
+            "KW136.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9krio9",
+          "shape": "poly",
+          "points": [
+            "KF149.5",
+            "KW150",
+            "KW155",
+            "KE155"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9krr8y",
+          "shape": "poly",
+          "points": [
+            "KW155",
+            "LB154.5",
+            "LB149.5",
+            "KW150"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9ks2f7",
+          "shape": "poly",
+          "points": [
+            "LB154.5",
+            "LM155",
+            "LM150",
+            "LB149.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kuzrm",
+          "shape": "poly",
+          "points": [
+            "LM150",
+            "LM159.5",
+            "MD159",
+            "MD149.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kw3u2",
+          "shape": "poly",
+          "points": [
+            "LR141.5",
+            "LX141.5",
+            "LX131",
+            "LR131"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kxlbe",
+          "shape": "poly",
+          "points": [
+            "LX141.5",
+            "MO142",
+            "MO131.5",
+            "LX131"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kyfk2",
+          "shape": "poly",
+          "points": [
+            "LR104.5",
+            "LR109.5",
+            "LX109.5",
+            "LX104.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kzbj7",
+          "shape": "poly",
+          "points": [
+            "LR111",
+            "MJ111",
+            "MJ120.5",
+            "LR120.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9kzgtf",
+          "shape": "poly",
+          "points": [
+            "LR131",
+            "LR120.5",
+            "LY121",
+            "LY131.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9l0n16",
+          "shape": "poly",
+          "points": [
+            "LY131.5",
+            "MJ131",
+            "MJ120.5",
+            "LY121"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9l1syz",
+          "shape": "poly",
+          "points": [
+            "LR104.5",
+            "LR95.5",
+            "LZ95.5",
+            "LZ104.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9mmcn7",
+          "shape": "poly",
+          "points": [
+            "LZ104.5",
+            "ML104.5",
+            "ML95.5",
+            "LZ95.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9mmn0i",
+          "shape": "poly",
+          "points": [
+            "LR95.5",
+            "LR83",
+            "MD83",
+            "MD95.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9moaij",
+          "shape": "poly",
+          "points": [
+            "LM48.5",
+            "LM59.5",
+            "LV59",
+            "LV48"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9mpc8i",
+          "shape": "poly",
+          "points": [
+            "LM59.5",
+            "LM66.5",
+            "LV66",
+            "LV59"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9mr7jv",
+          "shape": "poly",
+          "points": [
+            "GB43",
+            "FQ43.5",
+            "FQ52.5",
+            "GB52"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9mroaa",
+          "shape": "poly",
+          "points": [
+            "FM43.5",
+            "EV43",
+            "EV48.5",
+            "FM49"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9mrv2i",
+          "shape": "poly",
+          "points": [
+            "EV48.5",
+            "EP48.5",
+            "EP43",
+            "EV43"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9msix6",
+          "shape": "poly",
+          "points": [
+            "DL65",
+            "DW65.5",
+            "DW59.5",
+            "DR59",
+            "DR55.5",
+            "DL55.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9msujf",
+          "shape": "poly",
+          "points": [
+            "DL55.5",
+            "DL43",
+            "DW43.5",
+            "DW49",
+            "DR48.5",
+            "DR55.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9mt9d7",
+          "shape": "poly",
+          "points": [
+            "EF48.5",
+            "DW49",
+            "DW43.5",
+            "EF43"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9mv5u4",
+          "shape": "poly",
+          "points": [
+            "EF48.5",
+            "EF43",
+            "EP43",
+            "EP53.5",
+            "EJ53.5",
+            "EJ48.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9mxsa1",
+          "shape": "poly",
+          "points": [
+            "EY86",
+            "EY65.5",
+            "FF65",
+            "FF85.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9myvhe",
+          "shape": "poly",
+          "points": [
+            "EX48.5",
+            "EX53.5",
+            "FJ53.5",
+            "FJ48.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9mzhvm",
+          "shape": "poly",
+          "points": [
+            "EX53.5",
+            "EP53.5",
+            "EP48.5",
+            "EX48.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9mzz5m",
+          "shape": "poly",
+          "points": [
+            "EJ53.5",
+            "EJ65",
+            "EY65.5",
+            "EY54"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9n07mq",
+          "shape": "poly",
+          "points": [
+            "DW65.5",
+            "EJ65",
+            "EJ59",
+            "DW59.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9n1owa",
+          "shape": "poly",
+          "points": [
+            "EY65.5",
+            "FN65",
+            "FN53.5",
+            "EY54"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9n49a2",
+          "shape": "poly",
+          "points": [
+            "GV67.5",
+            "GJ67.5",
+            "GJ60",
+            "FZ60",
+            "FZ77.5",
+            "GI78",
+            "GI73.5",
+            "GN73",
+            "GN70",
+            "GV70"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "edge_hidden": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ]
+        },
+        {
+          "id": "room_ml9n5zmz",
+          "shape": "poly",
+          "points": [
+            "FQ57",
+            "FQ52.5",
+            "GF52",
+            "GF56.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9n721m",
+          "shape": "poly",
+          "points": [
+            "FL91",
+            "FP91",
+            "FP84",
+            "FR84",
+            "FR60",
+            "GF60",
+            "GF56.5",
+            "FQ57",
+            "FQ43.5",
+            "FM43.5",
+            "FM49",
+            "FJ48.5",
+            "FJ53.5",
+            "FN53.5",
+            "FN65",
+            "FF65",
+            "FF86.5",
+            "FL86.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "edge_hidden": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17
+          ]
+        },
+        {
+          "id": "room_ml9nc49o",
+          "shape": "poly",
+          "points": [
+            "EQ116",
+            "EQ105",
+            "EX104.5",
+            "EX115.5"
+          ],
+          "thickness": 4,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9nfxkr",
+          "shape": "poly",
+          "points": [
+            "EW116",
+            "EW120",
+            "FI120",
+            "FI116"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9ng2yi",
+          "shape": "poly",
+          "points": [
+            "EW120",
+            "EW124",
+            "FI124",
+            "FI120"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9nhtv7",
+          "shape": "poly",
+          "points": [
+            "FI124",
+            "FO124",
+            "FO116",
+            "FI116"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9ni8ka",
+          "shape": "poly",
+          "points": [
+            "FD115.5",
+            "FD109.5",
+            "FK110",
+            "FK116"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9niw4r",
+          "shape": "poly",
+          "points": [
+            "FA97",
+            "FA105",
+            "EX104.5",
+            "EX115.5",
+            "FD115.5",
+            "FD109.5",
+            "FK110",
+            "FK116",
+            "FO116",
+            "FO104",
+            "FC104",
+            "FC97"
+          ],
+          "thickness": 0,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9nk3hf",
+          "shape": "poly",
+          "points": [
+            "EW124",
+            "EI124",
+            "EI120",
+            "EW120"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9nkvi9",
+          "shape": "poly",
+          "points": [
+            "EW116",
+            "EC116",
+            "EC120",
+            "EW120"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9nllbv",
+          "shape": "poly",
+          "points": [
+            "DO116",
+            "DO127",
+            "DT126.5",
+            "DT119.5",
+            "DX119.5",
+            "DX115.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9nlu9f",
+          "shape": "poly",
+          "points": [
+            "DT126.5",
+            "EF126.5",
+            "EF121.5",
+            "DT121.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9nn7ir",
+          "shape": "poly",
+          "points": [
+            "DO134.5",
+            "DO129",
+            "ES129",
+            "ES134.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9nnig3",
+          "shape": "poly",
+          "points": [
+            "ES134.5",
+            "ES125.5",
+            "FA125.5",
+            "FA134.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9no6ze",
+          "shape": "poly",
+          "points": [
+            "FA138",
+            "FA125.5",
+            "FI125.5",
+            "FI138"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9noguk",
+          "shape": "poly",
+          "points": [
+            "FW124",
+            "FW132",
+            "FM132",
+            "FM124"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9nonoz",
+          "shape": "poly",
+          "points": [
+            "FI138",
+            "FW138",
+            "FW132",
+            "FI132"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9np77f",
+          "shape": "poly",
+          "points": [
+            "DO129",
+            "ES129",
+            "ES125.5",
+            "FI125.5",
+            "FI132",
+            "FM132",
+            "FM124",
+            "EI124",
+            "EI120",
+            "EC120",
+            "EC116",
+            "DX115.5",
+            "DX119.5",
+            "DT119.5",
+            "DT121.5",
+            "EF121.5",
+            "EF126.5",
+            "DO127"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9nrw9f",
+          "shape": "poly",
+          "points": [
+            "GO120.5",
+            "GX120",
+            "GX111.5",
+            "GO112"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9ntkvf",
+          "shape": "poly",
+          "points": [
+            "GS120.5",
+            "GS134.5",
+            "HE134.5",
+            "HE112",
+            "GX111.5",
+            "GX120"
+          ],
+          "thickness": 0,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9nu4qz",
+          "shape": "poly",
+          "points": [
+            "GD117.5",
+            "GD142.5",
+            "GV142.5",
+            "GV134",
+            "GS134.5",
+            "GS120.5",
+            "GO120.5",
+            "GO112",
+            "GG112",
+            "GG118"
+          ],
+          "thickness": 0,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9nvw30",
+          "shape": "poly",
+          "points": [
+            "HL148.5",
+            "HL142.5",
+            "GV142.5",
+            "GV149"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9nw2wa",
+          "shape": "poly",
+          "points": [
+            "GV142.5",
+            "GV134",
+            "HE134.5",
+            "HE139",
+            "GZ138.5",
+            "GZ142.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9ny1k5",
+          "shape": "poly",
+          "points": [
+            "HL148.5",
+            "HL125",
+            "HR125",
+            "HR148.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9ny6et",
+          "shape": "poly",
+          "points": [
+            "HR119",
+            "HR132.5",
+            "HY133",
+            "HY119.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9nzc9o",
+          "shape": "poly",
+          "points": [
+            "HR104.5",
+            "HO105",
+            "HO119.5",
+            "HE119.5",
+            "HE139",
+            "GZ138.5",
+            "GZ142.5",
+            "HL142.5",
+            "HL125",
+            "HR125"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9ocz2j",
+          "shape": "poly",
+          "points": [
+            "DO155.5",
+            "DO152.5",
+            "DZ152",
+            "DZ149",
+            "EZ149.5",
+            "FD160",
+            "FD165.5",
+            "EB161",
+            "EB155"
+          ],
+          "thickness": 0,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -4
+        },
+        {
+          "id": "room_ml9o8epg",
+          "shape": "poly",
+          "points": [
+            "GF151.5",
+            "GF142.5",
+            "FK143",
+            "FK152"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9o9nm3",
+          "shape": "poly",
+          "points": [
+            "EJ168.5",
+            "EK163",
+            "FF165.5",
+            "FE172.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9o9umr",
+          "shape": "poly",
+          "points": [
+            "FJ172.5",
+            "FK166.5",
+            "FF165.5",
+            "FE172.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9oc0or",
+          "shape": "poly",
+          "points": [
+            "FM173.5",
+            "FN166",
+            "FZ167.5",
+            "FY175"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9ochwj",
+          "shape": "poly",
+          "points": [
+            "FD160.5",
+            "EZ149.5",
+            "FF148",
+            "FJ159"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9odhes",
+          "shape": "poly",
+          "points": [
+            "DZ145",
+            "FK146",
+            "FK141",
+            "DZ140.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9oe7h8",
+          "shape": "poly",
+          "points": [
+            "FK141",
+            "FK138",
+            "FW138",
+            "FW143",
+            "FK143"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9oekjo",
+          "shape": "poly",
+          "points": [
+            "DO137.5",
+            "DO134.5",
+            "FA134.5",
+            "FA138",
+            "FK138",
+            "FK141",
+            "DZ140.5",
+            "DZ137"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9of1tj",
+          "shape": "poly",
+          "points": [
+            "FY97",
+            "FW97",
+            "FW143",
+            "GD142.5",
+            "GD117.5",
+            "FY118"
+          ],
+          "thickness": 0,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9ohll0",
+          "shape": "poly",
+          "points": [
+            "FJ172.5",
+            "FM173.5",
+            "FN165.5",
+            "FN151.5",
+            "FK152",
+            "FK146",
+            "DZ145",
+            "DZ149",
+            "EZ149.5",
+            "FF148",
+            "FJ159",
+            "FD160.5",
+            "FD165",
+            "FK166.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -35
+        },
+        {
+          "id": "room_ml9ogmhv",
+          "shape": "poly",
+          "points": [
+            "FV167",
+            "FV151.5",
+            "FN151.5",
+            "FN166"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9oipjg",
+          "shape": "poly",
+          "points": [
+            "EB155",
+            "DO155.5",
+            "DO164.5",
+            "EA167",
+            "EB161"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qbqin",
+          "shape": "poly",
+          "points": [
+            "GC175.5",
+            "FY175",
+            "FZ167.5",
+            "FV167",
+            "FV151",
+            "GF151.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -9
+        },
+        {
+          "id": "room_ml9qanti",
+          "shape": "poly",
+          "points": [
+            "GF152",
+            "GC175.5",
+            "GJ176.5",
+            "GT178",
+            "GV148.5",
+            "GV142.5",
+            "GF142.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -7
+        },
+        {
+          "id": "room_ml9q9sny",
+          "shape": "poly",
+          "points": [
+            "GJ176.5",
+            "GQ178.5",
+            "GR171",
+            "GK170.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qa0au",
+          "shape": "poly",
+          "points": [
+            "GK170.5",
+            "GM159",
+            "GR159.5",
+            "GP170.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qj3xr",
+          "shape": "poly",
+          "points": [
+            "HR139.5",
+            "ID139.5",
+            "ID132.5",
+            "IB132.5",
+            "IB104.5",
+            "HY105",
+            "HY133",
+            "HR132.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -12
+        },
+        {
+          "id": "room_ml9qhiq8",
+          "shape": "poly",
+          "points": [
+            "GZ172",
+            "HB161.5",
+            "GU161",
+            "GV149",
+            "HO149",
+            "HL173.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -11
+        },
+        {
+          "id": "room_ml9qep6n",
+          "shape": "poly",
+          "points": [
+            "IO176",
+            "IP166",
+            "IS166.5",
+            "IS153.5",
+            "JM153.5",
+            "JM162.5",
+            "JI162.5",
+            "JI167",
+            "JA167",
+            "JA172.5",
+            "JI172.5",
+            "JI179",
+            "JC178",
+            "JC177",
+            "IU176",
+            "IU177"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -10,
+          "edge_hidden": [
+            0
+          ]
+        },
+        {
+          "id": "room_ml9qdb5r",
+          "shape": "poly",
+          "points": [
+            "IN184",
+            "IO176",
+            "IU177",
+            "IT185"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qdi9j",
+          "shape": "poly",
+          "points": [
+            "IT185",
+            "JB186",
+            "JC177",
+            "IU176"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qdu8m",
+          "shape": "poly",
+          "points": [
+            "JB186",
+            "JC178",
+            "JI179",
+            "JH186.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qdxrb",
+          "shape": "poly",
+          "points": [
+            "JH186.5",
+            "JL187.5",
+            "JL178.5",
+            "JI179"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qf732",
+          "shape": "poly",
+          "points": [
+            "II176",
+            "IL175.5",
+            "IK184",
+            "IN184",
+            "IP166",
+            "IN166",
+            "IN160.5",
+            "II161",
+            "II172",
+            "II173.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "edge_hidden": [
+            3
+          ]
+        },
+        {
+          "id": "room_ml9qgj0v",
+          "shape": "poly",
+          "points": [
+            "HX166",
+            "HX160.5",
+            "II161",
+            "II166.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qgwlb",
+          "shape": "poly",
+          "points": [
+            "HO181",
+            "HP174",
+            "GZ172",
+            "GY179"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qh7nj",
+          "shape": "poly",
+          "points": [
+            "GY179",
+            "GT178",
+            "GU161",
+            "HB161.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qi0kv",
+          "shape": "poly",
+          "points": [
+            "HR145",
+            "ID145",
+            "ID139.5",
+            "HR139.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qiqmf",
+          "shape": "poly",
+          "points": [
+            "ID145",
+            "ID132.5",
+            "IK133",
+            "IK145.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qkm2f",
+          "shape": "poly",
+          "points": [
+            "JS180.5",
+            "JL180",
+            "JL172",
+            "JS172.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qlpaf",
+          "shape": "poly",
+          "points": [
+            "JV162",
+            "JM162.5",
+            "JM155.5",
+            "JV155"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qlzvr",
+          "shape": "poly",
+          "points": [
+            "JM155.5",
+            "JM150",
+            "JV149.5",
+            "JV155"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qm7fk",
+          "shape": "poly",
+          "points": [
+            "JM150",
+            "JM144.5",
+            "JV144",
+            "JV149.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qnntb",
+          "shape": "poly",
+          "points": [
+            "JI179",
+            "JI172.5",
+            "JL172",
+            "JL178.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qo2pk",
+          "shape": "poly",
+          "points": [
+            "JL166.5",
+            "JA167",
+            "JA172.5",
+            "JL172"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qosi7",
+          "shape": "poly",
+          "points": [
+            "JL172",
+            "JS172.5",
+            "JS162.5",
+            "JI162.5",
+            "JI167",
+            "JL166.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9r7jps",
+          "shape": "poly",
+          "points": [
+            "HO181",
+            "HR181",
+            "HS174",
+            "HW174.5",
+            "HX166",
+            "HX160.5",
+            "HN158",
+            "HM165.5",
+            "HQ166",
+            "HP174"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -14
+        },
+        {
+          "id": "room_ml9r4p41",
+          "shape": "poly",
+          "points": [
+            "ID175.5",
+            "ID173.5",
+            "II174",
+            "II176",
+            "IH176"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -13
+        },
+        {
+          "id": "room_ml9qr5d3",
+          "shape": "poly",
+          "points": [
+            "JM146",
+            "IY146",
+            "IY148",
+            "JM148"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qrrlz",
+          "shape": "poly",
+          "points": [
+            "JM150.5",
+            "JC150.5",
+            "JC153.5",
+            "IY153.5",
+            "IY148",
+            "JM148"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qt13z",
+          "shape": "poly",
+          "points": [
+            "JC153.5",
+            "JM153.5",
+            "JM150.5",
+            "JC150.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qtgg0",
+          "shape": "poly",
+          "points": [
+            "IS153.5",
+            "IS149",
+            "IY149",
+            "IY153.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qtns8",
+          "shape": "poly",
+          "points": [
+            "IS149",
+            "IS144.5",
+            "IY144.5",
+            "IY149"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qtxnz",
+          "shape": "poly",
+          "points": [
+            "IS166.5",
+            "IS140",
+            "IN139.5",
+            "IN166"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9quu07",
+          "shape": "poly",
+          "points": [
+            "IN160.5",
+            "II161",
+            "II145.5",
+            "IN145"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9qyt1c",
+          "shape": "poly",
+          "points": [
+            "II166.5",
+            "II174",
+            "ID173.5",
+            "ID166"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9r0y34",
+          "shape": "poly",
+          "points": [
+            "HX160.5",
+            "HN158",
+            "HO149",
+            "HR148.5",
+            "HR145",
+            "II145.5",
+            "II161"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9r45vd",
+          "shape": "poly",
+          "points": [
+            "IK184",
+            "IG184",
+            "IH176",
+            "II176",
+            "IL175.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9r6nao",
+          "shape": "poly",
+          "points": [
+            "HP174",
+            "HQ166",
+            "HM165.5",
+            "HL173.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9r6v88",
+          "shape": "poly",
+          "points": [
+            "HW174.5",
+            "HX166",
+            "ID166",
+            "ID175.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9r7814",
+          "shape": "poly",
+          "points": [
+            "IG184",
+            "IH176",
+            "ID175.5",
+            "HW174.5",
+            "HS174",
+            "HR181"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9rag94",
+          "shape": "poly",
+          "points": [
+            "IH127",
+            "IH114",
+            "IO114.5",
+            "IO119.5",
+            "JH119",
+            "JH127"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -15
+        },
+        {
+          "id": "room_ml9ra52f",
+          "shape": "poly",
+          "points": [
+            "IX132.5",
+            "JH132.5",
+            "JH127",
+            "IX127"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_ml9rbd5c",
+          "shape": "poly",
+          "points": [
+            "IK145.5",
+            "IN145",
+            "IN139.5",
+            "IS140",
+            "IS144.5",
+            "IY144.5",
+            "IY146",
+            "JM146",
+            "JM144.5",
+            "JV144",
+            "JV142",
+            "JH142",
+            "JH132.5",
+            "IK133"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb153so",
+          "shape": "poly",
+          "points": [
+            "CU8",
+            "CJ8.5",
+            "CG-5",
+            "CS-6.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb15en4",
+          "shape": "poly",
+          "points": [
+            "CX15",
+            "CL15.5",
+            "CM29",
+            "CY28.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb15nsh",
+          "shape": "poly",
+          "points": [
+            "CY36",
+            "CY28.5",
+            "CM29",
+            "CM35.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb15t89",
+          "shape": "poly",
+          "points": [
+            "CM29",
+            "CE29",
+            "CE35",
+            "CM35.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb16kvd",
+          "shape": "poly",
+          "points": [
+            "CP15",
+            "CO8.5",
+            "CI9.5",
+            "CJ15.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb17aap",
+          "shape": "poly",
+          "points": [
+            "CK-16.5",
+            "CS-17",
+            "CS-8",
+            "CK-7.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb17z68",
+          "shape": "poly",
+          "points": [
+            "CK-7.5",
+            "BW-6",
+            "BV-13",
+            "CK-14"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb1984o",
+          "shape": "poly",
+          "points": [
+            "CS-17",
+            "CK-16.5",
+            "CE-15.5",
+            "CD-21",
+            "CK-21.5",
+            "CJ-25",
+            "CR-26"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb19xls",
+          "shape": "poly",
+          "points": [
+            "CR-26",
+            "CQ-34",
+            "CH-33.5",
+            "CJ-25"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb1b71c",
+          "shape": "poly",
+          "points": [
+            "CQ-37",
+            "CO-49.5",
+            "CE-48",
+            "CG-35.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb1beb5",
+          "shape": "poly",
+          "points": [
+            "CE-48",
+            "CD-55.5",
+            "CN-57",
+            "CO-49.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb1dall",
+          "shape": "poly",
+          "points": [
+            "CQ-34",
+            "CQ-37",
+            "CG-35.5",
+            "CF-43.5",
+            "BQ-40.5",
+            "BP-46",
+            "AR-42.5",
+            "AS-36.5",
+            "BA-38",
+            "BB-32",
+            "BW-34.5",
+            "CC-32.5",
+            "CH-33.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -16
+        },
+        {
+          "id": "room_mlb1ctbs",
+          "shape": "poly",
+          "points": [
+            "BQ-40.5",
+            "BP-46",
+            "CE-48",
+            "CF-43.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb1ec94",
+          "shape": "poly",
+          "points": [
+            "BE-44",
+            "BD-50.5",
+            "BY-53.5",
+            "BX-58",
+            "CN-60",
+            "CN-57",
+            "CD-55.5",
+            "CE-48"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -17
+        },
+        {
+          "id": "room_mlb1hdwo",
+          "shape": "poly",
+          "points": [
+            "AS-21",
+            "AP-36.5",
+            "AS-36.5",
+            "AS-36.5",
+            "BA-38",
+            "BB-32",
+            "BW-34.5",
+            "CC-32.5",
+            "CH-33.5",
+            "CI-29"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -21
+        },
+        {
+          "id": "room_mlb1gswv",
+          "shape": "poly",
+          "points": [
+            "BB-17",
+            "AU-15",
+            "AS-21",
+            "CI-29",
+            "CK-21.5",
+            "CG-21",
+            "CF-23.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -20
+        },
+        {
+          "id": "room_mlb1g4io",
+          "shape": "poly",
+          "points": [
+            "CG-21",
+            "CF-23.5",
+            "BS-20",
+            "BV-13",
+            "CK-14",
+            "CK-16.5",
+            "CE-15.5",
+            "CD-21"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -19
+        },
+        {
+          "id": "room_mlb1fjk0",
+          "shape": "poly",
+          "points": [
+            "BV-13",
+            "BS-20",
+            "BB-17",
+            "BG7.5",
+            "CB9.5",
+            "CJ8.5",
+            "CG-5",
+            "CS-6.5",
+            "CS-8",
+            "CK-7.5",
+            "BW-6"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -18
+        },
+        {
+          "id": "room_mlb1ljb4",
+          "shape": "poly",
+          "points": [
+            "BD-50.5",
+            "BC-54",
+            "W-47.5",
+            "Z-34.5",
+            "AP-36.5",
+            "AS-36.5",
+            "AR-42.5",
+            "BE-44"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -24
+        },
+        {
+          "id": "room_mlb1kf2g",
+          "shape": "poly",
+          "points": [
+            "X-11.5",
+            "O-47.5",
+            "V-49.5",
+            "W-47",
+            "Z-34.5",
+            "AP-36.5",
+            "AS-21",
+            "AU-15"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -23
+        },
+        {
+          "id": "room_mlb1jnxk",
+          "shape": "poly",
+          "points": [
+            "Q0",
+            "CJ18",
+            "CL18",
+            "CL15.5",
+            "CJ15.5",
+            "CI9",
+            "CB9.5",
+            "BG7.5",
+            "BB-17",
+            "AU-15",
+            "X-11.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -22
+        },
+        {
+          "id": "room_mlb1nkrc",
+          "shape": "poly",
+          "points": [
+            "CJ45",
+            "CJ40",
+            "CY41.5",
+            "CY56.5",
+            "CI58.5",
+            "CI53",
+            "CS52",
+            "CS46"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb1o86p",
+          "shape": "poly",
+          "points": [
+            "CJ45",
+            "BZ44.5",
+            "BZ39.5",
+            "CJ40"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb1oifc",
+          "shape": "poly",
+          "points": [
+            "BW44.5",
+            "BW39.5",
+            "BM39",
+            "BM44"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb1pll4",
+          "shape": "poly",
+          "points": [
+            "BN61",
+            "BT60",
+            "BS55",
+            "BN55.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb1pqsw",
+          "shape": "poly",
+          "points": [
+            "BS55",
+            "CI53",
+            "CI58.5",
+            "BT60"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb1qqww",
+          "shape": "poly",
+          "points": [
+            "BN55.5",
+            "BS55",
+            "CI53",
+            "CS52",
+            "CS46",
+            "CJ45",
+            "BZ44.5",
+            "BZ39.5",
+            "BW39.5",
+            "BW44.5",
+            "BM44"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -25
+        },
+        {
+          "id": "room_mlb1rtrl",
+          "shape": "poly",
+          "points": [
+            "BM39",
+            "BM44",
+            "BN55.5",
+            "BN61",
+            "BE62.5",
+            "BD37.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb1s9fb",
+          "shape": "poly",
+          "points": [
+            "CM58",
+            "CM63.5",
+            "CY62.5",
+            "CY56.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb1srhe",
+          "shape": "poly",
+          "points": [
+            "CY62.5",
+            "CY71.5",
+            "CM72",
+            "CM63.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb1t9ld",
+          "shape": "poly",
+          "points": [
+            "CY73",
+            "CO74",
+            "CQ86",
+            "DA85"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb1vfzc",
+          "shape": "poly",
+          "points": [
+            "DC96.5",
+            "DA85",
+            "CN86",
+            "CP97.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb21k35",
+          "shape": "poly",
+          "points": [
+            "CP116",
+            "CL116",
+            "CL124",
+            "BI124",
+            "BH118.5",
+            "BN117.5",
+            "BK105.5",
+            "CP101"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -26
+        },
+        {
+          "id": "room_mlb1z81l",
+          "shape": "poly",
+          "points": [
+            "CP116",
+            "DC116.5",
+            "DC101.5",
+            "CP101"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb20lqq",
+          "shape": "poly",
+          "points": [
+            "CW124.5",
+            "CW116.5",
+            "DC116.5",
+            "DC124.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb2146h",
+          "shape": "poly",
+          "points": [
+            "DC124.5",
+            "DC134",
+            "CR133.5",
+            "CR124",
+            "CW124.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb3b0cx",
+          "shape": "poly",
+          "points": [
+            "GB252",
+            "GI229.5",
+            "IE240.5",
+            "HX262"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb45hqi",
+          "shape": "poly",
+          "points": [
+            "DR59",
+            "EA59.5",
+            "EA49",
+            "DR48.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb45n36",
+          "shape": "poly",
+          "points": [
+            "EA59.5",
+            "EJ59",
+            "EJ48.5",
+            "EA49"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb4hxcz",
+          "shape": "poly",
+          "points": [
+            "GG103.5",
+            "GG97",
+            "FY97",
+            "FY103.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlb4ptz5",
+          "shape": "poly",
+          "points": [
+            "GG103.5",
+            "HO103.5",
+            "HO105",
+            "IK105",
+            "IK96.5",
+            "HA96.5",
+            "HA91.5",
+            "GG91.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": ""
+          },
+          "z": -30,
+          "edge_hidden": [
+            0,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": "room_mlc2skht",
+          "shape": "poly",
+          "points": [
+            "GG97",
+            "GG91.5",
+            "DN91",
+            "DO97"
+          ],
+          "thickness": 0,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -33,
+          "edge_hidden": [
+            0,
+            2
+          ]
+        },
+        {
+          "id": "room_mlc35101",
+          "shape": "poly",
+          "points": [
+            "EQ105.5",
+            "EQ97",
+            "DO97",
+            "DO109.5",
+            "DY109.5",
+            "DY105.5"
+          ],
+          "thickness": 0,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -32
+        },
+        {
+          "id": "room_mle19x9k",
+          "shape": "poly",
+          "points": [
+            "FF91",
+            "FL91",
+            "FL86.5",
+            "FF86.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mle36l26",
+          "shape": "poly",
+          "points": [
+            "DX91",
+            "DZ91",
+            "DZ83",
+            "EI83.5",
+            "EI87",
+            "EM87",
+            "EM83.5",
+            "EU83.5",
+            "EU89",
+            "EY89",
+            "EY70",
+            "EJ69.5",
+            "EJ75",
+            "DX75"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "edge_hidden": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": "room_mlf9m3u9",
+          "shape": "poly",
+          "points": [
+            "GV91",
+            "HA91.5",
+            "HA88.5",
+            "HK88.5",
+            "HK83",
+            "HA83",
+            "HA70.5",
+            "GV70"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          },
+          "z": -34,
+          "edge_hidden": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "id": "room_mlfabsft",
+          "shape": "poly",
+          "points": [
+            "IE96.5",
+            "IM96.5",
+            "IM88.5",
+            "IG88.5",
+            "IG93",
+            "IE93"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mli7r8rx",
+          "shape": "poly",
+          "points": [
+            "DO116",
+            "EE116",
+            "EE113",
+            "DV112.5",
+            "DV109",
+            "DO109.5"
+          ],
+          "thickness": 15,
+          "floor": {
+            "kind": "wood_oak"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mli7rqlp",
+          "shape": "poly",
+          "points": [
+            "EE116",
+            "EQ116",
+            "EQ105.5",
+            "EC105.5",
+            "EC109.5",
+            "DV109",
+            "DV112.5",
+            "EE113"
+          ],
+          "thickness": 0,
+          "floor": {
+            "kind": "grass"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlkrqg2l",
+          "shape": "poly",
+          "points": [
+            "DC115.5",
+            "DO116",
+            "DO97",
+            "DN91",
+            "DM84.5",
+            "DA85",
+            "DC96.5",
+            "DC101.5"
+          ],
+          "thickness": 0,
+          "floor": {
+            "kind": "stone"
+          },
+          "wall": {
+            "kind": "brick"
+          }
+        },
+        {
+          "id": "room_mlkru8g5",
+          "shape": "poly",
+          "points": [
+            "DM84.5",
+            "DL75",
+            "DL55",
+            "CY56.5",
+            "CY71.5",
+            "CY73",
+            "DA85"
+          ],
+          "thickness": 0,
+          "floor": {
+            "kind": "stone"
           },
           "wall": {
             "kind": "brick"
@@ -2260,13 +4842,6 @@
           "id": "door_mkmuy3fz_5jn",
           "kind": "door.wood",
           "hex": "DW97",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "door_mkmuy4y7_4d3",
-          "kind": "door.wood",
-          "hex": "EG97",
           "orientation": "h",
           "openPct": 0
         },
@@ -2287,28 +4862,28 @@
         {
           "id": "window_mkmuzz1q_3h7",
           "kind": "window",
-          "hex": "DO98.25",
+          "hex": "DO98",
           "orientation": "v",
           "openPct": 0
         },
         {
           "id": "window_mkmuzzmx_6qu",
           "kind": "window",
-          "hex": "DO99",
+          "hex": "DO98.75",
           "orientation": "v",
           "openPct": 0
         },
         {
           "id": "window_mkmv00jm_3p1",
           "kind": "window",
-          "hex": "DO103",
+          "hex": "DO102.75",
           "orientation": "v",
           "openPct": 0
         },
         {
           "id": "window_mkmv012r_1um",
           "kind": "window",
-          "hex": "DO104",
+          "hex": "DO103.75",
           "orientation": "v",
           "openPct": 0
         },
@@ -2329,7 +4904,7 @@
         {
           "id": "door_ml0toqa9_644",
           "kind": "door.wood",
-          "hex": "DO101",
+          "hex": "DO100.75",
           "orientation": "v",
           "openPct": 0
         },
@@ -2337,13 +4912,6 @@
           "id": "opening_ml84oxuw",
           "kind": "gate",
           "hex": "FX96.5",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "opening_ml84r080",
-          "kind": "gate",
-          "hex": "FN91",
           "orientation": "h",
           "openPct": 0
         },
@@ -2378,35 +4946,7 @@
         {
           "id": "opening_ml84u0fq",
           "kind": "door",
-          "hex": "IK96.25",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "opening_ml84u2rr",
-          "kind": "door",
-          "hex": "ID106.5",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "opening_ml84u3b3",
-          "kind": "door",
-          "hex": "IK107.5",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "opening_ml84u3wu",
-          "kind": "door",
-          "hex": "IS107.75",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "opening_ml853zw8",
-          "kind": "gate",
-          "hex": "FP45",
+          "hex": "IK96.5",
           "orientation": "h",
           "openPct": 0
         },
@@ -2425,86 +4965,44 @@
           "openPct": 0
         },
         {
-          "id": "opening_ml85ijlk",
-          "kind": "door.wood",
-          "hex": "KI148.5",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "opening_ml85in4w",
-          "kind": "door.wood",
-          "hex": "KO148.5",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "opening_ml85iok7",
-          "kind": "door.wood",
-          "hex": "KH130.25",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "opening_ml85isw8",
-          "kind": "door.wood",
-          "hex": "KN130.75",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "opening_ml85k30w",
-          "kind": "door.wood",
-          "hex": "KV148.5",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "opening_ml85k3qx",
-          "kind": "door.wood",
-          "hex": "LB148.5",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "opening_ml85k4bs",
-          "kind": "door.wood",
-          "hex": "LH148.5",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "opening_ml85k51k",
-          "kind": "door.wood",
-          "hex": "LG132.5",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "opening_ml85k5nl",
-          "kind": "door.wood",
-          "hex": "KZ131.5",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "opening_ml85k6cp",
-          "kind": "door.wood",
-          "hex": "KT131.25",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
-          "id": "opening_ml85k7hk",
-          "kind": "door.wood",
-          "hex": "LL132",
-          "orientation": "h",
-          "openPct": 0
-        },
-        {
           "id": "opening_ml9d4s75",
           "kind": "door.wood",
           "hex": "HT96",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "opening_ml9n4rzf",
+          "kind": "gate",
+          "hex": "GV68.75",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "opening_ml9n7p1f",
+          "kind": "gate",
+          "hex": "FO43.5",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "opening_ml9n7ru3",
+          "kind": "gate",
+          "hex": "FN91",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "opening_ml9o0ex1",
+          "kind": "gate",
+          "hex": "HP104.5",
+          "orientation": "h",
+          "openPct": 0
+        },
+        {
+          "id": "opening_mle0kuls",
+          "kind": "door.wood",
+          "hex": "EG97",
           "orientation": "h",
           "openPct": 0
         }
@@ -2516,12 +5014,3676 @@
           "hex": "DN101",
           "poi_id": "CrossedKeysInn",
           "view_url": "/images/the_cross_keys.jpg",
-          "ox": 0.65,
-          "oy": -0.79,
-          "spriteScale": 2,
+          "ox": 0.47,
+          "oy": -0.37,
+          "spriteScale": 2.3,
           "floorId": "ground",
           "z": 5,
           "parent_room": "room_ml38fkoh"
+        }
+      ],
+      "roofParts": [
+        {
+          "id": "roof_ground_room_ml83i8zr_0",
+          "floorId": "ground",
+          "parentRoomId": "room_ml83i8zr",
+          "col": 219,
+          "row": 88,
+          "localCol": 0,
+          "localRow": 0,
+          "wCols": 23,
+          "hRows": 11.5,
+          "startAngle": 0,
+          "endAngle": 0,
+          "rot": 0,
+          "tileKind": "roof1",
+          "tileScale": 0.2,
+          "z": 0,
+          "migratedFromRoomRoof": true,
+          "lineColor": "#70777e",
+          "lineWidth": 2,
+          "tintColor": "#000000",
+          "tintPct": 0,
+          "shadePct": 50
+        },
+        {
+          "id": "roof_mlco9zl0",
+          "floorId": "ground",
+          "wCols": 8,
+          "hRows": 8,
+          "startAngle": -46,
+          "endAngle": 0,
+          "rot": -90,
+          "tileKind": "slate",
+          "tileScale": 0.2,
+          "lineColor": "#70777e",
+          "lineWidth": 2,
+          "tintColor": "#000000",
+          "tintPct": 0,
+          "shadePct": 25,
+          "z": 0,
+          "parentRoomId": "room_mlc35101",
+          "localCol": 8.288675134594813,
+          "localRow": -3.3660254037844393
+        },
+        {
+          "id": "roof_mlcq1lgt",
+          "floorId": "ground",
+          "wCols": 10,
+          "hRows": 4,
+          "startAngle": 0,
+          "endAngle": 26,
+          "rot": 0,
+          "tileKind": "slate",
+          "tileScale": 0.2,
+          "lineColor": "#70777e",
+          "lineWidth": 2,
+          "tintColor": "#000000",
+          "tintPct": 0,
+          "shadePct": 25,
+          "z": 0,
+          "parentRoomId": "room_mlc35101",
+          "localCol": -8,
+          "localRow": 3.5
+        }
+      ],
+      "roofs": [
+        {
+          "id": "roof_mlf36pl6",
+          "shape": "poly",
+          "points": [
+            "FC107.5",
+            "FO107.5",
+            "FO104",
+            "FC104"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#804000",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": true,
+          "spineAdjustA": -55,
+          "spineAdjustB": -55,
+          "z": -1,
+          "spine": {
+            "a": {
+              "x": 7639,
+              "y": -5805.834306970876
+            },
+            "b": {
+              "x": 8105,
+              "y": -5805.834306970876
+            }
+          },
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf36pl6"
+          }
+        },
+        {
+          "id": "roof_mldpwryr",
+          "shape": "poly",
+          "points": [
+            "EF103",
+            "EK103.5",
+            "EK99.5",
+            "EF99"
+          ],
+          "kind": "slate",
+          "alpha": 0.85,
+          "z": 0,
+          "deleted": true,
+          "spine": {
+            "a": {
+              "x": 6600,
+              "y": -5681.126648825917
+            },
+            "b": {
+              "x": 6600,
+              "y": -5459.424145457101
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mldpwryr"
+          }
+        },
+        {
+          "id": "roof_mldpxaz7",
+          "shape": "poly",
+          "points": [
+            "DO105.5",
+            "EQ105.5",
+            "EQ97",
+            "DO97"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 5905.374819942969,
+              "y": -5556.418990680959
+            },
+            "b": {
+              "x": 7008,
+              "y": -5556.418990680959
+            }
+          },
+          "spineAdjustA": -241.37481994296922,
+          "spineAdjustB": 0,
+          "rot90": true,
+          "shade": 0.25,
+          "tileOffsetYellow": 3,
+          "line_hidden": [
+            "conn:a:0"
+          ],
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mldpxaz7"
+          }
+        },
+        {
+          "id": "roof_mldzf34f",
+          "shape": "poly",
+          "points": [
+            "DO109.5",
+            "DY109.5",
+            "DY105.5",
+            "DO105.5"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 235,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 5904,
+              "y": -6013.6804038791415
+            },
+            "b": {
+              "x": 5904,
+              "y": -5556.9779005103255
+            }
+          },
+          "shade": 0.25,
+          "line_hidden": [
+            "conn:b:0"
+          ],
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mldzf34f"
+          }
+        },
+        {
+          "id": "roof_mldzgvfk",
+          "shape": "poly",
+          "points": [
+            "DU98.5",
+            "DX98",
+            "DX97.5",
+            "DU98"
+          ],
+          "kind": "slate",
+          "alpha": 0.85,
+          "rot90": false,
+          "spineAdjustA": 86.57608695652107,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 6024,
+              "y": -5490.5746065714175
+            },
+            "b": {
+              "x": 6024,
+              "y": -5376.285706693795
+            }
+          },
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mldzgvfk"
+          }
+        },
+        {
+          "id": "roof_mle0ml0e",
+          "shape": "poly",
+          "points": [
+            "EQ105",
+            "FA105",
+            "FA97",
+            "EQ97"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "shade": 0.2,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 7008,
+              "y": -5542.562584220407
+            },
+            "b": {
+              "x": 7488,
+              "y": -5542.562584220407
+            }
+          },
+          "tintStrength": 0.25,
+          "tint": "#804000",
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle0ml0e"
+          }
+        },
+        {
+          "id": "roof_mle0pzs7",
+          "shape": "poly",
+          "points": [
+            "FC100.5",
+            "FO100.5",
+            "FO97",
+            "FC97"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "shade": 0.2,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 2,
+          "spine": {
+            "a": {
+              "x": 7584,
+              "y": -5417.854926075448
+            },
+            "b": {
+              "x": 8160,
+              "y": -5417.854926075448
+            }
+          },
+          "tint": "#804000",
+          "tintStrength": 0.3,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle0pzs7"
+          }
+        },
+        {
+          "id": "roof_mle0rgzo",
+          "shape": "poly",
+          "points": [
+            "FO101",
+            "FW101",
+            "FW97",
+            "FO97"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "shade": 0.2,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 8160,
+              "y": -5431.711332535999
+            },
+            "b": {
+              "x": 8544,
+              "y": -5431.711332535999
+            }
+          },
+          "tint": "#ff8000",
+          "tintStrength": 0.4,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle0rgzo"
+          }
+        },
+        {
+          "id": "roof_mle0s5ug",
+          "shape": "poly",
+          "points": [
+            "FO124",
+            "FW124",
+            "FW101",
+            "FO101"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "shade": 0.2,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 112.97621796351905,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 8352,
+              "y": -6817.3519785911
+            },
+            "b": {
+              "x": 8352,
+              "y": -5429.586366256888
+            }
+          },
+          "tint": "#ff8000",
+          "tintStrength": 0.4,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle0s5ug"
+          }
+        },
+        {
+          "id": "roof_mle0vo33",
+          "shape": "poly",
+          "points": [
+            "FY103.5",
+            "GG103.5",
+            "GG97",
+            "FY97"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "shade": 0.2,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 8832,
+              "y": -5681.126648825917
+            },
+            "b": {
+              "x": 8832,
+              "y": -5320.860080851591
+            }
+          },
+          "tint": "#c0c0c0",
+          "tintStrength": 0.4,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle0vo33"
+          }
+        },
+        {
+          "id": "roof_mle0w9w8",
+          "shape": "poly",
+          "points": [
+            "GG112",
+            "GR111.5",
+            "GR103",
+            "GG103.5"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "shade": 0.2,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 9024,
+              "y": -5916.685558655285
+            },
+            "b": {
+              "x": 9552,
+              "y": -5916.685558655285
+            }
+          },
+          "tint": "#d7ffce",
+          "tintStrength": 0.7,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle0w9w8"
+          }
+        },
+        {
+          "id": "roof_mle0wlsv",
+          "shape": "poly",
+          "points": [
+            "FY118",
+            "GG118",
+            "GG103.5",
+            "FY103.5"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "shade": 0.2,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 8832,
+              "y": -6484.798223537876
+            },
+            "b": {
+              "x": 8832,
+              "y": -5681.126648825917
+            }
+          },
+          "tint": "#c0c0c0",
+          "tintStrength": 0.4,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle0wlsv"
+          }
+        },
+        {
+          "id": "roof_mle0xhsu",
+          "shape": "poly",
+          "points": [
+            "FI104",
+            "FO104",
+            "FO100.5",
+            "FI100.5"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "shade": 0.2,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 2,
+          "spine": {
+            "a": {
+              "x": 7872,
+              "y": -5611.844616523162
+            },
+            "b": {
+              "x": 8160,
+              "y": -5611.844616523162
+            }
+          },
+          "tint": "#804000",
+          "tintStrength": 0.3,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle0xhsu"
+          }
+        },
+        {
+          "id": "roof_mle0xycf",
+          "shape": "poly",
+          "points": [
+            "FC104",
+            "FI104",
+            "FI100.5",
+            "FC100.5"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "shade": 0.2,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 2,
+          "spine": {
+            "a": {
+              "x": 7584,
+              "y": -5611.844616523162
+            },
+            "b": {
+              "x": 7872,
+              "y": -5611.844616523162
+            }
+          },
+          "tint": "#ffffff",
+          "tintStrength": 0.3,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle0xycf"
+          }
+        },
+        {
+          "id": "roof_mle0yqjc",
+          "shape": "poly",
+          "points": [
+            "DZ91",
+            "EI91.5",
+            "EI83.5",
+            "DZ83"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "shade": 0.2,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 2,
+          "spine": {
+            "a": {
+              "x": 6408,
+              "y": -5016.019138719468
+            },
+            "b": {
+              "x": 6408,
+              "y": -4572.614131981836
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle0yqjc"
+          }
+        },
+        {
+          "id": "roof_mle0zbza",
+          "shape": "poly",
+          "points": [
+            "EI87",
+            "EM87",
+            "EM83.5",
+            "EI83.5"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "shade": 0.2,
+          "rot90": true,
+          "spineAdjustA": 88.15789473684163,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 6535.842105263158,
+              "y": -4669.608977205693
+            },
+            "b": {
+              "x": 6816,
+              "y": -4669.608977205693
+            }
+          },
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle0zbza"
+          }
+        },
+        {
+          "id": "roof_mle0zvhj",
+          "shape": "poly",
+          "points": [
+            "EI91.5",
+            "EU91.5",
+            "EU87",
+            "EI87"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "shade": 0.2,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 2,
+          "spine": {
+            "a": {
+              "x": 6624,
+              "y": -4891.311480574509
+            },
+            "b": {
+              "x": 7200,
+              "y": -4891.311480574509
+            }
+          },
+          "tint": "#804000",
+          "tintStrength": 0.25,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle0zvhj"
+          }
+        },
+        {
+          "id": "roof_mle108i7",
+          "shape": "poly",
+          "points": [
+            "EM87",
+            "EU87",
+            "EU83.5",
+            "EM83.5"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "shade": 0.2,
+          "rot90": false,
+          "spineAdjustA": 124.99999999999909,
+          "spineAdjustB": 0,
+          "z": 2,
+          "spine": {
+            "a": {
+              "x": 7008,
+              "y": -4891.603822429549
+            },
+            "b": {
+              "x": 7008,
+              "y": -4572.614131981836
+            }
+          },
+          "tint": "#804000",
+          "tintStrength": 0.25,
+          "line_hidden": [
+            "edge:1"
+          ],
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle108i7"
+          }
+        },
+        {
+          "id": "roof_mle11vpr",
+          "shape": "poly",
+          "points": [
+            "EU91.5",
+            "EY91.5",
+            "EY89",
+            "EU89"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "shade": 0.2,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 7200,
+              "y": -4946.737106416713
+            },
+            "b": {
+              "x": 7392,
+              "y": -4946.737106416713
+            }
+          },
+          "tint": "#c46200",
+          "tintStrength": 0.3,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle11vpr"
+          }
+        },
+        {
+          "id": "roof_mle12g60",
+          "shape": "poly",
+          "points": [
+            "EY91.5",
+            "FF91",
+            "FF85.5",
+            "EY86"
+          ],
+          "kind": "slate",
+          "alpha": 1,
+          "shade": 0.2,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 7392,
+              "y": -4863.598667653407
+            },
+            "b": {
+              "x": 7728,
+              "y": -4863.598667653407
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle12g60"
+          }
+        },
+        {
+          "id": "roof_mle15aku",
+          "shape": "poly",
+          "points": [
+            "EZ90.5",
+            "FA91",
+            "FA90.5",
+            "EZ90"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 31,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 7464,
+              "y": -4988.306325798367
+            },
+            "b": {
+              "x": 7464,
+              "y": -4929.593512877264
+            }
+          },
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle15aku"
+          }
+        },
+        {
+          "id": "roof_mle15zly",
+          "shape": "poly",
+          "points": [
+            "FC91",
+            "FD90.5",
+            "FD90",
+            "FC90.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 31,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 7608,
+              "y": -4988.306325798367
+            },
+            "b": {
+              "x": 7608,
+              "y": -4929.593512877264
+            }
+          },
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle15zly"
+          }
+        },
+        {
+          "id": "roof_mle18r14",
+          "shape": "poly",
+          "points": [
+            "EZ90.5",
+            "FA91",
+            "FA90.5",
+            "EZ90"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 31,
+          "z": 2,
+          "spine": {
+            "a": {
+              "x": 7464,
+              "y": -4988.306325798367
+            },
+            "b": {
+              "x": 7464,
+              "y": -4929.593512877264
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle18r14"
+          }
+        },
+        {
+          "id": "roof_mle190za",
+          "shape": "poly",
+          "points": [
+            "FE91",
+            "FE90.5",
+            "FD90",
+            "FD90.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 31,
+          "z": 2,
+          "spine": {
+            "a": {
+              "x": 7656,
+              "y": -4988.306325798367
+            },
+            "b": {
+              "x": 7656,
+              "y": -4929.593512877264
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle190za"
+          }
+        },
+        {
+          "id": "roof_mle1af7k",
+          "shape": "poly",
+          "points": [
+            "FF91",
+            "FL91",
+            "FL86.5",
+            "FF86.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 7728,
+              "y": -4891.31148057451
+            },
+            "b": {
+              "x": 8016,
+              "y": -4891.31148057451
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle1af7k"
+          }
+        },
+        {
+          "id": "roof_mle0ote6",
+          "shape": "poly",
+          "points": [
+            "EU104",
+            "EW104",
+            "EW103.5",
+            "EU103.5"
+          ],
+          "kind": "slate",
+          "alpha": 0.85,
+          "shade": 0.2,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 59.01639344262276,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 7248,
+              "y": -5708.839461747019
+            },
+            "b": {
+              "x": 7248,
+              "y": -5622.110255383294
+            }
+          },
+          "tint": "#804000",
+          "line_hidden": [
+            "conn:a:1",
+            "edge:2"
+          ],
+          "tintStrength": 0.25,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle0ote6"
+          }
+        },
+        {
+          "id": "roof_mle1om7j",
+          "shape": "poly",
+          "points": [
+            "FO19.5",
+            "GM19.5",
+            "GM8",
+            "FO8"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "rot90": true,
+          "spineAdjustA": -253.9999999999991,
+          "spineAdjustB": -268,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 8414,
+              "y": -706.6767294881018
+            },
+            "b": {
+              "x": 9044,
+              "y": -706.6767294881018
+            }
+          },
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mle1om7j"
+          }
+        },
+        {
+          "id": "roof_mlf7e5cy",
+          "shape": "poly",
+          "points": [
+            "FC107.5",
+            "FO107.5",
+            "FO104",
+            "FC104"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#804000",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 7584,
+              "y": -5805.834306970876
+            },
+            "b": {
+              "x": 8160,
+              "y": -5805.834306970876
+            }
+          },
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf7e5cy"
+          }
+        },
+        {
+          "id": "roof_mlf7sgqp",
+          "shape": "poly",
+          "points": [
+            "FP91",
+            "GI91.5",
+            "GI84.5",
+            "FP84"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ff8000",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 8208,
+              "y": -4822.0294482717545
+            },
+            "b": {
+              "x": 9120,
+              "y": -4822.0294482717545
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf7sgqp"
+          }
+        },
+        {
+          "id": "roof_mlf7tlqq",
+          "shape": "poly",
+          "points": [
+            "FR90",
+            "FT90",
+            "FT89.5",
+            "FR89.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ff8000",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 55,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 8352,
+              "y": -4960.593512877264
+            },
+            "b": {
+              "x": 8352,
+              "y": -4877.880699956163
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf7tlqq"
+          }
+        },
+        {
+          "id": "roof_mlf7uxii",
+          "shape": "poly",
+          "points": [
+            "GE90.5",
+            "GG90.5",
+            "GG90",
+            "GE90"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ff8000",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 55,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 8976,
+              "y": -4960.593512877264
+            },
+            "b": {
+              "x": 8976,
+              "y": -4877.880699956162
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf7uxii"
+          }
+        },
+        {
+          "id": "roof_mlf7wbdt",
+          "shape": "poly",
+          "points": [
+            "FV90",
+            "FX90",
+            "FX89.5",
+            "FV89.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ff8000",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 55,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 8544,
+              "y": -4960.593512877264
+            },
+            "b": {
+              "x": 8544,
+              "y": -4877.880699956163
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf7wbdt"
+          }
+        },
+        {
+          "id": "roof_mlf7wt6x",
+          "shape": "poly",
+          "points": [
+            "GA90.5",
+            "GC90.5",
+            "GC90",
+            "GA90"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ff8000",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 55,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 8784,
+              "y": -4960.593512877264
+            },
+            "b": {
+              "x": 8784,
+              "y": -4877.880699956162
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf7wt6x"
+          }
+        },
+        {
+          "id": "roof_mlf85zhl",
+          "shape": "poly",
+          "points": [
+            "GS91.5",
+            "GV91",
+            "GV85.5",
+            "GS86"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 9672,
+              "y": -5016.019138719468
+            },
+            "b": {
+              "x": 9672,
+              "y": -4711.178196587346
+            }
+          },
+          "line_hidden": [
+            "spine"
+          ],
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf85zhl"
+          }
+        },
+        {
+          "id": "roof_mlf86ant",
+          "shape": "poly",
+          "points": [
+            "GN91",
+            "GS91.5",
+            "GS86",
+            "GN85.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": true,
+          "spineAdjustA": 64,
+          "spineAdjustB": 64,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 9296,
+              "y": -4863.598667653407
+            },
+            "b": {
+              "x": 9664,
+              "y": -4863.598667653407
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf86ant"
+          }
+        },
+        {
+          "id": "roof_mlf86mp5",
+          "shape": "poly",
+          "points": [
+            "GI78",
+            "GI91.5",
+            "GN91",
+            "GN77.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 9240,
+              "y": -5016.019138719468
+            },
+            "b": {
+              "x": 9240,
+              "y": -4267.773189849714
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf86mp5"
+          }
+        },
+        {
+          "id": "roof_mlf8e2he",
+          "shape": "poly",
+          "points": [
+            "HA96.5",
+            "HX96",
+            "HX88",
+            "HA88.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": true,
+          "spineAdjustA": -164.44444444444525,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 10148.444444444445,
+              "y": -5071.444764561673
+            },
+            "b": {
+              "x": 11088,
+              "y": -5071.444764561673
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf8e2he"
+          }
+        },
+        {
+          "id": "roof_mlf8erls",
+          "shape": "poly",
+          "points": [
+            "HK85",
+            "HK88.5",
+            "HX88",
+            "HX84.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": false,
+          "spineAdjustA": 222.22222222222263,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 10776,
+              "y": -5071.964483415079
+            },
+            "b": {
+              "x": 10776,
+              "y": -4655.752570745142
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf8erls"
+          }
+        },
+        {
+          "id": "roof_mlf8f7y1",
+          "shape": "poly",
+          "points": [
+            "HL94.5",
+            "HN94.5",
+            "HN94",
+            "HL94"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 50,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 10560,
+              "y": -5210.008829167183
+            },
+            "b": {
+              "x": 10560,
+              "y": -5132.296016246081
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf8f7y1"
+          }
+        },
+        {
+          "id": "roof_mlf8o228",
+          "shape": "poly",
+          "points": [
+            "HE119.5",
+            "HO119.5",
+            "HO103.5",
+            "HE103.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#c48888",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 10416,
+              "y": -6567.936662301182
+            },
+            "b": {
+              "x": 10416,
+              "y": -5681.126648825917
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf8o228"
+          }
+        },
+        {
+          "id": "roof_mlf8p8l3",
+          "shape": "poly",
+          "points": [
+            "GR111.5",
+            "HE112",
+            "HE103.5",
+            "GR103"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#c48888",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 220,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 9552,
+              "y": -5916.685558655285
+            },
+            "b": {
+              "x": 10396,
+              "y": -5916.685558655285
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf8p8l3"
+          }
+        },
+        {
+          "id": "roof_mlf8q6xk",
+          "shape": "poly",
+          "points": [
+            "HM109",
+            "HN108.5",
+            "HN106.5",
+            "HM107"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#c48888",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": true,
+          "spineAdjustA": 61.66666666666606,
+          "spineAdjustB": 0,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 10498.333333333334,
+              "y": -5930.541965115835
+            },
+            "b": {
+              "x": 10608,
+              "y": -5930.541965115835
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf8q6xk"
+          }
+        },
+        {
+          "id": "roof_mlf8zb42",
+          "shape": "poly",
+          "points": [
+            "HX96",
+            "IE96.5",
+            "IE93.5",
+            "HX95.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 11256,
+              "y": -5293.147267930489
+            },
+            "b": {
+              "x": 11256,
+              "y": -5265.434455009387
+            }
+          },
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf8zb42"
+          }
+        },
+        {
+          "id": "roof_mlf8zqze",
+          "shape": "poly",
+          "points": [
+            "HX96",
+            "IE96.5",
+            "IE92.5",
+            "HX92"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ff8000",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 11088,
+              "y": -5182.29601624608
+            },
+            "b": {
+              "x": 11424,
+              "y": -5182.29601624608
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf8zqze"
+          }
+        },
+        {
+          "id": "roof_mlf90pu2",
+          "shape": "poly",
+          "points": [
+            "HX88",
+            "HX92",
+            "IE92.5",
+            "IE88.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ff8000",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": false,
+          "spineAdjustA": 110.86956521739194,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 11256,
+              "y": -5182.314329779065
+            },
+            "b": {
+              "x": 11256,
+              "y": -4849.742261192857
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf90pu2"
+          }
+        },
+        {
+          "id": "roof_mlf91vcj",
+          "shape": "poly",
+          "points": [
+            "HY96",
+            "IA96",
+            "IA95.5",
+            "HY95.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ff8000",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 40,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 11184,
+              "y": -5265.4344550093865
+            },
+            "b": {
+              "x": 11184,
+              "y": -5197.721642088285
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf91vcj"
+          }
+        },
+        {
+          "id": "roof_mlf922q3",
+          "shape": "poly",
+          "points": [
+            "ID95.5",
+            "ID95",
+            "IB95",
+            "IB95.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ff8000",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 40,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 11328,
+              "y": -5265.434455009387
+            },
+            "b": {
+              "x": 11328,
+              "y": -5197.721642088285
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf922q3"
+          }
+        },
+        {
+          "id": "roof_mlf94omr",
+          "shape": "poly",
+          "points": [
+            "IE96.5",
+            "IM96.5",
+            "IM93.5",
+            "IE93.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": true,
+          "spineAdjustA": -136.0465116279065,
+          "spineAdjustB": -148.83720930232448,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 11560.046511627907,
+              "y": -5210.008829167183
+            },
+            "b": {
+              "x": 11659.162790697676,
+              "y": -5210.008829167183
+            }
+          },
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf94omr"
+          }
+        },
+        {
+          "id": "roof_mlf95g82",
+          "shape": "poly",
+          "points": [
+            "IE96.5",
+            "IM96.5",
+            "IM88.5",
+            "IE88.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": -95,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 11616,
+              "y": -5293.147267930489
+            },
+            "b": {
+              "x": 11616,
+              "y": -4944.742261192856
+            }
+          },
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf95g82"
+          }
+        },
+        {
+          "id": "roof_mlf97y4b",
+          "shape": "poly",
+          "points": [
+            "IE96.5",
+            "IM96.5",
+            "IM93",
+            "IE93"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 4,
+          "shadowDepth": 16,
+          "rot90": true,
+          "spineAdjustA": -74.41860465116406,
+          "spineAdjustB": -140.69767441860677,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 11498.418604651164,
+              "y": -5196.152422706631
+            },
+            "b": {
+              "x": 11667.302325581393,
+              "y": -5196.152422706631
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf97y4b"
+          }
+        },
+        {
+          "id": "roof_mlf98vcr",
+          "shape": "poly",
+          "points": [
+            "IG93",
+            "IM93",
+            "IM88.5",
+            "IG88.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 16,
+          "rot90": false,
+          "spineAdjustA": 97.67441860465169,
+          "spineAdjustB": -59.30232558139505,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 11664,
+              "y": -5196.831996087426
+            },
+            "b": {
+              "x": 11664,
+              "y": -4909.044586774251
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf98vcr"
+          }
+        },
+        {
+          "id": "roof_mlf9v1fn",
+          "shape": "poly",
+          "points": [
+            "DM84.5",
+            "DX84",
+            "DX75",
+            "DL75"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ff8000",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rot90": false,
+          "spineAdjustA": 193,
+          "spineAdjustB": 0,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 5808,
+              "y": -4821.03975782404
+            },
+            "b": {
+              "x": 5808,
+              "y": -4129.209125244203
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf9v1fn"
+          }
+        },
+        {
+          "id": "roof_mlf9w5kc",
+          "shape": "poly",
+          "points": [
+            "DN91",
+            "DX91",
+            "DX84",
+            "DM84.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ff8000",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rot90": true,
+          "spineAdjustA": 25,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 5591,
+              "y": -4822.0294482717545
+            },
+            "b": {
+              "x": 6096,
+              "y": -4822.0294482717545
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf9w5kc"
+          }
+        },
+        {
+          "id": "roof_mlf9yuwz",
+          "shape": "poly",
+          "points": [
+            "DE90.5",
+            "DI90.5",
+            "DJ87.5",
+            "DH85",
+            "DD86.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rot90": true,
+          "spineAdjustA": 38,
+          "spineAdjustB": 83,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 5146,
+              "y": -4863.598667653408
+            },
+            "b": {
+              "x": 5459,
+              "y": -4863.598667653408
+            }
+          },
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlf9yuwz"
+          }
+        },
+        {
+          "id": "roof_mlfa1jxv",
+          "shape": "poly",
+          "points": [
+            "EJ168.5",
+            "FE172.5",
+            "FF165.5",
+            "EK163"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 6720,
+              "y": -9228.366702726977
+            },
+            "b": {
+              "x": 7680,
+              "y": -9228.366702726977
+            }
+          },
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlfa1jxv"
+          }
+        },
+        {
+          "id": "roof_mlfad7uy",
+          "shape": "poly",
+          "points": [
+            "KL99.5",
+            "KT99.5",
+            "KT87.5",
+            "KL87.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 14448,
+              "y": -5487.136958378203
+            },
+            "b": {
+              "x": 14448,
+              "y": -4822.0294482717545
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlfad7uy"
+          }
+        },
+        {
+          "id": "roof_mlfae33u",
+          "shape": "poly",
+          "points": [
+            "KT97",
+            "LA97.5",
+            "LA94.5",
+            "KT94"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rot90": true,
+          "spineAdjustA": 100,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 14540,
+              "y": -5265.4344550093865
+            },
+            "b": {
+              "x": 14976,
+              "y": -5265.4344550093865
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlfae33u"
+          }
+        },
+        {
+          "id": "roof_mlfaebsq",
+          "shape": "poly",
+          "points": [
+            "KT94",
+            "LA94.5",
+            "LA91.5",
+            "KT91"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rot90": true,
+          "spineAdjustA": 100,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 14540,
+              "y": -5099.157577482774
+            },
+            "b": {
+              "x": 14976,
+              "y": -5099.157577482774
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlfaebsq"
+          }
+        },
+        {
+          "id": "roof_mlfaeinm",
+          "shape": "poly",
+          "points": [
+            "KT91",
+            "LA91.5",
+            "LA88",
+            "KT87.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rot90": true,
+          "spineAdjustA": 100,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 14540,
+              "y": -4919.024293495611
+            },
+            "b": {
+              "x": 14976,
+              "y": -4919.024293495611
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlfaeinm"
+          }
+        },
+        {
+          "id": "roof_mlfafeld",
+          "shape": "poly",
+          "points": [
+            "KE97.5",
+            "KL97",
+            "KL94",
+            "KE94.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 100,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 13920,
+              "y": -5265.4344550093865
+            },
+            "b": {
+              "x": 14356,
+              "y": -5265.4344550093865
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlfafeld"
+          }
+        },
+        {
+          "id": "roof_mlfafmmi",
+          "shape": "poly",
+          "points": [
+            "KE88",
+            "KE91",
+            "KL90.5",
+            "KL87.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 100,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 13920,
+              "y": -4905.167887035061
+            },
+            "b": {
+              "x": 14356,
+              "y": -4905.167887035061
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlfafmmi"
+          }
+        },
+        {
+          "id": "roof_mlfag0du",
+          "shape": "poly",
+          "points": [
+            "KE94.5",
+            "KL94",
+            "KL90.5",
+            "KE91"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 100,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 13920,
+              "y": -5085.301171022224
+            },
+            "b": {
+              "x": 14356,
+              "y": -5085.301171022224
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlfag0du"
+          }
+        },
+        {
+          "id": "roof_mlfai2hm",
+          "shape": "poly",
+          "points": [
+            "JB104.5",
+            "JB108",
+            "JO108.5",
+            "JO105"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rot90": true,
+          "spineAdjustA": 96,
+          "spineAdjustB": 96,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 12432,
+              "y": -5861.25993281308
+            },
+            "b": {
+              "x": 13248,
+              "y": -5861.25993281308
+            }
+          },
+          "line_hidden": [
+            "conn:a:1",
+            "conn:b:1"
+          ],
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlfai2hm"
+          }
+        },
+        {
+          "id": "roof_mlfainah",
+          "shape": "poly",
+          "points": [
+            "JO105",
+            "JO119.5",
+            "JS119.5",
+            "JS105"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": -14,
+          "tileOffsetBlue": -14,
+          "shadowDepth": 32,
+          "rot90": false,
+          "spineAdjustA": -111,
+          "spineAdjustB": -97,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 13248,
+              "y": -6456.936662301182
+            },
+            "b": {
+              "x": 13248,
+              "y": -5861.265087589223
+            }
+          },
+          "line_hidden": [
+            "conn:a:0",
+            "conn:b:0"
+          ],
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlfainah"
+          }
+        },
+        {
+          "id": "roof_mlfajpl6",
+          "shape": "poly",
+          "points": [
+            "IX119",
+            "JB119",
+            "JB104.5",
+            "IX104.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": -14,
+          "tileOffsetBlue": -15,
+          "shadowDepth": 32,
+          "rot90": false,
+          "spineAdjustA": -111,
+          "spineAdjustB": -97,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 12432,
+              "y": -6456.936662301183
+            },
+            "b": {
+              "x": 12432,
+              "y": -5861.265087589223
+            }
+          },
+          "line_hidden": [
+            "conn:a:1",
+            "conn:b:1"
+          ],
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlfajpl6"
+          }
+        },
+        {
+          "id": "roof_mlfak0vu",
+          "shape": "poly",
+          "points": [
+            "JB119",
+            "JO119.5",
+            "JO115.5",
+            "JB115"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rot90": true,
+          "spineAdjustA": 96,
+          "spineAdjustB": 96,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 12432,
+              "y": -6457.0854106167735
+            },
+            "b": {
+              "x": 13248,
+              "y": -6457.0854106167735
+            }
+          },
+          "line_hidden": [
+            "conn:a:0",
+            "conn:b:0"
+          ],
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlfak0vu"
+          }
+        },
+        {
+          "id": "roof_mlfaqrvl",
+          "shape": "poly",
+          "points": [
+            "LR120.5",
+            "LY121",
+            "LY111.5",
+            "LR111"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 15960,
+              "y": -6651.075101064488
+            },
+            "b": {
+              "x": 15960,
+              "y": -6124.53165556355
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlfaqrvl"
+          }
+        },
+        {
+          "id": "roof_mlfaragy",
+          "shape": "poly",
+          "points": [
+            "LY121",
+            "MJ120.5",
+            "MJ111",
+            "LY111.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rot90": true,
+          "spineAdjustA": 122,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 16006,
+              "y": -6387.803378314019
+            },
+            "b": {
+              "x": 16656,
+              "y": -6387.803378314019
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlfaragy"
+          }
+        },
+        {
+          "id": "roof_mli7m67g",
+          "shape": "poly",
+          "points": [
+            "DU116",
+            "EE116",
+            "EE113",
+            "DU113"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#804040",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": true,
+          "spineAdjustA": 66,
+          "spineAdjustB": 0,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 5886,
+              "y": -6290.808533090162
+            },
+            "b": {
+              "x": 6432,
+              "y": -6290.808533090162
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mli7m67g"
+          }
+        },
+        {
+          "id": "roof_mli7mplx",
+          "shape": "poly",
+          "points": [
+            "EC109.5",
+            "EC105.5",
+            "DY105.5",
+            "DY109.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": true,
+          "spineAdjustA": 132,
+          "spineAdjustB": 0,
+          "z": 1,
+          "spine": {
+            "a": {
+              "x": 6012,
+              "y": -5902.829152194734
+            },
+            "b": {
+              "x": 6336,
+              "y": -5902.829152194734
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mli7mplx"
+          }
+        },
+        {
+          "id": "roof_mli7np4t",
+          "shape": "poly",
+          "points": [
+            "DO116",
+            "DV115.5",
+            "DV109",
+            "DO109.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#804040",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 5832,
+              "y": -6373.946971853468
+            },
+            "b": {
+              "x": 5832,
+              "y": -6013.6804038791415
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mli7np4t"
+          }
+        },
+        {
+          "id": "roof_mli7q45i",
+          "shape": "poly",
+          "points": [
+            "DV109",
+            "DU110",
+            "DU113",
+            "DV112.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#804040",
+          "tintStrength": 0.3,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": true,
+          "spineAdjustA": 66,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 5886,
+              "y": -6124.53165556355
+            },
+            "b": {
+              "x": 6000,
+              "y": -6124.53165556355
+            }
+          },
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mli7q45i"
+          }
+        },
+        {
+          "id": "roof_mli80f9w",
+          "shape": "poly",
+          "points": [
+            "EJ170.5",
+            "FF170.5",
+            "FF163.5",
+            "EJ163.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": -11,
+          "fullRot": -11,
+          "fullRotOn": true,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 6681.700847139633,
+              "y": -9127.61955316816
+            },
+            "b": {
+              "x": 7718.299152860365,
+              "y": -9329.113852285793
+            }
+          },
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mli80f9w"
+          }
+        },
+        {
+          "id": "roof_mli840yd",
+          "shape": "poly",
+          "points": [
+            "FF172.5",
+            "FK173",
+            "FK166.5",
+            "FF166"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": -11,
+          "fullRot": -11,
+          "fullRotOn": true,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 7730.204737986281,
+              "y": -9330.177281426752
+            },
+            "b": {
+              "x": 7965.795262013719,
+              "y": -9375.971440317122
+            }
+          },
+          "line_hidden": [
+            "spine"
+          ],
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mli840yd"
+          }
+        },
+        {
+          "id": "roof_mli87m79",
+          "shape": "poly",
+          "points": [
+            "EJ168.5",
+            "FE172.5",
+            "FF165.5",
+            "EK163"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": -11,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": true,
+          "spineAdjustA": 7,
+          "spineAdjustB": 10,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 6697.3288251631675,
+              "y": -9144.513730828126
+            },
+            "b": {
+              "x": 7700.425355166002,
+              "y": -9339.49594442505
+            }
+          },
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mli87m79"
+          }
+        },
+        {
+          "id": "roof_mli8bqst",
+          "shape": "poly",
+          "points": [
+            "EJ168.5",
+            "FE172.5",
+            "FF165.5",
+            "EK163"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": -11,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 6704.200215447301,
+              "y": -9145.849393795763
+            },
+            "b": {
+              "x": 7690.609083331525,
+              "y": -9337.587854471285
+            }
+          },
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mli8bqst"
+          }
+        },
+        {
+          "id": "roof_mli8dlic",
+          "shape": "poly",
+          "points": [
+            "EJ169.5",
+            "FE170",
+            "FE163.5",
+            "EJ163"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": -11,
+          "fullRot": -11,
+          "fullRotOn": true,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 6681.259899542378,
+              "y": -9090.629749675547
+            },
+            "b": {
+              "x": 7670.740100457622,
+              "y": -9282.965217015104
+            }
+          },
+          "line_hidden": [
+            "spine"
+          ],
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mli8dlic"
+          }
+        },
+        {
+          "id": "roof_mli8e6j1",
+          "shape": "poly",
+          "points": [
+            "DZ175.5",
+            "EH175.5",
+            "EH171.5",
+            "DZ171.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "spine": {
+            "a": {
+              "x": 6384,
+              "y": -9699.484522385712
+            },
+            "b": {
+              "x": 6384,
+              "y": -9477.782019016895
+            }
+          },
+          "line_hidden": [
+            "spine"
+          ],
+          "deleted": true,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mli8e6j1"
+          }
+        },
+        {
+          "id": "roof_mlkro664",
+          "shape": "poly",
+          "points": [
+            "FZ84",
+            "GI84.5",
+            "GI78",
+            "FZ77.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ff8000",
+          "tintStrength": 0.4,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlkro664"
+          },
+          "spine": {
+            "a": {
+              "x": 8904,
+              "y": -4628.03975782404
+            },
+            "b": {
+              "x": 8904,
+              "y": -4267.773189849714
+            }
+          }
+        },
+        {
+          "id": "roof_mlkrok5o",
+          "shape": "poly",
+          "points": [
+            "FR84",
+            "FZ84",
+            "FZ60",
+            "FR60"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlkrok5o"
+          },
+          "spine": {
+            "a": {
+              "x": 8496,
+              "y": -4628.03975782404
+            },
+            "b": {
+              "x": 8496,
+              "y": -3297.824737611142
+            }
+          }
+        },
+        {
+          "id": "roof_mlkrpe2u",
+          "shape": "poly",
+          "points": [
+            "EY86",
+            "FF85.5",
+            "FF65",
+            "EY65.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlkrpe2u"
+          },
+          "spine": {
+            "a": {
+              "x": 7560,
+              "y": -4711.178196587346
+            },
+            "b": {
+              "x": 7560,
+              "y": -3574.9528668221624
+            }
+          }
+        },
+        {
+          "id": "roof_mlkrppnq",
+          "shape": "poly",
+          "points": [
+            "DL75",
+            "DL69.5",
+            "EJ69.5",
+            "EJ75"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlkrppnq"
+          },
+          "spine": {
+            "a": {
+              "x": 5520,
+              "y": -3976.7886541781418
+            },
+            "b": {
+              "x": 6672,
+              "y": -3976.7886541781418
+            }
+          }
+        },
+        {
+          "id": "roof_mlkrrk2d",
+          "shape": "poly",
+          "points": [
+            "EQ116",
+            "EX115.5",
+            "EX104.5",
+            "EQ105"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlkrrk2d"
+          },
+          "spine": {
+            "a": {
+              "x": 7176,
+              "y": -6373.946971853468
+            },
+            "b": {
+              "x": 7176,
+              "y": -5764.265087589223
+            }
+          }
+        },
+        {
+          "id": "roof_mlkrsa04",
+          "shape": "poly",
+          "points": [
+            "GO120.5",
+            "GX120",
+            "GX111.5",
+            "GO112"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlkrsa04"
+          },
+          "spine": {
+            "a": {
+              "x": 9624,
+              "y": -6623.362288143387
+            },
+            "b": {
+              "x": 9624,
+              "y": -6152.244468484652
+            }
+          }
+        },
+        {
+          "id": "roof_mlkrsued",
+          "shape": "poly",
+          "points": [
+            "FD115.5",
+            "FK116",
+            "FK110",
+            "FD109.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlkrsued"
+          },
+          "spine": {
+            "a": {
+              "x": 7800,
+              "y": -6373.946971853468
+            },
+            "b": {
+              "x": 7800,
+              "y": -6041.393216800244
+            }
+          }
+        },
+        {
+          "id": "roof_mlkrt9cs",
+          "shape": "poly",
+          "points": [
+            "GN80.5",
+            "GV80.5",
+            "GV70",
+            "GN70"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": false,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlkrt9cs"
+          },
+          "spine": {
+            "a": {
+              "x": 9552,
+              "y": -4434.050067376326
+            },
+            "b": {
+              "x": 9552,
+              "y": -3852.0809960331826
+            }
+          }
+        },
+        {
+          "id": "roof_mlkrtiis",
+          "shape": "poly",
+          "points": [
+            "GI78",
+            "GN77.5",
+            "GN73",
+            "GI73.5"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlkrtiis"
+          },
+          "spine": {
+            "a": {
+              "x": 9120,
+              "y": -4143.065531704754
+            },
+            "b": {
+              "x": 9360,
+              "y": -4143.065531704754
+            }
+          }
+        },
+        {
+          "id": "roof_mlkrvj5g",
+          "shape": "poly",
+          "points": [
+            "HA83",
+            "HQ83",
+            "HQ79",
+            "HA79"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": true,
+          "spineAdjustA": 0,
+          "spineAdjustB": 0,
+          "z": 0,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlkrvj5g"
+          },
+          "spine": {
+            "a": {
+              "x": 9984,
+              "y": -4434.050067376325
+            },
+            "b": {
+              "x": 10752,
+              "y": -4434.050067376325
+            }
+          }
+        },
+        {
+          "id": "roof_mlkrvrjo",
+          "shape": "poly",
+          "points": [
+            "HA75",
+            "HJ74.5",
+            "HJ78.5",
+            "HA79"
+          ],
+          "kind": "slate",
+          "shade": 0.2,
+          "tint": "#ffffff",
+          "tintStrength": 0,
+          "tileOffsetYellow": 0,
+          "tileOffsetBlue": 0,
+          "shadowDepth": 32,
+          "rotDeg": 0,
+          "fullRot": 0,
+          "fullRotOn": false,
+          "rot90": false,
+          "spineAdjustA": 93,
+          "spineAdjustB": 0,
+          "z": 0,
+          "weathering": {
+            "aging": 0,
+            "moss": 0,
+            "mottling": 0,
+            "streaks": 0,
+            "repairs": 0,
+            "contrast": 0,
+            "seed": "roof_mlkrvrjo"
+          },
+          "spine": {
+            "a": {
+              "x": 10200,
+              "y": -4416.198815691918
+            },
+            "b": {
+              "x": 10200,
+              "y": -4101.496312323101
+            }
+          }
         }
       ]
     }
