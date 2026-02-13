@@ -954,14 +954,21 @@ import { createControlsController } from './modules/controls.js';
             
 
       function buildTokens() {
-        const poiId = resolvePoiId();
+        const poiId = String(resolvePoiId() || '').trim();
         const entities = Array.isArray(STATE.entities) ? STATE.entities : [];
         return entities
-          .filter(e => e && !e.deleted && (!e.poi_id || e.poi_id === poiId))
+          .filter(e => {
+            if (!e || e.deleted) return false;
+            const entityPoi = String(e.poi_id ?? e.poiId ?? '').trim();
+            // If current map has no POI mapping, do not discard POI-bound entities.
+            if (!entityPoi || !poiId) return true;
+            return entityPoi === poiId;
+          })
           .map(e => {
             const loc = e.location || e.position || {};
             const hex = e.hex || loc.hex || '';
-            const floorId = e.floorId || loc.floorId || loc.floor_id || e.floor_id || '';
+            const floorRaw = e.floorId ?? loc.floorId ?? loc.floor_id ?? e.floor_id ?? '';
+            const floorId = floorRaw == null ? '' : String(floorRaw);
             return {
               id: String(e.id || e.character_id || ''),
               characterId: e.character_id || e.characterId || '',
@@ -3489,7 +3496,7 @@ import { createControlsController } from './modules/controls.js';
         const poiObjects = objects.filter(o => String(o.kind || '').toLowerCase().startsWith('the.'));
         const normalObjects = objects.filter(o => !String(o.kind || '').toLowerCase().startsWith('the.'));
         const tokens = buildTokens()
-          .filter(t => !t.floorId || t.floorId === floor.id)
+          .filter(t => !t.floorId || String(t.floorId) === String(floor.id))
           .filter(t => itemFogState(t, floor, allRooms, fogSets, tokenWorldCenter) !== 'hidden');
         const objectOpenings = [];
         const tokenOpenings = [];
@@ -4209,7 +4216,7 @@ import { createControlsController } from './modules/controls.js';
         if (!floor) return null;
         const screenPoint = worldToScreen(worldPoint);
 
-        const tokens = buildTokens().filter(t => !t.floorId || t.floorId === floor.id);
+        const tokens = buildTokens().filter(t => !t.floorId || String(t.floorId) === String(floor.id));
         const token = nearestItem(tokens, screenPoint, t => {
           const pos = parseHexLabel(t.hex);
           return pos ? worldToScreen(hexToWorld(pos.col, pos.row)) : null;
