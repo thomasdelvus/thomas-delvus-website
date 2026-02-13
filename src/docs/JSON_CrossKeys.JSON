@@ -1880,7 +1880,8 @@
           "thickness": 15,
           "wall": {
             "kind": "brick"
-          }
+          },
+          "z": -1
         },
         {
           "buildingId": "CrossKeysInn",
@@ -1953,39 +1954,25 @@
           }
         },
         {
-          "id": "room_ml5d73sm",
-          "corners": [
-            "DO97",
-            "EN96.5",
-            "EN90.5",
-            "DO91"
+          "id": "room_ml71rk2n",
+          "shape": "poly",
+          "points": [
+            "EL96.5",
+            "FA97",
+            "FA92",
+            "DY90.5",
+            "DM91.5",
+            "DO97"
           ],
           "thickness": 15,
           "floor": {
-            "kind": "cobble"
+            "kind": "stone"
           },
           "wall": {
             "kind": "brick"
           },
           "wall_erase": "EW",
-          "z": 8
-        },
-        {
-          "id": "room_ml5d88bi",
-          "corners": [
-            "DI107",
-            "DO107",
-            "DO89.5",
-            "DI89.5"
-          ],
-          "thickness": 12,
-          "floor": {
-            "kind": "cobble"
-          },
-          "wall": {
-            "kind": "brick"
-          },
-          "wall_erase": "NS"
+          "fog_mode": "visible"
         }
       ]
     },
