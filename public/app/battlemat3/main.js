@@ -143,12 +143,12 @@ import { createControlsController } from './modules/controls.js';
         'crate', 'barrel', 'keg'
       ];
       const DEFAULT_TOKEN_KINDS = ['pc', 'npc', 'monster', 'creature'];
-      const DEFAULT_TOKEN_SCALE = 1.5;
+      const DEFAULT_TOKEN_SCALE = 2.5;
       const TOKEN_KIND_SCALES = {
-        pc: 1.5,
-        npc: 1.5,
-        monster: 1.5,
-        creature: 1.5
+        pc: 2.5,
+        npc: 2.5,
+        monster: 2.5,
+        creature: 2.5
       };
       const DEFAULT_TOKEN_TEMPLATE_NAMES = Object.freeze({
         pc: [],
@@ -967,6 +967,12 @@ import { createControlsController } from './modules/controls.js';
         return raw || 'npc';
       }
 
+      function currentBattleId() {
+        const fromState = STATE && STATE.battle && (STATE.battle._battle_id || STATE.battle.battle_id || STATE.battle.battleId);
+        const id = fromState || resolveBattleId() || '';
+        return String(id || '').trim();
+      }
+
       function tokenKindLabel(tokenKind) {
         const kind = normalizeTokenKind(tokenKind);
         if (kind === 'pc') return 'PC';
@@ -1260,14 +1266,20 @@ import { createControlsController } from './modules/controls.js';
       function placeEntityAtHex(entity, tokenKind, hexLabel, floorId, poiId) {
         if (!entity || typeof entity !== 'object') return null;
         const kind = normalizeTokenKind(entity.kind || tokenKind);
+        const battleId = currentBattleId();
         entity.kind = kind;
         if (!entity.side) entity.side = kind === 'pc' ? 'PC' : 'NPC';
         if (!entity.location || typeof entity.location !== 'object') entity.location = {};
         entity.location.hex = hexLabel;
         entity.location.floorId = floorId;
+        entity.floorId = floorId;
         if (poiId) {
           entity.poi_id = poiId;
           entity.location.poi_id = poiId;
+        }
+        if (battleId) {
+          entity.battle_id = battleId;
+          entity.location.battle_id = battleId;
         }
         if (!entityPrimaryId(entity)) entity.id = createEntityId();
         return entity;
@@ -1286,7 +1298,7 @@ import { createControlsController } from './modules/controls.js';
           characterId: entity && (entity.character_id || entity.characterId || '') || '',
           name: entityDisplayName(entity),
           hex: entity && (entity.hex || entity.hex_label || entity.hexLabel || loc.hex || loc.hex_label || loc.hexLabel || '') || '',
-          floorId: entity && (entity.floorId || entity.floor_id || loc.floorId || loc.floor_id || loc.floor || '') || '',
+          floorId: entity && (loc.floorId || loc.floor_id || loc.floor || entity.floorId || entity.floor_id || '') || '',
           kind,
           sprite: entity && (entity.sprite || (entity.appearance && entity.appearance.sprite) || '') || '',
           spriteScale,
@@ -1296,19 +1308,23 @@ import { createControlsController } from './modules/controls.js';
           side: entity && (entity.side || (kind === 'pc' ? 'PC' : 'NPC')),
           hostility: entity && (entity.hostility || (entity.stats && entity.stats.hostility) || ''),
           conditions: entity && (entity.conditions || (entity.stats && entity.stats.conditions) || null),
-          poi_id: entity && (entity.poi_id || entity.poiId || loc.poi_id || loc.poiId || '') || '',
+          poi_id: entity && (loc.poi_id || loc.poiId || entity.poi_id || entity.poiId || '') || '',
+          battle_id: entity && (loc.battle_id || loc.battleId || entity.battle_id || entity.battleId || '') || '',
           __entity: entity
         };
       }
 
       function buildTokens() {
         const poiId = String(resolvePoiId() || '').trim();
+        const battleId = currentBattleId();
         const entities = getCanonicalEntityList();
         return entities
           .filter(e => {
             if (!e || e.deleted) return false;
             const loc = (e.location && typeof e.location === 'object') ? e.location : {};
             const entityPoi = String(e.poi_id ?? e.poiId ?? loc.poi_id ?? loc.poiId ?? '').trim();
+            const entityBattle = String(e.battle_id ?? e.battleId ?? loc.battle_id ?? loc.battleId ?? '').trim();
+            if (entityBattle && battleId && entityBattle !== battleId) return false;
             // If current map has no POI mapping, do not discard POI-bound entities.
             if (!entityPoi || !poiId) return true;
             return entityPoi === poiId;
@@ -1380,8 +1396,10 @@ import { createControlsController } from './modules/controls.js';
               e.world_x ?? e.worldX ?? loc.world_x ?? loc.worldX ?? e.x ?? loc.x,
               e.world_y ?? e.worldY ?? loc.world_y ?? loc.worldY ?? e.y ?? loc.y
             );
-            const floorRaw = e.floorId ?? loc.floorId ?? loc.floor_id ?? loc.floor ?? loc.level ?? e.floor_id ?? e.level ?? '';
+            const floorRaw = loc.floorId ?? loc.floor_id ?? loc.floor ?? loc.level ?? e.floorId ?? e.floor_id ?? e.level ?? '';
             const floorId = floorRaw == null ? '' : String(floorRaw);
+            const poiRaw = loc.poi_id ?? loc.poiId ?? e.poi_id ?? e.poiId ?? '';
+            const battleRaw = loc.battle_id ?? loc.battleId ?? e.battle_id ?? e.battleId ?? '';
             const spriteScaleRaw = (e.appearance && (e.appearance.sprite_scale ?? e.appearance.spriteScale)) ?? e.spriteScale ?? null;
             const spriteScaleNum = Number(spriteScaleRaw);
             const spriteScale = Number.isFinite(spriteScaleNum) && spriteScaleNum > 0 ? spriteScaleNum : null;
@@ -1400,10 +1418,12 @@ import { createControlsController } from './modules/controls.js';
               side: e.side || (e.kind === 'npc' ? 'NPC' : 'PC'),
               hostility: e.hostility || (e.stats && e.stats.hostility) || '',
               conditions: e.conditions || (e.stats && e.stats.conditions) || null,
+              poi_id: poiRaw == null ? '' : String(poiRaw),
+              battle_id: battleRaw == null ? '' : String(battleRaw),
               __entity: e
             };
           });
-      }
+      }
             const {
         chatStatusClass,
         populateChatSpeakerSelect,
@@ -4886,6 +4906,7 @@ import { createControlsController } from './modules/controls.js';
       function syncEntityFromToken(token) {
         const entity = token && token.__entity;
         if (!entity) return;
+        const activeBattleId = currentBattleId();
         entity.name = token.name;
         if (token.kind) entity.kind = token.kind;
         if (token.sprite) entity.sprite = token.sprite;
@@ -4899,8 +4920,20 @@ import { createControlsController } from './modules/controls.js';
         }
         if (!entity.location || typeof entity.location !== 'object') entity.location = {};
         if (token.hex) entity.location.hex = token.hex;
-        if (token.floorId) entity.location.floorId = token.floorId;
-        if (token.poi_id) entity.poi_id = token.poi_id;
+        if (token.floorId) {
+          entity.location.floorId = token.floorId;
+          entity.floorId = token.floorId;
+        }
+        if (token.poi_id) {
+          entity.poi_id = token.poi_id;
+          entity.location.poi_id = token.poi_id;
+        }
+        const battleId = String(token.battle_id || activeBattleId || '').trim();
+        if (battleId) {
+          entity.battle_id = battleId;
+          entity.location.battle_id = battleId;
+          token.battle_id = battleId;
+        }
         if (token.side) entity.side = token.side;
         if (!entity.stats || typeof entity.stats !== 'object') entity.stats = {};
         if (token.hp != null) {
@@ -5278,15 +5311,22 @@ import { createControlsController } from './modules/controls.js';
 
       async function saveEntity(token) {
         if (!token) return;
+        const activeBattleId = currentBattleId();
         const stats = {};
         if (token.hp != null) stats.hp = token.hp;
         if (token.init != null) stats.init = token.init;
+        const battleId = String(token.battle_id || activeBattleId || '').trim();
         const patch = {
           name: token.name,
           kind: token.kind,
           side: token.side,
           poi_id: token.poi_id || resolvePoiId(),
-          location: { hex: token.hex, floorId: token.floorId },
+          location: {
+            hex: token.hex,
+            floorId: token.floorId,
+            ...(battleId ? { battle_id: battleId } : {})
+          },
+          ...(battleId ? { battle_id: battleId } : {}),
           ...(Object.keys(stats).length ? { stats } : {})
         };
         if (token.sprite) patch.sprite = token.sprite;

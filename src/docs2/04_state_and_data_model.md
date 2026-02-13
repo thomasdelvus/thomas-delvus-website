@@ -91,6 +91,11 @@ Behavior:
 1. Selecting an `existing` entry re-places that canonical entity at the clicked hex.
 2. Selecting a `template` entry creates a new entity from template seed data, then places it.
 3. Selecting `New ...` creates a default new entity for the selected kind.
+4. Placement writes location context fields together:
+   1. `location.hex`
+   2. `location.floorId`
+   3. `location.poi_id` (if resolvable)
+   4. `location.battle_id` (active battle id)
 
 Template definition lookup order:
 
