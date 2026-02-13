@@ -4,6 +4,7 @@ import path from "node:path";
 const root = process.cwd();
 const nextPath = path.join(root, "public", "app", "battlemat_next.html");
 const v3Path = path.join(root, "public", "app", "battlemat3.html");
+const ALLOWED_EXTRA_IDS = new Set(["tokenSource"]);
 
 function fail(message) {
   console.error(`[parity_dom_contract] FAIL: ${message}`);
@@ -57,7 +58,7 @@ const nextIds = extractIds(nextHtml);
 const v3Ids = extractIds(v3Html);
 
 const missingInV3 = [...nextIds].filter((id) => !v3Ids.has(id));
-const extraInV3 = [...v3Ids].filter((id) => !nextIds.has(id));
+const extraInV3 = [...v3Ids].filter((id) => !nextIds.has(id) && !ALLOWED_EXTRA_IDS.has(id));
 
 if (missingInV3.length) fail(`IDs missing in battlemat3.html: ${missingInV3.join(", ")}`);
 if (extraInV3.length) fail(`Extra IDs in battlemat3.html: ${extraInV3.join(", ")}`);

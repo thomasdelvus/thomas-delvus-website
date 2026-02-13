@@ -29,6 +29,7 @@ import { createControlsController } from './modules/controls.js';
       const openingOrientV = document.getElementById('openingOrientV');
       const objectKindSelect = document.getElementById('objectKind');
       const tokenKindSelect = document.getElementById('tokenKind');
+      const tokenSourceSelect = document.getElementById('tokenSource');
       const mapSelect = document.getElementById('mapSelect');
       const mapOffsetXInput = document.getElementById('mapOffsetX');
       const mapOffsetYInput = document.getElementById('mapOffsetY');
@@ -99,7 +100,8 @@ import { createControlsController } from './modules/controls.js';
         openingKind: 'door.wood',
         openingOrientation: 'h',
         objectKind: 'object',
-        tokenKind: 'npc'
+        tokenKind: 'npc',
+        tokenSource: 'new'
       };
       const HISTORY = { stack: [], index: -1, limit: 20 };
       const EDITOR_HOTKEY = Object.freeze({ key: 'j', ctrl: true, shift: true });
@@ -148,6 +150,12 @@ import { createControlsController } from './modules/controls.js';
         monster: 1.5,
         creature: 1.5
       };
+      const DEFAULT_TOKEN_TEMPLATE_NAMES = Object.freeze({
+        pc: [],
+        npc: ['Villager', 'Town Guard', 'Merchant'],
+        monster: ['Goblin', 'Bandit', 'Skeleton'],
+        creature: ['Wolf', 'Boar', 'Mastiff']
+      });
 
       // Floors under wall bands can hide cutouts; keep false unless you want that effect.
       const FLOOR_UNDER_WALLS = false;
@@ -602,6 +610,7 @@ import { createControlsController } from './modules/controls.js';
         if (openingGroup) openingGroup.style.display = tool === 'opening' ? 'flex' : 'none';
         if (objectGroup) objectGroup.style.display = tool === 'object' ? 'flex' : 'none';
         if (tokenGroup) tokenGroup.style.display = tool === 'token' ? 'flex' : 'none';
+        if (tool === 'token') populateTokenSourceOptions(EDITOR.tokenKind, EDITOR.tokenSource);
         if (canvasWrap) canvasWrap.style.cursor = nextTool === 'poly' ? 'crosshair' : 'default';
       }
 
@@ -953,25 +962,348 @@ import { createControlsController } from './modules/controls.js';
             });
             
 
-      function buildTokens() {
-        const pickEntityList = () => {
-          if (Array.isArray(STATE.entities) && STATE.entities.length) return STATE.entities;
-          const candidates = [
-            STATE && STATE.campaign && STATE.campaign.world && STATE.campaign.world.entities,
-            STATE && STATE.campaign && STATE.campaign.entities,
-            STATE && STATE.campaign && STATE.campaign.world && STATE.campaign.world.tokens,
-            STATE && STATE.campaign && STATE.campaign.tokens,
-            STATE && STATE.battle && STATE.battle.world && STATE.battle.world.entities,
-            STATE && STATE.battle && STATE.battle.entities,
-            STATE && STATE.battle && STATE.battle.tokens
-          ];
-          for (const list of candidates) {
-            if (Array.isArray(list) && list.length) return list;
+      function normalizeTokenKind(kind) {
+        const raw = String(kind == null ? '' : kind).trim().toLowerCase();
+        return raw || 'npc';
+      }
+
+      function tokenKindLabel(tokenKind) {
+        const kind = normalizeTokenKind(tokenKind);
+        if (kind === 'pc') return 'PC';
+        if (kind === 'npc') return 'NPC';
+        return kind.charAt(0).toUpperCase() + kind.slice(1);
+      }
+
+      function getCanonicalEntityList() {
+        if (Array.isArray(STATE.entities) && STATE.entities.length) return STATE.entities;
+        const candidates = [
+          STATE && STATE.campaign && STATE.campaign.world && STATE.campaign.world.entities,
+          STATE && STATE.campaign && STATE.campaign.entities,
+          STATE && STATE.campaign && STATE.campaign.world && STATE.campaign.world.tokens,
+          STATE && STATE.campaign && STATE.campaign.tokens,
+          STATE && STATE.battle && STATE.battle.world && STATE.battle.world.entities,
+          STATE && STATE.battle && STATE.battle.entities,
+          STATE && STATE.battle && STATE.battle.tokens
+        ];
+        for (const list of candidates) {
+          if (Array.isArray(list) && list.length) return list;
+        }
+        return [];
+      }
+
+      function entityPrimaryId(entity) {
+        if (!entity || typeof entity !== 'object') return '';
+        const id = entity.id ?? entity.character_id ?? entity.characterId ?? '';
+        return String(id || '').trim();
+      }
+
+      function entityDisplayName(entity) {
+        if (!entity || typeof entity !== 'object') return '';
+        return String(entity.name || entity.label || entity.title || entityPrimaryId(entity) || 'Token').trim();
+      }
+
+      function entityTokenKind(entity) {
+        const rawKind = String(entity && entity.kind || '').trim().toLowerCase();
+        if (rawKind) return rawKind;
+        const side = String(entity && entity.side || '').trim().toUpperCase();
+        if (side === 'PC') return 'pc';
+        return 'npc';
+      }
+
+      function entityMatchesTokenKind(entity, tokenKind) {
+        if (!entity || entity.deleted) return false;
+        const wanted = normalizeTokenKind(tokenKind);
+        const actual = entityTokenKind(entity);
+        if (actual === wanted) return true;
+        const hostility = String(entity.hostility || (entity.stats && entity.stats.hostility) || '').trim().toLowerCase();
+        if (wanted === 'monster' && hostility === 'hostile') return true;
+        if (wanted === 'pc') {
+          const side = String(entity.side || '').trim().toUpperCase();
+          return side === 'PC' || !!(entity.character_id || entity.characterId);
+        }
+        return false;
+      }
+
+      function tokenSourceValue(type, id) {
+        if (!id) return 'new';
+        return `${type}:${encodeURIComponent(String(id))}`;
+      }
+
+      function parseTokenSourceSelection(value) {
+        const raw = String(value || '').trim();
+        if (!raw || raw === 'new') return { type: 'new', id: '' };
+        const idx = raw.indexOf(':');
+        if (idx <= 0) return { type: 'new', id: '' };
+        const type = raw.slice(0, idx);
+        if (type !== 'entity' && type !== 'template') return { type: 'new', id: '' };
+        let id = '';
+        try {
+          id = decodeURIComponent(raw.slice(idx + 1));
+        } catch {
+          id = raw.slice(idx + 1);
+        }
+        return { type, id };
+      }
+
+      function toTemplateArray(value) {
+        if (Array.isArray(value)) return value.slice();
+        if (!value || typeof value !== 'object') return [];
+        return Object.entries(value).map(([id, entry]) => {
+          if (entry && typeof entry === 'object') {
+            return { id, ...entry };
           }
-          return [];
+          return { id, name: String(entry || id) };
+        });
+      }
+
+      function tokenKindPlural(kind) {
+        const normalized = normalizeTokenKind(kind);
+        return normalized === 'npc' ? 'npcs' : `${normalized}s`;
+      }
+
+      function normalizeTokenTemplate(entry, tokenKind, index, source) {
+        const kind = normalizeTokenKind(tokenKind);
+        if (typeof entry === 'string') {
+          const name = entry.trim();
+          if (!name) return null;
+          const baseId = `${kind}_${index + 1}_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+          return {
+            id: `${source}:${baseId}`,
+            name,
+            kind,
+            seed: { name, kind }
+          };
+        }
+        if (!entry || typeof entry !== 'object') return null;
+        const seed = cloneValue(entry);
+        const templateKind = normalizeTokenKind(seed.kind || kind);
+        if (templateKind !== kind) return null;
+        const rawId = String(seed.template_id || seed.templateId || seed.id || seed.slug || `${kind}_${index + 1}`);
+        const name = String(seed.name || seed.label || seed.title || rawId).trim();
+        if (!name) return null;
+        return {
+          id: `${source}:${rawId}`,
+          name,
+          kind,
+          seed
         };
+      }
+
+      function readTokenTemplateBuckets(kind) {
+        const normalizedKind = normalizeTokenKind(kind);
+        const plural = tokenKindPlural(normalizedKind);
+        const campaign = (STATE.campaign && typeof STATE.campaign === 'object') ? STATE.campaign : {};
+        const world = (campaign.world && typeof campaign.world === 'object') ? campaign.world : {};
+        const buckets = [];
+        const addBucket = (label, value) => {
+          if (value == null) return;
+          buckets.push({ label, value });
+        };
+        const addFromContainer = (containerLabel, container) => {
+          if (!container || typeof container !== 'object') return;
+          if (container[normalizedKind] != null) addBucket(`${containerLabel}.${normalizedKind}`, container[normalizedKind]);
+          if (container[plural] != null) addBucket(`${containerLabel}.${plural}`, container[plural]);
+          const nested = container.templates || container.items || container.rosters || null;
+          if (nested && typeof nested === 'object') {
+            if (nested[normalizedKind] != null) addBucket(`${containerLabel}.templates.${normalizedKind}`, nested[normalizedKind]);
+            if (nested[plural] != null) addBucket(`${containerLabel}.templates.${plural}`, nested[plural]);
+          }
+          const hasKindBuckets = DEFAULT_TOKEN_KINDS.some((k) => container[k] != null || container[tokenKindPlural(k)] != null);
+          if (!hasKindBuckets) {
+            const flat = toTemplateArray(container).filter((entry) => {
+              if (!entry || typeof entry !== 'object') return false;
+              if (!entry.kind) return false;
+              return normalizeTokenKind(entry.kind) === normalizedKind;
+            });
+            if (flat.length) addBucket(`${containerLabel}[*]`, flat);
+          }
+        };
+
+        addFromContainer('world.token_templates', world.token_templates);
+        addFromContainer('world.tokenTemplates', world.tokenTemplates);
+        addFromContainer('world.token_rosters', world.token_rosters);
+        addFromContainer('world.tokenRosters', world.tokenRosters);
+        addFromContainer('campaign.token_templates', campaign.token_templates);
+        addFromContainer('campaign.tokenTemplates', campaign.tokenTemplates);
+        addBucket(`world.${plural}`, world[plural]);
+        addBucket(`campaign.${plural}`, campaign[plural]);
+        return buckets;
+      }
+
+      function getTokenTemplatesByKind(tokenKind) {
+        const kind = normalizeTokenKind(tokenKind);
+        const out = [];
+        const seen = new Set();
+        for (const bucket of readTokenTemplateBuckets(kind)) {
+          const entries = toTemplateArray(bucket.value);
+          entries.forEach((entry, index) => {
+            const tpl = normalizeTokenTemplate(entry, kind, index, bucket.label);
+            if (!tpl || seen.has(tpl.id)) return;
+            seen.add(tpl.id);
+            out.push(tpl);
+          });
+        }
+        if (!out.length) {
+          const builtins = DEFAULT_TOKEN_TEMPLATE_NAMES[kind] || [];
+          builtins.forEach((name, index) => {
+            const tpl = normalizeTokenTemplate(name, kind, index, 'builtin');
+            if (!tpl || seen.has(tpl.id)) return;
+            seen.add(tpl.id);
+            out.push(tpl);
+          });
+        }
+        out.sort((a, b) => a.name.localeCompare(b.name));
+        return out;
+      }
+
+      function getEntityPoolByKind(tokenKind) {
+        const kind = normalizeTokenKind(tokenKind);
+        const entities = getCanonicalEntityList().filter((entity) => entityMatchesTokenKind(entity, kind));
+        entities.sort((a, b) => entityDisplayName(a).localeCompare(entityDisplayName(b)));
+        return entities;
+      }
+
+      function buildTokenSourceOptions(tokenKind) {
+        const kind = normalizeTokenKind(tokenKind);
+        const kindLabel = tokenKindLabel(kind);
+        const entities = getEntityPoolByKind(kind);
+        const templates = getTokenTemplatesByKind(kind);
+        const entityOpts = entities
+          .map((entity) => {
+            const id = entityPrimaryId(entity);
+            if (!id) return null;
+            return {
+              value: tokenSourceValue('entity', id),
+              label: `${entityDisplayName(entity)} [existing]`
+            };
+          })
+          .filter(Boolean);
+        const templateOpts = templates.map((tpl) => ({
+          value: tokenSourceValue('template', tpl.id),
+          label: `${tpl.name} [template]`
+        }));
+        const options = [];
+        if (kind === 'pc') {
+          options.push(...entityOpts, ...templateOpts);
+        } else {
+          options.push(...templateOpts, ...entityOpts);
+        }
+        options.push({ value: 'new', label: `New ${kindLabel}` });
+        return options.length ? options : [{ value: 'new', label: `New ${kindLabel}` }];
+      }
+
+      function populateTokenSourceOptions(tokenKind, preferredValue) {
+        if (!tokenSourceSelect) return 'new';
+        const options = buildTokenSourceOptions(tokenKind);
+        tokenSourceSelect.innerHTML = '';
+        options.forEach((opt) => {
+          const option = document.createElement('option');
+          option.value = String(opt.value || '');
+          option.textContent = String(opt.label || opt.value || '');
+          tokenSourceSelect.appendChild(option);
+        });
+        const preferred = preferredValue == null ? EDITOR.tokenSource : preferredValue;
+        const fallback = options[0] ? options[0].value : 'new';
+        const hasPreferred = options.some((opt) => opt.value === preferred);
+        const next = hasPreferred ? preferred : fallback;
+        tokenSourceSelect.value = next;
+        EDITOR.tokenSource = next;
+        return next;
+      }
+
+      function findEntityByTokenSource(kind, sourceId) {
+        const id = String(sourceId || '').trim();
+        if (!id) return null;
+        return getEntityPoolByKind(kind).find((entity) => {
+          const entityId = entityPrimaryId(entity);
+          return !!entityId && entityId === id;
+        }) || null;
+      }
+
+      function findTemplateByTokenSource(kind, sourceId) {
+        const id = String(sourceId || '').trim();
+        if (!id) return null;
+        return getTokenTemplatesByKind(kind).find((tpl) => String(tpl.id) === id) || null;
+      }
+
+      function createEntityId() {
+        return `entity_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+      }
+
+      function createEntityFromTemplate(tokenKind, template) {
+        const kind = normalizeTokenKind(tokenKind);
+        const seed = template && template.seed && typeof template.seed === 'object' ? cloneValue(template.seed) : {};
+        const entity = (seed && typeof seed === 'object') ? seed : {};
+        delete entity.deleted;
+        delete entity.hex;
+        delete entity.floorId;
+        delete entity.floor_id;
+        if (entity.location && typeof entity.location === 'object') delete entity.location.hex;
+        if (entity.location && typeof entity.location === 'object') delete entity.location.floorId;
+        if (entity.location && typeof entity.location === 'object') delete entity.location.floor_id;
+        if (entity.location && typeof entity.location === 'object') delete entity.location.poi_id;
+        if (entity.location && typeof entity.location === 'object') delete entity.location.poiId;
+        delete entity.poi_id;
+        delete entity.poiId;
+        delete entity.position;
+        delete entity.id;
+        delete entity.character_id;
+        delete entity.characterId;
+        entity.id = createEntityId();
+        entity.kind = kind;
+        entity.name = String(entity.name || (template && template.name) || tokenKindLabel(kind));
+        if (!entity.side) entity.side = kind === 'pc' ? 'PC' : 'NPC';
+        if (!entity.location || typeof entity.location !== 'object') entity.location = {};
+        return entity;
+      }
+
+      function placeEntityAtHex(entity, tokenKind, hexLabel, floorId, poiId) {
+        if (!entity || typeof entity !== 'object') return null;
+        const kind = normalizeTokenKind(entity.kind || tokenKind);
+        entity.kind = kind;
+        if (!entity.side) entity.side = kind === 'pc' ? 'PC' : 'NPC';
+        if (!entity.location || typeof entity.location !== 'object') entity.location = {};
+        entity.location.hex = hexLabel;
+        entity.location.floorId = floorId;
+        if (poiId) {
+          entity.poi_id = poiId;
+          entity.location.poi_id = poiId;
+        }
+        if (!entityPrimaryId(entity)) entity.id = createEntityId();
+        return entity;
+      }
+
+      function buildTokenFromEntity(entity, tokenKind) {
+        const loc = entity && (entity.location || entity.position) || {};
+        const kind = normalizeTokenKind((entity && entity.kind) || tokenKind);
+        const spriteScaleRaw = (entity && entity.appearance && (entity.appearance.sprite_scale ?? entity.appearance.spriteScale))
+          ?? (entity && entity.spriteScale)
+          ?? null;
+        const spriteScaleNum = Number(spriteScaleRaw);
+        const spriteScale = Number.isFinite(spriteScaleNum) && spriteScaleNum > 0 ? spriteScaleNum : null;
+        return {
+          id: entityPrimaryId(entity),
+          characterId: entity && (entity.character_id || entity.characterId || '') || '',
+          name: entityDisplayName(entity),
+          hex: entity && (entity.hex || entity.hex_label || entity.hexLabel || loc.hex || loc.hex_label || loc.hexLabel || '') || '',
+          floorId: entity && (entity.floorId || entity.floor_id || loc.floorId || loc.floor_id || loc.floor || '') || '',
+          kind,
+          sprite: entity && (entity.sprite || (entity.appearance && entity.appearance.sprite) || '') || '',
+          spriteScale,
+          hp: entity && (entity.hp ?? (entity.stats && entity.stats.hp) ?? null),
+          hp_max: entity && (entity.hp_max ?? (entity.stats && (entity.stats.hp_max ?? entity.stats.maxHp)) ?? null),
+          init: entity && (entity.init ?? (entity.stats && entity.stats.init) ?? null),
+          side: entity && (entity.side || (kind === 'pc' ? 'PC' : 'NPC')),
+          hostility: entity && (entity.hostility || (entity.stats && entity.stats.hostility) || ''),
+          conditions: entity && (entity.conditions || (entity.stats && entity.stats.conditions) || null),
+          poi_id: entity && (entity.poi_id || entity.poiId || loc.poi_id || loc.poiId || '') || '',
+          __entity: entity
+        };
+      }
+
+      function buildTokens() {
         const poiId = String(resolvePoiId() || '').trim();
-        const entities = pickEntityList();
+        const entities = getCanonicalEntityList();
         return entities
           .filter(e => {
             if (!e || e.deleted) return false;
@@ -4517,36 +4849,37 @@ import { createControlsController } from './modules/controls.js';
         if (EDITOR.tool === 'token') {
           pushHistory();
           const poiId = resolvePoiId();
-          const entityId = `entity_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-          const tokenKind = (EDITOR.tokenKind || 'npc').toLowerCase();
-          const tokenSide = tokenKind === 'pc' ? 'PC' : 'NPC';
-          const entity = {
-            id: entityId,
-            name: 'Token',
-            kind: tokenKind,
-            poi_id: poiId || '',
-            location: { hex: hexLabel, floorId: floor.id }
-          };
+          const tokenKind = normalizeTokenKind(EDITOR.tokenKind || 'npc');
+          const source = parseTokenSourceSelection(EDITOR.tokenSource);
+          let entity = null;
+          let created = false;
+          if (source.type === 'entity' && source.id) {
+            entity = findEntityByTokenSource(tokenKind, source.id);
+          } else if (source.type === 'template' && source.id) {
+            const template = findTemplateByTokenSource(tokenKind, source.id);
+            if (template) {
+              entity = createEntityFromTemplate(tokenKind, template);
+              created = true;
+            }
+          }
+          if (!entity) {
+            entity = createEntityFromTemplate(tokenKind, null);
+            created = true;
+          }
+          placeEntityAtHex(entity, tokenKind, hexLabel, floor.id, poiId);
           STATE.entities = Array.isArray(STATE.entities) ? STATE.entities : [];
-          STATE.entities.push(entity);
+          if (created) STATE.entities.push(entity);
 
-          const token = {
-            id: entityId,
-            name: entity.name,
-            kind: entity.kind,
-            hex: entity.location.hex,
-            floorId: entity.location.floorId,
-            poi_id: entity.poi_id,
-            side: entity.side || tokenSide,
-            __entity: entity
-          };
+          const token = buildTokenFromEntity(entity, tokenKind);
           selectItem('token', token, floor.id);
           syncEntityFromToken(token);
           queueEntitySave(token);
           renderStatus();
+          populateTokenSourceOptions(tokenKind, EDITOR.tokenSource);
           EDITOR.dirty = true;
           render();
           setTool('select');
+          return;
         }
       }
 
@@ -4994,9 +5327,22 @@ import { createControlsController } from './modules/controls.js';
         }
         if (tokenKindSelect) {
           tokenKindSelect.addEventListener('change', () => {
-            EDITOR.tokenKind = tokenKindSelect.value;
+            EDITOR.tokenKind = normalizeTokenKind(tokenKindSelect.value);
+            populateTokenSourceOptions(EDITOR.tokenKind);
           });
+          EDITOR.tokenKind = normalizeTokenKind(EDITOR.tokenKind || tokenKindSelect.value || 'npc');
           tokenKindSelect.value = EDITOR.tokenKind;
+          if (tokenKindSelect.value !== EDITOR.tokenKind) {
+            EDITOR.tokenKind = normalizeTokenKind(tokenKindSelect.value || 'npc');
+          }
+        } else {
+          EDITOR.tokenKind = normalizeTokenKind(EDITOR.tokenKind || 'npc');
+        }
+        if (tokenSourceSelect) {
+          tokenSourceSelect.addEventListener('change', () => {
+            EDITOR.tokenSource = tokenSourceSelect.value || 'new';
+          });
+          populateTokenSourceOptions(EDITOR.tokenKind, EDITOR.tokenSource);
         }
         if (hexGridToggle) {
           hexGridToggle.addEventListener('change', () => {

@@ -79,6 +79,76 @@ Tokens are rendered from campaign entities via `buildTokens()`:
    4. combat (`hp`, `hp_max`, `init`, `side`, `hostility`, `conditions`)
    5. pointer to source entity (`__entity`)
 
+## Selectable Token Lists (PC/NPC/Monster)
+
+Token placement now uses two controls:
+
+1. `Token kind` (`pc`, `npc`, `monster`, `creature`)
+2. `Token source` (existing entity, template, or `New ...`)
+
+Behavior:
+
+1. Selecting an `existing` entry re-places that canonical entity at the clicked hex.
+2. Selecting a `template` entry creates a new entity from template seed data, then places it.
+3. Selecting `New ...` creates a default new entity for the selected kind.
+
+Template definition lookup order:
+
+1. `campaign.meta_json.world.token_templates`
+2. `campaign.meta_json.world.tokenTemplates`
+3. `campaign.meta_json.token_templates`
+4. `campaign.meta_json.tokenTemplates`
+5. `campaign.meta_json.world.npcs` / `world.monsters` / `world.creatures` / `world.pcs`
+6. `campaign.meta_json.npcs` / `monsters` / `creatures` / `pcs`
+7. Built-in fallback names (used only if no campaign templates are found)
+
+Recommended schema:
+
+```json
+{
+  "world": {
+    "token_templates": {
+      "npc": [
+        "Villager",
+        {
+          "id": "guard_watch",
+          "name": "Town Guard",
+          "kind": "npc",
+          "side": "NPC",
+          "sprite": "/images/tokens/guard.png",
+          "appearance": { "sprite_scale": 1.4 },
+          "stats": { "hp": 18, "init": 1 }
+        }
+      ],
+      "monster": [
+        {
+          "id": "goblin_raider",
+          "name": "Goblin Raider",
+          "kind": "monster",
+          "hostility": "hostile",
+          "stats": { "hp": 9, "init": 2 }
+        }
+      ],
+      "creature": [
+        {
+          "id": "wolf",
+          "name": "Wolf",
+          "kind": "creature",
+          "hostility": "hostile",
+          "stats": { "hp": 11, "init": 2 }
+        }
+      ]
+    }
+  }
+}
+```
+
+Notes:
+
+1. String templates are shorthand and become `{ "name": "<value>", "kind": "<selected kind>" }`.
+2. Template `id` is only used as catalog identity; placed entities receive fresh runtime entity IDs.
+3. Canonical persistence remains `world.entities` via `PATCH /api/campaigns/:campaign_id/entities`.
+
 ## Fog and Room State
 
 Fog classification combines:
