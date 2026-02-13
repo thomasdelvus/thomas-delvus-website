@@ -5234,6 +5234,44 @@ import { createControlsController } from './modules/controls.js';
         if (tokenKindList) fill(tokenKindList, tokenKinds);
       }
 
+      function installDebugHooks() {
+        if (typeof window === 'undefined') return;
+        window.__bmDebugTokens = () => {
+          const floor = pickFloor();
+          const floorId = floor ? String(floor.id) : '';
+          return buildTokens().map((t) => {
+            const parsed = parseHexLabel(t.hex);
+            return {
+              id: t.id,
+              name: t.name,
+              kind: t.kind,
+              side: t.side,
+              hex: t.hex,
+              floorId: t.floorId,
+              drawable: !!parsed,
+              matchesCurrentFloor: tokenMatchesFloor(t, floorId),
+              poi_id: (t.__entity && (t.__entity.poi_id || t.__entity.poiId)) ||
+                (t.__entity && t.__entity.location && (t.__entity.location.poi_id || t.__entity.location.poiId)) || '',
+              sourceLocation: (t.__entity && (t.__entity.location || t.__entity.position)) || null
+            };
+          });
+        };
+        window.__bmFocusToken = (idOrName) => {
+          const needle = String(idOrName || '').trim().toLowerCase();
+          if (!needle) return null;
+          const token = buildTokens().find((t) => {
+            return String(t.id || '').toLowerCase() === needle ||
+              String(t.name || '').toLowerCase() === needle;
+          });
+          if (!token) return null;
+          const parsed = parseHexLabel(token.hex);
+          if (!parsed) return { token, focused: false, reason: 'token has no parseable hex' };
+          setCameraFromHex(parsed);
+          render();
+          return { token, focused: true };
+        };
+      }
+
       async function init() {
         await loadBattle();
         await loadCampaign();
@@ -5241,6 +5279,7 @@ import { createControlsController } from './modules/controls.js';
         initSectionCollapse();
         setFloorOptions();
         populateKindLists();
+        installDebugHooks();
         await loadMapOptions();
         VIEW.zoom = Number(zoomInput.value);
         if (zoomLevel) zoomLevel.textContent = `${Math.round(VIEW.zoom * 100)}%`;
