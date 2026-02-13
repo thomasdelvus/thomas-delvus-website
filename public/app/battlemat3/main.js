@@ -980,7 +980,31 @@ import { createControlsController } from './modules/controls.js';
           })
           .map(e => {
             const loc = e.location || e.position || {};
-            const hex = e.hex || loc.hex || loc.hex_label || loc.hexLabel || '';
+            const toHexLabelFromCoords = (colRaw, rowRaw) => {
+              const col = Number(colRaw);
+              const row = Number(rowRaw);
+              if (!Number.isFinite(col) || !Number.isFinite(row)) return '';
+              return toHexLabel(col, row);
+            };
+            const normalizeHex = (value) => {
+              if (typeof value === 'string') return value.trim().toUpperCase();
+              if (value && typeof value === 'object') {
+                const col = value.col ?? value.q ?? value.x;
+                const row = value.row ?? value.r ?? value.y;
+                return toHexLabelFromCoords(col, row);
+              }
+              return '';
+            };
+            const hex = normalizeHex(
+              e.hex ||
+              loc.hex ||
+              loc.hex_label ||
+              loc.hexLabel ||
+              toHexLabelFromCoords(
+                e.col ?? loc.col ?? loc.q ?? loc.x,
+                e.row ?? loc.row ?? loc.r ?? loc.y
+              )
+            );
             const floorRaw = e.floorId ?? loc.floorId ?? loc.floor_id ?? loc.floor ?? e.floor_id ?? '';
             const floorId = floorRaw == null ? '' : String(floorRaw);
             return {
@@ -3523,8 +3547,10 @@ import { createControlsController } from './modules/controls.js';
         });
         const poiObjects = objects.filter(o => String(o.kind || '').toLowerCase().startsWith('the.'));
         const normalObjects = objects.filter(o => !String(o.kind || '').toLowerCase().startsWith('the.'));
-        const tokens = tokensForFloor(floor.id, { allowFallback: true })
-          .filter(t => itemFogState(t, floor, allRooms, fogSets, tokenWorldCenter) !== 'hidden');
+        const tokensUnfiltered = tokensForFloor(floor.id, { allowFallback: true });
+        const tokens = (UI.fogEnabled && layerMode !== 'tokens')
+          ? tokensUnfiltered.filter(t => itemFogState(t, floor, allRooms, fogSets, tokenWorldCenter) !== 'hidden')
+          : tokensUnfiltered;
         const objectOpenings = [];
         const tokenOpenings = [];
         openingsAll.forEach(entry => {
