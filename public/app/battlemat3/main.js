@@ -959,8 +959,11 @@ import { createControlsController } from './modules/controls.js';
           const candidates = [
             STATE && STATE.campaign && STATE.campaign.world && STATE.campaign.world.entities,
             STATE && STATE.campaign && STATE.campaign.entities,
+            STATE && STATE.campaign && STATE.campaign.world && STATE.campaign.world.tokens,
+            STATE && STATE.campaign && STATE.campaign.tokens,
             STATE && STATE.battle && STATE.battle.world && STATE.battle.world.entities,
-            STATE && STATE.battle && STATE.battle.entities
+            STATE && STATE.battle && STATE.battle.entities,
+            STATE && STATE.battle && STATE.battle.tokens
           ];
           for (const list of candidates) {
             if (Array.isArray(list) && list.length) return list;
@@ -995,6 +998,8 @@ import { createControlsController } from './modules/controls.js';
               if (parseHexLabel(compact)) return compact;
               const joined = raw.match(/^([A-Z]+)[\s:_-]+(-?\d+(?:\.\d+)?)$/);
               if (joined && parseHexLabel(`${joined[1]}${joined[2]}`)) return `${joined[1]}${joined[2]}`;
+              const embedded = raw.match(/([A-Z]{1,5})\s*[-_:]?\s*(-?\d+(?:\.\d+)?)/);
+              if (embedded && parseHexLabel(`${embedded[1]}${embedded[2]}`)) return `${embedded[1]}${embedded[2]}`;
               const csv = raw.match(/^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/);
               if (csv) return toHexLabelFromCoords(csv[1], csv[2]);
               return '';
@@ -1016,7 +1021,7 @@ import { createControlsController } from './modules/controls.js';
                 const row = value.row ?? value.r;
                 const direct = toHexLabelFromCoords(col, row);
                 if (direct) return direct;
-                const nested = normalizeHexString(value.hex ?? value.hex_label ?? value.hexLabel ?? '');
+                const nested = normalizeHexString(value.hex ?? value.hex_label ?? value.hexLabel ?? value.label ?? value.value ?? '');
                 if (nested) return nested;
                 return hexFromXY(value.x, value.y);
               }
@@ -1029,6 +1034,10 @@ import { createControlsController } from './modules/controls.js';
               loc.hex ||
               loc.hex_label ||
               loc.hexLabel ||
+              e.tile_hex ||
+              e.tileHex ||
+              loc.tile_hex ||
+              loc.tileHex ||
               toHexLabelFromCoords(
                 e.col ?? loc.col ?? loc.q,
                 e.row ?? loc.row ?? loc.r
@@ -3483,9 +3492,14 @@ import { createControlsController } from './modules/controls.js';
         return tokenFloor.toLowerCase() === String(floorId == null ? '' : floorId).trim().toLowerCase();
       }
 
+      function tokenHasDrawableHex(token) {
+        if (!token) return false;
+        return !!parseHexLabel(token.hex);
+      }
+
       function tokensForFloor(floorId, opts = {}) {
         const allowFallback = !!(opts && opts.allowFallback);
-        const all = buildTokens();
+        const all = buildTokens().filter(tokenHasDrawableHex);
         const matched = all.filter(t => tokenMatchesFloor(t, floorId));
         if (matched.length || !allowFallback) return matched;
         return all;
