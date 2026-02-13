@@ -9,6 +9,9 @@ import { createControlsController } from './modules/controls.js';
       const canvas = document.getElementById('map');
       const canvasWrap = document.getElementById('canvasWrap');
       const ctx = canvas.getContext('2d');
+      const toolbar = document.getElementById('toolbar');
+      const sidebar = document.getElementById('sidebar');
+      const inspectorSection = sidebar ? sidebar.querySelector('section[data-section="inspector"]') : null;
 
       const toolButtons = {
         select: document.getElementById('toolSelect'),
@@ -99,6 +102,8 @@ import { createControlsController } from './modules/controls.js';
         tokenKind: 'npc'
       };
       const HISTORY = { stack: [], index: -1, limit: 20 };
+      const EDITOR_HOTKEY = Object.freeze({ key: 'j', ctrl: true, shift: true });
+      let editorMode = false;
 
       const BACKDROP = {
         src: '/images/zone.jpg',
@@ -552,7 +557,31 @@ import { createControlsController } from './modules/controls.js';
           mapRotInput,
         },
       });
+
+      function isEditorToggleHotkey(ev) {
+        if (!ev) return false;
+        const key = String(ev.key || '').toLowerCase();
+        if (key !== EDITOR_HOTKEY.key) return false;
+        if (!!ev.ctrlKey !== !!EDITOR_HOTKEY.ctrl) return false;
+        if (!!ev.shiftKey !== !!EDITOR_HOTKEY.shift) return false;
+        if (ev.altKey || ev.metaKey) return false;
+        return true;
+      }
+
+      function setEditorMode(enabled) {
+        const next = !!enabled;
+        editorMode = next;
+        if (toolbar) toolbar.style.display = next ? '' : 'none';
+        if (inspectorSection) inspectorSection.style.display = next ? '' : 'none';
+        if (!next) {
+          if (EDITOR.tool !== 'select') setTool('select');
+          if (EDITOR.selection && EDITOR.selection.type !== 'token') clearSelection();
+        }
+        render();
+      }
+
       function setTool(tool) {
+        if (!editorMode && tool !== 'select') return;
         const isRoof = tool === 'roof';
         const nextTool = isRoof ? 'poly' : tool;
         if (nextTool === 'poly') {
@@ -4252,8 +4281,18 @@ import { createControlsController } from './modules/controls.js';
         const floor = pickFloor();
         if (!floor) return;
 
+        if (!editorMode && EDITOR.tool !== 'select') {
+          setTool('select');
+          return;
+        }
+
         if (EDITOR.tool === 'select') {
           const sel = findSelectionAt(world);
+          if (!editorMode) {
+            if (sel && sel.type === 'token') selectItem(sel.type, sel.item, sel.floorId);
+            else clearSelection();
+            return;
+          }
           if (sel) selectItem(sel.type, sel.item, sel.floorId);
           else clearSelection();
           return;
@@ -4510,6 +4549,18 @@ import { createControlsController } from './modules/controls.js';
           const screenPoint = { x, y };
           const floor = pickFloor();
           if (EDITOR.tool !== 'select') return;
+          if (!editorMode) {
+            const sel = findSelectionAt(world);
+            if (!sel || sel.type !== 'token') {
+              clearSelection();
+              return;
+            }
+            selectItem(sel.type, sel.item, sel.floorId);
+            EDITOR.drag = sel;
+            EDITOR.drag.didMove = false;
+            EDITOR.drag.pushed = false;
+            return;
+          }
           if (floor && EDITOR.selection && (EDITOR.selection.type === 'room' || EDITOR.selection.type === 'roof')) {
             if (UI.showHandles || UI.handleHot) {
               if (EDITOR.selection.type === 'roof') {
@@ -4993,7 +5044,13 @@ import { createControlsController } from './modules/controls.js';
         canvas.addEventListener('click', handleCanvasClick);
         attachDragHandlers();
         window.addEventListener('keydown', (ev) => {
+          if (!isEditorToggleHotkey(ev)) return;
+          ev.preventDefault();
+          setEditorMode(!editorMode);
+        });
+        window.addEventListener('keydown', (ev) => {
           if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
+          if (!editorMode) return;
           const el = document.activeElement;
           if (el && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) return;
           deleteSelection();
@@ -5079,7 +5136,7 @@ import { createControlsController } from './modules/controls.js';
         pushHistory();
         renderStatus();
         attachEvents();
-        render();
+        setEditorMode(false);
         startChatPolling();
       }
 
