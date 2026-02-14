@@ -3762,6 +3762,31 @@ import { createControlsController } from './modules/controls.js';
         return best;
       }
 
+      function nearestWallDetailForPoint(point, walls) {
+        if (!point || !Array.isArray(walls) || !walls.length) return null;
+        let best = null;
+        let bestD2 = Infinity;
+        for (let i = 0; i < walls.length; i++) {
+          const wall = walls[i];
+          if (!wall || !wall.a || !wall.b) continue;
+          const closest = segmentClosestPoint(point, wall.a, wall.b);
+          const dx = point.x - closest.x;
+          const dy = point.y - closest.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < bestD2) {
+            bestD2 = d2;
+            best = {
+              index: i,
+              wall,
+              t: Number(closest.t),
+              distance: Math.sqrt(d2),
+              point: { x: closest.x, y: closest.y }
+            };
+          }
+        }
+        return best;
+      }
+
       function movementDoorIntervals(floor, walls, step) {
         const intervals = new Map();
         if (!floor || !Array.isArray(floor.openings) || !Array.isArray(walls) || !walls.length) return intervals;
@@ -3793,6 +3818,41 @@ import { createControlsController } from './modules/controls.js';
           if (value >= Number(pair[0]) - eps && value <= Number(pair[1]) + eps) return true;
         }
         return false;
+      }
+
+      function movementClearancePenalty(point, model) {
+        if (!point || !model || !Array.isArray(model.walls) || !model.walls.length) return 0;
+        const detail = nearestWallDetailForPoint(point, model.walls);
+        if (!detail) return 0;
+        const preferred = Number.isFinite(Number(model.preferredClearance))
+          ? Number(model.preferredClearance)
+          : GRID.size;
+        const dist = Number(detail.distance);
+        if (!Number.isFinite(dist) || dist >= preferred) return 0;
+        const ratio = Math.max(0, Math.min(1, (preferred - dist) / preferred));
+        const scale = Number.isFinite(Number(model.clearancePenaltyScale))
+          ? Number(model.clearancePenaltyScale)
+          : preferred;
+        let penalty = ratio * ratio * scale;
+        if (pointInIntervals(detail.t, model.doorIntervals && model.doorIntervals.get(detail.index), 0.04)) {
+          penalty *= 0.2;
+        }
+        return penalty;
+      }
+
+      function movementSegmentClearancePenalty(a, b, model) {
+        if (!a || !b || !model) return 0;
+        let worst = 0;
+        const probes = [0.2, 0.4, 0.6, 0.8];
+        for (const t of probes) {
+          const p = {
+            x: a.x + (b.x - a.x) * t,
+            y: a.y + (b.y - a.y) * t
+          };
+          const penalty = movementClearancePenalty(p, model);
+          if (penalty > worst) worst = penalty;
+        }
+        return worst;
       }
 
       function movementEdgeBlocked(a, b, model) {
@@ -3856,7 +3916,17 @@ import { createControlsController } from './modules/controls.js';
         }
         const walls = movementWallSegments(floor);
         const doorIntervals = movementDoorIntervals(floor, walls, step);
-        return { floorId: floor && floor.id ? String(floor.id) : '', step, bounds, walls, doorIntervals };
+        const preferredClearance = Math.max(step * 0.95, GRID.size * 0.95);
+        const clearancePenaltyScale = Math.max(step * 1.3, GRID.size * 1.2);
+        return {
+          floorId: floor && floor.id ? String(floor.id) : '',
+          step,
+          bounds,
+          walls,
+          doorIntervals,
+          preferredClearance,
+          clearancePenaltyScale
+        };
       }
 
       function worldToGridIndex(point, model) {
@@ -3914,7 +3984,10 @@ import { createControlsController } from './modules/controls.js';
       function computeMovementPath(start, target, floor) {
         if (!start || !target || !floor) return null;
         const model = buildMovementModel(floor, start, target);
-        if (!movementEdgeBlocked(start, target, model)) return [start, target];
+        if (!movementEdgeBlocked(start, target, model)) {
+          const clearCost = movementSegmentClearancePenalty(start, target, model);
+          if (clearCost <= model.clearancePenaltyScale * 0.35) return [start, target];
+        }
 
         const startIdxRaw = worldToGridIndex(start, model);
         const targetIdxRaw = worldToGridIndex(target, model);
@@ -3967,7 +4040,9 @@ import { createControlsController } from './modules/controls.js';
             if (closed.has(key)) continue;
             const pos = gridToWorld({ i: ni, j: nj }, model);
             if (movementEdgeBlocked(current.pos, pos, model)) continue;
-            const g = current.g + heuristic(current.pos, pos);
+            const travelCost = heuristic(current.pos, pos);
+            const clearancePenalty = movementClearancePenalty(pos, model);
+            const g = current.g + travelCost + clearancePenalty;
             const h = heuristic(pos, gridToWorld(targetIdx, model));
             const existing = open.get(key);
             if (!existing || g < existing.g) {
