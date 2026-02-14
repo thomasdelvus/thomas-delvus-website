@@ -3774,11 +3774,9 @@ import { createControlsController } from './modules/controls.js';
           if (wallIdx < 0) continue;
           const wall = walls[wallIdx];
           const proj = segmentClosestPoint(world, wall.a, wall.b);
-          const doorLenUnits = Number.isFinite(Number(opening.len ?? opening.length ?? opening.size))
-            ? Number(opening.len ?? opening.length ?? opening.size)
-            : OPENING_STYLE.door.len;
-          const halfWidth = Math.max(step * 1.15, GRID.size * doorLenUnits * 0.55);
-          const halfT = Math.min(0.49, halfWidth / Math.max(wall.len, 1));
+          const halfWidth = Math.max(step * 0.35, GRID.size * 0.45);
+          // Keep door aperture narrow so walls are only passable near actual door centers.
+          const halfT = Math.min(0.22, halfWidth / Math.max(wall.len, 1));
           const start = Math.max(0, proj.t - halfT);
           const end = Math.min(1, proj.t + halfT);
           const list = intervals.get(wallIdx) || [];
