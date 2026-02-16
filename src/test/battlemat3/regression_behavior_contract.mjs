@@ -4,6 +4,7 @@ import path from "node:path";
 const root = process.cwd();
 const mainPath = path.join(root, "public", "app", "battlemat3", "main.js");
 const historyPath = path.join(root, "public", "app", "battlemat3", "modules", "history.js");
+const chatPath = path.join(root, "public", "app", "battlemat3", "modules", "chat.js");
 
 function fail(message) {
   console.error(`[regression_behavior_contract] FAIL: ${message}`);
@@ -26,6 +27,7 @@ function assertPattern(text, pattern, label) {
 
 const mainJs = read(mainPath);
 const historyJs = read(historyPath);
+const chatJs = read(chatPath);
 
 assertPattern(
   mainJs,
@@ -133,6 +135,24 @@ assertPattern(
   historyJs,
   /opening\.state\s*=\s*normalizedState;\s*opening\.lock_state\s*=\s*normalizedState;/,
   "opening state/lock_state sync contract",
+);
+
+assertPattern(
+  chatJs,
+  /if\s*\(CHAT\.pollInFlight\)\s*\{[\s\S]*?if\s*\(force\)\s*CHAT\.pollQueued\s*=\s*true;[\s\S]*?return;[\s\S]*?\}/,
+  "chat polling in-flight guard contract",
+);
+
+assertPattern(
+  chatJs,
+  /if\s*\(CHAT\.pollQueued\)\s*\{[\s\S]*?CHAT\.pollQueued\s*=\s*false;[\s\S]*?pollChat\(\{\s*force:\s*true\s*\}\)/,
+  "chat queued follow-up poll contract",
+);
+
+assertPattern(
+  chatJs,
+  /if\s*\(canWarnPollFailure\(\)\)\s*\{\s*console\.warn\("\[Battlemat\] chat fetch failed:",\s*err\);/,
+  "chat poll warning throttle contract",
 );
 
 console.log("[regression_behavior_contract] COMPLETE");

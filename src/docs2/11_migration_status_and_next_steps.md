@@ -1,6 +1,6 @@
 # Battlemat3 Migration Status and Next Steps
 
-Version: v1.03  
+Version: v1.04  
 Updated: 2026-02-16
 
 ## Completed Milestones
@@ -27,6 +27,10 @@ Updated: 2026-02-16
    4. blocked-path `Waiting for DM` messaging
    5. save-time opening normalization and locked-door default placement
    6. regression behavior contract automation
+7. Chat polling hardening completed:
+   1. in-flight poll guard to prevent overlapping fetch races
+   2. queued force-poll on send while polling is active
+   3. warning throttle for repeated transient poll failures
 
 ## Current Runtime Snapshot
 
@@ -39,7 +43,7 @@ Updated: 2026-02-16
 
 1. Movement/pathing subsystem status: `stable`.
 2. Full manual `09_testing_and_parity` pass completed on 2026-02-16 with no additional movement regressions reported.
-3. Automated parity and regression suite passing (`npm run test:battlemat3`).
+3. Automated parity and regression suite passing (`npm run test:battlemat3`) after chat hardening.
 
 ## Known Constraints
 
@@ -52,7 +56,6 @@ Updated: 2026-02-16
 1. Regression sweep for edge interactions outside movement:
    1. roof/room handle workflows
    2. token drag + entity patch
-   3. chat poll/send under intermittent backend latency
 2. Roof weathering visual QA:
    1. deterministic appearance under pan/zoom
    2. slider persistence across save/reload

@@ -9,6 +9,20 @@ export function createChatController({
   normStr,
   buildTokens,
 }) {
+  if (CHAT && typeof CHAT === "object") {
+    if (typeof CHAT.pollInFlight !== "boolean") CHAT.pollInFlight = false;
+    if (typeof CHAT.pollQueued !== "boolean") CHAT.pollQueued = false;
+    if (!Number.isFinite(Number(CHAT.lastPollWarnAt))) CHAT.lastPollWarnAt = 0;
+  }
+
+  function canWarnPollFailure() {
+    const now = Date.now();
+    const last = Number(CHAT.lastPollWarnAt || 0);
+    if (now - last < 10000) return false;
+    CHAT.lastPollWarnAt = now;
+    return true;
+  }
+
   function chatStatusClass(status) {
     const raw = String(status || "").toLowerCase();
     if (raw === "canceled") return "canceled";
@@ -87,7 +101,13 @@ export function createChatController({
     return Array.isArray(data && data.rows) ? data.rows : [];
   }
 
-  async function pollChat() {
+  async function pollChat(options = {}) {
+    const force = !!(options && options.force);
+    if (CHAT.pollInFlight) {
+      if (force) CHAT.pollQueued = true;
+      return;
+    }
+    CHAT.pollInFlight = true;
     try {
       const rows = await fetchChat(CHAT.lastTs || null);
       if (rows && rows.length) {
@@ -95,7 +115,15 @@ export function createChatController({
         renderChat();
       }
     } catch (err) {
-      console.warn("[Battlemat] chat fetch failed:", err);
+      if (canWarnPollFailure()) {
+        console.warn("[Battlemat] chat fetch failed:", err);
+      }
+    } finally {
+      CHAT.pollInFlight = false;
+      if (CHAT.pollQueued) {
+        CHAT.pollQueued = false;
+        setTimeout(() => pollChat({ force: true }), 0);
+      }
     }
   }
 
@@ -129,7 +157,7 @@ export function createChatController({
       });
       if (!res.ok) throw new Error("Chat send failed");
       chatInput.value = "";
-      pollChat();
+      pollChat({ force: true });
     } catch (err) {
       console.warn("[Battlemat] chat send failed:", err);
     }

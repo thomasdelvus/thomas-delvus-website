@@ -1,6 +1,6 @@
 # Battlemat3 Testing and Parity Guide
 
-Version: v1.04  
+Version: v1.05  
 Updated: 2026-02-16
 
 ## Testing Strategy
@@ -44,6 +44,8 @@ Validation focus:
 11. save-time opening normalization contract
 12. movement geometry cache contract
 13. pathfinding latency status cue contract
+14. chat polling in-flight/queued guard contract
+15. chat polling warning throttle contract
 
 ## Manual Parity Matrix
 
@@ -67,6 +69,7 @@ Run these on each meaningful change set:
 6. chat:
    1. send message
    2. confirm polling updates
+   3. while polling is active, send again and confirm no duplicate burst or repeated warning spam
 7. fog/street/roof:
    1. toggle controls
    2. verify expected visibility behavior
