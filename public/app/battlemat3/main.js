@@ -89,14 +89,17 @@ import { createControlsController } from './modules/controls.js';
       let renderDpr = window.devicePixelRatio || 1;
       const CHAT = { rows: [], byId: new Map(), lastTs: 0, timer: null };
       const MOVEMENT = {
-        tickMs: 1000,
-        speedPerTick: GRID.size * 1.5,
+        tickMs: 250,
+        speedPerTick: GRID.size * 0.375,
         timer: null,
         jobs: new Map()
       };
       const MOVE_PREVIEW = {
         hoverHex: null,
-        floorId: ''
+        floorId: '',
+        anchorHex: null,
+        anchorFloorId: '',
+        anchorTokenId: ''
       };
       const EDITOR = {
         tool: 'select',
@@ -591,10 +594,7 @@ import { createControlsController } from './modules/controls.js';
         editorMode = next;
         if (toolbar) toolbar.style.display = next ? '' : 'none';
         if (inspectorSection) inspectorSection.style.display = next ? '' : 'none';
-        if (next) {
-          MOVE_PREVIEW.hoverHex = null;
-          MOVE_PREVIEW.floorId = '';
-        }
+        if (next) clearMovePreviewAll();
         if (!next) {
           if (EDITOR.tool !== 'select') setTool('select');
           if (EDITOR.selection && EDITOR.selection.type !== 'token') clearSelection();
@@ -607,6 +607,25 @@ import { createControlsController } from './modules/controls.js';
         MOVE_PREVIEW.hoverHex = null;
         MOVE_PREVIEW.floorId = '';
         return true;
+      }
+
+      function movePreviewTokenId(token) {
+        if (!token) return '';
+        return String(token.id || entityPrimaryId(token.__entity) || '');
+      }
+
+      function clearMovePreviewAnchor() {
+        if (!MOVE_PREVIEW.anchorHex && !MOVE_PREVIEW.anchorFloorId && !MOVE_PREVIEW.anchorTokenId) return false;
+        MOVE_PREVIEW.anchorHex = null;
+        MOVE_PREVIEW.anchorFloorId = '';
+        MOVE_PREVIEW.anchorTokenId = '';
+        return true;
+      }
+
+      function clearMovePreviewAll() {
+        const changedHover = clearMovePreviewHover();
+        const changedAnchor = clearMovePreviewAnchor();
+        return changedHover || changedAnchor;
       }
 
       function setMovePreviewHoverHex(hex, floorId) {
@@ -625,6 +644,31 @@ import { createControlsController } from './modules/controls.js';
         return true;
       }
 
+      function setMovePreviewAnchorHex(hex, floorId, token) {
+        if (!hex || !Number.isFinite(Number(hex.col)) || !Number.isFinite(Number(hex.row))) {
+          return clearMovePreviewAnchor();
+        }
+        const tokenId = movePreviewTokenId(token);
+        if (!tokenId) return clearMovePreviewAnchor();
+        const col = Number(hex.col);
+        const row = Number(hex.row);
+        const floor = String(floorId == null ? '' : floorId);
+        const cur = MOVE_PREVIEW.anchorHex;
+        if (
+          cur &&
+          cur.col === col &&
+          cur.row === row &&
+          String(MOVE_PREVIEW.anchorFloorId) === floor &&
+          String(MOVE_PREVIEW.anchorTokenId) === tokenId
+        ) {
+          return false;
+        }
+        MOVE_PREVIEW.anchorHex = { col, row };
+        MOVE_PREVIEW.anchorFloorId = floor;
+        MOVE_PREVIEW.anchorTokenId = tokenId;
+        return true;
+      }
+
       function setTool(tool) {
         if (!editorMode && tool !== 'select') return;
         const isRoof = tool === 'roof';
@@ -633,7 +677,7 @@ import { createControlsController } from './modules/controls.js';
           EDITOR.polyMode = isRoof ? 'roof' : 'room';
         }
         EDITOR.tool = nextTool;
-        if (nextTool !== 'select') clearMovePreviewHover();
+        if (nextTool !== 'select') clearMovePreviewAll();
         Object.entries(toolButtons).forEach(([key, btn]) => {
           if (!btn) return;
           let active = false;
@@ -698,7 +742,20 @@ import { createControlsController } from './modules/controls.js';
         if (!tokenMatchesFloor(token, floor.id)) return null;
         const tokenWorld = tokenWorldCenter(token);
         if (!tokenWorld) return null;
-        const selectedHex = worldToHex(tokenWorld);
+        let selectedHex = worldToHex(tokenWorld);
+        const tokenId = movePreviewTokenId(token);
+        if (
+          MOVE_PREVIEW.anchorHex &&
+          tokenId &&
+          String(MOVE_PREVIEW.anchorTokenId) === tokenId &&
+          String(MOVE_PREVIEW.anchorFloorId) === String(floor.id)
+        ) {
+          const aCol = Number(MOVE_PREVIEW.anchorHex.col);
+          const aRow = Number(MOVE_PREVIEW.anchorHex.row);
+          if (Number.isFinite(aCol) && Number.isFinite(aRow)) {
+            selectedHex = { col: aCol, row: aRow };
+          }
+        }
         let hoverHex = null;
         if (MOVE_PREVIEW.hoverHex && String(MOVE_PREVIEW.floorId) === String(floor.id)) {
           const col = Number(MOVE_PREVIEW.hoverHex.col);
@@ -4354,6 +4411,9 @@ import { createControlsController } from './modules/controls.js';
         const activeFloorId = VIEW.floorId ? String(VIEW.floorId) : '';
         for (const [jobId, job] of Array.from(MOVEMENT.jobs.entries())) {
           if (!job || !job.entity || !Array.isArray(job.path) || !job.path.length) {
+            if (String(MOVE_PREVIEW.anchorTokenId || '') === String(jobId)) {
+              clearMovePreviewAnchor();
+            }
             MOVEMENT.jobs.delete(jobId);
             continue;
           }
@@ -4401,6 +4461,9 @@ import { createControlsController } from './modules/controls.js';
           moved = true;
           if (idx >= job.path.length) {
             MOVEMENT.jobs.delete(jobId);
+            if (String(MOVE_PREVIEW.anchorTokenId || '') === String(jobId)) {
+              clearMovePreviewAnchor();
+            }
             const token = buildTokenFromEntity(job.entity, job.entity.kind || 'npc');
             syncEntityFromToken(token);
             queueEntitySave(token);
@@ -4460,6 +4523,12 @@ import { createControlsController } from './modules/controls.js';
           speedPerTick: Number(MOVEMENT.speedPerTick) || GRID.size,
           path: pathPoints
         });
+        const plannedStop = pathPoints[pathPoints.length - 1];
+        if (plannedStop) {
+          const plannedHex = worldToHex(plannedStop);
+          setMovePreviewAnchorHex(plannedHex, floor.id, token);
+          setMovePreviewHoverHex(plannedHex, floor.id);
+        }
         if (pathResult && pathResult.partial && saveStatus) {
           const blockerLabel = formatMovementBlockerLabel(pathResult.blockedBy);
           saveStatus.textContent = `Path blocked by ${blockerLabel}. Waiting for DM.`;
@@ -5421,11 +5490,17 @@ import { createControlsController } from './modules/controls.js';
       }
 
       function selectItem(type, item, floorId) {
+        if (type !== 'token') {
+          clearMovePreviewAll();
+        } else if (String(MOVE_PREVIEW.anchorTokenId || '') !== movePreviewTokenId(item)) {
+          clearMovePreviewAnchor();
+        }
         EDITOR.selection = { type, item, floorId };
         updateInspector();
       }
 
       function clearSelection() {
+        clearMovePreviewAll();
         EDITOR.selection = null;
         updateInspector();
       }
@@ -5572,17 +5647,14 @@ import { createControlsController } from './modules/controls.js';
             if (current && current.type === 'token') {
               const moved = queueTokenMoveToWorld(current.item, world, floor);
               if (moved) {
-                setMovePreviewHoverHex(worldToHex(world), floor.id);
                 render();
               } else if (!sel) {
                 clearSelection();
-                clearMovePreviewHover();
                 render();
               }
               return;
             }
             clearSelection();
-            clearMovePreviewHover();
             render();
             return;
           }
