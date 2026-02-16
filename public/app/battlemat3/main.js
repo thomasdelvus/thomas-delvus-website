@@ -94,6 +94,10 @@ import { createControlsController } from './modules/controls.js';
         timer: null,
         jobs: new Map()
       };
+      const MOVE_PREVIEW = {
+        hoverHex: null,
+        floorId: ''
+      };
       const EDITOR = {
         tool: 'select',
         polyMode: 'room',
@@ -587,11 +591,38 @@ import { createControlsController } from './modules/controls.js';
         editorMode = next;
         if (toolbar) toolbar.style.display = next ? '' : 'none';
         if (inspectorSection) inspectorSection.style.display = next ? '' : 'none';
+        if (next) {
+          MOVE_PREVIEW.hoverHex = null;
+          MOVE_PREVIEW.floorId = '';
+        }
         if (!next) {
           if (EDITOR.tool !== 'select') setTool('select');
           if (EDITOR.selection && EDITOR.selection.type !== 'token') clearSelection();
         }
         render();
+      }
+
+      function clearMovePreviewHover() {
+        if (!MOVE_PREVIEW.hoverHex && !MOVE_PREVIEW.floorId) return false;
+        MOVE_PREVIEW.hoverHex = null;
+        MOVE_PREVIEW.floorId = '';
+        return true;
+      }
+
+      function setMovePreviewHoverHex(hex, floorId) {
+        if (!hex || !Number.isFinite(Number(hex.col)) || !Number.isFinite(Number(hex.row))) {
+          return clearMovePreviewHover();
+        }
+        const col = Number(hex.col);
+        const row = Number(hex.row);
+        const floor = String(floorId == null ? '' : floorId);
+        const cur = MOVE_PREVIEW.hoverHex;
+        if (cur && cur.col === col && cur.row === row && String(MOVE_PREVIEW.floorId) === floor) {
+          return false;
+        }
+        MOVE_PREVIEW.hoverHex = { col, row };
+        MOVE_PREVIEW.floorId = floor;
+        return true;
       }
 
       function setTool(tool) {
@@ -602,6 +633,7 @@ import { createControlsController } from './modules/controls.js';
           EDITOR.polyMode = isRoof ? 'roof' : 'room';
         }
         EDITOR.tool = nextTool;
+        if (nextTool !== 'select') clearMovePreviewHover();
         Object.entries(toolButtons).forEach(([key, btn]) => {
           if (!btn) return;
           let active = false;
@@ -620,7 +652,7 @@ import { createControlsController } from './modules/controls.js';
         if (canvasWrap) canvasWrap.style.cursor = nextTool === 'poly' ? 'crosshair' : 'default';
       }
 
-      function drawHexOutline(gctx, center, size) {
+      function traceHexPath(gctx, center, size) {
         const pts = [];
         for (let i = 0; i < 6; i++) {
           const a = (Math.PI / 180) * (60 * i);
@@ -630,7 +662,74 @@ import { createControlsController } from './modules/controls.js';
         gctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) gctx.lineTo(pts[i].x, pts[i].y);
         gctx.closePath();
+      }
+
+      function drawHexOutline(gctx, center, size) {
+        traceHexPath(gctx, center, size);
         gctx.stroke();
+      }
+
+      function drawHexHighlight(gctx, hex, style = {}) {
+        if (!hex || !Number.isFinite(Number(hex.col)) || !Number.isFinite(Number(hex.row))) return;
+        const center = worldToScreen(hexToWorld(Number(hex.col), Number(hex.row)));
+        const size = GRID.size * VIEW.zoom * (Number(style.sizeScale) || 0.9);
+        gctx.save();
+        if (Number.isFinite(Number(style.shadowBlur)) && Number(style.shadowBlur) > 0) {
+          gctx.shadowBlur = Number(style.shadowBlur);
+          gctx.shadowColor = String(style.shadowColor || style.stroke || 'rgba(255,255,255,0.45)');
+        }
+        traceHexPath(gctx, center, size);
+        gctx.fillStyle = String(style.fill || 'rgba(255,255,255,0.15)');
+        gctx.fill();
+        traceHexPath(gctx, center, size);
+        gctx.lineWidth = Math.max(1, Number(style.lineWidth) || (1.7 * VIEW.zoom));
+        gctx.strokeStyle = String(style.stroke || 'rgba(255,255,255,0.9)');
+        if (Array.isArray(style.dash)) gctx.setLineDash(style.dash);
+        gctx.stroke();
+        gctx.restore();
+      }
+
+      function movementPreviewHexesForFloor(floor) {
+        if (editorMode || !floor) return null;
+        if (EDITOR.tool !== 'select') return null;
+        const sel = EDITOR.selection;
+        if (!sel || sel.type !== 'token' || !sel.item) return null;
+        const token = sel.item;
+        if (!tokenMatchesFloor(token, floor.id)) return null;
+        const tokenWorld = tokenWorldCenter(token);
+        if (!tokenWorld) return null;
+        const selectedHex = worldToHex(tokenWorld);
+        let hoverHex = null;
+        if (MOVE_PREVIEW.hoverHex && String(MOVE_PREVIEW.floorId) === String(floor.id)) {
+          const col = Number(MOVE_PREVIEW.hoverHex.col);
+          const row = Number(MOVE_PREVIEW.hoverHex.row);
+          if (Number.isFinite(col) && Number.isFinite(row)) hoverHex = { col, row };
+        }
+        return { selectedHex, hoverHex };
+      }
+
+      function drawMovementPreviewLayer(floor, gctx) {
+        const preview = movementPreviewHexesForFloor(floor);
+        if (!preview) return;
+        drawHexHighlight(gctx, preview.selectedHex, {
+          fill: 'rgba(255, 190, 70, 0.25)',
+          stroke: 'rgba(255, 202, 112, 0.95)',
+          shadowColor: 'rgba(255, 188, 92, 0.55)',
+          shadowBlur: Math.max(8, 16 * VIEW.zoom),
+          lineWidth: Math.max(1.25, 1.9 * VIEW.zoom),
+          sizeScale: 0.9
+        });
+        if (preview.hoverHex) {
+          drawHexHighlight(gctx, preview.hoverHex, {
+            fill: 'rgba(102, 220, 255, 0.20)',
+            stroke: 'rgba(136, 232, 255, 0.96)',
+            shadowColor: 'rgba(108, 226, 255, 0.55)',
+            shadowBlur: Math.max(8, 15 * VIEW.zoom),
+            lineWidth: Math.max(1.2, 1.7 * VIEW.zoom),
+            dash: [6, 4],
+            sizeScale: 0.88
+          });
+        }
       }
 
       function drawGridLayer(gctx) {
@@ -3722,10 +3821,36 @@ import { createControlsController } from './modules/controls.js';
         };
       }
 
-      function openingIsDoor(opening) {
-        if (!opening) return false;
-        const kind = String(opening.kind || '').toLowerCase();
-        return kind === 'door' || kind.startsWith('door.');
+      function openingKindCategory(opening) {
+        const kind = String(opening && opening.kind || '').toLowerCase();
+        if (!kind) return 'door';
+        if (kind.startsWith('window')) return 'window';
+        if (kind.startsWith('portal')) return 'portal';
+        if (kind.startsWith('threshold')) return 'threshold';
+        if (kind.startsWith('gate')) return 'gate';
+        if (kind === 'door' || kind.startsWith('door.')) return 'door';
+        return 'door';
+      }
+
+      function openingStateValue(opening) {
+        const raw = opening && (opening.state ?? opening.lock_state ?? opening.lockState ?? '');
+        return String(raw || '').trim().toLowerCase();
+      }
+
+      function openingMovementProfile(opening) {
+        const kind = openingKindCategory(opening);
+        const state = openingStateValue(opening);
+        const isLocked = state === 'locked' || state === 'barred' || state === 'sealed';
+        const isOpen = state === 'open' || state === 'opened' || state === 'raised' || state === 'up';
+        let passable = true;
+        if (kind === 'window') passable = false;
+        else if (kind === 'gate') passable = isOpen;
+        else if (kind === 'door') passable = !isLocked;
+        else if (kind === 'portal' || kind === 'threshold') passable = true;
+        const named = String(opening && (opening.name || opening.label || opening.title) || '').trim();
+        const title = named || kind.charAt(0).toUpperCase() + kind.slice(1);
+        const label = state ? `${title} (${state})` : title;
+        return { kind, state, passable, label };
       }
 
       function movementWallSegments(floor) {
@@ -3787,11 +3912,15 @@ import { createControlsController } from './modules/controls.js';
         return best;
       }
 
-      function movementDoorIntervals(floor, walls, step) {
-        const intervals = new Map();
-        if (!floor || !Array.isArray(floor.openings) || !Array.isArray(walls) || !walls.length) return intervals;
+      function movementPortalWindows(floor, walls, step) {
+        const passIntervals = new Map();
+        const blockingPortalsByWall = new Map();
+        const blockingPortals = [];
+        if (!floor || !Array.isArray(floor.openings) || !Array.isArray(walls) || !walls.length) {
+          return { passIntervals, blockingPortalsByWall, blockingPortals };
+        }
         for (const opening of filterAlive(floor.openings)) {
-          if (!openingIsDoor(opening)) continue;
+          const profile = openingMovementProfile(opening);
           const info = openingPlacement(opening, floor);
           const world = info && info.world ? info.world : openingWorldCenter(opening, floor);
           if (!world) continue;
@@ -3799,16 +3928,38 @@ import { createControlsController } from './modules/controls.js';
           if (wallIdx < 0) continue;
           const wall = walls[wallIdx];
           const proj = segmentClosestPoint(world, wall.a, wall.b);
-          const halfWidth = Math.max(step * 0.35, GRID.size * 0.45);
+          const style = OPENING_STYLE[profile.kind] || OPENING_STYLE.door;
+          const lenUnits = Number.isFinite(Number(opening.len ?? opening.length ?? opening.size))
+            ? Number(opening.len ?? opening.length ?? opening.size)
+            : style.len;
+          const halfWidth = Math.max(step * 0.35, GRID.size * Math.max(0.35, lenUnits * 0.35));
           // Keep door aperture narrow so walls are only passable near actual door centers.
           const halfT = Math.min(0.22, halfWidth / Math.max(wall.len, 1));
           const start = Math.max(0, proj.t - halfT);
           const end = Math.min(1, proj.t + halfT);
-          const list = intervals.get(wallIdx) || [];
-          list.push([start, end]);
-          intervals.set(wallIdx, list);
+          if (profile.passable) {
+            const list = passIntervals.get(wallIdx) || [];
+            list.push([start, end]);
+            passIntervals.set(wallIdx, list);
+          } else {
+            const blocker = {
+              opening,
+              wallIdx,
+              world,
+              t: Number(proj.t),
+              start,
+              end,
+              kind: profile.kind,
+              state: profile.state,
+              label: profile.label
+            };
+            const list = blockingPortalsByWall.get(wallIdx) || [];
+            list.push(blocker);
+            blockingPortalsByWall.set(wallIdx, list);
+            blockingPortals.push(blocker);
+          }
         }
-        return intervals;
+        return { passIntervals, blockingPortalsByWall, blockingPortals };
       }
 
       function pointInIntervals(value, intervals, eps = 0.02) {
@@ -3853,6 +4004,61 @@ import { createControlsController } from './modules/controls.js';
           if (penalty > worst) worst = penalty;
         }
         return worst;
+      }
+
+      function nearestBlockingPortal(model, wallIdx, u, point) {
+        const byWall = model && model.blockingPortalsByWall ? model.blockingPortalsByWall.get(wallIdx) : null;
+        const list = Array.isArray(byWall) ? byWall : [];
+        if (!list.length) {
+          const all = model && Array.isArray(model.blockingPortals) ? model.blockingPortals : [];
+          if (!all.length) return null;
+          if (!point) return all[0];
+          let bestAny = all[0];
+          let bestD2 = Infinity;
+          for (const blocker of all) {
+            if (!blocker || !blocker.world) continue;
+            const dx = blocker.world.x - point.x;
+            const dy = blocker.world.y - point.y;
+            const d2 = dx * dx + dy * dy;
+            if (d2 < bestD2) {
+              bestD2 = d2;
+              bestAny = blocker;
+            }
+          }
+          return bestAny;
+        }
+        let best = null;
+        let bestScore = Infinity;
+        for (const blocker of list) {
+          if (!blocker) continue;
+          const centerT = (Number(blocker.start) + Number(blocker.end)) / 2;
+          const delta = Math.abs(Number(u) - centerT);
+          if (delta < bestScore) {
+            bestScore = delta;
+            best = blocker;
+          }
+        }
+        return best;
+      }
+
+      function findBlockingPortalBetween(a, b, model) {
+        if (!a || !b || !model || !Array.isArray(model.walls)) return null;
+        let best = null;
+        for (let i = 0; i < model.walls.length; i++) {
+          const wall = model.walls[i];
+          const detail = segmentIntersectionDetail(a, b, wall.a, wall.b);
+          if (!detail || detail.colinear) continue;
+          const atMoveEndpoint = detail.t <= 0.001 || detail.t >= 0.999;
+          const atWallEndpoint = detail.u <= 0.001 || detail.u >= 0.999;
+          if (atMoveEndpoint && atWallEndpoint) continue;
+          if (pointInIntervals(detail.u, model.doorIntervals.get(i))) continue;
+          if (!best || detail.t < best.detail.t) {
+            best = { wallIndex: i, detail, point: detail.point };
+          }
+        }
+        if (!best) return null;
+        const blocker = nearestBlockingPortal(model, best.wallIndex, best.detail.u, best.point);
+        return { ...best, blocker };
       }
 
       function movementEdgeBlocked(a, b, model) {
@@ -3915,7 +4121,8 @@ import { createControlsController } from './modules/controls.js';
           cells = (width / step) * (height / step);
         }
         const walls = movementWallSegments(floor);
-        const doorIntervals = movementDoorIntervals(floor, walls, step);
+        const portalWindows = movementPortalWindows(floor, walls, step);
+        const doorIntervals = portalWindows.passIntervals;
         const preferredClearance = Math.max(step * 0.95, GRID.size * 0.95);
         const clearancePenaltyScale = Math.max(step * 1.3, GRID.size * 1.2);
         return {
@@ -3924,6 +4131,8 @@ import { createControlsController } from './modules/controls.js';
           bounds,
           walls,
           doorIntervals,
+          blockingPortalsByWall: portalWindows.blockingPortalsByWall,
+          blockingPortals: portalWindows.blockingPortals,
           preferredClearance,
           clearancePenaltyScale
         };
@@ -3981,12 +4190,30 @@ import { createControlsController } from './modules/controls.js';
         return out;
       }
 
+      function formatMovementBlockerLabel(blocker) {
+        if (!blocker) return 'obstacle';
+        const rawLabel = String(blocker.label || '').trim();
+        if (rawLabel) return rawLabel;
+        const kindRaw = String(blocker.kind || 'obstacle').trim().toLowerCase();
+        const stateRaw = String(blocker.state || '').trim().toLowerCase();
+        const kind = kindRaw ? kindRaw.charAt(0).toUpperCase() + kindRaw.slice(1) : 'Obstacle';
+        return stateRaw ? `${kind} (${stateRaw})` : kind;
+      }
+
       function computeMovementPath(start, target, floor) {
         if (!start || !target || !floor) return null;
         const model = buildMovementModel(floor, start, target);
+        const directBlock = findBlockingPortalBetween(start, target, model);
         if (!movementEdgeBlocked(start, target, model)) {
           const clearCost = movementSegmentClearancePenalty(start, target, model);
-          if (clearCost <= model.clearancePenaltyScale * 0.35) return [start, target];
+          if (clearCost <= model.clearancePenaltyScale * 0.35) {
+            return {
+              path: [start, target],
+              partial: false,
+              blockedBy: null,
+              blockedAt: null
+            };
+          }
         }
 
         const startIdxRaw = worldToGridIndex(start, model);
@@ -4017,6 +4244,7 @@ import { createControlsController } from './modules/controls.js';
         const maxIterations = 30000;
         let iterations = 0;
         let endNode = null;
+        let bestNode = startNode;
 
         while (open.size && iterations < maxIterations) {
           iterations += 1;
@@ -4026,6 +4254,9 @@ import { createControlsController } from './modules/controls.js';
           }
           if (!current) break;
           open.delete(current.key);
+          if (!bestNode || current.h < bestNode.h || (current.h === bestNode.h && current.g < bestNode.g)) {
+            bestNode = current;
+          }
           if (current.key === targetKey) {
             endNode = current;
             break;
@@ -4046,7 +4277,7 @@ import { createControlsController } from './modules/controls.js';
             const h = heuristic(pos, gridToWorld(targetIdx, model));
             const existing = open.get(key);
             if (!existing || g < existing.g) {
-              open.set(key, {
+              const nextNode = {
                 i: ni,
                 j: nj,
                 key,
@@ -4055,18 +4286,42 @@ import { createControlsController } from './modules/controls.js';
                 h,
                 f: g + h,
                 parent: current
-              });
+              };
+              open.set(key, nextNode);
+              if (!bestNode || nextNode.h < bestNode.h || (nextNode.h === bestNode.h && nextNode.g < bestNode.g)) {
+                bestNode = nextNode;
+              }
             }
           }
         }
 
-        if (!endNode) return null;
-        const gridPath = reconstructGridPath(endNode).map((n) => n.pos);
-        if (!gridPath.length) return null;
-        let points = [start].concat(gridPath).concat([target]);
-        points = smoothMovementPath(points, model);
-        if (points.length < 2) return null;
-        return points;
+        if (endNode) {
+          const gridPath = reconstructGridPath(endNode).map((n) => n.pos);
+          if (!gridPath.length) return null;
+          let points = [start].concat(gridPath).concat([target]);
+          points = smoothMovementPath(points, model);
+          if (points.length < 2) return null;
+          return {
+            path: points,
+            partial: false,
+            blockedBy: null,
+            blockedAt: null
+          };
+        }
+
+        const partialNode = bestNode || startNode;
+        const partialGridPath = reconstructGridPath(partialNode).map((n) => n.pos);
+        let partialPoints = [start].concat(partialGridPath);
+        partialPoints = smoothMovementPath(partialPoints, model);
+        if (!Array.isArray(partialPoints) || !partialPoints.length) partialPoints = [start];
+        const partialEnd = partialPoints[partialPoints.length - 1] || start;
+        const blocked = findBlockingPortalBetween(partialEnd, target, model) || directBlock;
+        return {
+          path: partialPoints,
+          partial: true,
+          blockedBy: blocked && blocked.blocker ? blocked.blocker : null,
+          blockedAt: blocked && blocked.point ? blocked.point : null
+        };
       }
 
       function applyEntityWorldPosition(entity, world, floorId, poiId, battleId) {
@@ -4173,10 +4428,23 @@ import { createControlsController } from './modules/controls.js';
         if (!token || !targetWorld || !floor || !token.__entity) return false;
         const start = tokenWorldCenter(token);
         if (!start) return false;
-        const path = computeMovementPath(start, targetWorld, floor);
-        if (!Array.isArray(path) || path.length < 2) return false;
-        const pathPoints = path.slice(1);
-        if (!pathPoints.length) return false;
+        const pathResult = computeMovementPath(start, targetWorld, floor);
+        const points = pathResult && Array.isArray(pathResult.path) ? pathResult.path : null;
+        if (!points || points.length < 2) {
+          if (pathResult && pathResult.partial && saveStatus) {
+            const blockerLabel = formatMovementBlockerLabel(pathResult.blockedBy);
+            saveStatus.textContent = `Path blocked by ${blockerLabel}. Waiting for DM.`;
+          }
+          return false;
+        }
+        const pathPoints = points.slice(1);
+        if (!pathPoints.length) {
+          if (pathResult && pathResult.partial && saveStatus) {
+            const blockerLabel = formatMovementBlockerLabel(pathResult.blockedBy);
+            saveStatus.textContent = `Path blocked by ${blockerLabel}. Waiting for DM.`;
+          }
+          return false;
+        }
         const tokenId = String(token.id || entityPrimaryId(token.__entity) || '');
         if (!tokenId) return false;
         pushHistory();
@@ -4192,6 +4460,10 @@ import { createControlsController } from './modules/controls.js';
           speedPerTick: Number(MOVEMENT.speedPerTick) || GRID.size,
           path: pathPoints
         });
+        if (pathResult && pathResult.partial && saveStatus) {
+          const blockerLabel = formatMovementBlockerLabel(pathResult.blockedBy);
+          saveStatus.textContent = `Path blocked by ${blockerLabel}. Waiting for DM.`;
+        }
         startMovementTicker();
         return true;
       }
@@ -4493,6 +4765,7 @@ import { createControlsController } from './modules/controls.js';
         });
         objectOpenings.forEach(entry => drawOpening(entry.opening, floor, objectLayer.ctx, entry.fogState));
         normalObjects.forEach((obj, idx) => drawObject(obj, idx, objectLayer.ctx));
+        drawMovementPreviewLayer(floor, tokenLayer.ctx);
         tokens.forEach(t => drawToken(t, tokenLayer.ctx));
         tokenOpenings.forEach(entry => drawOpening(entry.opening, floor, tokenLayer.ctx, entry.fogState));
         poiObjects.forEach((obj, idx) => drawObject(obj, idx, tokenLayer.ctx));
@@ -5289,15 +5562,28 @@ import { createControlsController } from './modules/controls.js';
           if (!editorMode) {
             if (sel && sel.type === 'token') {
               selectItem(sel.type, sel.item, sel.floorId);
+              const tokenWorld = tokenWorldCenter(sel.item);
+              const tokenHex = tokenWorld ? worldToHex(tokenWorld) : worldToHex(world);
+              setMovePreviewHoverHex(tokenHex, floor.id);
+              render();
               return;
             }
             const current = EDITOR.selection;
             if (current && current.type === 'token') {
               const moved = queueTokenMoveToWorld(current.item, world, floor);
-              if (!moved && !sel) clearSelection();
+              if (moved) {
+                setMovePreviewHoverHex(worldToHex(world), floor.id);
+                render();
+              } else if (!sel) {
+                clearSelection();
+                clearMovePreviewHover();
+                render();
+              }
               return;
             }
             clearSelection();
+            clearMovePreviewHover();
+            render();
             return;
           }
           if (sel) selectItem(sel.type, sel.item, sel.floorId);
@@ -5378,13 +5664,17 @@ import { createControlsController } from './modules/controls.js';
           const openHex = openingHexFromWorld(snapped);
           const openLabel = openingHexLabelFromCoords(openHex.col, openHex.row) || hexLabel;
           pushHistory();
+          const openingKind = EDITOR.openingKind || 'door.wood';
           const opening = {
             id: 'opening_' + Date.now().toString(36),
-            kind: EDITOR.openingKind || 'door.wood',
+            kind: openingKind,
             hex: openLabel,
             orientation: EDITOR.openingOrientation || 'h',
             openPct: 0
           };
+          if (openingKindCategory({ kind: openingKind }) === 'door') {
+            opening.state = 'locked';
+          }
           floor.openings.push(opening);
           selectItem('opening', opening, floor.id);
           EDITOR.dirty = true;
@@ -5804,6 +6094,30 @@ import { createControlsController } from './modules/controls.js';
           const snapWorld = hexToWorld(hex.col, hex.row);
           EDITOR.polyHover = { hex, world: snapWorld };
           render();
+        });
+
+        canvas.addEventListener('mousemove', (ev) => {
+          if (EDITOR.drag) return;
+          if (editorMode || EDITOR.tool !== 'select') {
+            if (clearMovePreviewHover()) render();
+            return;
+          }
+          const floor = pickFloor();
+          const sel = EDITOR.selection;
+          if (!floor || !sel || sel.type !== 'token' || !sel.item || !tokenMatchesFloor(sel.item, floor.id)) {
+            if (clearMovePreviewHover()) render();
+            return;
+          }
+          const rect = canvas.getBoundingClientRect();
+          const x = ev.clientX - rect.left;
+          const y = ev.clientY - rect.top;
+          const world = screenToWorld(x, y);
+          const hex = worldToHex(world);
+          if (setMovePreviewHoverHex(hex, floor.id)) render();
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+          if (clearMovePreviewHover()) render();
         });
 
         window.addEventListener('mouseup', () => {
