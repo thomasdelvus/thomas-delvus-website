@@ -1,7 +1,7 @@
 # Battlemat3 Testing and Parity Guide
 
-Version: v1.02  
-Updated: 2026-02-11
+Version: v1.03  
+Updated: 2026-02-16
 
 ## Testing Strategy
 
@@ -16,7 +16,8 @@ Scripts:
 
 1. `src/test/battlemat3/parity_dom_contract.mjs`
 2. `src/test/battlemat3/parity_runtime_contract.mjs`
-3. `src/test/battlemat3/run.mjs`
+3. `src/test/battlemat3/regression_behavior_contract.mjs`
+4. `src/test/battlemat3/run.mjs`
 
 Command:
 
@@ -31,6 +32,10 @@ Validation focus:
 5. query parameter usage parity
 6. fetch call-site parity
 7. required PUT/PATCH/chat signatures
+8. movement cadence and destination snap contracts
+9. default locked-door placement contract
+10. blocked-path cue/message contract
+11. save-time opening normalization contract
 
 ## Manual Parity Matrix
 
@@ -70,6 +75,19 @@ Run these on each meaningful change set:
    1. pan across map with multiple weathered roofs visible
    2. confirm no stutter spike after first render warm-up
    3. confirm no blackout/errors in console
+11. movement UX pass:
+   1. select token in play mode and confirm yellow start hex highlight
+   2. hover map and confirm blue destination preview hex
+   3. click destination and confirm yellow anchor jumps to planned stop
+   4. confirm token lands centered on target hex
+12. blocked path pass:
+   1. click to an unreachable destination behind locked gate/door
+   2. confirm token walks to closest reachable approach point
+   3. confirm red blocked cue pulse and `Waiting for DM` status message
+13. opening persistence pass:
+   1. place new door and confirm initial state is `locked`
+   2. save and reload
+   3. confirm `kind/state/openPct/orientation/floorId` persisted
 
 ## Micro-Batch Validation Pattern
 

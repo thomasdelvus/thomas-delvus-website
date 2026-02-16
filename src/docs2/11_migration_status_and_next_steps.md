@@ -1,7 +1,7 @@
 # Battlemat3 Migration Status and Next Steps
 
-Version: v1.01  
-Updated: 2026-02-11
+Version: v1.02  
+Updated: 2026-02-16
 
 ## Completed Milestones
 
@@ -20,6 +20,13 @@ Updated: 2026-02-11
    2. deterministic seeded render maps
    3. roof inspector controls
    4. cache/performance hardening
+6. Movement and portal closeout completed:
+   1. click-to-move pathing with wall/portal constraints
+   2. destination snap-to-hex landing
+   3. selected/hover/blocked movement hex cues
+   4. blocked-path `Waiting for DM` messaging
+   5. save-time opening normalization and locked-door default placement
+   6. regression behavior contract automation
 
 ## Current Runtime Snapshot
 
@@ -45,6 +52,9 @@ Updated: 2026-02-11
 4. Roof weathering visual QA:
    1. deterministic appearance under pan/zoom
    2. slider persistence across save/reload
+5. Portal interaction policy QA:
+   1. blocked destinations in mixed door/gate layouts
+   2. final DM/autonomy rule decisions for lockpick/forced entry flow
 
 ## Recommended Next Work (Post-Docs)
 

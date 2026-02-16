@@ -5,6 +5,7 @@ const root = process.cwd();
 const tests = [
   "src/test/battlemat3/parity_dom_contract.mjs",
   "src/test/battlemat3/parity_runtime_contract.mjs",
+  "src/test/battlemat3/regression_behavior_contract.mjs",
 ];
 
 let failed = false;

@@ -99,7 +99,10 @@ import { createControlsController } from './modules/controls.js';
         floorId: '',
         anchorHex: null,
         anchorFloorId: '',
-        anchorTokenId: ''
+        anchorTokenId: '',
+        blockedHex: null,
+        blockedFloorId: '',
+        blockedUntilMs: 0
       };
       const EDITOR = {
         tool: 'select',
@@ -622,10 +625,33 @@ import { createControlsController } from './modules/controls.js';
         return true;
       }
 
+      function clearMoveBlockedCue() {
+        if (!MOVE_PREVIEW.blockedHex && !MOVE_PREVIEW.blockedFloorId && !MOVE_PREVIEW.blockedUntilMs) return false;
+        MOVE_PREVIEW.blockedHex = null;
+        MOVE_PREVIEW.blockedFloorId = '';
+        MOVE_PREVIEW.blockedUntilMs = 0;
+        return true;
+      }
+
+      function setMoveBlockedCue(hex, floorId, durationMs = 2200) {
+        if (!hex || !Number.isFinite(Number(hex.col)) || !Number.isFinite(Number(hex.row))) {
+          return clearMoveBlockedCue();
+        }
+        const col = Number(hex.col);
+        const row = Number(hex.row);
+        const floor = String(floorId == null ? '' : floorId);
+        const until = Date.now() + Math.max(300, Number(durationMs) || 2200);
+        MOVE_PREVIEW.blockedHex = { col, row };
+        MOVE_PREVIEW.blockedFloorId = floor;
+        MOVE_PREVIEW.blockedUntilMs = until;
+        return true;
+      }
+
       function clearMovePreviewAll() {
         const changedHover = clearMovePreviewHover();
         const changedAnchor = clearMovePreviewAnchor();
-        return changedHover || changedAnchor;
+        const changedBlocked = clearMoveBlockedCue();
+        return changedHover || changedAnchor || changedBlocked;
       }
 
       function setMovePreviewHoverHex(hex, floorId) {
@@ -762,7 +788,17 @@ import { createControlsController } from './modules/controls.js';
           const row = Number(MOVE_PREVIEW.hoverHex.row);
           if (Number.isFinite(col) && Number.isFinite(row)) hoverHex = { col, row };
         }
-        return { selectedHex, hoverHex };
+        let blockedHex = null;
+        if (MOVE_PREVIEW.blockedUntilMs && Date.now() <= Number(MOVE_PREVIEW.blockedUntilMs || 0)) {
+          if (MOVE_PREVIEW.blockedHex && String(MOVE_PREVIEW.blockedFloorId) === String(floor.id)) {
+            const bCol = Number(MOVE_PREVIEW.blockedHex.col);
+            const bRow = Number(MOVE_PREVIEW.blockedHex.row);
+            if (Number.isFinite(bCol) && Number.isFinite(bRow)) blockedHex = { col: bCol, row: bRow };
+          }
+        } else if (MOVE_PREVIEW.blockedUntilMs) {
+          clearMoveBlockedCue();
+        }
+        return { selectedHex, hoverHex, blockedHex };
       }
 
       function drawMovementPreviewLayer(floor, gctx) {
@@ -785,6 +821,17 @@ import { createControlsController } from './modules/controls.js';
             lineWidth: Math.max(1.2, 1.7 * VIEW.zoom),
             dash: [6, 4],
             sizeScale: 0.88
+          });
+        }
+        if (preview.blockedHex) {
+          drawHexHighlight(gctx, preview.blockedHex, {
+            fill: 'rgba(255, 82, 82, 0.20)',
+            stroke: 'rgba(255, 132, 132, 0.98)',
+            shadowColor: 'rgba(255, 86, 86, 0.65)',
+            shadowBlur: Math.max(9, 17 * VIEW.zoom),
+            lineWidth: Math.max(1.3, 2.0 * VIEW.zoom),
+            dash: [5, 3],
+            sizeScale: 0.84
           });
         }
       }
@@ -4492,11 +4539,16 @@ import { createControlsController } from './modules/controls.js';
         const start = tokenWorldCenter(token);
         if (!start) return false;
         const pathResult = computeMovementPath(start, targetWorld, floor);
+        const partialBlockWorld = pathResult && pathResult.blockedAt
+          ? pathResult.blockedAt
+          : (pathResult && pathResult.blockedBy && pathResult.blockedBy.world ? pathResult.blockedBy.world : null);
+        const partialBlockHex = partialBlockWorld ? worldToHex(partialBlockWorld) : null;
         const points = pathResult && Array.isArray(pathResult.path) ? pathResult.path : null;
         if (!points || points.length < 2) {
           if (pathResult && pathResult.partial && saveStatus) {
             const blockerLabel = formatMovementBlockerLabel(pathResult.blockedBy);
             saveStatus.textContent = `Path blocked by ${blockerLabel}. Waiting for DM.`;
+            if (partialBlockHex) setMoveBlockedCue(partialBlockHex, floor.id);
           }
           return false;
         }
@@ -4505,6 +4557,7 @@ import { createControlsController } from './modules/controls.js';
           if (pathResult && pathResult.partial && saveStatus) {
             const blockerLabel = formatMovementBlockerLabel(pathResult.blockedBy);
             saveStatus.textContent = `Path blocked by ${blockerLabel}. Waiting for DM.`;
+            if (partialBlockHex) setMoveBlockedCue(partialBlockHex, floor.id);
           }
           return false;
         }
@@ -4532,6 +4585,9 @@ import { createControlsController } from './modules/controls.js';
         if (pathResult && pathResult.partial && saveStatus) {
           const blockerLabel = formatMovementBlockerLabel(pathResult.blockedBy);
           saveStatus.textContent = `Path blocked by ${blockerLabel}. Waiting for DM.`;
+          if (partialBlockHex) setMoveBlockedCue(partialBlockHex, floor.id);
+        } else {
+          clearMoveBlockedCue();
         }
         startMovementTicker();
         return true;
@@ -5443,6 +5499,7 @@ import { createControlsController } from './modules/controls.js';
         if (!source || !target) return;
         source.openings = source.openings.filter(o => o !== opening);
         if (!Array.isArray(target.openings)) target.openings = [];
+        opening.floorId = floorId;
         target.openings.push(opening);
         EDITOR.selection.floorId = floorId;
       }
@@ -5743,6 +5800,7 @@ import { createControlsController } from './modules/controls.js';
             id: 'opening_' + Date.now().toString(36),
             kind: openingKind,
             hex: openLabel,
+            floorId: floor.id,
             orientation: EDITOR.openingOrientation || 'h',
             openPct: 0
           };
