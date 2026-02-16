@@ -5645,7 +5645,9 @@ import { createControlsController } from './modules/controls.js';
             }
             const current = EDITOR.selection;
             if (current && current.type === 'token') {
-              const moved = queueTokenMoveToWorld(current.item, world, floor);
+              const destinationHex = worldToHex(world);
+              const destinationWorld = hexToWorld(destinationHex.col, destinationHex.row);
+              const moved = queueTokenMoveToWorld(current.item, destinationWorld, floor);
               if (moved) {
                 render();
               } else if (!sel) {
