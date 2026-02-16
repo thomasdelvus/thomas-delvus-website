@@ -4154,8 +4154,13 @@ import { createControlsController } from './modules/controls.js';
           if (!detail || detail.colinear) continue;
           const atMoveEndpoint = detail.t <= 0.001 || detail.t >= 0.999;
           const atWallEndpoint = detail.u <= 0.001 || detail.u >= 0.999;
-          if (atMoveEndpoint && atWallEndpoint) continue;
-          if (pointInIntervals(detail.u, model.doorIntervals.get(i))) continue;
+          const allowed = pointInIntervals(detail.u, model.doorIntervals.get(i));
+          if (atMoveEndpoint && atWallEndpoint) {
+            // Prevent corner-cutting through closed walls/gates at shared vertices.
+            if (allowed) continue;
+          } else if (allowed) {
+            continue;
+          }
           if (!best || detail.t < best.detail.t) {
             best = { wallIndex: i, detail, point: detail.point };
           }
@@ -4174,8 +4179,12 @@ import { createControlsController } from './modules/controls.js';
           if (detail.colinear) return true;
           const atMoveEndpoint = detail.t <= 0.001 || detail.t >= 0.999;
           const atWallEndpoint = detail.u <= 0.001 || detail.u >= 0.999;
-          if (atMoveEndpoint && atWallEndpoint) continue;
           const allowed = pointInIntervals(detail.u, model.doorIntervals.get(i));
+          if (atMoveEndpoint && atWallEndpoint) {
+            // Shared-vertex crossings are only legal through passable portal apertures.
+            if (allowed) continue;
+            return true;
+          }
           if (allowed) continue;
           return true;
         }
