@@ -3957,11 +3957,46 @@ import { createControlsController } from './modules/controls.js';
         return { kind, state, passable, label };
       }
 
+      function movementRoomsWithOpenings(floor) {
+        const roomIds = new Set();
+        if (!floor || !Array.isArray(floor.rooms) || !Array.isArray(floor.openings)) return roomIds;
+        const rooms = filterAlive(floor.rooms || []);
+        if (!rooms.length) return roomIds;
+        const wallCandidates = buildWallSegments(rooms);
+        if (!wallCandidates.length) return roomIds;
+        for (const opening of filterAlive(floor.openings || [])) {
+          const parentId = openingParentRoomId(opening);
+          if (parentId) roomIds.add(String(parentId));
+          const world = openingWorldCenter(opening, floor);
+          if (!world) continue;
+          let bestIdx = -1;
+          let bestD2 = Infinity;
+          for (let i = 0; i < wallCandidates.length; i++) {
+            const d2 = wallSegDistance2(wallCandidates[i], world);
+            if (d2 < bestD2) {
+              bestD2 = d2;
+              bestIdx = i;
+            }
+          }
+          if (bestIdx >= 0) {
+            const rid = wallCandidates[bestIdx] && wallCandidates[bestIdx].roomId != null
+              ? String(wallCandidates[bestIdx].roomId)
+              : '';
+            if (rid) roomIds.add(rid);
+          }
+        }
+        return roomIds;
+      }
+
       function movementWallSegments(floor) {
         if (!floor || !Array.isArray(floor.rooms)) return [];
         const out = [];
+        const forcedRoomIds = movementRoomsWithOpenings(floor);
         for (const room of filterAlive(floor.rooms)) {
-          if (!roomHasWalls(room)) continue;
+          const roomId = room && room.id != null ? String(room.id) : '';
+          const forcedByOpening = roomId ? forcedRoomIds.has(roomId) : false;
+          if (!roomHasWalls(room) && !forcedByOpening) continue;
+          if (roomWallKind(room) === 'none') continue;
           const pts = roomWorldPoints(room);
           if (pts.length < 2) continue;
           const hidden = getPolyEdgeHiddenSet(room);

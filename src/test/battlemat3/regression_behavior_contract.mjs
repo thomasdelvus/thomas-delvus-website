@@ -58,6 +58,18 @@ assertPattern(
 );
 
 assertPattern(
+  mainJs,
+  /function\s+movementRoomsWithOpenings\(floor\)/,
+  "movement opening-room fallback wall contract helper present",
+);
+
+assertPattern(
+  mainJs,
+  /if\s*\(!roomHasWalls\(room\)\s*&&\s*!forcedByOpening\)\s*continue;/,
+  "movement wall inclusion uses opening-forced fallback",
+);
+
+assertPattern(
   historyJs,
   /function\s+normalizeOpeningsForSave\(battle\)/,
   "save-time opening normalization helper present",
