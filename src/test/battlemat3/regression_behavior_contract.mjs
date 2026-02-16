@@ -59,8 +59,56 @@ assertPattern(
 
 assertPattern(
   mainJs,
+  /const\s+MOVEMENT\s*=\s*\{[\s\S]*?geometryCache:\s*new\s+Map\(\)[\s\S]*?\}/,
+  "movement geometry cache container contract",
+);
+
+assertPattern(
+  mainJs,
+  /function\s+getMovementPortalWindowsCached\(floor,\s*step\)/,
+  "movement portal-window cache helper present",
+);
+
+assertPattern(
+  mainJs,
+  /const\s+cached\s*=\s*getMovementPortalWindowsCached\(floor,\s*step\);[\s\S]*?const\s+walls\s*=\s*Array\.isArray\(cached\.walls\)\s*\?\s*cached\.walls\s*:\s*\[\]/,
+  "buildMovementModel consumes cached movement geometry",
+);
+
+assertPattern(
+  mainJs,
+  /if\s*\(dy\s*<\s*-0\.0001\)\s*row\s*=\s*Math\.floor\(rowf\);\s*else\s+if\s*\(dy\s*>\s*0\.0001\)\s*row\s*=\s*Math\.ceil\(rowf\);/,
+  "half-row directional rounding contract for blocked stops",
+);
+
+assertPattern(
+  mainJs,
+  /directionalBias:\s*!!\(pathResult\s*&&\s*pathResult\.partial\)/,
+  "blocked-stop directional bias is applied only for partial routes",
+);
+
+assertPattern(
+  mainJs,
+  /showPathfindingStatus\s*=\s*!!saveStatus\s*&&\s*solveElapsedMs\s*>\s*150/,
+  "pathfinding latency threshold contract (>150ms)",
+);
+
+assertPattern(
+  mainJs,
+  /`Pathfinding\.\.\. \$\{Math\.round\(solveElapsedMs\)\}ms`/,
+  "pathfinding latency status message contract",
+);
+
+assertPattern(
+  mainJs,
   /function\s+movementRoomsWithOpenings\(floor\)/,
   "movement opening-room fallback wall contract helper present",
+);
+
+assertPattern(
+  mainJs,
+  /for\s*\(const\s+opening\s+of\s+filterAlive\(floor\.openings\s*\|\|\s*\[\]\)\)/,
+  "opening-room fallback scans live openings",
 );
 
 assertPattern(

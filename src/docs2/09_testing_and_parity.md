@@ -1,6 +1,6 @@
 # Battlemat3 Testing and Parity Guide
 
-Version: v1.03  
+Version: v1.04  
 Updated: 2026-02-16
 
 ## Testing Strategy
@@ -9,6 +9,12 @@ Use two layers:
 
 1. Contract automation for fast regression checks.
 2. Manual interaction validation for behavior and rendering parity.
+
+## Latest Result
+
+1. Full checklist execution reported complete on 2026-02-16.
+2. No additional movement/pathing issues reported after final gate, snap, and render-order fixes.
+3. Current movement status is `stable` pending only net-new defects from live play.
 
 ## Automated Contract Checks
 
@@ -36,6 +42,8 @@ Validation focus:
 9. default locked-door placement contract
 10. blocked-path cue/message contract
 11. save-time opening normalization contract
+12. movement geometry cache contract
+13. pathfinding latency status cue contract
 
 ## Manual Parity Matrix
 
@@ -80,14 +88,21 @@ Run these on each meaningful change set:
    2. hover map and confirm blue destination preview hex
    3. click destination and confirm yellow anchor jumps to planned stop
    4. confirm token lands centered on target hex
+   5. verify tokens remain drawn above doors/windows on token layer
 12. blocked path pass:
    1. click to an unreachable destination behind locked gate/door
    2. confirm token walks to closest reachable approach point
    3. confirm red blocked cue pulse and `Waiting for DM` status message
+   4. confirm half-row blocked stops choose side by approach direction:
+      1. from south -> lower numbered hex
+      2. from north -> higher numbered hex
 13. opening persistence pass:
    1. place new door and confirm initial state is `locked`
    2. save and reload
    3. confirm `kind/state/openPct/orientation/floorId` persisted
+14. pathfinding latency cue pass:
+   1. trigger a long route search
+   2. confirm temporary `Pathfinding... <ms>` status appears when solve time exceeds threshold
 
 ## Micro-Batch Validation Pattern
 

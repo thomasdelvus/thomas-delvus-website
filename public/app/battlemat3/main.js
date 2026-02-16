@@ -92,7 +92,8 @@ import { createControlsController } from './modules/controls.js';
         tickMs: 250,
         speedPerTick: GRID.size * 0.375,
         timer: null,
-        jobs: new Map()
+        jobs: new Map(),
+        geometryCache: new Map()
       };
       const MOVE_PREVIEW = {
         hoverHex: null,
@@ -4012,6 +4013,99 @@ import { createControlsController } from './modules/controls.js';
         return out;
       }
 
+      function movementHashMix(hash, value) {
+        let next = hash >>> 0;
+        const text = String(value == null ? '' : value);
+        for (let i = 0; i < text.length; i++) {
+          next ^= text.charCodeAt(i);
+          next = Math.imul(next, 16777619);
+        }
+        return next >>> 0;
+      }
+
+      function movementHashNumber(hash, value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return movementHashMix(hash, 'nan');
+        const normalized = Math.round(n * 1000) / 1000;
+        return movementHashMix(hash, normalized);
+      }
+
+      function movementFloorGeometryFingerprint(floor) {
+        let hash = 2166136261;
+        if (!floor || typeof floor !== 'object') return String(hash >>> 0);
+        hash = movementHashMix(hash, floor.id || '');
+
+        const rooms = filterAlive(floor.rooms || []);
+        hash = movementHashNumber(hash, rooms.length);
+        for (const room of rooms) {
+          hash = movementHashMix(hash, room && room.id != null ? String(room.id) : '');
+          hash = movementHashNumber(hash, room && room.thickness != null ? room.thickness : 0);
+          hash = movementHashMix(hash, roomWallKind(room));
+          const labels = roomPointLabels(room);
+          hash = movementHashNumber(hash, labels.length);
+          for (const label of labels) {
+            hash = movementHashMix(hash, String(label || ''));
+          }
+          const hidden = Array.from(getPolyEdgeHiddenSet(room)).sort((a, b) => a - b);
+          hash = movementHashNumber(hash, hidden.length);
+          for (const edgeIdx of hidden) {
+            hash = movementHashNumber(hash, edgeIdx);
+          }
+        }
+
+        const openings = filterAlive(floor.openings || []);
+        hash = movementHashNumber(hash, openings.length);
+        for (const opening of openings) {
+          hash = movementHashMix(hash, opening && opening.id != null ? String(opening.id) : '');
+          hash = movementHashMix(hash, opening && opening.kind != null ? String(opening.kind) : '');
+          hash = movementHashMix(hash, opening && opening.hex != null ? String(opening.hex) : '');
+          hash = movementHashMix(hash, opening && opening.orientation != null ? String(opening.orientation) : '');
+          hash = movementHashMix(hash, openingStateValue(opening));
+          hash = movementHashNumber(hash, opening && opening.openPct != null ? opening.openPct : (opening && opening.open != null ? opening.open : 0));
+          hash = movementHashNumber(hash, opening && opening.len != null ? opening.len : (opening && opening.length != null ? opening.length : (opening && opening.size != null ? opening.size : 0)));
+          hash = movementHashNumber(hash, opening && opening.thickness != null ? opening.thickness : (opening && opening.thick != null ? opening.thick : 0));
+        }
+        return String(hash >>> 0);
+      }
+
+      function movementPortalStepKey(step) {
+        const n = Number(step);
+        if (!Number.isFinite(n) || n <= 0) return '0.000';
+        return (Math.round(n * 1000) / 1000).toFixed(3);
+      }
+
+      function getMovementGeometryCacheEntry(floor) {
+        if (!floor || typeof floor !== 'object') return null;
+        const fingerprint = movementFloorGeometryFingerprint(floor);
+        const cached = MOVEMENT.geometryCache.get(floor);
+        if (cached && cached.fingerprint === fingerprint) return cached;
+        const entry = {
+          fingerprint,
+          walls: movementWallSegments(floor),
+          portalWindowsByStep: new Map()
+        };
+        MOVEMENT.geometryCache.set(floor, entry);
+        return entry;
+      }
+
+      function getMovementPortalWindowsCached(floor, step) {
+        const empty = { passIntervals: new Map(), blockingPortalsByWall: new Map(), blockingPortals: [] };
+        const entry = getMovementGeometryCacheEntry(floor);
+        if (!entry) return { walls: [], portalWindows: empty };
+        const stepKey = movementPortalStepKey(step);
+        let portalWindows = entry.portalWindowsByStep.get(stepKey);
+        if (!portalWindows) {
+          portalWindows = movementPortalWindows(floor, entry.walls, step);
+          entry.portalWindowsByStep.set(stepKey, portalWindows);
+          const maxStepVariants = 8;
+          if (entry.portalWindowsByStep.size > maxStepVariants) {
+            const first = entry.portalWindowsByStep.keys().next();
+            if (!first.done) entry.portalWindowsByStep.delete(first.value);
+          }
+        }
+        return { walls: entry.walls, portalWindows };
+      }
+
       function nearestWallIndexForPoint(point, walls) {
         if (!point || !Array.isArray(walls) || !walls.length) return -1;
         let best = -1;
@@ -4268,8 +4362,9 @@ import { createControlsController } from './modules/controls.js';
           height = Math.max(step, bounds.maxY - bounds.minY);
           cells = (width / step) * (height / step);
         }
-        const walls = movementWallSegments(floor);
-        const portalWindows = movementPortalWindows(floor, walls, step);
+        const cached = getMovementPortalWindowsCached(floor, step);
+        const walls = Array.isArray(cached.walls) ? cached.walls : [];
+        const portalWindows = cached.portalWindows || { passIntervals: new Map(), blockingPortalsByWall: new Map(), blockingPortals: [] };
         const doorIntervals = portalWindows.passIntervals;
         const preferredClearance = Math.max(step * 0.95, GRID.size * 0.95);
         const clearancePenaltyScale = Math.max(step * 1.3, GRID.size * 1.2);
@@ -4621,7 +4716,29 @@ import { createControlsController } from './modules/controls.js';
         if (!token || !targetWorld || !floor || !token.__entity) return false;
         const start = tokenWorldCenter(token);
         if (!start) return false;
+        const nowMs = (typeof performance !== 'undefined' && performance && typeof performance.now === 'function')
+          ? () => performance.now()
+          : () => Date.now();
+        const priorStatusText = saveStatus ? String(saveStatus.textContent || '') : '';
+        const solveStartedAt = nowMs();
         const pathResult = computeMovementPath(start, targetWorld, floor);
+        const solveElapsedMs = Math.max(0, nowMs() - solveStartedAt);
+        const showPathfindingStatus = !!saveStatus && solveElapsedMs > 150;
+        const pathfindingStatusText = showPathfindingStatus ? `Pathfinding... ${Math.round(solveElapsedMs)}ms` : '';
+        const restorePathfindingStatus = () => {
+          if (!showPathfindingStatus || !saveStatus) return;
+          const expected = pathfindingStatusText;
+          const restore = priorStatusText;
+          setTimeout(() => {
+            if (!saveStatus) return;
+            if (String(saveStatus.textContent || '') === expected) {
+              saveStatus.textContent = restore;
+            }
+          }, 1200);
+        };
+        if (showPathfindingStatus && saveStatus) {
+          saveStatus.textContent = pathfindingStatusText;
+        }
         const partialBlockWorld = pathResult && pathResult.blockedAt
           ? pathResult.blockedAt
           : (pathResult && pathResult.blockedBy && pathResult.blockedBy.world ? pathResult.blockedBy.world : null);
@@ -4632,6 +4749,8 @@ import { createControlsController } from './modules/controls.js';
             const blockerLabel = formatMovementBlockerLabel(pathResult.blockedBy);
             saveStatus.textContent = `Path blocked by ${blockerLabel}. Waiting for DM.`;
             if (partialBlockHex) setMoveBlockedCue(partialBlockHex, floor.id);
+          } else {
+            restorePathfindingStatus();
           }
           return false;
         }
@@ -4641,6 +4760,8 @@ import { createControlsController } from './modules/controls.js';
             const blockerLabel = formatMovementBlockerLabel(pathResult.blockedBy);
             saveStatus.textContent = `Path blocked by ${blockerLabel}. Waiting for DM.`;
             if (partialBlockHex) setMoveBlockedCue(partialBlockHex, floor.id);
+          } else {
+            restorePathfindingStatus();
           }
           return false;
         }
@@ -4679,6 +4800,7 @@ import { createControlsController } from './modules/controls.js';
           if (partialBlockHex) setMoveBlockedCue(partialBlockHex, floor.id);
         } else {
           clearMoveBlockedCue();
+          restorePathfindingStatus();
         }
         startMovementTicker();
         return true;

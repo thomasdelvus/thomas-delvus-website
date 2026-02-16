@@ -1,6 +1,6 @@
 # Battlemat3 Migration Status and Next Steps
 
-Version: v1.02  
+Version: v1.03  
 Updated: 2026-02-16
 
 ## Completed Milestones
@@ -35,6 +35,12 @@ Updated: 2026-02-16
 3. `modules/*` own extracted cross-cutting concerns.
 4. Undo controls now route through history module with key-repeat guard.
 
+## Stability Status
+
+1. Movement/pathing subsystem status: `stable`.
+2. Full manual `09_testing_and_parity` pass completed on 2026-02-16 with no additional movement regressions reported.
+3. Automated parity and regression suite passing (`npm run test:battlemat3`).
+
 ## Known Constraints
 
 1. Full-state save mode remains active by decision.
@@ -43,26 +49,24 @@ Updated: 2026-02-16
 
 ## Outstanding Validation
 
-1. Full manual parity pass on active data sets.
-2. Automated script execution requires Node environment availability.
-3. Regression sweep for edge interactions:
+1. Regression sweep for edge interactions outside movement:
    1. roof/room handle workflows
    2. token drag + entity patch
    3. chat poll/send under intermittent backend latency
-4. Roof weathering visual QA:
+2. Roof weathering visual QA:
    1. deterministic appearance under pan/zoom
    2. slider persistence across save/reload
-5. Portal interaction policy QA:
+3. Portal interaction policy QA:
    1. blocked destinations in mixed door/gate layouts
    2. final DM/autonomy rule decisions for lockpick/forced entry flow
 
 ## Recommended Next Work (Post-Docs)
 
-1. Run full manual parity checklist from `src/docs2/09_testing_and_parity.md`.
-2. Capture any remaining parity deltas as numbered defects.
-3. Triage deltas into:
-   1. must-fix before cutover
-   2. acceptable parity-equivalent behavior
+1. Treat movement as production-ready for regular gameplay use.
+2. Capture only net-new gameplay defects from active play sessions.
+3. Continue with autonomy/interaction policy work for:
+   1. lockpicking / forced entry
+   2. DM queue and deferred resolution behavior
 4. Produce cutover checklist:
    1. route readiness
    2. rollback path
