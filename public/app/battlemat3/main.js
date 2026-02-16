@@ -4982,9 +4982,9 @@ import { createControlsController } from './modules/controls.js';
         objectOpenings.forEach(entry => drawOpening(entry.opening, floor, objectLayer.ctx, entry.fogState));
         normalObjects.forEach((obj, idx) => drawObject(obj, idx, objectLayer.ctx));
         drawMovementPreviewLayer(floor, tokenLayer.ctx);
-        tokens.forEach(t => drawToken(t, tokenLayer.ctx));
         tokenOpenings.forEach(entry => drawOpening(entry.opening, floor, tokenLayer.ctx, entry.fogState));
         poiObjects.forEach((obj, idx) => drawObject(obj, idx, tokenLayer.ctx));
+        tokens.forEach(t => drawToken(t, tokenLayer.ctx));
         drawFogOverlay(fogRooms.explored, fogLayer.ctx);
 
         ctx.clearRect(0, 0, rect.width, rect.height);
