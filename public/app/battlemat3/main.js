@@ -4472,9 +4472,36 @@ import { createControlsController } from './modules/controls.js';
         };
       }
 
-      function snapMovementPointToHexCenter(point, floor) {
+      function worldToHexWithRowBias(point, approachPoint) {
+        if (!point) return worldToHex(point);
+        const size = GRID.size || 1;
+        const qf = (2 / 3) * (point.x / size);
+        const rf = ((-point.y) / size) / Math.sqrt(3) - (qf / 2);
+        const col = Math.round(qf);
+        const rowf = rf + (col - (col & 1)) / 2;
+        let row = Math.round(rowf);
+        if (approachPoint && Number.isFinite(approachPoint.y)) {
+          const dy = point.y - approachPoint.y;
+          const frac = Math.abs(rowf - Math.floor(rowf));
+          const onHalfRow = Math.abs(frac - 0.5) <= 0.08;
+          if (onHalfRow) {
+            // For blocked portal lines on .5 rows:
+            // approaching from south (moving north/up: dy < 0) -> lower numbered hex
+            // approaching from north (moving south/down: dy > 0) -> higher numbered hex
+            if (dy < -0.0001) row = Math.floor(rowf);
+            else if (dy > 0.0001) row = Math.ceil(rowf);
+          }
+        }
+        return { col, row };
+      }
+
+      function snapMovementPointToHexCenter(point, floor, options = {}) {
         if (!point || !floor) return point;
-        const hex = worldToHex(point);
+        const directionalBias = !!(options && options.directionalBias);
+        const approachPoint = options && options.approachPoint ? options.approachPoint : null;
+        const hex = directionalBias
+          ? worldToHexWithRowBias(point, approachPoint)
+          : worldToHex(point);
         const center = hexToWorld(hex.col, hex.row);
         const dx = center.x - point.x;
         const dy = center.y - point.y;
@@ -4619,7 +4646,11 @@ import { createControlsController } from './modules/controls.js';
         }
         const finalIndex = pathPoints.length - 1;
         if (finalIndex >= 0) {
-          pathPoints[finalIndex] = snapMovementPointToHexCenter(pathPoints[finalIndex], floor);
+          const approachPoint = finalIndex > 0 ? pathPoints[finalIndex - 1] : start;
+          pathPoints[finalIndex] = snapMovementPointToHexCenter(pathPoints[finalIndex], floor, {
+            directionalBias: !!(pathResult && pathResult.partial),
+            approachPoint
+          });
         }
         const tokenId = String(token.id || entityPrimaryId(token.__entity) || '');
         if (!tokenId) return false;
