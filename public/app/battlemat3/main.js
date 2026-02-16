@@ -4428,6 +4428,18 @@ import { createControlsController } from './modules/controls.js';
         };
       }
 
+      function snapMovementPointToHexCenter(point, floor) {
+        if (!point || !floor) return point;
+        const hex = worldToHex(point);
+        const center = hexToWorld(hex.col, hex.row);
+        const dx = center.x - point.x;
+        const dy = center.y - point.y;
+        if (Math.hypot(dx, dy) <= 0.001) return center;
+        const model = buildMovementModel(floor, point, center);
+        if (movementEdgeBlocked(point, center, model)) return point;
+        return center;
+      }
+
       function applyEntityWorldPosition(entity, world, floorId, poiId, battleId) {
         if (!entity || !world) return;
         if (!entity.location || typeof entity.location !== 'object') entity.location = {};
@@ -4560,6 +4572,10 @@ import { createControlsController } from './modules/controls.js';
             if (partialBlockHex) setMoveBlockedCue(partialBlockHex, floor.id);
           }
           return false;
+        }
+        const finalIndex = pathPoints.length - 1;
+        if (finalIndex >= 0) {
+          pathPoints[finalIndex] = snapMovementPointToHexCenter(pathPoints[finalIndex], floor);
         }
         const tokenId = String(token.id || entityPrimaryId(token.__entity) || '');
         if (!tokenId) return false;
